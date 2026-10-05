@@ -213,16 +213,20 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .outhead .sum { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .outrow.shut .outlist { display: none; }
 .ctrl-edit.filtering .outrow.shut .outlist { display: block; }
-.outlist { padding: 0 0 4px; }
-.outlist .ph { padding: 4px 12px 6px 34px; color: var(--muted); font-size: 12px; font-style: italic; }
+.outlist { padding: 2px 12px 8px 30px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.outlist .ph { padding: 2px 0 2px; color: var(--muted); font-size: 12px; font-style: italic; }
 /* fixed, compact columns, so a fixture's name, pixels, address and buttons read as one group */
-.prow { display: grid; grid-template-columns: 24px 8px minmax(60px, 140px) 44px 108px 44px 20px; justify-content: start; align-items: center; column-gap: 8px; height: 24px; padding: 0 12px 0 4px; font-size: 12px; cursor: pointer; }
+/* each fixture is a box you can grab: drag it to reorder, or use ↑ ↓ */
+.prow { display: grid; grid-template-columns: 8px 18px 8px minmax(60px, 140px) 44px 108px 44px 20px; justify-content: start; align-items: center; column-gap: 7px; height: 26px; padding: 0 4px 0 6px; font-size: 12px; cursor: grab; background: var(--bg3); border: 1px solid var(--line2); border-radius: 4px; }
+.prow:active { cursor: grabbing; }
 .prow[hidden], .outrow[hidden] { display: none; }
-.prow:hover { background: var(--bg3); }
-.prow.sel { background: var(--accent-soft); }
+.prow .pgrip { width: 6px; height: 12px; opacity: .45; background-image: radial-gradient(currentColor 1px, transparent 1.2px); background-size: 3px 3px; color: var(--text2); }
+.prow:hover { border-color: var(--muted); }
+.prow:hover .pgrip { opacity: .9; }
+.prow.sel { background: var(--accent-soft); border-color: var(--accent); }
 .prow.ovf .ad { color: var(--danger); }
 .prow.dragging { opacity: .4; }
-.prow.dropat { box-shadow: inset 0 2px 0 var(--accent); }
+.prow.dropat { box-shadow: 0 -3px 0 var(--accent); }
 .prow .ix { font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-align: right; }
 .prow .tag { width: 8px; height: 8px; border-radius: 2px; }
 .prow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -408,7 +412,7 @@ input[type=color] { width: 40px; height: 24px; padding: 0 2px; border: 1px solid
   .ctrl-list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 180px; }
   .outhead { grid-template-columns: 14px 52px 1fr; }
   .outhead .sum, .outhead .usage { grid-column: 2 / -1; }
-  .prow { grid-template-columns: 24px 8px minmax(60px, 1fr) 40px 44px 20px; }
+  .prow { grid-template-columns: 8px 18px 8px minmax(60px, 140px) 40px 44px 20px; }
   .prow .ad { display: none; }
   .monitor .mbody { grid-template-columns: 1fr; }
   .monitor .ulist { max-height: 120px; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -4007,7 +4011,7 @@ function renderCtrlEditor(edit, c) {
       const mv = (txt, d, off, label) => h('button', { type: 'button', disabled: off, title: label, 'aria-label': `${label}: ${fx.name}`, onclick: e => { e.stopPropagation(); moveOnOutput([fid], d); } }, txt);
       const row = h('div', { class: 'prow' + (ui.sel.has(fid) ? ' sel' : '') + (p && p.overflow ? ' ovf' : ''), draggable: true, 'data-id': fid, 'data-name': fx.name.toLowerCase(),
         title: `${fx.name} · ${pixelCount(fx)} px ${fx.order}${p && p.first >= 0 ? '\n' + addrText(p) : ''}${p && p.overflow ? `\n${p.overflow} pixels overflow` : ''}\n↑ ↓ or Alt ↑ ↓ move it on the output; drag to reorder` },
-        h('span', { class: 'ix' }, k + 1), h('span', { class: 'tag', style: { background: fx.tag } }), h('span', { class: 'nm' }, fx.name),
+        h('span', { class: 'pgrip', 'aria-hidden': 'true' }), h('span', { class: 'ix' }, k + 1), h('span', { class: 'tag', style: { background: fx.tag } }), h('span', { class: 'nm' }, fx.name),
         h('span', { class: 'px' }, pixelCount(fx) + ' px'), h('span', { class: 'ad' }, ad),
         h('span', { class: 'mv' }, mv('↑', -1, k === 0, 'Move earlier'), mv('↓', 1, k === chain.length - 1, 'Move later')),
         h('button', { class: 'x', type: 'button', title: 'Unpatch', 'aria-label': 'Unpatch ' + fx.name, onclick: e => { e.stopPropagation(); unassign(fid); markPatch(); commit(); renderRight(); } }, icon('x')));
