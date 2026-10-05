@@ -39,7 +39,7 @@ import time
 import urllib.parse
 import webbrowser
 
-VERSION = "0.5.2"
+VERSION = "0.5.3"
 HERE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 ARTNET_PORT = 6454
 WS_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"

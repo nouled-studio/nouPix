@@ -1,4 +1,4 @@
-# openLedMapper 0.5.2
+# openLedMapper 0.5.3
 
 <img src="icons/openledmapper-256.png" alt="" width="96" align="right">
 

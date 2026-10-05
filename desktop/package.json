@@ -1,7 +1,7 @@
 {
   "name": "openledmapper-desktop",
   "productName": "openLedMapper",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "openLedMapper desktop app: the interface in its own window, with the Art-Net bridge inside",
   "license": "GPL-3.0",
   "author": "nouled studio",
