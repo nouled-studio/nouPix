@@ -103,7 +103,20 @@ The Content tab lists the zones, then the layers of the selected zone (top layer
 
 **Speed** goes from 0 to 100 % of a generator's full speed, with **Reverse** next to it. Each layer keeps its own clock for it, so dragging the slider speeds the animation up or down smoothly instead of making it jump. (Custom ISF shaders get this too when they have a float input named `speed` used as `TIME * speed`.)
 
-**Search** above the sources finds them by name, description or tag; several words narrow it down (`smooth architectural`). The chips under it are quick tags: smooth, architectural, atmospheric, disco, stars, dots, lines, radial, nature, color, bpm. A shader's tags are its ISF `CATEGORIES`; images, videos and captures are tagged image, video and capture.
+**Finding a source.** Every source is sorted along four facets, each with a dropdown under the search box:
+
+| Facet | Values |
+|---|---|
+| Mood | Calm, Lively, Party |
+| Use | Architectural (façades, hotels, slow changes), Ambient (bars, lounges), Show (stage and club), Utility (masks, tools) |
+| Look | Fill (the whole surface one colour), Gradient, Organic (fire, water, clouds, noise), Particles (dots, stars, sparks), Lines, Radial, Geometric |
+| Motion | Still, Drift (slowly evolving), Flow (moving steadily), Chase, Flash, Beat (follows a BPM) |
+
+A **Type** dropdown (generators, your own shaders, media) appears once you have added shaders or media. Facets combine: Calm + Architectural + Drift lists the slow façade looks. Each value shows how many sources it would leave, and **Clear** resets them all.
+
+**Search** finds sources by name, description or keyword (sky, stars, fire, bpm…); several words narrow it down. Words for a mood or use also work: smooth → Calm, disco → Party, atmospheric → Ambient. Hover over a source to see its facets and keywords.
+
+A shader is placed by its ISF `CATEGORIES`. The built-ins list one value per facet, then keywords: `["calm","architectural","organic","drift","sky","nature"]`. Your own shaders are placed from the same values, or from common words in their categories (disco, smooth, dots, nature, strobe, bpm…).
 
 The built-in generators include very smooth ones for architecture (**Color drift**, **Soft clouds**, **Horizon**, **Slow waves**, **Breathe**, **Gradient**, **Aurora**, **Water**), atmospheric ones (**Starfield**, **Twinkle**, **Lava lamp**, **Noise**), and disco ones (**Disco dots** and **Color hits** on a tempo in BPM, **Scanner**, **Confetti**, **Mirror ball**, **Equalizer**, **Strobe**, **Bars**, **Comet chase**, **Spiral**).
 
