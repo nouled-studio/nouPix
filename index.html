@@ -54,7 +54,13 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 
 /* ---------- top bar ---------- */
 .topbar { display: flex; align-items: center; gap: 10px; padding: 0 12px; background: var(--bg1); border-bottom: 1px solid var(--line); min-width: 0; overflow: hidden; }
-.topbar select#outMode { width: 150px; flex: none; }
+.hl { display: flex; flex: none; }
+.hl .btn { display: inline-flex; align-items: center; gap: 6px; }
+.hl #btnHl { border-radius: var(--r) 0 0 var(--r); min-width: 150px; justify-content: flex-start; }
+.hl #btnHl svg { width: 15px; height: 15px; flex: none; }
+.hl #btnHlMode { border-radius: 0 var(--r) var(--r) 0; border-left: 0; padding: 0 7px; }
+.hl.on .btn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.hl.on #btnHl { box-shadow: 0 0 12px rgba(255,179,65,.25); }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; letter-spacing: 0.02em; font-size: 15px; padding-right: 6px; flex: none; }
 .brand svg { display: block; }
 .tb-group { display: flex; align-items: center; gap: 4px; }
@@ -440,13 +446,10 @@ input[type=color] { width: 40px; height: 24px; padding: 0 2px; border: 1px solid
     <div class="spacer"></div>
     <span class="pill" id="bridgePill" title=""><span class="dot"></span><span id="bridgeText"></span></span>
     <div class="tb-sep"></div>
-    <select id="outMode" aria-label="Output source">
-      <option value="content">Output: Content</option>
-      <option value="identify">Identify selected</option>
-      <option value="white">Test: all white</option>
-      <option value="rgb">Test: RGBW cycle</option>
-      <option value="black">Black</option>
-    </select>
+    <div class="hl" id="hl">
+      <button class="btn" id="btnHl" type="button" aria-pressed="false"></button>
+      <button class="btn" id="btnHlMode" type="button" title="Highlight mode" aria-label="Highlight mode" aria-haspopup="menu">▾</button>
+    </div>
     <div class="master"><label for="master">Master</label><input id="master" type="range" min="0" max="1" step="0.01"><span class="mono" id="masterVal">100%</span></div>
     <button class="btn btn-bo" id="btnBlackout" type="button" title="Blackout (B)">Blackout</button>
     <button class="btn btn-out" id="btnOutput" type="button" title="Send Art-Net">Art-Net OFF</button>
@@ -620,6 +623,7 @@ const ICONS = {
   screen: '<svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6 14h4M8 11v3" stroke="currentColor" stroke-width="1.4"/></svg>',
   eye: '<svg viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>',
   eyeOff: '<svg viewBox="0 0 16 16"><path d="M2 2l12 12M6.2 4A7 7 0 018 3.5C12 3.5 14.5 8 14.5 8a12 12 0 01-2 2.6M9.9 12.2A6 6 0 018 12.5C4 12.5 1.5 8 1.5 8a12 12 0 012.4-3" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
+  bulb: '<svg viewBox="0 0 16 16"><path d="M8 1.8a4.3 4.3 0 00-2.6 7.7c.5.4.8 1 .8 1.6v.6h3.6v-.6c0-.6.3-1.2.8-1.6A4.3 4.3 0 008 1.8z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.3 13.2h3.4M6.8 14.8h2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
   unlock: '<svg viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1" fill="currentColor"/><path d="M5.5 7V5a2.5 2.5 0 014.9-.7" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
   lock: '<svg viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1" fill="currentColor"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
   zone: '<svg viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.5 1.8"/><rect x="1" y="2" width="3" height="3" fill="currentColor"/><rect x="12" y="11" width="3" height="3" fill="currentColor"/></svg>',
@@ -666,12 +670,12 @@ const BLEND_NOTES = {
 let project = null;
 const ui = {
   sel: new Set(), tool: 'select', view: { zoom: 1, x: 0, y: 0 }, fitted: false,
-  outputOn: false, blackout: false, outputMode: 'content', zone: null, layer: null, hoverSrc: null,
+  outputOn: false, blackout: false, outputMode: 'content', hlMode: 'trace', pickPx: null, zone: null, layer: null, hoverSrc: null,
   showContent: true, contentOp: 0.35, showGuide: true, guideOp: 0.5, showGrid: true, snap: true, showLabels: true, showWiring: false, showZones: true,
   dockTab: 'patch', rightTab: 'inspector', rightHidden: false, selCtrl: null, monitorKey: null, dockH: 250, dockCollapsed: false,
   hoverFx: null, hoverGroup: null, hoverPx: null, cursor: null,
 };
-const UI_PREFS = ['contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'rightHidden'];
+const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'rightHidden'];
 
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
@@ -1738,22 +1742,67 @@ function pickSampling(bb) {
   const gpu = Math.min(time(sampleGpu), time(sampleGpu)), area = Math.min(time(sampleArea), time(sampleArea));
   samplePick.gpu = gpu < area;
 }
+// Highlight: what the LEDs show instead of the content while it is on. Trace, Flood and Color check light the
+// selected fixtures, or all of them when none is selected.
+const HL_MODES = [
+  ['trace', 'Trace', 'wiring: first red, last blue, a green runner'],
+  ['flood', 'Flood', 'full white'],
+  ['color', 'Color check', 'red, green, blue, white in turn'],
+  ['spot', 'Spotlight', 'selected yellow, the rest blue'],
+  ['pixel', 'Pixel finder', 'click a pixel on the stage'],
+];
 function testPattern(mode) {
-  const phase = Math.floor(clockT) % 4;
+  if (mode === 'white' || mode === 'black') { for (const f of project.fixtures) f._col.fill(mode === 'white' ? 255 : 0); return; }   // used by the tests
+  if (mode === 'identify') mode = 'trace';   // its name before Highlight
+  const all = !ui.sel.size, phase = Math.floor(clockT) % 4;
   const rgbw = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 255]][phase];
+  const pick = ui.pickPx && fxById(ui.pickPx.fid) ? ui.pickPx : null;
   for (const f of project.fixtures) {
     const c = f._col, n = f._n;
-    if (mode === 'black') { c.fill(0); continue; }
-    if (mode === 'white') { c.fill(255); continue; }
-    if (mode === 'rgb') { for (let i = 0; i < n; i++) { c[3 * i] = rgbw[0]; c[3 * i + 1] = rgbw[1]; c[3 * i + 2] = rgbw[2]; } continue; }
-    // identify: selected fixtures dim white, first pixel red, last pixel blue, a green runner shows direction
-    if (!ui.sel.has(f.id)) { c.fill(0); continue; }
+    if (mode === 'spot') { const k = ui.sel.has(f.id) ? [255, 190, 0] : [0, 40, 255]; for (let i = 0; i < n; i++) c.set(k, 3 * i); continue; }
+    if (mode === 'pixel') { c.fill(0); if (pick && pick.fid === f.id && pick.i < n) c.set([255, 255, 255], 3 * pick.i); continue; }
+    if (!all && !ui.sel.has(f.id)) { c.fill(0); continue; }
+    if (mode === 'flood') { c.fill(255); continue; }
+    if (mode === 'color') { for (let i = 0; i < n; i++) c.set(rgbw, 3 * i); continue; }
+    // trace: dim white, first pixel red, last pixel blue, a green runner shows the wiring direction
     c.fill(40);
     const run = Math.floor(clockT * 12) % n;
     c.set([0, 255, 0], 3 * run);
     c.set([0, 0, 255], 3 * (n - 1));
     c.set([255, 0, 0], 0);
   }
+}
+function setHighlight(on, mode = ui.hlMode) {
+  ui.hlMode = mode;
+  ui.outputMode = on ? mode : 'content';
+  if (!on || mode !== 'pixel') ui.pickPx = null;
+  updateHighlightUI(); savePrefs();
+  if (ui.rightTab === 'inspector') renderRight();
+  if (on && mode === 'pixel') toast('Pixel finder: click a pixel on the stage to light just that one. ← → step to the next pixel.');
+}
+const toggleHighlight = () => setHighlight(ui.outputMode === 'content');
+function updateHighlightUI() {
+  const on = ui.outputMode !== 'content', m = HL_MODES.find(x => x[0] === ui.hlMode) || HL_MODES[0];
+  $('#hl').classList.toggle('on', on);
+  $('#btnHl').replaceChildren(icon('bulb'), h('span', null, on ? m[1] : 'Highlight'));
+  $('#btnHl').title = on ? `Highlight on: ${m[1]} (${m[2]}). Click or press I to go back to the content.` : `Highlight with ${m[1]}: ${m[2]} (I)`;
+  $('#btnHl').setAttribute('aria-pressed', String(on));
+}
+function highlightMenu(anchor) {
+  const on = ui.outputMode !== 'content';
+  menu(anchor, [
+    { head: 'Highlight' },
+    ...HL_MODES.map(([id, name, what]) => [(on && ui.hlMode === id ? '✓ ' : '') + name, () => setHighlight(true, id), { key: what }]),
+    on && '-',
+    on && ['Off: back to the content', () => setHighlight(false), { key: 'I' }],
+  ]);
+}
+// Pixel finder: a pixel picked on the stage, with its address
+function pickPixel(f, i) {
+  ui.pickPx = { fid: f.id, i };
+  const p = f._patch, L = f._out && f._out.lin[i];
+  const a = p && L >= 0 ? addrOf(p.base, L) : null;
+  toast(`${f.name} · pixel ${i + 1} of ${f._n}` + (a ? ` · U ${a.u} ch ${a.ch}–${a.ch + f.order.length - 1}` : ' · not patched'));
 }
 
 /* ============================================================ output */
@@ -2157,6 +2206,11 @@ function drawGroups() {
 }
 function drawOverlays() {
   if (ui.tool === 'zone') drawZoneEdit();
+  const pk = ui.outputMode === 'pixel' && ui.pickPx && fxById(ui.pickPx.fid);
+  if (pk && pk._pts && ui.pickPx.i < pk._n) {
+    const [sx, sy] = toS(pk._pts[2 * ui.pickPx.i], pk._pts[2 * ui.pickPx.i + 1]);
+    ctx.save(); ctx.strokeStyle = '#ffb341'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, 9, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
   if (draft) {
     prepDraft(draft);
     ctx.save(); ctx.setLineDash([5, 4]); outlinePath(draft, ctx); ctx.strokeStyle = '#3cc8ff'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.restore();
@@ -2400,6 +2454,7 @@ cv.addEventListener('pointerdown', e => {
   cv.setPointerCapture(e.pointerId);
   if (e.button === 1 || e.button === 2 || spaceHeld) { drag = { kind: 'pan', sx, sy, vx: ui.view.x, vy: ui.view.y, button: e.button, space: spaceHeld }; cv.style.cursor = 'grabbing'; return; }
   if (e.button !== 0) return;
+  if (ui.outputMode === 'pixel' && !spaceHeld) { const hp = hoverPixel(x, y); if (hp) { pickPixel(hp.f, hp.i); return; } }
   const tool = ui.tool;
   if (tool === 'zone') {
     // handles resize the selected zone, a label moves its zone, a drag anywhere else draws a new zone, a click selects
@@ -3019,7 +3074,7 @@ function renderInspector(body) {
         '<code>Ctrl C</code> / <code>Ctrl X</code> / <code>Ctrl V</code> copy, cut, paste fixtures (also into another project) · <code>Ctrl D</code> duplicate · <code>Del</code> delete · arrows nudge (<code>Shift</code> ×10)<br>' +
         'Right-click anything for its options: patch to an output, paste here, delete a zone or a scene…<br>' +
         '<code>H</code> hides this panel · <code>Ctrl G</code> group · <code>Ctrl Shift G</code> ungroup · <code>Ctrl L</code> lock or unlock · double-click a fixture of a group to select just it<br>' +
-        '<code>Ctrl Z</code> undo · <code>Ctrl S</code> save · <code>B</code> blackout · <code>I</code> identify<br>' +
+        '<code>Ctrl Z</code> undo · <code>Ctrl S</code> save · <code>B</code> blackout · <code>I</code> highlight on/off (💡 in the top bar picks the mode)<br>' +
         '<code>Z</code> zones · <code>1</code>–<code>9</code> scenes of the selected zone (<code>Shift</code> cuts)' })));
     return;
   }
@@ -3081,7 +3136,7 @@ function renderInspector(body) {
 
   body.append(outputSection([f]));
   body.append(sec(null, h('div', { class: 'actions' },
-    h('button', { class: 'btn', type: 'button', onclick: toggleIdentify }, ui.outputMode === 'identify' ? 'Stop identify' : 'Identify'),
+    h('button', { class: 'btn', type: 'button', onclick: toggleIdentify }, ui.outputMode !== 'content' ? 'Stop highlight' : 'Highlight'),
     h('button', { class: 'btn', type: 'button', onclick: duplicateSel }, 'Duplicate'),
     h('button', { class: 'btn danger-t', type: 'button', onclick: deleteSel }, 'Delete'))));
 }
@@ -3205,7 +3260,7 @@ function renderMulti(body, sel) {
     arrangeSection(sel),
     outputSection(sel),
     sec(null, h('div', { class: 'actions' },
-      h('button', { class: 'btn', type: 'button', onclick: toggleIdentify }, ui.outputMode === 'identify' ? 'Stop identify' : 'Identify'),
+      h('button', { class: 'btn', type: 'button', onclick: toggleIdentify }, ui.outputMode !== 'content' ? 'Stop highlight' : 'Highlight'),
       h('button', { class: 'btn', type: 'button', onclick: duplicateSel }, 'Duplicate'),
       h('button', { class: 'btn danger-t', type: 'button', onclick: deleteSel }, 'Delete')))].filter(Boolean));
 }
@@ -3644,11 +3699,7 @@ function setFixtureGroup(f, gid) {
   project.fixtures = rest;
   normalizeGroups(); markGeom(); commit(); renderRight();
 }
-function toggleIdentify() {
-  ui.outputMode = ui.outputMode === 'identify' ? 'content' : 'identify';
-  $('#outMode').value = ui.outputMode;
-  renderRight();
-}
+function toggleIdentify() { toggleHighlight(); }
 function nudge(dx, dy) {
   const sel = selected().filter(f => !f.locked);
   if (!sel.length) return;
@@ -4661,7 +4712,7 @@ function fixtureMenu(e, f, pick) {
     [allOn ? 'Disable' : 'Enable', () => { sel.forEach(x => { x.enabled = !allOn; }); commit(); renderRight(); }],
     [allLocked ? 'Unlock' : 'Lock', toggleLockSel, { key: MOD + 'L' }],
     lines.length && ['Reverse direction', () => { lines.forEach(x => { x.reverse = !x.reverse; }); markGeom(); commit(); renderRight(); }],
-    [ui.outputMode === 'identify' ? 'Stop identify' : 'Identify', toggleIdentify, { key: 'I' }],
+    [ui.outputMode !== 'content' ? 'Stop highlight' : 'Highlight', toggleIdentify, { key: 'I' }],
     '-',
     ['Bring to front', () => restackSel(true)],
     ['Send to back', () => restackSel(false)],
@@ -5087,7 +5138,9 @@ function initUI() {
   $('#btnAddSrc').addEventListener('click', e => addSourceMenu(e.currentTarget));
   $('#btnOutput').addEventListener('click', () => setOutput(!ui.outputOn));
   $('#btnBlackout').addEventListener('click', toggleBlackout);
-  $('#outMode').addEventListener('change', e => { ui.outputMode = e.target.value; if (ui.rightTab === 'inspector') renderRight(); });
+  $('#btnHl').addEventListener('click', toggleHighlight);
+  $('#btnHlMode').addEventListener('click', e => highlightMenu(e.currentTarget.parentElement));
+  updateHighlightUI();
   $('#master').addEventListener('input', e => { project.settings.master = parseFloat(e.target.value); $('#masterVal').textContent = Math.round(project.settings.master * 100) + '%'; });
   $('#master').addEventListener('change', () => { saveSoon(); });
   const bindView = (id, key, isRange) => {
@@ -5178,6 +5231,10 @@ function onKey(e) {
   if (k === 'b') { toggleBlackout(); return; }
   if (k === 'i') { toggleIdentify(); return; }
   if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && ui.sel.size) { e.preventDefault(); if (!moveOnOutput([...ui.sel], e.key === 'ArrowUp' ? -1 : 1)) toast('Not moved: patch it first, or it is already first or last on its output.'); return; }
+  if (ui.outputMode === 'pixel' && ui.pickPx && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    const f = fxById(ui.pickPx.fid);
+    if (f) { e.preventDefault(); pickPixel(f, clamp(ui.pickPx.i + (e.key === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 10 : 1), 0, f._n - 1)); return; }
+  }
   const step = e.shiftKey ? 10 : 1;
   const arrows = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
   if (arrows[e.key] && ui.sel.size) { e.preventDefault(); nudge(...arrows[e.key]); }

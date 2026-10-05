@@ -62,7 +62,13 @@ With **Wiring** on, the stage also draws the data cable between fixtures chained
 
 The Inspector / Content / Settings panel on the right can be hidden for a bigger stage: **»** in its tabs, the panel button at the right of the stage bar, or `H`. Double-clicking a fixture to rename it brings it back.
 
-`Identify` (or `I`) lights only the selected fixtures: first pixel red, last pixel blue, and a green dot running in wiring order. Use it to check direction and patching on the real install.
+**Highlight** (💡 in the top bar, or `I`) shows a test on the LEDs instead of the content, to check the installation; ▾ next to it picks the mode. Trace, Flood and Color check light the selected fixtures, or all of them when none is selected.
+
+- **Trace**: dim white, first pixel red, last pixel blue, and a green dot running in wiring order. Checks direction and patching.
+- **Flood**: full white. Finds dead or missing pixels.
+- **Color check**: red, green, blue and white in turn, a second each. Checks the colour order (RGB, GRB…).
+- **Spotlight**: the selected fixtures yellow and all the others blue. Shows which fixture is which on site.
+- **Pixel finder**: click a pixel on the stage and only that pixel lights; its fixture, number and universe/channel show. `←` `→` step to the next pixel (`Shift` ×10). Clicks on the stage pick pixels instead of selecting or moving fixtures while it is on.
 
 **Arrange** in the Inspector lines fixtures up. With several selected: align their left edges, centres or right edges, or their tops, middles or bottoms, to the box around all of them; distribute 3 or more so their centres are evenly spaced (the outermost two stay where they are); or centre them together on the canvas. With one selected, the same buttons align it to the canvas. Locked fixtures stay put but still count for the box, so the others can line up with a locked one. **Ctrl Z** undoes.
 

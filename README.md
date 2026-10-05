@@ -48,7 +48,7 @@ Right-click anything for its options.
 - Fixtures: lines, matrices, circles and ovals, straight or curved paths. Fixtures can be grouped, locked, aligned, copied and pasted.
 - Content: built-in generators, ISF shaders, images, video and window capture (for example Resolume's output), in zones with layers and blend modes.
 - Scenes per zone, with crossfades.
-- Art-Net output with automatic addressing, node discovery, a DMX monitor and an identify mode. Gamma and colour trims are set per fixture, and RGBW is supported.
+- Art-Net output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
 - The output keeps running when the window is minimised or covered.
 - Projects save to a file. You can also export a CSV patch list for the install crew.
 
@@ -63,7 +63,7 @@ Right-click anything for its options.
 | `Ctrl L` | Lock or unlock |
 | `Ctrl Z` · `Ctrl S` | Undo · save project |
 | `1`–`9` | Scenes of the selected zone (`Shift` cuts) |
-| `I` · `B` · `F` · `H` | Identify · blackout · fit view · hide the side panel |
+| `I` · `B` · `F` · `H` | Highlight · blackout · fit view · hide the side panel |
 
 ## More
 
