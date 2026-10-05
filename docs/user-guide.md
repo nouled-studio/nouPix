@@ -103,6 +103,12 @@ The Content tab lists the zones, then the layers of the selected zone (top layer
 
 **Speed** goes from 0 to 100 % of a generator's full speed, with **Reverse** next to it. Each layer keeps its own clock for it, so dragging the slider speeds the animation up or down smoothly instead of making it jump. (Custom ISF shaders get this too when they have a float input named `speed` used as `TIME * speed`.)
 
+**Search** above the sources finds them by name, description or tag; several words narrow it down (`smooth architectural`). The chips under it are quick tags: smooth, architectural, atmospheric, disco, stars, dots, lines, radial, nature, color, bpm. A shader's tags are its ISF `CATEGORIES`; images, videos and captures are tagged image, video and capture.
+
+The built-in generators include very smooth ones for architecture (**Color drift**, **Soft clouds**, **Horizon**, **Slow waves**, **Breathe**, **Gradient**, **Aurora**, **Water**), atmospheric ones (**Starfield**, **Twinkle**, **Lava lamp**, **Noise**), and disco ones (**Disco dots** and **Color hits** on a tempo in BPM, **Scanner**, **Confetti**, **Mirror ball**, **Equalizer**, **Strobe**, **Bars**, **Comet chase**, **Spiral**).
+
+Every speed, rate and tempo slider changes how fast a pattern moves without making it jump: each layer keeps its own clock for it. A custom ISF shader gets this for a float input named `speed` used as `TIME * speed`, and for any other rate with an `OLM_CLOCKS` entry in its header: `"OLM_CLOCKS": {"phase": {"FROM": "rate", "SCALE": 1, "WRAP": 1024}}` with a float input `phase`, used instead of `TIME * rate`. The app fills `phase` with the running total of rate × SCALE and hides it from the parameters.
+
 Sources show a still preview of each generator; hover one to see it move. A green frame marks the source in the selected layer, a green dot one playing elsewhere.
 
 The blend mode sets how a layer combines with the layers below it:
