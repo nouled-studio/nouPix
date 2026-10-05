@@ -215,7 +215,8 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .ctrl-edit.filtering .outrow.shut .outlist { display: block; }
 .outlist { padding: 0 0 4px; }
 .outlist .ph { padding: 4px 12px 6px 34px; color: var(--muted); font-size: 12px; font-style: italic; }
-.prow { display: grid; grid-template-columns: 30px 10px minmax(80px,1fr) 56px minmax(120px,170px) 54px 22px; align-items: center; gap: 6px; height: 24px; padding: 0 12px 0 4px; font-size: 12px; cursor: pointer; }
+/* fixed, compact columns, so a fixture's name, pixels, address and buttons read as one group */
+.prow { display: grid; grid-template-columns: 24px 8px minmax(60px, 140px) 44px 108px 44px 20px; justify-content: start; align-items: center; column-gap: 8px; height: 24px; padding: 0 12px 0 4px; font-size: 12px; cursor: pointer; }
 .prow[hidden], .outrow[hidden] { display: none; }
 .prow:hover { background: var(--bg3); }
 .prow.sel { background: var(--accent-soft); }
@@ -228,11 +229,12 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .prow .px, .prow .ad { font-family: var(--mono); font-size: 10.5px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .prow .px { color: var(--muted); text-align: right; }
 .prow .mv { display: flex; gap: 2px; visibility: hidden; }
+.prow .mv button { width: 20px; height: 18px; font-size: 10px; }
 .prow:hover .mv, .prow.sel .mv { visibility: visible; }
 .prow .mv button, .prow .x { width: 24px; height: 20px; border: 1px solid var(--line2); border-radius: 3px; background: var(--bg2); color: var(--text2); cursor: pointer; font-size: 11px; padding: 0; display: grid; place-items: center; }
 .prow .mv button:disabled { opacity: .3; cursor: default; }
 .prow .mv button:not(:disabled):hover, .prow .x:hover { border-color: var(--accent); color: var(--accent); }
-.prow .x { border-color: transparent; background: none; }
+.prow .x { width: 20px; height: 18px; border-color: transparent; background: none; }
 .pfind { width: 150px; }
 .usage { display: grid; gap: 3px; }
 .usage .bar { height: 5px; border-radius: 3px; background: var(--bg4); overflow: hidden; }
@@ -406,7 +408,7 @@ input[type=color] { width: 40px; height: 24px; padding: 0 2px; border: 1px solid
   .ctrl-list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 180px; }
   .outhead { grid-template-columns: 14px 52px 1fr; }
   .outhead .sum, .outhead .usage { grid-column: 2 / -1; }
-  .prow { grid-template-columns: 26px 10px minmax(60px,1fr) 56px 54px 22px; }
+  .prow { grid-template-columns: 24px 8px minmax(60px, 1fr) 40px 44px 20px; }
   .prow .ad { display: none; }
   .monitor .mbody { grid-template-columns: 1fr; }
   .monitor .ulist { max-height: 120px; border-right: 0; border-bottom: 1px solid var(--line); }
