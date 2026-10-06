@@ -4390,7 +4390,7 @@ function findBox() {
   return inp;
 }
 function renderCtrlEditor(edit, c) {
-  const f = (label, el) => h('label', { class: 'f' }, h('span', null, label), el);
+  const f = (label, el, title) => h('label', { class: 'f', title }, h('span', null, label), el);
   const small = (el, w) => { el.style.width = w + 'px'; return el; };
   const ipIn = textInput(c, 'ip', { aria: 'IP address', onInput: (v, el) => { el.classList.toggle('bad', !parseIP(v)); markPatch(); }, onCommit: () => { commit(); } });
   ipIn.classList.toggle('bad', !parseIP(c.ip));
@@ -4426,8 +4426,8 @@ function renderCtrlEditor(edit, c) {
     f('Name', small(textInput(c, 'name', { aria: 'Controller name', onInput: () => {}, onCommit: () => { commit(); renderRight(); } }), 150)),
     f('IP address', small(ipIn, 120)),
     f('Outputs', small(numInput(c, 'outputs', { int: true, min: 1, max: 128, aria: 'Outputs', onCommit: onStruct }), 64)),
-    f('Universes / output', small(numInput(c, 'upo', { int: true, min: 1, max: 64, aria: 'Universes per output', onCommit: onStruct }), 64)),
-    f('First universe', small(numInput(c, 'startUniverse', { int: true, min: 0, max: 32767, aria: 'First universe', onCommit: onStruct }), 76)),
+    f('Unis / output', small(numInput(c, 'upo', { int: true, min: 1, max: 64, aria: 'Universes per output', onCommit: onStruct }), 64), 'Universes per output'),
+    f('First uni', small(numInput(c, 'startUniverse', { int: true, min: 0, max: 32767, aria: 'First universe', onCommit: onStruct }), 64), 'First universe: the universe of output 1'),
     h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')),
     h('span', { style: { flex: 1 } }), del));
