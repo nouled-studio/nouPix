@@ -926,7 +926,8 @@ function hydrate(p) {
   for (const f of out.fixtures) { if (isId(f.group)) f.group = String(f.group); else delete f.group; }
   out.groups = (Array.isArray(p.groups) ? p.groups : []).filter(isObj).map((g, i) => ({
     id: uniqueId(isId(g.id) ? String(g.id) : null, grpIds), name: typeof g.name === 'string' ? g.name : 'Group ' + (i + 1),
-    tag: typeof g.tag === 'string' ? g.tag : TAGS[(i + 2) % TAGS.length], open: g.open !== false }));
+    tag: typeof g.tag === 'string' ? g.tag : TAGS[(i + 2) % TAGS.length], open: g.open !== false,
+    ...(numOr(g.rot, 0) ? { rot: numOr(g.rot, 0) } : {}) }));
   normalizeGroups(out);
   const builtins = builtinSources(), srcIds = new Set(builtins.map(s => s.id));
   const custom = (Array.isArray(p.sources) ? p.sources : []).filter(s => isObj(s) && !s.builtin && isId(s.id) && !srcIds.has(s.id) && srcIds.add(s.id));
@@ -2226,20 +2227,42 @@ function drawView() {
   }
   drawOverlays();
 }
+// The corners of a frame on screen, padded by pad pixels
+function frameCorners(F, pad) {
+  const z = ui.view.zoom, hw = F.w / 2 + pad / z, hh = F.h / 2 + pad / z;
+  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => toS(...frameAt(F, a * hw, b * hh)));
+}
 function drawSelRotate() {
-  const hd = selRotHandle();
-  if (!hd) return;
+  const hs = selHandles();
+  if (!hs.length) return;
+  const list = rotatable();
   ctx.save();
   ctx.strokeStyle = '#3cc8ff'; ctx.lineWidth = 1;
-  if (drag && drag.kind === 'rotsel') {   // the pivot, and the angle so far
-    const [px, py] = toS(drag.px, drag.py);
-    ctx.beginPath(); ctx.moveTo(px - 6, py); ctx.lineTo(px + 6, py); ctx.moveTo(px, py - 6); ctx.lineTo(px, py + 6); ctx.stroke();
-    ctx.font = '600 11px ' + FONT_MONO; ctx.fillStyle = '#3cc8ff';
-    ctx.fillText((drag.deg > 0 ? '+' : '') + Math.round(drag.deg) + '°', hd.sx + 12, hd.sy + 4);
+  if (list.length > 1 && !wholeGroup(list)) {   // a group draws its own frame
+    ctx.globalAlpha = 0.8; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); frameCorners(selFrame(list), 10).forEach((p, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, ...p)); ctx.closePath(); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
   }
-  ctx.beginPath(); ctx.moveTo(hd.bx, hd.by); ctx.lineTo(hd.sx, hd.sy + 6); ctx.stroke();
-  ctx.beginPath(); ctx.arc(hd.sx, hd.sy, 6, 0, 6.2832); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.beginPath(); ctx.arc(hd.sx, hd.sy, 3, -0.4, 4.4); ctx.lineWidth = 1.2; ctx.stroke();   // a small turning arrow
+  for (const hd of hs) {
+    const [sx, sy] = toS(hd.x, hd.y);
+    if (hd.selscale) { ctx.beginPath(); ctx.rect(sx - 4, sy - 4, 8, 8); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 1.5; ctx.stroke(); continue; }
+    const [bx, by] = toS(hd.bx, hd.by);
+    if (drag && drag.kind === 'rotsel') {   // the pivot, and the angle so far
+      const [px, py] = toS(drag.px, drag.py);
+      ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px - 6, py); ctx.lineTo(px + 6, py); ctx.moveTo(px, py - 6); ctx.lineTo(px, py + 6); ctx.stroke();
+      ctx.font = '600 11px ' + FONT_MONO; ctx.fillStyle = '#3cc8ff';
+      ctx.fillText((drag.deg > 0 ? '+' : '') + Math.round(drag.deg) + '°', sx + 12, sy + 4);
+    }
+    const L = Math.hypot(sx - bx, sy - by) || 1;
+    ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(sx - (sx - bx) / L * 6, sy - (sy - by) / L * 6); ctx.stroke();
+    ctx.beginPath(); ctx.arc(sx, sy, 6, 0, 6.2832); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(sx, sy, 3, -0.4, 4.4); ctx.lineWidth = 1.2; ctx.stroke();   // a small turning arrow
+  }
+  if (drag && drag.kind === 'scalesel') {
+    const F = selFrame(list), [lx, ly] = frameCorners(F, 10)[2];
+    ctx.font = '600 11px ' + FONT_MONO; ctx.fillStyle = '#3cc8ff';
+    ctx.fillText(`${fmtV(F.w)} × ${fmtV(F.h)}`, lx + 10, ly + 14);
+  }
   ctx.restore();
 }
 // A selected group gets a frame around its fixtures with its name under it. A group with only some of its
@@ -2248,29 +2271,28 @@ function drawGroups() {
   if (!project.groups.length || ui.tool !== 'select') return;
   const hov = ui.hoverFx != null ? fxById(ui.hoverFx) : null, hovG = ui.hoverGroup != null ? ui.hoverGroup : hov && hov.group;
   if (!ui.sel.size && hovG == null) return;
-  const info = new Map();   // group id → its box and how many of its fixtures are selected
+  const info = new Map();   // group id → its fixtures and how many of them are selected
   for (const f of project.fixtures) {
     if (f.group == null) continue;
     let a = info.get(f.group);
-    if (!a) info.set(f.group, a = { n: 0, sel: 0, x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity });
-    a.n++;
+    if (!a) info.set(f.group, a = { list: [], sel: 0 });
+    a.list.push(f);
     if (ui.sel.has(f.id)) a.sel++;
-    const b = fixtureBounds(f);
-    a.x0 = Math.min(a.x0, b.x0); a.y0 = Math.min(a.y0, b.y0); a.x1 = Math.max(a.x1, b.x1); a.y1 = Math.max(a.y1, b.y1);
   }
   for (const g of project.groups) {
     const a = info.get(g.id);
     if (!a || (!a.sel && g.id !== hovG)) continue;
-    const whole = a.sel === a.n;
-    const [ax, ay] = toS(a.x0, a.y0), [bx, by] = toS(a.x1, a.y1), pad = 10;
-    const rx = Math.round(ax - pad) + 0.5, ry = Math.round(ay - pad) + 0.5, rw = Math.round(bx - ax + 2 * pad), rh = Math.round(by - ay + 2 * pad);
+    const whole = a.sel === a.list.length;
+    // the frame turns with the group (see rotateSel), so it keeps hugging its fixtures
+    const C = frameCorners(frameOf(a.list, numOr(g.rot, 0)), 10);
     ctx.save();
     ctx.strokeStyle = '#3cc8ff'; ctx.lineWidth = 1;
     ctx.globalAlpha = whole ? 0.9 : 0.5; ctx.setLineDash(whole ? [] : [4, 3]);
-    ctx.strokeRect(rx, ry, rw, rh);
+    ctx.beginPath(); C.forEach((p, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, p[0], p[1])); ctx.closePath(); ctx.stroke();
     ctx.setLineDash([]); ctx.globalAlpha = 1;
     ctx.font = '600 11px ' + FONT_UI;
-    const t = groupName(g), lw = Math.round(ctx.measureText(t).width + 30), lx = Math.round(rx + rw / 2 - lw / 2), ly = Math.round(ry + rh + 5);
+    const t = groupName(g), lw = Math.round(ctx.measureText(t).width + 30);
+    const lx = Math.round((C[0][0] + C[1][0] + C[2][0] + C[3][0]) / 4 - lw / 2), ly = Math.round(Math.max(...C.map(p => p[1])) + 5);
     ctx.beginPath(); ctx.roundRect(lx, ly, lw, 18, 4);
     if (whole) { ctx.fillStyle = '#3cc8ff'; ctx.fill(); } else { ctx.fillStyle = 'rgba(10,11,14,.85)'; ctx.fill(); ctx.strokeStyle = 'rgba(60,200,255,.6)'; ctx.stroke(); }
     // a small folder, as in the list
@@ -2441,18 +2463,30 @@ function hitFixture(x, y) {
   }
   return best;
 }
-// Several fixtures (or a whole group) selected, or one path, circle or oval: a round handle above the box around
-// them turns them together around its middle. A matrix has its own; a line turns by its ends.
-function selRotHandle() {
-  if (ui.tool !== 'select') return null;
+// Handles of the frame around the selection. Several fixtures (or a whole group): eight handles on the frame to
+// resize them together and a round one above it to turn them, all turning with the frame. One path, circle or
+// oval: just the round one (a matrix has its own; a line turns by its ends).
+function selHandles() {
+  if (ui.tool !== 'select') return [];
   const list = rotatable();
-  if (!list.length || (list.length === 1 && (list[0].type === 'matrix' || list[0].type === 'line'))) return null;
-  const b = boxOf(list), [ax, ay] = toS((b.x0 + b.x1) / 2, b.y0);
-  return { id: 'selrot', rot: true, selrot: true, sx: ax, sy: ay - 34, bx: ax, by: ay - 10 };
+  if (!list.length || (list.length === 1 && (list[0].type === 'matrix' || list[0].type === 'line'))) return [];
+  const F = selFrame(list), z = ui.view.zoom, pad = 10 / z, hw = F.w / 2 + pad, hh = F.h / 2 + pad, hs = [];
+  if (list.length > 1) [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]].forEach(([gx, gy], k) => {
+    if ((gx && F.w < 1e-6) || (gy && F.h < 1e-6)) return;   // nothing to stretch that way (fixtures in one line)
+    const [x, y] = frameAt(F, gx * hw, gy * hh);
+    hs.push({ id: 'ss' + k, selscale: true, gx, gy, x, y });
+  });
+  const [x, y] = frameAt(F, 0, -hh - 26 / z), [bx, by] = frameAt(F, 0, -hh);
+  hs.push({ id: 'selrot', selrot: true, rot: true, x, y, bx, by });
+  return hs;
+}
+// The cursor for a frame handle: the resize arrows nearest to its direction, turned with the frame
+function selCursor(hd) {
+  const a = ((Math.atan2(hd.gy, hd.gx) * 180 / Math.PI + selAngle(rotatable()) + 360) % 180), k = Math.round(a / 45) % 4;
+  return ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'][k];
 }
 function hitHandle(sx, sy) {
-  const sr = drag ? null : selRotHandle();
-  if (sr && Math.abs(sr.sx - sx) <= 8 && Math.abs(sr.sy - sy) <= 8) return sr;
+  if (!drag) for (const hd of selHandles().reverse()) { const [hx, hy] = toS(hd.x, hd.y); if (Math.abs(hx - sx) <= 7 && Math.abs(hy - sy) <= 7) return hd; }
   const sel = selected();
   if (sel.length !== 1 || sel[0].locked) return null;
   for (const hd of handlesOf(sel[0]).reverse()) { const [hx, hy] = toS(hd.x, hd.y); if (Math.abs(hx - sx) <= 7 && Math.abs(hy - sy) <= 7) return hd; }
@@ -2573,9 +2607,14 @@ cv.addEventListener('pointerdown', e => {
   }
   const hd = hitHandle(sx, sy);
   if (hd && hd.selrot) {
-    const list = rotatable(), [px, py] = rotatePivot(list);
-    drag = { kind: 'rotsel', origs: new Map(list.map(f => [f.id, snapshotGeom(f)])), px, py, a0: Math.atan2(y - py, x - px), deg: 0, changed: false };
+    const list = rotatable(), F = selFrame(list);
+    drag = { kind: 'rotsel', list, origs: new Map(list.map(f => [f.id, snapshotGeom(f)])), px: F.cx, py: F.cy, fa: selAngle(list), a0: Math.atan2(y - F.cy, x - F.cx), deg: 0, changed: false };
     cv.style.cursor = 'grabbing';
+    return;
+  }
+  if (hd && hd.selscale) {
+    const list = rotatable(), F = selFrame(list);
+    drag = { kind: 'scalesel', list, origs: new Map(list.map(f => [f.id, snapshotGeom(f)])), F, gx: hd.gx, gy: hd.gy, changed: false };
     return;
   }
   if (hd) { const f = selected()[0]; drag = { kind: 'handle', f, hd, o: snapshotGeom(f), changed: false }; return; }
@@ -2607,7 +2646,7 @@ cv.addEventListener('pointermove', e => {
       const hd = hitHandle(sx, sy);
       const f = hd ? null : hitFixture(x, y);
       ui.hoverFx = f ? f.id : null;
-      cv.style.cursor = hd ? (hd.rot ? 'grab' : 'crosshair') : f ? 'move' : 'default';
+      cv.style.cursor = hd ? (hd.rot ? 'grab' : hd.selscale ? selCursor(hd) : 'crosshair') : f ? 'move' : 'default';
     } else cv.style.cursor = spaceHeld ? 'grab' : 'crosshair';
     ui.hoverPx = hoverPixel(x, y);
     return;
@@ -2636,6 +2675,18 @@ cv.addEventListener('pointermove', e => {
     if (e.shiftKey) deg = Math.round(deg / 15) * 15;
     drag.deg = deg;
     for (const [id, o] of drag.origs) { const f = fxById(id); if (f) rotateFixture(f, o, drag.px, drag.py, deg); }
+    if (drag.list.length > 1) setSelAngle(drag.list, drag.fa + deg);
+    drag.changed = true; markGeom(); syncInspector();
+    return;
+  }
+  if (drag.kind === 'scalesel') {   // from the opposite side of the frame; Shift keeps the proportions
+    const { F, gx, gy } = drag, t = rad(F.angle), dx = x - F.cx, dy = y - F.cy;
+    const u = dx * Math.cos(t) + dy * Math.sin(t), v = -dx * Math.sin(t) + dy * Math.cos(t), pad = 10 / ui.view.zoom;
+    const ax = -gx * F.w / 2, ay = -gy * F.h / 2;
+    let sx = gx ? Math.max(0.01, ((u - ax) * gx - pad) / F.w) : 1, sy = gy ? Math.max(0.01, ((v - ay) * gy - pad) / F.h) : 1;
+    if (e.shiftKey) { const k = !gy ? sx : !gx ? sy : Math.abs(sx - 1) > Math.abs(sy - 1) ? sx : sy; sx = sy = k; }
+    drag.sx = sx; drag.sy = sy;
+    for (const [id, o] of drag.origs) { const f = fxById(id); if (f) scaleFixture(f, o, F, ax, ay, sx, sy); }
     drag.changed = true; markGeom(); syncInspector();
     return;
   }
@@ -2675,7 +2726,7 @@ function endDrag(e) {
     addFixture(f);
     setTool('select');
     toast(`${f.name} added: ${pixelCount(f)} pixels`);
-  } else if (d.kind === 'handle' || d.kind === 'move' || d.kind === 'rotsel' || d.kind === 'zoneMove' || d.kind === 'zoneSize') {
+  } else if (d.kind === 'handle' || d.kind === 'move' || d.kind === 'rotsel' || d.kind === 'scalesel' || d.kind === 'zoneMove' || d.kind === 'zoneSize') {
     if (d.changed) { commit(); renderRight(); }
   } else if (d.kind === 'zoneNew') {
     const r = zoneDraft; zoneDraft = null;
@@ -3860,6 +3911,8 @@ function groupSel() {
   const before = project.fixtures.slice(0, project.fixtures.indexOf(sel[0])).filter(f => !ui.sel.has(f.id)).length;
   const rest = project.fixtures.filter(f => !ui.sel.has(f.id));
   rest.splice(before, 0, ...sel);
+  const a = selAngle(sel);
+  if (a) g.rot = a;   // a selection turned before grouping keeps its frame
   sel.forEach(f => { f.group = g.id; });
   project.fixtures = rest; project.groups.push(g);
   normalizeGroups(); markGeom(); commit(); renderRight();
@@ -3972,14 +4025,96 @@ function rotateFixture(f, o, px, py, deg) {
     else f.start = turn(numOr(o.start, 0));
   }
 }
-// The selection turns as one piece around the middle of the box around it; locked fixtures stay where they are
+// Stretches a fixture by sx, sy along the axes of frame F (turned by F.angle), away from the point ax, ay of the
+// frame (from its centre, along its axes); o is its geometry before. Pixel counts stay: the pixels spread out.
+// A matrix or an oval stretched across its own axes keeps its shape as near as it can (no slanting).
+function scaleFixture(f, o, F, ax, ay, sx, sy) {
+  const t = rad(F.angle), c = Math.cos(t), s = Math.sin(t);
+  const local = (x, y) => [x * c + y * s, -x * s + y * c], world = (u, v) => [u * c - v * s, u * s + v * c];
+  const P = (x, y) => { const [u, v] = local(x - F.cx, y - F.cy), [X, Y] = world(ax + (u - ax) * sx, ay + (v - ay) * sy); return [r3(F.cx + X), r3(F.cy + Y)]; };
+  const V = (x, y) => { const [u, v] = local(x, y); return world(u * sx, v * sy); };   // a direction or offset
+  const axis = deg => { const [X, Y] = V(Math.cos(rad(deg)), Math.sin(rad(deg))); return [Math.hypot(X, Y), Math.atan2(Y, X) * 180 / Math.PI]; };
+  const norm = a => r3((((a % 360) + 540) % 360) - 180);
+  if (f.type === 'line') { [f.x1, f.y1] = P(o.x1, o.y1); [f.x2, f.y2] = P(o.x2, o.y2); }
+  else if (f.type === 'path') {
+    const pts = [];
+    for (let i = 0; i < o.pts.length; i += 2) pts.push(...P(o.pts[i], o.pts[i + 1]));
+    f.pts = pts;
+    if (o.ctl) { const H = []; for (let i = 0; i < o.ctl.length; i += 2) H.push(...V(o.ctl[i], o.ctl[i + 1]).map(r3)); f.ctl = H; }
+  } else if (f.type === 'matrix') {
+    [f.cx, f.cy] = P(o.cx, o.cy);
+    const r = numOr(o.rot, 0), [kw, a] = axis(r), [kh] = axis(r + 90);
+    f.w = r3(Math.max(1, o.w * kw)); f.h = r3(Math.max(1, o.h * kh)); f.rot = norm(a);
+  } else if (f.type === 'circle') {
+    [f.cx, f.cy] = P(o.cx, o.cy);
+    const r0 = ovalRot(o), [kx, a] = axis(r0), [ky] = axis(r0 + 90), rx = Math.max(0.5, o.r * kx), ry = Math.max(0.5, ryOf(o) * ky);
+    if (Math.abs(rx - ry) < 1e-3) { f.r = r3(rx); delete f.ry; delete f.rot; f.start = norm(numOr(o.start, 0) + r0); }
+    else {   // an oval turned by rot: its start angle is along its own axes, so pixel 1 stays where it was
+      const r1 = norm(a);
+      f.r = r3(rx); f.ry = r3(ry);
+      if (r1) f.rot = r1; else delete f.rot;
+      f.start = norm(numOr(o.start, 0) + r0 - r1);
+    }
+  }
+}
+// Points around a fixture's outline, for the frame around a selection
+function outlinePts(f) {
+  if (f.type === 'line') return [[f.x1, f.y1], [f.x2, f.y2]];
+  if (f.type === 'matrix') return matrixCorners(f);
+  if (f.type === 'circle') {
+    if (isOval(f)) { const o = ovalSamples(f), out = []; for (let k = 0; k <= o.M; k += Math.max(1, o.M >> 6)) out.push([o.xs[k], o.ys[k]]); return out; }
+    const out = [], sweep = clamp(f.sweep, 1, 360), dir = f.ccw ? -1 : 1;
+    for (let k = 0; k <= 64; k++) { const a = rad(f.start + dir * sweep * k / 64); out.push([f.cx + f.r * Math.sin(a), f.cy - f.r * Math.cos(a)]); }
+    return out;
+  }
+  const P = pathPoly(f), out = [];
+  for (let i = 0; i < P.length; i += 2) out.push([P[i], P[i + 1]]);
+  return out;
+}
+// The frame around fixtures, turned by angle degrees: its centre, its size along its own axes, its angle
+function frameOf(list, angle = 0) {
+  const t = rad(angle), c = Math.cos(t), s = Math.sin(t);
+  let u0 = Infinity, v0 = Infinity, u1 = -Infinity, v1 = -Infinity;
+  for (const f of list) for (const [x, y] of outlinePts(f)) {
+    const u = x * c + y * s, v = -x * s + y * c;
+    if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v;
+  }
+  const um = (u0 + u1) / 2, vm = (v0 + v1) / 2;
+  return { cx: um * c - vm * s, cy: um * s + vm * c, w: u1 - u0, h: v1 - v0, angle };
+}
+// A point of a frame, from its centre along its axes
+function frameAt(F, lx, ly) { const t = rad(F.angle), c = Math.cos(t), s = Math.sin(t); return [F.cx + lx * c - ly * s, F.cy + lx * s + ly * c]; }
+// Several fixtures selected have a frame that turns with them: a whole group keeps its angle (in the project),
+// any other selection until the selection changes. Locked fixtures stay where they are.
 const rotatable = () => selected().filter(f => !f.locked);
-function rotatePivot(list) { const b = boxOf(list); return [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2]; }
+const selKey = list => list.map(f => f.id).sort().join(',');
+function selAngle(list) {
+  const g = wholeGroup(list);
+  if (g) return numOr(g.rot, 0);
+  return ui.selRot && ui.selRot.key === selKey(list) ? ui.selRot.a : 0;
+}
+function setSelAngle(list, a) {
+  a = r3((((a % 360) + 540) % 360) - 180);
+  const g = wholeGroup(list);
+  if (g) { if (a) g.rot = a; else delete g.rot; }
+  else ui.selRot = { key: selKey(list), a };
+}
+const selFrame = list => frameOf(list, list.length > 1 ? selAngle(list) : 0);
 function rotateSel(deg) {
   const list = rotatable();
   if (!list.length || !deg) return;
-  const [px, py] = rotatePivot(list);
-  for (const f of list) rotateFixture(f, snapshotGeom(f), px, py, deg);
+  const F = selFrame(list), a = selAngle(list);
+  for (const f of list) rotateFixture(f, snapshotGeom(f), F.cx, F.cy, deg);
+  if (list.length > 1) setSelAngle(list, a + deg);
+  markGeom(); commit(); renderRight();
+}
+// Resizes the selection to w × h along its frame, from its centre
+function resizeSel(w, h) {
+  const list = rotatable();
+  if (list.length < 2) return;
+  const F = selFrame(list), sx = F.w > 1e-6 && w > 0 ? w / F.w : 1, sy = F.h > 1e-6 && h > 0 ? h / F.h : 1;
+  if (sx === 1 && sy === 1) return;
+  for (const f of list) scaleFixture(f, snapshotGeom(f), F, 0, 0, sx, sy);
   markGeom(); commit(); renderRight();
 }
 function rotateRow(sel) {
@@ -3990,7 +4125,23 @@ function rotateRow(sel) {
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') rotateSel(numOr(tmp.deg, 0)); });
   return [
     row('Rotate', h('div', { class: 'rotbtns' }, b('↺90°', -90, 'Turn 90° counter-clockwise (Shift R)'), b('↺15°', -15, 'Turn 15° counter-clockwise'), b('↻15°', 15, 'Turn 15° clockwise'), b('↻90°', 90, 'Turn 90° clockwise (R)'))),
-    row('By', h('div', { class: 'rotbtns' }, inp, h('span', { class: 'muted', style: { alignSelf: 'center' } }, '°'), h('button', { class: 'btn', type: 'button', disabled: off, onclick: () => rotateSel(numOr(tmp.deg, 0)) }, 'Rotate')))];
+    row('By', h('div', { class: 'rotbtns' }, inp, h('span', { class: 'muted', style: { alignSelf: 'center' } }, '°'), h('button', { class: 'btn', type: 'button', disabled: off, onclick: () => rotateSel(numOr(tmp.deg, 0)) }, 'Rotate'))),
+    ...sizeRows(sel)];
+}
+// Several fixtures: their size together, along their frame. With Keep proportions, one value sets both.
+function sizeRows(sel) {
+  const list = sel.filter(f => !f.locked);
+  if (list.length < 2) return [];
+  const F = selFrame(list), tmp = { w: r3(F.w), h: r3(F.h) };
+  const apply = which => {
+    let { w, h: hh } = tmp;
+    if (ui.keepRatio !== false) { const k = which === 'w' ? (F.w > 1e-6 ? w / F.w : 1) : (F.h > 1e-6 ? hh / F.h : 1); w = F.w * k; hh = F.h * k; }
+    resizeSel(w, hh);
+  };
+  const sw = numInput(tmp, 'w', { prefix: 'W', min: 0.1, step: 1, aria: 'Width of the selection', onCommit: () => apply('w') });
+  const sh = numInput(tmp, 'h', { prefix: 'H', min: 0.1, step: 1, aria: 'Height of the selection', onCommit: () => apply('h') });
+  if (ui.keepRatio == null) ui.keepRatio = true;
+  return [row('Size', sw, sh), checkRow('Keep proportions', ui, 'keepRatio')];
 }
 function arrangeSection(sel) {
   const units = arrangeUnits(sel), free = units.filter(u => !u.locked).length, many = units.length > 1;

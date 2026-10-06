@@ -45,7 +45,7 @@ Right-click anything for its options.
 
 ## What it does
 
-- Fixtures: lines, matrices, circles and ovals, straight or curved paths. Fixtures can be grouped, locked, aligned, rotated together, copied and pasted.
+- Fixtures: lines, matrices, circles and ovals, straight or curved paths. Fixtures can be grouped, locked, aligned, rotated and resized together, copied and pasted.
 - Content: 32 built-in generators, from very smooth ones for architecture (Color drift, Soft clouds, Horizon, Slow waves) to disco ones (Disco dots, Scanner, Confetti, Color hits, Mirror ball, Equalizer), plus your own ISF shaders, images, video and window capture (for example Resolume's output), in zones with layers and blend modes. Sources are sorted by **mood, use, look and motion** (Calm · Architectural · Organic · Drift, Party · Show · Particles · Beat…), with a search box.
 - Scenes per zone, with crossfades.
 - Art-Net output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
