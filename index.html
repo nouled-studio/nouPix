@@ -152,7 +152,15 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .sources .phead h2 { flex: none; }
 .sec h3 svg { width: 14px; height: 14px; flex: none; }
 .layers { padding: 2px 0 0; margin: 0 -4px; }
-.layers li { grid-template-columns: 20px 12px minmax(0,1fr) auto 64px; padding: 0 4px; gap: 6px; }
+.layers li { grid-template-columns: 6px 20px 12px minmax(0,1fr) auto auto 56px; padding: 0 4px; gap: 6px; cursor: grab; }
+.layers li .pgrip { width: 6px; height: 12px; opacity: .4; background-image: radial-gradient(currentColor 1px, transparent 1.2px); background-size: 3px 3px; color: var(--text2); }
+.layers li:hover .pgrip { opacity: .9; }
+.layers li.dragging { opacity: .4; }
+.layers .mv { display: flex; gap: 2px; visibility: hidden; }
+.layers li:hover .mv, .layers li.sel .mv, .layers li:focus-within .mv { visibility: visible; }
+.layers .mv button { width: 20px; height: 18px; border: 1px solid var(--line2); border-radius: 3px; background: var(--bg2); color: var(--text2); cursor: pointer; font-size: 10px; padding: 0; display: grid; place-items: center; }
+.layers .mv button:disabled { opacity: .3; cursor: default; }
+.layers .mv button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
 .layers li.nosrc .nm { color: var(--muted); font-style: italic; }
 .layers .eye { width: 20px; height: 20px; }
 .layers .eye svg { width: 14px; height: 14px; }
@@ -326,6 +334,13 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .arrange + .arrange { margin-top: 6px; }
 .scene.drop { outline: 1px dashed var(--accent); outline-offset: 2px; }
 .nodes .scroll { overflow: auto; flex: 1; }
+.rotbtns { display: flex; flex-wrap: wrap; gap: 3px; }
+.rotbtns .btn { padding: 0 5px; font-variant-numeric: tabular-nums; }
+.netchip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px 0 6px; border: 1px solid var(--line2); border-radius: 12px; color: var(--muted); cursor: pointer; max-width: 300px; }
+.netchip input { margin: 0; }
+.netchip.on { color: var(--text); border-color: rgba(60,200,255,.45); background: var(--accent-soft); }
+.netchip .nn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+.netchip .mono { font-size: 11px; }
 .monitor .mbody { display: grid; grid-template-columns: 210px minmax(0,1fr); flex: 1; min-height: 0; }
 .monitor .ulist { overflow: auto; border-right: 1px solid var(--line); }
 .monitor .ulist div { padding: 5px 12px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; font-family: var(--mono); font-size: 11px; border-left: 2px solid transparent; }
@@ -661,7 +676,7 @@ const ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR', 'RGBW', 'GRBW', 'WRGB'
 const TYPE_LABEL = { line: 'Line', circle: 'Circle', matrix: 'Matrix', path: 'Path' };
 const DEFAULT_SETTINGS = {
   compW: 1000, compH: 640, fps: 40, gamma: 1, master: 1, whiteMode: 'off',
-  artSync: false, grid: 10, broadcast: '255.255.255.255', bridgeUrl: '', transition: 0.5, fade: 2,
+  artSync: false, grid: 10, broadcast: '', bridgeUrl: '', transition: 0.5, fade: 2,
 };
 // Blend modes, in the order the mixer shader numbers them
 const BLENDS = [['alpha', 'Alpha'], ['add', 'Add'], ['screen', 'Screen'], ['multiply', 'Multiply'], ['subtract', 'Subtract'], ['lighten', 'Lighten'], ['darken', 'Darken'], ['difference', 'Difference']];
@@ -682,10 +697,10 @@ const ui = {
   sel: new Set(), tool: 'select', view: { zoom: 1, x: 0, y: 0 }, fitted: false,
   outputOn: false, blackout: false, outputMode: 'content', hlMode: 'trace', pickPx: null, zone: null, layer: null, hoverSrc: null,
   showContent: true, contentOp: 0.35, showGuide: true, guideOp: 0.5, showGrid: true, snap: true, showLabels: true, showWiring: false, showZones: true,
-  dockTab: 'patch', rightTab: 'inspector', rightHidden: false, selCtrl: null, monitorKey: null, dockH: 250, dockCollapsed: false,
+  dockTab: 'patch', rightTab: 'inspector', rightHidden: false, scanOff: [], selCtrl: null, monitorKey: null, dockH: 250, dockCollapsed: false,
   hoverFx: null, hoverGroup: null, hoverPx: null, cursor: null,
 };
-const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'rightHidden'];
+const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'rightHidden', 'scanOff'];
 
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
@@ -833,6 +848,8 @@ function fixSettings(given) {
   s.compW = clamp(Math.round(s.compW), 16, 8192); s.compH = clamp(Math.round(s.compH), 16, 8192);
   s.fps = clamp(s.fps, 1, 100);
   if (!['off', 'sub', 'add'].includes(s.whiteMode)) s.whiteMode = 'off';
+  // 255.255.255.255 was the default address for ArtPoll; discovery now goes to the networks chosen in Nodes
+  if (s.broadcast.trim() === '255.255.255.255') s.broadcast = '';
   delete s.trim;   // the colour trims are per fixture now (see hydrate)
   return s;
 }
@@ -854,6 +871,7 @@ function fixFixture(f, i, ids) {
     if (f.dir !== 'H' && f.dir !== 'V') f.dir = 'H';
   } else f.pixels = Math.min(f.pixels, 1e6);
   if (f.type === 'circle' && 'ry' in f) { const ry = numOr(f.ry, NaN); if (ry > 0) f.ry = ry; else delete f.ry; }
+  if (f.type === 'circle' && 'rot' in f) { const r = numOr(f.rot, 0); if (r) f.rot = r; else delete f.rot; }   // an oval turned
   if (f.type === 'path') {
     const P = Array.isArray(f.pts) && f.pts.every(v => typeof v === 'number' && isFinite(v)) ? f.pts : (Array.isArray(f.pts) ? f.pts : []).map(v => numOr(v, NaN)).filter(isFinite);
     if (P.length % 2) P.pop();
@@ -1029,19 +1047,22 @@ function pathLength(f) {
   if (f.closed && P.length >= 4) L += Math.hypot(P[0] - P[P.length - 2], P[1] - P[P.length - 1]);
   return L;
 }
-// Circles can be stretched into ovals: r is the horizontal radius, ry the vertical one. A circle has no ry (it
+// Circles can be stretched into ovals: r is the horizontal radius, ry the vertical one. An oval can be turned by
+// rot degrees (clockwise), as a matrix; a circle turns by its start angle instead. A circle has no ry (it
 // follows r), so projects from before ovals open unchanged.
 const ryOf = f => typeof f.ry === 'number' ? f.ry : f.r;
 const isOval = f => f.type === 'circle' && typeof f.ry === 'number' && Math.abs(f.ry - f.r) > 1e-6;
+const ovalRot = f => isOval(f) ? numOr(f.rot, 0) : 0;
 // Fine points along an oval's arc with their running length, to space pixels evenly along it as on a real strip
 // (equal angles would bunch them up at the narrow ends)
 function ovalSamples(f) {
   const sweep = clamp(f.sweep, 1, 360), dir = f.ccw ? -1 : 1, rx = f.r, ry = ryOf(f);
   const M = Math.max(64, Math.ceil(sweep * 4));
   const xs = new Float64Array(M + 1), ys = new Float64Array(M + 1), L = new Float64Array(M + 1);
+  const c = Math.cos(rad(ovalRot(f))), s = Math.sin(rad(ovalRot(f)));
   for (let k = 0; k <= M; k++) {
-    const a = rad(f.start + dir * sweep * k / M);
-    xs[k] = f.cx + rx * Math.sin(a); ys[k] = f.cy - ry * Math.cos(a);
+    const a = rad(f.start + dir * sweep * k / M), lx = rx * Math.sin(a), ly = -ry * Math.cos(a);
+    xs[k] = f.cx + lx * c - ly * s; ys[k] = f.cy + lx * s + ly * c;
     if (k) L[k] = L[k - 1] + Math.hypot(xs[k] - xs[k - 1], ys[k] - ys[k - 1]);
   }
   return { xs, ys, L, M };
@@ -1108,6 +1129,7 @@ function fixturePitch(f) {
 function fixtureBounds(f) {
   let xs, ys;
   if (f.type === 'line') { xs = [f.x1, f.x2]; ys = [f.y1, f.y2]; }
+  else if (f.type === 'circle' && ovalRot(f)) { const o = ovalSamples(f); xs = Array.from(o.xs); ys = Array.from(o.ys); }
   else if (f.type === 'circle') { xs = [f.cx - f.r, f.cx + f.r]; ys = [f.cy - ryOf(f), f.cy + ryOf(f)]; }
   else if (f.type === 'matrix') { const c = matrixCorners(f); xs = c.map(p => p[0]); ys = c.map(p => p[1]); }
   else { const P = pathPoly(f); xs = P.filter((_, i) => i % 2 === 0); ys = P.filter((_, i) => i % 2 === 1); }
@@ -1969,6 +1991,11 @@ function connectBridge() {
     if (m.t === 'hello') { bridge.hello = m; showVersion(m.version); (m.nodes || []).forEach(n => bridge.nodes.set(n.ip + '#' + n.bindIndex, n)); updateBridgeUI(); if (ui.dockTab === 'nodes') renderDock(); }
     else if (m.t === 'stats') { bridge.stats = m; updateBridgeUI(); }
     else if (m.t === 'node') { bridge.nodes.set(m.node.ip + '#' + m.node.bindIndex, m.node); if (ui.dockTab === 'nodes') renderDock(); }
+    else if (m.t === 'polled') {
+      if (bridge.hello && Array.isArray(m.nets)) bridge.hello.nets = m.nets;
+      toast(m.targets.length ? 'ArtPoll sent to ' + m.targets.join(', ') : 'ArtPoll not sent: no network to send it on', m.targets.length ? '' : 'warn');
+      if (ui.dockTab === 'nodes') renderDock();
+    }
     else if (m.t === 'error') { toast(m.msg, 'warn'); }
     else if (m.t === 'takeover' && ui.outputOn) { ui.outputOn = false; keepAwake(false); updateBridgeUI(); toast('Art-Net was switched on in another openLedMapper window, so this window stopped sending.', 'warn'); }
   };
@@ -2024,9 +2051,9 @@ function outlinePath(f, c) {
   c.beginPath();
   if (f.type === 'line') { c.moveTo(...toS(f.x1, f.y1)); c.lineTo(...toS(f.x2, f.y2)); }
   else if (f.type === 'circle') {
-    const [sx, sy] = toS(f.cx, f.cy), rx = f.r * ui.view.zoom, ry = ryOf(f) * ui.view.zoom;
-    if (f.sweep >= 359.99) c.ellipse(sx, sy, rx, ry, 0, 0, Math.PI * 2);
-    else { const a0 = rad(f.start - 90), a1 = rad(f.start - 90 + (f.ccw ? -f.sweep : f.sweep)); c.ellipse(sx, sy, rx, ry, 0, a0, a1, !!f.ccw); }
+    const [sx, sy] = toS(f.cx, f.cy), rx = f.r * ui.view.zoom, ry = ryOf(f) * ui.view.zoom, t = rad(ovalRot(f));
+    if (f.sweep >= 359.99) c.ellipse(sx, sy, rx, ry, t, 0, Math.PI * 2);
+    else { const a0 = rad(f.start - 90), a1 = rad(f.start - 90 + (f.ccw ? -f.sweep : f.sweep)); c.ellipse(sx, sy, rx, ry, t, a0, a1, !!f.ccw); }
   } else if (f.type === 'matrix') {
     matrixCorners(f).forEach((p, i) => (i ? c.lineTo : c.moveTo).call(c, ...toS(p[0], p[1])));
     c.closePath();
@@ -2105,7 +2132,10 @@ function drawDataLinks() {
 }
 function handlesOf(f) {
   if (f.type === 'line') return [{ id: 'p1', x: f.x1, y: f.y1 }, { id: 'p2', x: f.x2, y: f.y2 }];
-  if (f.type === 'circle') return [{ id: 'c', x: f.cx, y: f.cy, round: true }, { id: 'r', x: f.cx + f.r, y: f.cy }, { id: 'ry', x: f.cx, y: f.cy - ryOf(f) }];
+  if (f.type === 'circle') {
+    const t = rad(ovalRot(f)), c = Math.cos(t), s = Math.sin(t), ry = ryOf(f);
+    return [{ id: 'c', x: f.cx, y: f.cy, round: true }, { id: 'r', x: f.cx + f.r * c, y: f.cy + f.r * s }, { id: 'ry', x: f.cx + ry * s, y: f.cy - ry * c }];
+  }
   if (f.type === 'matrix') {
     const hs = matrixCorners(f).map((p, i) => ({ id: 'k' + i, x: p[0], y: p[1] }));
     const up = 22 / ui.view.zoom, a = rad(f.rot);
@@ -2181,6 +2211,7 @@ function drawView() {
   }
   if (ui.showWiring) drawDataLinks();
   drawGroups();
+  drawSelRotate();
   const sel = selected();
   if (sel.length === 1 && !sel[0].locked && ui.tool === 'select') {
     const f = sel[0];
@@ -2194,6 +2225,22 @@ function drawView() {
     }
   }
   drawOverlays();
+}
+function drawSelRotate() {
+  const hd = selRotHandle();
+  if (!hd) return;
+  ctx.save();
+  ctx.strokeStyle = '#3cc8ff'; ctx.lineWidth = 1;
+  if (drag && drag.kind === 'rotsel') {   // the pivot, and the angle so far
+    const [px, py] = toS(drag.px, drag.py);
+    ctx.beginPath(); ctx.moveTo(px - 6, py); ctx.lineTo(px + 6, py); ctx.moveTo(px, py - 6); ctx.lineTo(px, py + 6); ctx.stroke();
+    ctx.font = '600 11px ' + FONT_MONO; ctx.fillStyle = '#3cc8ff';
+    ctx.fillText((drag.deg > 0 ? '+' : '') + Math.round(drag.deg) + '°', hd.sx + 12, hd.sy + 4);
+  }
+  ctx.beginPath(); ctx.moveTo(hd.bx, hd.by); ctx.lineTo(hd.sx, hd.sy + 6); ctx.stroke();
+  ctx.beginPath(); ctx.arc(hd.sx, hd.sy, 6, 0, 6.2832); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.beginPath(); ctx.arc(hd.sx, hd.sy, 3, -0.4, 4.4); ctx.lineWidth = 1.2; ctx.stroke();   // a small turning arrow
+  ctx.restore();
 }
 // A selected group gets a frame around its fixtures with its name under it. A group with only some of its
 // fixtures selected, or with one under the pointer, gets a fainter dashed frame.
@@ -2364,7 +2411,8 @@ function distSeg(px, py, ax, ay, bx, by) {
 function distFixture(f, x, y, tol) {
   if (f.type === 'line') return distSeg(x, y, f.x1, f.y1, f.x2, f.y2);
   if (f.type === 'circle') {
-    const rx = f.r, ry = ryOf(f), d = Math.abs(Math.hypot((x - f.cx) / rx, (y - f.cy) / ry) - 1) * Math.min(rx, ry);
+    const t = -rad(ovalRot(f)), ux = (x - f.cx) * Math.cos(t) - (y - f.cy) * Math.sin(t), uy = (x - f.cx) * Math.sin(t) + (y - f.cy) * Math.cos(t);
+    const rx = f.r, ry = ryOf(f), d = Math.abs(Math.hypot(ux / rx, uy / ry) - 1) * Math.min(rx, ry);
     if (f.sweep >= 359.99) return d;
     let best = Infinity; const P = f._pts;
     for (let i = 0; i < P.length; i += 2) best = Math.min(best, Math.hypot(x - P[i], y - P[i + 1]));
@@ -2393,7 +2441,18 @@ function hitFixture(x, y) {
   }
   return best;
 }
+// Several fixtures (or a whole group) selected, or one path, circle or oval: a round handle above the box around
+// them turns them together around its middle. A matrix has its own; a line turns by its ends.
+function selRotHandle() {
+  if (ui.tool !== 'select') return null;
+  const list = rotatable();
+  if (!list.length || (list.length === 1 && (list[0].type === 'matrix' || list[0].type === 'line'))) return null;
+  const b = boxOf(list), [ax, ay] = toS((b.x0 + b.x1) / 2, b.y0);
+  return { id: 'selrot', rot: true, selrot: true, sx: ax, sy: ay - 34, bx: ax, by: ay - 10 };
+}
 function hitHandle(sx, sy) {
+  const sr = drag ? null : selRotHandle();
+  if (sr && Math.abs(sr.sx - sx) <= 8 && Math.abs(sr.sy - sy) <= 8) return sr;
   const sel = selected();
   if (sel.length !== 1 || sel[0].locked) return null;
   for (const hd of handlesOf(sel[0]).reverse()) { const [hx, hy] = toS(hd.x, hd.y); if (Math.abs(hx - sx) <= 7 && Math.abs(hy - sy) <= 7) return hd; }
@@ -2423,9 +2482,10 @@ function dragHandle(f, o, hd, x, y, e) {
     if (e.shiftKey) { const a = Math.round(Math.atan2(y - oy, x - ox) / (Math.PI / 4)) * Math.PI / 4, L = Math.hypot(x - ox, y - oy); px = ox + Math.cos(a) * L; py = oy + Math.sin(a) * L; }
     if (hd.id === 'p1') { f.x1 = px; f.y1 = py; } else { f.x2 = px; f.y2 = py; }
   } else if (f.type === 'circle') {
+    const t = rad(ovalRot(f)), lx = (x - f.cx) * Math.cos(t) + (y - f.cy) * Math.sin(t), ly = -(x - f.cx) * Math.sin(t) + (y - f.cy) * Math.cos(t);   // along its own axes
     if (hd.id === 'c') { f.cx = snapV(x, e); f.cy = snapV(y, e); }
-    else if (hd.id === 'ry') f.ry = Math.max(1, snapV(Math.abs(y - f.cy), e));   // the top handle stretches it into an oval
-    else if (isOval(f)) f.r = Math.max(1, snapV(Math.abs(x - f.cx), e));        // an oval's side handle: its width only
+    else if (hd.id === 'ry') f.ry = Math.max(1, snapV(Math.abs(ly), e));   // the top handle stretches it into an oval
+    else if (isOval(f)) f.r = Math.max(1, snapV(Math.abs(lx), e));        // an oval's side handle: its width only
     else f.r = Math.max(1, snapV(Math.hypot(x - f.cx, y - f.cy), e));
   } else if (f.type === 'matrix') {
     if (hd.rot) {
@@ -2512,6 +2572,12 @@ cv.addEventListener('pointerdown', e => {
     return;
   }
   const hd = hitHandle(sx, sy);
+  if (hd && hd.selrot) {
+    const list = rotatable(), [px, py] = rotatePivot(list);
+    drag = { kind: 'rotsel', origs: new Map(list.map(f => [f.id, snapshotGeom(f)])), px, py, a0: Math.atan2(y - py, x - px), deg: 0, changed: false };
+    cv.style.cursor = 'grabbing';
+    return;
+  }
   if (hd) { const f = selected()[0]; drag = { kind: 'handle', f, hd, o: snapshotGeom(f), changed: false }; return; }
   const f = hitFixture(x, y);
   if (f) {
@@ -2564,6 +2630,15 @@ cv.addEventListener('pointermove', e => {
     return;
   }
   if (drag.kind === 'handle') { dragHandle(drag.f, drag.o, drag.hd, x, y, e); drag.changed = true; syncInspector(); return; }
+  if (drag.kind === 'rotsel') {   // Shift: in steps of 15°
+    let deg = (Math.atan2(y - drag.py, x - drag.px) - drag.a0) * 180 / Math.PI;
+    deg = ((deg % 360) + 540) % 360 - 180;
+    if (e.shiftKey) deg = Math.round(deg / 15) * 15;
+    drag.deg = deg;
+    for (const [id, o] of drag.origs) { const f = fxById(id); if (f) rotateFixture(f, o, drag.px, drag.py, deg); }
+    drag.changed = true; markGeom(); syncInspector();
+    return;
+  }
   if (drag.kind === 'move') {
     let dx = x - drag.x0, dy = y - drag.y0;
     if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
@@ -2600,7 +2675,7 @@ function endDrag(e) {
     addFixture(f);
     setTool('select');
     toast(`${f.name} added: ${pixelCount(f)} pixels`);
-  } else if (d.kind === 'handle' || d.kind === 'move' || d.kind === 'zoneMove' || d.kind === 'zoneSize') {
+  } else if (d.kind === 'handle' || d.kind === 'move' || d.kind === 'rotsel' || d.kind === 'zoneMove' || d.kind === 'zoneSize') {
     if (d.changed) { commit(); renderRight(); }
   } else if (d.kind === 'zoneNew') {
     const r = zoneDraft; zoneDraft = null;
@@ -2802,10 +2877,12 @@ function reorderable(handle, target, kind, ids, onDrop) {
 function moveZoneTo(id, target, after) {
   const z = zoneById(id);
   if (!z || z === target) return;
-  const shown = project.zones.slice().reverse().filter(x => x !== z);
-  shown.splice(shown.indexOf(target) + (after ? 1 : 0), 0, z);
-  project.zones = shown.reverse();
-  commit(); renderRight();
+  flipRows('.zones li[data-id]', () => {
+    const shown = project.zones.slice().reverse().filter(x => x !== z);
+    shown.splice(shown.indexOf(target) + (after ? 1 : 0), 0, z);
+    project.zones = shown.reverse();
+    commit(); renderRight();
+  }, [z.id]);
 }
 
 /* ============================================================ fixture list */
@@ -3097,7 +3174,7 @@ function renderSrcFacets() {
     return el;
   });
   const any = q || Object.values(want).some(Boolean);
-  $('#srcFacets').replaceChildren(...sel, any ? h('button', { type: 'button', title: 'Show all sources', onclick: () => { ui.srcFacets = {}; ui.srcFilter = $('#srcFind').value = ''; renderSrcList(); $('#srcFind').focus(); } }, 'Clear') : null);
+  $('#srcFacets').replaceChildren(...sel, ...(any ? [h('button', { type: 'button', title: 'Show all sources', onclick: () => { ui.srcFacets = {}; ui.srcFilter = $('#srcFind').value = ''; renderSrcList(); $('#srcFind').focus(); } }, 'Clear') ] : []));
 }
 function renderSrcList() {
   renderSrcFacets();
@@ -3152,6 +3229,7 @@ function renderRight() {
   else if (ui.rightTab === 'content') renderContentTab(body);
   else renderSettings(body);
   body.scrollTop = keep;
+  replayFlip();
 }
 const geoIn = () => markGeom();
 const geo = (extra = {}) => Object.assign({ onInput: geoIn, onCommit: commit }, extra);
@@ -3169,7 +3247,7 @@ function renderInspector(body) {
         '<code>V</code> select · <code>L</code> line · <code>M</code> matrix · <code>C</code> circle · <code>P</code> path · <code>N</code> pen<br>' +
         '<code>Space</code>-drag or right-drag to pan · wheel to zoom · <code>F</code> fit<br>' +
         '<code>Alt</code> while dragging turns snapping off · <code>Shift</code> constrains<br>' +
-        '<code>Ctrl C</code> / <code>Ctrl X</code> / <code>Ctrl V</code> copy, cut, paste fixtures (also into another project) · <code>Ctrl D</code> duplicate · <code>Del</code> delete · arrows nudge (<code>Shift</code> ×10)<br>' +
+        '<code>Ctrl C</code> / <code>Ctrl X</code> / <code>Ctrl V</code> copy, cut, paste fixtures (also into another project) · <code>Ctrl D</code> duplicate · <code>Del</code> delete · arrows nudge (<code>Shift</code> ×10) · <code>R</code> / <code>Shift R</code> rotate 90°<br>' +
         'Right-click anything for its options: patch to an output, paste here, delete a zone or a scene…<br>' +
         '<code>H</code> hides this panel · <code>Ctrl G</code> group · <code>Ctrl Shift G</code> ungroup · <code>Ctrl L</code> lock or unlock · double-click a fixture of a group to select just it<br>' +
         '<code>Ctrl Z</code> undo · <code>Ctrl S</code> save · <code>B</code> blackout · <code>I</code> highlight on/off (💡 in the top bar picks the mode)<br>' +
@@ -3198,7 +3276,8 @@ function renderInspector(body) {
     const live = () => { markGeom(); syncInspector(); };   // a circle's Y follows its X
     G.push(row('Radius', numInput(f, 'r', geo({ prefix: 'X', min: 1, step: 0.5, aria: 'Horizontal radius', onInput: live })),
       numInput(R, 'ry', geo({ prefix: 'Y', min: 1, step: 0.5, aria: 'Vertical radius', onInput: live, onCommit: () => { commit(); renderRight(); } }))));
-    G.push(oval ? h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => { delete f.ry; markGeom(); commit(); renderRight(); } }, 'Make it round'))
+    if (oval) G.push(numRow('Rotation °', f, 'rot', geo({ min: -180, max: 180, step: 1 })));
+    G.push(oval ? h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => { f.start = numOr(f.start, 0) + numOr(f.rot, 0); delete f.rot; delete f.ry; markGeom(); commit(); renderRight(); } }, 'Make it round'))
       : h('p', { class: 'note' }, 'Give Y a different value, or drag the top handle on the stage, to stretch it into an oval.'));
     G.push(numRow('Start °', f, 'start', geo({ min: -360, max: 360, step: 1 })));
     G.push(numRow('Sweep °', f, 'sweep', geo({ min: 1, max: 360, step: 1 })));
@@ -3402,8 +3481,7 @@ function fitZone(z) { const r = fixtureRect(selected(), 6); if (!r) return; Obje
 function moveZone(z, d) {
   const i = project.zones.indexOf(z), j = i + d;
   if (j < 0 || j >= project.zones.length) return;
-  project.zones.splice(i, 1); project.zones.splice(j, 0, z);
-  commit(); renderRight();
+  flipRows('.zones li[data-id]', () => { project.zones.splice(i, 1); project.zones.splice(j, 0, z); commit(); renderRight(); }, [z.id]);
 }
 function duplicateZone(z) {
   const c = Object.assign(JSON.parse(JSON.stringify(z, replacer)), { id: uid(), name: nextCopyName(z.name, new Set(project.zones.map(x => x.name))), scene: null });
@@ -3489,7 +3567,7 @@ function zonesSection() {
   const list = h('ul', { class: 'list zones' });
   for (const z of project.zones.slice().reverse()) {
     const names = z.layers.filter(L => L.on && L.src && srcById(L.src)).map(L => srcById(L.src).name);
-    const li = h('li', { class: z === cur ? 'sel' : '', title: `${z.name} · ${z.w} × ${z.h} at ${z.x}, ${z.y}\nDrag to change the order: zones higher in the list cover the ones below`, onclick: () => selectZone(z) },
+    const li = h('li', { class: z === cur ? 'sel' : '', 'data-id': z.id, title: `${z.name} · ${z.w} × ${z.h} at ${z.x}, ${z.y}\nDrag to change the order: zones higher in the list cover the ones below`, onclick: () => selectZone(z) },
       zoneTag(z), h('span', { class: 'zn' }, h('span', { class: 'nm' }, z.name), h('span', { class: 'sub' }, names.join(' · ') || 'Empty')),
       zoneOpacityInput(z, 64));
     reorderable(li, li, 'zone', () => [z.id], ([id], after) => moveZoneTo(id, z, after));
@@ -3512,9 +3590,12 @@ function layersSection(z) {
     binders.push(() => { if (document.activeElement !== op) op.value = L.opacity; });
     const eye = h('button', { class: 'x eye', type: 'button', title: L.on ? 'Hide layer' : 'Show layer', 'aria-label': (L.on ? 'Hide' : 'Show') + ' layer ' + i,
       onclick: e => { e.stopPropagation(); L.on = !L.on; syncMedia(); commit(); renderRight(); renderSrcList(); } }, icon(L.on ? 'eye' : 'eyeOff'));
-    const li = h('li', { class: (L === cur ? 'sel ' : '') + (L.on ? '' : 'off ') + (src ? '' : 'nosrc'), onclick: () => { ui.layer = L.id; renderRight(); renderSrcList(); } },
-      eye, h('span', { class: 'meta' }, i), h('span', { class: 'nm' }, src ? src.name : 'Empty'),
-      h('span', { class: 'meta' }, L.blend === 'alpha' ? '' : BLENDS[BLEND_IDX[L.blend]][1]), op);
+    const mv = (txt, d, off, label) => h('button', { type: 'button', disabled: off, title: label, 'aria-label': `${label}: layer ${i}`, onclick: e => { e.stopPropagation(); moveLayer(z, L, d); } }, txt);
+    const li = h('li', { class: (L === cur ? 'sel ' : '') + (L.on ? '' : 'off ') + (src ? '' : 'nosrc'), 'data-id': L.id, title: 'Drag, or ↑ ↓, to change the order: layers higher in the list cover the ones below', onclick: () => { ui.layer = L.id; renderRight(); renderSrcList(); } },
+      h('span', { class: 'pgrip', 'aria-hidden': 'true' }), eye, h('span', { class: 'meta' }, i), h('span', { class: 'nm' }, src ? src.name : 'Empty'),
+      h('span', { class: 'meta' }, L.blend === 'alpha' ? '' : BLENDS[BLEND_IDX[L.blend]][1]),
+      h('span', { class: 'mv' }, mv('↑', 1, i === z.layers.length, 'Move up'), mv('↓', -1, i === 1, 'Move down')), op);
+    reorderable(li, li, 'layer', () => [L.id], ([id], after) => moveLayerTo(z, id, L, after));
     onRightClick(li, e => layerMenu(e, z, L));
     list.append(li);
   }
@@ -3531,8 +3612,21 @@ function addLayer(z) {
 function moveLayer(z, L, d) {
   const i = z.layers.indexOf(L), j = i + d;
   if (j < 0 || j >= z.layers.length) return;
-  z.layers.splice(i, 1); z.layers.splice(j, 0, L);
-  commit(); renderRight(); renderSrcList();
+  flipRows('.layers li[data-id]', () => {
+    z.layers.splice(i, 1); z.layers.splice(j, 0, L);
+    commit(); renderRight(); renderSrcList();
+  }, [L.id]);
+}
+// A layer dropped on another one in the list (shown top first): it goes just above or below it
+function moveLayerTo(z, id, target, after) {
+  const L = z.layers.find(x => x.id === id);
+  if (!L || L === target) return;
+  flipRows('.layers li[data-id]', () => {
+    const shown = z.layers.slice().reverse().filter(x => x !== L);
+    shown.splice(shown.indexOf(target) + (after ? 1 : 0), 0, L);
+    z.layers = shown.reverse();
+    commit(); renderRight(); renderSrcList();
+  }, [L.id]);
 }
 function duplicateLayer(z, L) {
   const c = Object.assign(cloneLayers([L])[0], { id: uid() });
@@ -3859,6 +3953,45 @@ function centreSel() {
   free.forEach(u => shiftUnit(u, dx, dy));
   arranged();
 }
+// Turns a fixture by deg degrees (clockwise on the stage) around the point px, py; o is its geometry before.
+// A line or path turns its points; a matrix or an oval its rotation; a circle its start angle (where pixel 1 is).
+function rotateFixture(f, o, px, py, deg) {
+  const c = Math.cos(rad(deg)), s = Math.sin(rad(deg));
+  const P = (x, y) => [r3(px + (x - px) * c - (y - py) * s), r3(py + (x - px) * s + (y - py) * c)];
+  const turn = a => r3((((a + deg) % 360) + 540) % 360 - 180);
+  if (f.type === 'line') { [f.x1, f.y1] = P(o.x1, o.y1); [f.x2, f.y2] = P(o.x2, o.y2); }
+  else if (f.type === 'path') {
+    const pts = [];
+    for (let i = 0; i < o.pts.length; i += 2) pts.push(...P(o.pts[i], o.pts[i + 1]));
+    f.pts = pts;
+    if (o.ctl) f.ctl = o.ctl.map((v, i, H) => i % 2 ? r3(H[i - 1] * s + v * c) : r3(v * c - H[i + 1] * s));   // handles are relative
+  } else {
+    [f.cx, f.cy] = P(o.cx, o.cy);
+    if (f.type === 'matrix') f.rot = turn(numOr(o.rot, 0));
+    else if (isOval(o)) { const r = turn(numOr(o.rot, 0)); if (r) f.rot = r; else delete f.rot; }
+    else f.start = turn(numOr(o.start, 0));
+  }
+}
+// The selection turns as one piece around the middle of the box around it; locked fixtures stay where they are
+const rotatable = () => selected().filter(f => !f.locked);
+function rotatePivot(list) { const b = boxOf(list); return [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2]; }
+function rotateSel(deg) {
+  const list = rotatable();
+  if (!list.length || !deg) return;
+  const [px, py] = rotatePivot(list);
+  for (const f of list) rotateFixture(f, snapshotGeom(f), px, py, deg);
+  markGeom(); commit(); renderRight();
+}
+function rotateRow(sel) {
+  const off = !sel.some(f => !f.locked), tmp = { deg: 45 };
+  const b = (txt, deg, title) => h('button', { class: 'btn', type: 'button', title, disabled: off, onclick: () => rotateSel(deg) }, txt);
+  const inp = numInput(tmp, 'deg', { min: -360, max: 360, step: 1, aria: 'Angle to rotate by, in degrees (clockwise)' });
+  inp.style.width = '64px';
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') rotateSel(numOr(tmp.deg, 0)); });
+  return [
+    row('Rotate', h('div', { class: 'rotbtns' }, b('↺90°', -90, 'Turn 90° counter-clockwise (Shift R)'), b('↺15°', -15, 'Turn 15° counter-clockwise'), b('↻15°', 15, 'Turn 15° clockwise'), b('↻90°', 90, 'Turn 90° clockwise (R)'))),
+    row('By', h('div', { class: 'rotbtns' }, inp, h('span', { class: 'muted', style: { alignSelf: 'center' } }, '°'), h('button', { class: 'btn', type: 'button', disabled: off, onclick: () => rotateSel(numOr(tmp.deg, 0)) }, 'Rotate')))];
+}
 function arrangeSection(sel) {
   const units = arrangeUnits(sel), free = units.filter(u => !u.locked).length, many = units.length > 1;
   const g = wholeGroup(sel), blocks = !g && units.some(u => u.list.length > 1);
@@ -3870,9 +4003,10 @@ function arrangeSection(sel) {
   const note = !free ? (many ? 'These are all locked. Unlock them to move them.' : 'Locked. Unlock it to move it.')
     : (g ? `Lines up the fixtures of ${groupName(g)} with each other. Centre moves the whole group to the middle of the canvas.`
       : many ? `Aligns to the edges of the selection${blocks ? ', each group as one block' : ''}. Distribute (3 or more) keeps the outermost two and spaces the centres evenly between them.`
-      : 'Aligns to the edges of the canvas.') +
+      : 'Aligns to the edges of the canvas.') + (many ? ' Rotate turns them together around their middle; on the stage, drag the round handle above them.' : '') +
       (free < units.length ? (blocks ? ' Locked fixtures, and the groups they are in, stay where they are.' : ' Locked fixtures stay where they are.') : '');
   return sec('Arrange',
+    ...rotateRow(sel),
     many ? [h('div', { class: 'arrange' }, align),   // aligning on the first row, spacing and centring on the second
       h('div', { class: 'arrange' }, h('div', { class: 'grp' },
         b('distH', 'Distribute horizontally: the same spacing between centres', () => distributeSel('x'), free < 3),
@@ -3898,6 +4032,7 @@ function renderDock() {
   else if (ui.dockTab === 'patch') renderPatch(body);
   else if (ui.dockTab === 'nodes') renderNodes(body);
   else renderMonitor(body);
+  replayFlip();
   const ce = body.querySelector('.ctrl-edit'); if (ce) ce.scrollTop = keep;
   if (refind) { const fb = body.querySelector('.pfind'); if (fb) { fb.focus(); fb.setSelectionRange(fb.value.length, fb.value.length); } }
 }
@@ -4181,9 +4316,11 @@ function renderCtrlEditor(edit, c) {
       if (!d.startsWith('fx:')) return;
       const ids = d.slice(3).split(',').filter(fxById);
       const target = e.target.closest('.prow');
-      let idx = target ? chain.indexOf(target.dataset.id) : -1;
-      for (const id of ids) { if (id === (target && target.dataset.id)) continue; assign(id, c, o, idx); if (idx >= 0) idx = chain.indexOf(id) + 1; }
-      commit(); renderRight();
+      flipRows('#dockBody .prow', () => {
+        let idx = target ? chain.indexOf(target.dataset.id) : -1;
+        for (const id of ids) { if (id === (target && target.dataset.id)) continue; assign(id, c, o, idx); if (idx >= 0) idx = chain.indexOf(id) + 1; }
+        commit(); renderRight();
+      }, ids);
     });
     outs.append(rowEl);
   });
@@ -4200,9 +4337,48 @@ function applyPatchFilter(edit) {
     o.hidden = !!q && !shown;
   }
 }
+// Rows that change place glide from where they were to where they are now, so a move is easy to follow, and the
+// moved ones flash. change() rebuilds the rows; rows are matched by data-id. A panel rebuilt again while they
+// glide (the patch panel is, a frame later) picks the motion up where it was: see replayFlip.
+let lastFlip = null;
+const FLIP_MS = 280, FLASH_MS = 900;
+function flipRows(sel, change, moved = []) {
+  const before = new Map($$(sel).map(el => [el.dataset.id, el.getBoundingClientRect().top]));
+  change();
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const set = new Set(moved), items = new Map();
+  for (const el of $$(sel)) {
+    const t0 = before.get(el.dataset.id);
+    if (t0 == null || el.hidden) continue;
+    const dy = t0 - el.getBoundingClientRect().top, mine = set.has(el.dataset.id);
+    if (Math.abs(dy) > 0.5 || mine) items.set(el.dataset.id, { dy, mine });
+  }
+  lastFlip = { sel, items, t0: performance.now() };
+  replayFlip();
+}
+function replayFlip() {
+  if (!lastFlip) return;
+  const t = performance.now() - lastFlip.t0;
+  if (t > FLASH_MS) { lastFlip = null; return; }
+  for (const el of $$(lastFlip.sel)) {
+    const it = lastFlip.items.get(el.dataset.id);
+    if (!it || el.getAnimations().length) continue;
+    if (Math.abs(it.dy) > 0.5 && t < FLIP_MS) {
+      if (it.mine) { el.style.position = 'relative'; el.style.zIndex = 2; }
+      el.animate([{ transform: `translateY(${it.dy}px)` }, { transform: 'none' }], { duration: FLIP_MS, delay: -t, easing: 'cubic-bezier(.2,.75,.25,1)' })
+        .finished.then(() => { el.style.zIndex = ''; el.style.position = ''; }, () => {});
+    }
+    if (it.mine) el.animate([{ boxShadow: '0 0 0 1px #3cc8ff, 0 0 14px rgba(60,200,255,.55)' }, { boxShadow: '0 0 0 1px rgba(60,200,255,0), 0 0 14px rgba(60,200,255,0)' }], { duration: FLASH_MS, delay: -t, easing: 'ease-out' });
+  }
+}
 // One place earlier (-1) or later (+1) on their outputs. Several on one output move together, keeping their order;
 // one already at the start (or end) stays.
 function moveOnOutput(ids, d) {
+  let moved = 0;
+  flipRows('#dockBody .prow', () => { moved = moveOnOutputNow(ids, d); }, ids);
+  return moved;
+}
+function moveOnOutputNow(ids, d) {
   const set = new Set(ids);
   let moved = 0;
   for (const c of project.controllers) for (const chain of c.chains) {
@@ -4220,6 +4396,9 @@ function moveOnOutput(ids, d) {
 }
 // To the start or the end of their outputs, keeping their order
 function moveToOutputEdge(ids, end) {
+  flipRows('#dockBody .prow', () => moveToOutputEdgeNow(ids, end), ids);
+}
+function moveToOutputEdgeNow(ids, end) {
   const set = new Set(ids);
   for (const c of project.controllers) c.chains.forEach((chain, o) => {
     if (!chain.some(id => set.has(id))) return;
@@ -4257,32 +4436,52 @@ function autoPatch() {
 }
 
 /* ---------- nodes ---------- */
+// The networks of this computer that discovery uses: all of them, except the ones turned off in the Nodes tab
+// (kept per computer, by address)
+const ipNum = ip => ip.split('.').reduce((a, b) => a * 256 + (+b), 0);
+const netOf = (ip, nets) => nets.find(n => Math.floor(ipNum(ip) / 2 ** (32 - n.prefix)) === Math.floor(ipNum(n.ip) / 2 ** (32 - n.prefix)));
+const scanNets = () => ((bridge.hello && bridge.hello.nets) || []).filter(n => !(ui.scanOff || []).includes(n.ip));
+function discover() {
+  const nets = (bridge.hello && bridge.hello.nets) || [], ifaces = scanNets().map(n => n.ip), extra = project.settings.broadcast.trim();
+  if (nets.length && !ifaces.length && !extra) { toast('Turn on a network to scan, or type an address to send ArtPoll to.', 'warn'); return; }
+  bridgeSend(nets.length ? { t: 'poll', ifaces, broadcast: extra } : { t: 'poll', broadcast: extra });
+}
 function renderNodes(body) {
   const s = project.settings;
-  const hello = bridge.hello;
-  const bc = textInput(s, 'broadcast', { aria: 'Broadcast address', onCommit: commit });
+  const hello = bridge.hello, nets = (hello && hello.nets) || [], off = new Set(ui.scanOff || []);
+  const bc = textInput(s, 'broadcast', { aria: 'Also send ArtPoll to this address', placeholder: 'e.g. 2.255.255.255', onCommit: commit });
   bc.style.width = '130px';
   const info = !bridge.connected ? h('span', { class: 'badge warn' }, 'Not connected')
     : hello && !hello.discovery ? h('span', { class: 'badge warn', title: hello.discoveryNote || '' }, 'Discovery off: ' + (hello.discoveryNote || 'UDP 6454 in use'))
     : h('span', { class: 'badge ok' }, 'Listening on 6454');
+  const chip = n => h('label', { class: 'netchip' + (off.has(n.ip) ? '' : ' on'),
+    title: `${n.name ? n.name + '\n' : ''}${n.ip} / ${n.mask}\nArtPoll goes to ${n.broadcast}${n.guessed ? '\n(mask guessed: the system did not say)' : ''}` },
+    h('input', { type: 'checkbox', checked: !off.has(n.ip), onchange: e => {
+      ui.scanOff = e.target.checked ? (ui.scanOff || []).filter(ip => ip !== n.ip) : [...(ui.scanOff || []), n.ip];
+      savePrefs(); renderDock(); } }),
+    n.name ? h('span', { class: 'nn' }, n.name) : null, h('span', { class: 'mono' }, `${n.ip}/${n.prefix}`));
   const bar = h('div', { class: 'bar' },
-    h('button', { class: 'btn primary', type: 'button', disabled: !bridge.connected, onclick: () => { bridgeSend({ t: 'poll', broadcast: s.broadcast }); toast('ArtPoll sent to ' + s.broadcast); } }, 'Discover'),
-    h('span', null, 'Broadcast'), bc, info,
-    hello ? h('span', { class: 'mono muted' }, 'This computer: ' + (hello.interfaces || []).join(', ')) : null);
-  const nodes = nodeDevices();
+    h('button', { class: 'btn primary', type: 'button', disabled: !bridge.connected, onclick: discover }, 'Discover'),
+    nets.length ? h('span', null, 'on') : null, ...nets.map(chip),
+    h('span', null, nets.length ? 'Also' : 'Send to'), bc, info);
+  // Nodes on a network turned off for scans are left out; the network column shows where each one answered
+  const all = nodeDevices(), nodes = all.filter(n => { const k = netOf(n.ip, nets); return !k || !off.has(k.ip); });
   const scroll = h('div', { class: 'scroll' });
   if (!nodes.length) {
     scroll.append(h('div', { class: 'empty' }, bridge.connected
-      ? 'No nodes found yet. Press Discover. Nodes reply to ArtPoll on the broadcast address of their network: 2.255.255.255 for a 2.x.x.x Art-Net network, 10.255.255.255 for 10.x.x.x, or 255.255.255.255 for the local subnet.'
+      ? (all.length ? `${all.length} node${all.length === 1 ? ' is' : 's are'} on networks turned off for scans.` : nets.length
+        ? 'No nodes found yet. Press Discover: ArtPoll goes out on the networks ticked above, and Art-Net devices on them reply. A device on a network with another address range (a 2.x.x.x node while this computer has 192.168.x.x) needs an address in its range on this computer.'
+        : 'No nodes found yet. Press Discover. Nodes reply to ArtPoll on the broadcast address of their network: 2.255.255.255 for a 2.x.x.x Art-Net network, 10.255.255.255 for 10.x.x.x.')
       : 'Node discovery needs openLedMapper running on this computer (the app, or openledmapper.py): a web page on its own cannot send or receive Art-Net.'));
   } else {
     scroll.append(h('table', { class: 'table' },
-      h('thead', null, h('tr', null, ['IP', 'Name', 'Output ports', 'Universes', 'MAC', 'Status', ''].map(t => h('th', null, t)))),
+      h('thead', null, h('tr', null, ['IP', 'Name', 'Network', 'Output ports', 'Universes', 'MAC', 'Status', ''].map(t => h('th', null, t)))),
       h('tbody', null, nodes.map(n => {
         const known = project.controllers.find(c => c.ip === n.ip);
         return withRightClick(h('tr', null,
           h('td', { class: 'mono' }, n.ip),
           h('td', null, h('div', null, n.shortName || '—'), h('div', { class: 'muted', style: { fontSize: '11px' } }, n.longName)),
+          h('td', { class: 'mono muted' }, (k => k ? k.name || k.ip : '—')(netOf(n.ip, nets))),
           h('td', { class: 'mono' }, n.universes.length || '—'),
           h('td', { class: 'mono' }, n.universes.length ? n.universes.join(', ') : '—'),
           h('td', { class: 'mono' }, n.mac || '—'),
@@ -4291,6 +4490,8 @@ function renderNodes(body) {
             onclick: () => addNodeAsController(n) }, known ? 'Refresh universes' : 'Add as controller'))), e => nodeMenu(e, n));
       }))));
   }
+  const hidden = all.length - nodes.length;
+  if (nodes.length && hidden) scroll.append(h('p', { class: 'note', style: { padding: '6px 12px' } }, `${hidden} more on networks turned off for scans.`));
   body.append(h('div', { class: 'nodes' }, bar, scroll));
 }
 // One device per IP. A node with several ports answers ArtPoll once per port (or per group of ports), each reply
@@ -4658,7 +4859,7 @@ async function importSvg(file, opt) {
 function sameShape(a, b) {
   if (a.type !== b.type) return false;
   const e = 0.5;
-  if (a.type === 'circle') return Math.abs(a.cx - b.cx) < e && Math.abs(a.cy - b.cy) < e && Math.abs(a.r - b.r) < e && Math.abs(ryOf(a) - ryOf(b)) < e && Math.abs(a.sweep - b.sweep) < 1;
+  if (a.type === 'circle') return Math.abs(a.cx - b.cx) < e && Math.abs(a.cy - b.cy) < e && Math.abs(a.r - b.r) < e && Math.abs(ryOf(a) - ryOf(b)) < e && Math.abs(a.sweep - b.sweep) < 1 && Math.abs(ovalRot(a) - ovalRot(b)) < 0.5;
   if (a.type === 'line') {
     const same = (x1, y1, x2, y2) => Math.hypot(a.x1 - x1, a.y1 - y1) < e && Math.hypot(a.x2 - x2, a.y2 - y2) < e;
     return same(b.x1, b.y1, b.x2, b.y2) || same(b.x2, b.y2, b.x1, b.y1);
@@ -5321,6 +5522,7 @@ function onKey(e) {
     if (e.key === 'Backspace') { pathDraft.pts.splice(-2); pathDraft.ctl.splice(-4); e.preventDefault(); return; }
     if (e.key === 'Escape') { pathDraft = null; setTool('select'); return; }
   }
+  if (k === 'r' && ui.sel.size) { rotateSel(e.shiftKey ? -90 : 90); return; }
   const tools = { v: 'select', l: 'line', m: 'matrix', c: 'circle', p: 'path', n: 'pen', z: 'zone' };
   if (tools[k]) { setTool(tools[k]); return; }
   if (e.key === 'Escape') { if (ui.tool !== 'select') setTool('select'); else if (ui.sel.size) { ui.sel.clear(); onSelection(); } return; }

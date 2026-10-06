@@ -324,6 +324,112 @@ def local_ips():
     return sorted(ips, key=lambda ip: (ip.startswith("127."), ip))
 
 
+IPV4 = __import__("re").compile(r"^\d{1,3}(\.\d{1,3}){3}$")
+
+
+def _posix_nets():
+    """(name, ip, mask) of each IPv4 address on an interface that is up, from getifaddrs() (Linux, macOS)."""
+    import ctypes
+    import ctypes.util
+
+    class sockaddr(ctypes.Structure):
+        _fields_ = [("data", ctypes.c_ubyte * 16)]
+
+    class ifaddrs(ctypes.Structure):
+        pass
+    ifaddrs._fields_ = [("ifa_next", ctypes.POINTER(ifaddrs)), ("ifa_name", ctypes.c_char_p), ("ifa_flags", ctypes.c_uint),
+                        ("ifa_addr", ctypes.POINTER(sockaddr)), ("ifa_netmask", ctypes.POINTER(sockaddr))]
+    libc = ctypes.CDLL(ctypes.util.find_library("c") or None)
+    head = ctypes.POINTER(ifaddrs)()
+    if libc.getifaddrs(ctypes.byref(head)) != 0:
+        return []
+    bsd = sys.platform == "darwin" or "bsd" in sys.platform   # their sockaddr starts with a length byte
+    out = []
+    try:
+        cur = head
+        while cur:
+            a = cur.contents
+            cur = a.ifa_next
+            if not a.ifa_addr or not (a.ifa_flags & 1):   # IFF_UP
+                continue
+            d = bytes(a.ifa_addr.contents.data)
+            if (d[1] if bsd else d[0] | d[1] << 8) != socket.AF_INET:
+                continue
+            m = bytes(a.ifa_netmask.contents.data) if a.ifa_netmask else b""
+            # macOS shortens a netmask's sockaddr to the bytes that are set: missing bytes are 0
+            mb = (m[4:max(4, min(8, m[0]))] if bsd and m else m[4:8]).ljust(4, b"\0")
+            out.append(((a.ifa_name or b"").decode("utf-8", "replace"), socket.inet_ntoa(d[4:8]), socket.inet_ntoa(mb)))
+    finally:
+        libc.freeifaddrs(head)
+    return out
+
+
+def _windows_nets():
+    """(name, ip, mask) of each IPv4 address of each network adapter, from GetAdaptersInfo()."""
+    import ctypes
+    from ctypes import wintypes
+
+    class IP_ADDR_STRING(ctypes.Structure):
+        pass
+    IP_ADDR_STRING._fields_ = [("Next", ctypes.POINTER(IP_ADDR_STRING)), ("IpAddress", ctypes.c_char * 16),
+                               ("IpMask", ctypes.c_char * 16), ("Context", wintypes.DWORD)]
+
+    class IP_ADAPTER_INFO(ctypes.Structure):
+        pass
+    IP_ADAPTER_INFO._fields_ = [
+        ("Next", ctypes.POINTER(IP_ADAPTER_INFO)), ("ComboIndex", wintypes.DWORD), ("AdapterName", ctypes.c_char * 260),
+        ("Description", ctypes.c_char * 132), ("AddressLength", ctypes.c_uint), ("Address", ctypes.c_ubyte * 8),
+        ("Index", wintypes.DWORD), ("Type", ctypes.c_uint), ("DhcpEnabled", ctypes.c_uint),
+        ("CurrentIpAddress", ctypes.POINTER(IP_ADDR_STRING)), ("IpAddressList", IP_ADDR_STRING),
+        ("GatewayList", IP_ADDR_STRING), ("DhcpServer", IP_ADDR_STRING), ("HaveWins", wintypes.BOOL),
+        ("PrimaryWinsServer", IP_ADDR_STRING), ("SecondaryWinsServer", IP_ADDR_STRING),
+        ("LeaseObtained", ctypes.c_int64), ("LeaseExpires", ctypes.c_int64)]
+    get = ctypes.windll.iphlpapi.GetAdaptersInfo
+    get.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong)]
+    size = ctypes.c_ulong(0)
+    get(None, ctypes.byref(size))
+    if not size.value:
+        return []
+    buf = ctypes.create_string_buffer(size.value)
+    if get(buf, ctypes.byref(size)) != 0:
+        return []
+    out = []
+    p = ctypes.cast(buf, ctypes.POINTER(IP_ADAPTER_INFO))
+    while p:
+        a = p.contents
+        name = a.Description.decode("mbcs", "replace")
+        node = a.IpAddressList
+        while True:
+            out.append((name, node.IpAddress.decode("ascii", "replace"), node.IpMask.decode("ascii", "replace")))
+            if not node.Next:
+                break
+            node = node.Next.contents
+        p = a.Next
+    return out
+
+
+def network_interfaces():
+    """This computer's IPv4 networks, for discovery: name, address, mask and the network's broadcast address.
+    Loopback is left out. Where the system can't be asked, the known addresses get the usual masks
+    (255.0.0.0 for the 2.x and 10.x Art-Net ranges, 255.255.255.0 otherwise) and are marked as guessed."""
+    try:
+        raw, guessed = (_windows_nets() if os.name == "nt" else _posix_nets()), False
+    except Exception as e:
+        log("Could not list the network interfaces (%s); guessing their masks." % e)
+        raw = []
+    if not raw:
+        raw, guessed = [("", ip, "255.0.0.0" if ip.split(".")[0] in ("2", "10") else "255.255.255.0") for ip in local_ips()], True
+    nets, seen = [], set()
+    for name, ip, mask in raw:
+        if not IPV4.match(ip) or not IPV4.match(mask) or ip in seen or ip.startswith("127.") or ip == "0.0.0.0" or mask == "255.255.255.255":
+            continue
+        seen.add(ip)
+        a, m = struct.unpack("!I", socket.inet_aton(ip))[0], struct.unpack("!I", socket.inet_aton(mask))[0]
+        nets.append({"name": name, "ip": ip, "mask": mask, "prefix": bin(m).count("1"),
+                     "broadcast": socket.inet_ntoa(struct.pack("!I", (a & m) | (~m & 0xFFFFFFFF))), "guessed": guessed})
+    return sorted(nets, key=lambda n: n["ip"])
+
+
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = "openLedMapper/" + VERSION
     protocol_version = "HTTP/1.1"
@@ -381,6 +487,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         ws.send_json({
             "t": "hello", "version": VERSION, "bindIp": art.bind_ip, "bindPort": art.bind_port,
             "discovery": art.discovery, "discoveryNote": art.discovery_note, "interfaces": local_ips(),
+            "nets": network_interfaces(),
             "nodes": list(art.nodes.values()),
         })
 
@@ -426,8 +533,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not art.discovery:
                 ws.send_json({"t": "error", "msg": "Discovery unavailable: " + art.discovery_note})
                 return
-            err = art.poll(str(msg.get("broadcast") or "255.255.255.255"))
-            if err:
+            # ArtPoll goes to the broadcast address of each network the page lists by its address ("ifaces"),
+            # and to one more address if given. A page from before network choice sends only "broadcast".
+            nets = network_interfaces()
+            ifaces, extra = msg.get("ifaces"), msg.get("broadcast")
+            targets = [n["broadcast"] for n in nets if isinstance(ifaces, list) and n["ip"] in ifaces]
+            if isinstance(extra, str) and IPV4.match(extra.strip()):
+                targets.append(extra.strip())
+            if not isinstance(ifaces, list) and not targets:
+                targets = ["255.255.255.255"]
+            targets = list(dict.fromkeys(targets))
+            errors = [e for e in (art.poll(t) for t in targets) if e]
+            ws.send_json({"t": "polled", "targets": targets, "nets": nets})
+            for err in errors:
                 ws.send_json({"t": "error", "msg": err})
 
 

@@ -58,6 +58,8 @@ With **Wiring** on, the stage also draws the data cable between fixtures chained
 
 **Lock** (the padlock beside the Group button above the fixture list, or **Ctrl L**) locks everything selected: one fixture, several, or a whole group. Locked fixtures can't be moved, nudged, aligned or deleted, and the stage and Ctrl A skip them; a locked group shows a padlock on its row. With everything selected already locked, the same button (amber then) unlocks.
 
+**Rotate** turns everything selected as one piece around the middle of the box around it: several fixtures, a whole group, or one. Drag the round handle above the selection on the stage (**Shift** for steps of 15°), use **Inspector → Arrange → Rotate** (90° and 15° either way, or any angle), or press **R** (90° clockwise) and **Shift R** (counter-clockwise). Lines and paths turn their points, a matrix or an oval its rotation, and a round circle its start angle, so pixel 1 moves with it. Locked fixtures stay where they are. An oval can also be turned on its own with **Rotation °** in the Inspector.
+
 **Ctrl D** duplicates. Copies are numbered on from the original: Matrix 1 becomes Matrix 2, Matrix 10 becomes Matrix 11, skipping numbers already used; a name without a number gets 2 (Wave → Wave 2). The same goes for pasted fixtures and duplicated groups, zones and scenes. When the originals are on one output, the copies go on that output after the fixtures already there, while they fit; a copy that doesn't fit stays unpatched. When the originals are spread over several outputs (for example a group across two outputs), the copies stay unpatched: right-click → **Patch to**.
 
 The Inspector / Content / Settings panel on the right can be hidden for a bigger stage: **»** in its tabs, the panel button at the right of the stage bar, or `H`. Double-clicking a fixture to rename it brings it back.
@@ -99,7 +101,7 @@ A zone is a rectangle of the canvas with its own layers, its own scenes and one 
 
 ## Layers
 
-The Content tab lists the zones, then the layers of the selected zone (top layer first, each with an opacity slider and an eye to hide it), then the selected layer's settings with a live preview above its parameters. Clicking a source plays it in the selected layer, crossfading over the Crossfade time. Each layer has its own parameters, so two layers can run the same generator with different settings.
+The Content tab lists the zones, then the layers of the selected zone (top layer first, each with an opacity slider and an eye to hide it). Change their order as in the Patch panel: drag a layer by its grip, or use its **↑ ↓** buttons; a moved layer slides into its new place, then the selected layer's settings with a live preview above its parameters. Clicking a source plays it in the selected layer, crossfading over the Crossfade time. Each layer has its own parameters, so two layers can run the same generator with different settings.
 
 **Speed** goes from 0 to 100 % of a generator's full speed, with **Reverse** next to it. Each layer keeps its own clock for it, so dragging the slider speeds the animation up or down smoothly instead of making it jump. (Custom ISF shaders get this too when they have a float input named `speed` used as `TIME * speed`.)
 
@@ -170,6 +172,8 @@ Each zone has its own scenes. A scene stores the zone's layers: sources, paramet
 Circles, arcs, lines and paths become fixtures, fitted into the composition. Circles keep the start point and drawing direction from the SVG. Shapes drawn exactly on top of each other are imported once. The SVG can also be kept as a guide image for tracing. Set the real pixel count per fixture afterwards; select several fixtures to set them all at once.
 
 ## Network notes
+
+- **Nodes → Discover** sends ArtPoll on each network of this computer, to that network's broadcast address (2.255.255.255 for a 2.0.0.10/8 card, 192.168.1.255 for 192.168.1.20/24). The networks are listed beside the button: untick one to leave it out of scans (Wi-Fi, a venue network you shouldn't flood), and its nodes are hidden from the list. The choice is kept on this computer. **Also** takes one more address to send ArtPoll to. The table shows which network each node answered on.
 
 - To send from a specific network card (for example a 2.x.x.x Art-Net network), use `python3 openledmapper.py --bind-ip 2.0.0.10`.
 - Discovery listens on UDP 6454. If another Art-Net program is running, openLedMapper still sends, but discovery is off. The Nodes tab says so.

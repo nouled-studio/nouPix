@@ -58,4 +58,28 @@ finally:
     p.terminate(); out = p.communicate()[0]
     check("no tracebacks in the bridge log", "Traceback" not in out and "Exception" not in out)
     node.close()
+# Discovery: ArtPoll goes to the broadcast address of each network the page ticks, plus one typed address
+from harness import ROOT
+sys.path.insert(0, ROOT)
+import openledmapper as olm
+class FakeArt:
+    discovery = True
+    def __init__(s): s.sent = []
+    def poll(s, address): s.sent.append(address)
+class FakeWS:
+    def __init__(s): s.out = []
+    def send_json(s, o): s.out.append(o)
+def poll(msg):
+    art, ws = FakeArt(), FakeWS()
+    olm.Handler.handle_message(art, ws, json.dumps(msg).encode())
+    return art.sent, ws.out
+nets = olm.network_interfaces()
+check("networks have an address, mask and broadcast address", all({"ip", "mask", "prefix", "broadcast"} <= set(n) and not n["ip"].startswith("127.") for n in nets))
+if nets:
+    sent, out = poll({"t": "poll", "ifaces": [nets[0]["ip"]], "broadcast": ""})
+    check("a ticked network gets ArtPoll on its broadcast address", sent == [nets[0]["broadcast"]] and out and out[0]["t"] == "polled" and out[0]["nets"] == nets)
+check("no network ticked: nothing sent", poll({"t": "poll", "ifaces": [], "broadcast": ""})[0] == [])
+check("a typed address is used too", poll({"t": "poll", "ifaces": [], "broadcast": " 2.255.255.255 "})[0] == ["2.255.255.255"])
+check("a typed address must be an IPv4 address", poll({"t": "poll", "ifaces": [], "broadcast": "example.com"})[0] == [])
+check("a page from before network choice: 255.255.255.255", poll({"t": "poll", "broadcast": ""})[0] == ["255.255.255.255"])
 print("ALL PASS" if ok else "SOME FAILED")
