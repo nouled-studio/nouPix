@@ -113,11 +113,18 @@ function remoteFromDevice(cid, role, m) {
   } else if (m.op === 'project' && typeof m.data === 'string' && FULL_ROLES.includes(role)) {
     if (isFinite(m.seq)) remote.acks[cid] = Math.max(remote.acks[cid] || 0, +m.seq);   // that device's change is in from now on
     let data = m.data;
-    try { if (role === 'operator') data = contentOf(data); } catch (e) { return; }
+    try { data = role === 'operator' ? contentOf(data) : keepLocal(data); } catch (e) { return; }
     if (data === serialize(false)) { remoteWelcome(cid, role); return; }   // nothing new: just put that device right
     try { restore(data); } catch (e) { report('a change from a remote device', e); remoteWelcome(cid, role); return; }
     pushHistory(); remoteChanged();   // the others get it, and that device hears its change is in
   }
+}
+// Where this window finds its Art-Net bridge stays this window's own, whatever a device sends
+function keepLocal(data) {
+  const d = JSON.parse(data);
+  if (!isObj(d)) throw new Error('not a project');
+  if (isObj(d.settings)) d.settings.bridgeUrl = project.settings.bridgeUrl;
+  return JSON.stringify(d);
 }
 // From an operator's project, only the content goes in: each zone's layers, scenes, scene playing and level, and the
 // shaders. Everything else (fixtures, groups, patch, controllers, zone areas and names, settings, files) stays.
