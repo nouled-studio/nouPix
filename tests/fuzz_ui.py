@@ -17,7 +17,7 @@ PICK = """(seed) => {
   e.setAttribute('data-fz', '1');
   return { tag: e.tagName, type: e.type || '', text: (e.textContent || e.getAttribute('aria-label') || '').trim().slice(0, 40), x: r.x + r.width / 2, y: r.y + r.height / 2 };
 }"""
-DND_SEL_JS = "#fxList li, .list.zones li, .scenerow .zhead, .scenerow, .scene, .prow, .outrow"
+DND_SEL_JS = "#fxList li, .list.zones li, .layers li, .scenerow .zhead, .scenerow, .scene, .prow, .outrow"
 DND_SEL = DND_SEL_JS
 DND_COUNT = "document.querySelectorAll(" + repr(DND_SEL_JS) + ").length"
 log = []
@@ -40,13 +40,25 @@ with sync_playwright() as p:
                 x1, y1 = x0 + rnd.uniform(-150, 150), y0 + rnd.uniform(-100, 100)
                 pg.mouse.move(x0, y0); pg.mouse.down(); pg.mouse.move(x1, y1, steps=3); pg.mouse.up()
                 log.append(f"stage drag tool={tool}")
-            elif kind < 0.2:  # keyboard shortcut
-                k = rnd.choice(["Escape", "Delete", "1", "2", "3", "Shift+1", "b", "i", "f", "g", "ArrowLeft", "Control+z", "Control+y", "Control+d", "Control+a", "Enter", "p", "Space"])
+            elif kind < 0.17:  # a handle of the frame around the selection: resize or turn it
+                if rnd.random() < 0.3: pg.keyboard.press(rnd.choice(["Control+a", "Escape"]))
+                hs = pg.evaluate("(() => { const r = cv.getBoundingClientRect(); return selHandles().map(h => { const p = toS(h.x, h.y); return [r.left + p[0], r.top + p[1], h.id]; }); })()")
+                if not hs: continue
+                x0, y0, hid = rnd.choice(hs)
+                shift = rnd.random() < 0.3
+                pg.mouse.move(x0, y0); pg.mouse.down()
+                if shift: pg.keyboard.down("Shift")
+                pg.mouse.move(x0 + rnd.uniform(-200, 200), y0 + rnd.uniform(-200, 200), steps=4); pg.mouse.up()
+                if shift: pg.keyboard.up("Shift")
+                log.append(f"handle {hid}{' shift' if shift else ''}")
+            elif kind < 0.24:  # keyboard shortcut
+                k = rnd.choice(["Escape", "Delete", "1", "2", "3", "Shift+1", "b", "i", "f", "g", "ArrowLeft", "Control+z", "Control+y", "Control+d", "Control+a", "Enter", "p", "Space",
+                                "r", "Shift+R", "Alt+ArrowUp", "Alt+ArrowDown", "Control+c", "Control+v", "Control+l"])
                 pg.keyboard.press(k); log.append(f"key {k}")
-            elif kind < 0.25:  # wheel zoom on the stage
+            elif kind < 0.28:  # wheel zoom on the stage
                 box = pg.locator("#view").bounding_box()
                 pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2); pg.mouse.wheel(0, rnd.choice([-300, 300])); log.append("wheel")
-            elif kind < 0.33:  # drag one list item onto another
+            elif kind < 0.36:  # drag one list item onto another
                 n = pg.evaluate(DND_COUNT)
                 if n < 2: continue
                 a, b = rnd.randrange(n), rnd.randrange(n)
@@ -82,7 +94,8 @@ with sync_playwright() as p:
       return { fixtures: P.fixtures.length, zones: P.zones.length, scenes: P.zones.reduce((n, z) => n + z.scenes.length, 0),
         dupFixtures: u(P.fixtures.map(f => f.id)), dupZones: u(P.zones.map(z => z.id)), dupScenes: u(P.zones.flatMap(z => z.scenes.map(s => s.id))),
         currentSceneMissing: P.zones.filter(z => z.scene && !z.scenes.some(s => s.id === z.scene)).length,
-        patchedTwice: u(P.controllers.flatMap(c => c.chains.flat())), patchedMissing: P.controllers.flatMap(c => c.chains.flat()).filter(id => !fx.has(id)).length }; }""")
+        patchedTwice: u(P.controllers.flatMap(c => c.chains.flat())), patchedMissing: P.controllers.flatMap(c => c.chains.flat()).filter(id => !fx.has(id)).length,
+        patchedBadGeometry: P.fixtures.filter(f => ['x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'ry', 'w', 'h', 'rot', 'start'].some(k => k in f && !(f.type === 'matrix' && k === 'start') && !Number.isFinite(f[k])) || (f.pts && f.pts.some(v => !Number.isFinite(v))) || !(f._pts && Array.from(f._pts).every(Number.isFinite))).length }; }""")
     br.close()
 bridge.terminate(); bridge.communicate()
 drags = sum(1 for l in log if l.startswith("drag ")); failed = sum(1 for l in log if l.startswith("(action failed"))

@@ -29,6 +29,7 @@ import http.client
 import http.server
 import json
 import os
+import re
 import shutil
 import socket
 import struct
@@ -324,7 +325,7 @@ def local_ips():
     return sorted(ips, key=lambda ip: (ip.startswith("127."), ip))
 
 
-IPV4 = __import__("re").compile(r"^\d{1,3}(\.\d{1,3}){3}$")
+IPV4 = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
 
 
 def _posix_nets():

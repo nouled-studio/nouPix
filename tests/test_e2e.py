@@ -1,6 +1,6 @@
 import os, sys, time, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import FakeNode, start_bridge, CHROME_ARGS
+from harness import FakeNode, start_bridge, CHROME_ARGS, app_error
 from playwright.sync_api import sync_playwright
 PORT = 8093
 node = FakeNode()
@@ -24,7 +24,7 @@ with sync_playwright() as p:
     ctx = br.new_context(viewport={"width": 1500, "height": 950})
     pg = ctx.new_page()
     errs = []
-    pg.on("console", lambda m: errs.append(m.text) if m.type == "error" else None)
+    pg.on("console", lambda m: errs.append(m.text) if app_error(m) else None)
     pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.goto(f"http://127.0.0.1:{PORT}/")
     pg.wait_for_function("window.olm && olm.bridge.connected", timeout=10000)

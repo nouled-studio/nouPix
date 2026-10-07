@@ -598,6 +598,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const uid = () => Math.random().toString(36).slice(2, 10);
 const rad = d => d * Math.PI / 180;
+const wrap180 = a => ((a % 360) + 540) % 360 - 180;   // an angle in degrees, as -180 to 180
 const fmtN = n => Math.round(n).toLocaleString('en-US');
 const fmtV = v => (Number.isInteger(v) ? String(v) : String(Math.round(v * 100) / 100));
 function parseIP(s) {
@@ -2222,7 +2223,7 @@ function drawView() {
     for (const hd of handlesOf(f)) {
       const [sx, sy] = toS(hd.x, hd.y);
       if (hd.ctl) { ctx.beginPath(); ctx.moveTo(...toS(hd.ax, hd.ay)); ctx.lineTo(sx, sy); ctx.strokeStyle = '#3cc8ff'; ctx.lineWidth = 1; ctx.stroke(); ctx.beginPath(); ctx.arc(sx, sy, 3.5, 0, 6.2832); ctx.fillStyle = '#3cc8ff'; ctx.fill(); continue; }
-      if (hd.rot) { const [cx, cy] = toS(f.cx, f.cy); const a = rad(f.rot), e = toS(f.cx + Math.sin(a) * f.h / 2, f.cy - Math.cos(a) * f.h / 2); ctx.beginPath(); ctx.moveTo(...e); ctx.lineTo(sx, sy); ctx.strokeStyle = '#3cc8ff'; ctx.lineWidth = 1; ctx.stroke(); }
+      if (hd.rot) { const a = rad(f.rot), e = toS(f.cx + Math.sin(a) * f.h / 2, f.cy - Math.cos(a) * f.h / 2); ctx.beginPath(); ctx.moveTo(...e); ctx.lineTo(sx, sy); ctx.strokeStyle = '#3cc8ff'; ctx.lineWidth = 1; ctx.stroke(); }
       ctx.beginPath();
       if (hd.round) ctx.arc(sx, sy, 5, 0, 6.2832); else ctx.rect(sx - 4.5, sy - 4.5, 9, 9);
       ctx.fillStyle = hd.id === 'c' ? '#3cc8ff' : '#fff'; ctx.fill(); ctx.strokeStyle = '#3cc8ff'; ctx.lineWidth = 1.5; ctx.stroke();
@@ -2528,7 +2529,7 @@ function dragHandle(f, o, hd, x, y, e) {
     if (hd.rot) {
       let a = Math.atan2(y - o.cy, x - o.cx) * 180 / Math.PI + 90;
       if (e.shiftKey) a = Math.round(a / 15) * 15;
-      f.rot = ((a % 360) + 540) % 360 - 180;
+      f.rot = wrap180(a);
     } else {
       const k = +hd.id[1], sgn = [[-1, -1], [1, -1], [1, 1], [-1, 1]][k];
       const c = Math.cos(rad(o.rot)), s = Math.sin(rad(o.rot));
@@ -2674,7 +2675,7 @@ cv.addEventListener('pointermove', e => {
   if (drag.kind === 'handle') { dragHandle(drag.f, drag.o, drag.hd, x, y, e); drag.changed = true; syncInspector(); return; }
   if (drag.kind === 'rotsel') {   // Shift: in steps of 15°
     let deg = (Math.atan2(y - drag.py, x - drag.px) - drag.a0) * 180 / Math.PI;
-    deg = ((deg % 360) + 540) % 360 - 180;
+    deg = wrap180(deg);
     if (e.shiftKey) deg = Math.round(deg / 15) * 15;
     drag.deg = deg;
     for (const [id, o] of drag.origs) { const f = fxById(id); if (f) rotateFixture(f, o, drag.px, drag.py, deg); }
@@ -3877,7 +3878,7 @@ function duplicateSel() {
   const out = [], pairs = [];
   const off = Math.max(project.settings.grid, 10) * 2, names = new Set(project.fixtures.map(f => f.name));
   for (const u of selUnits()) {
-    const ng = u.g && { id: uid(), name: nextCopyName(groupName(u.g), new Set(project.groups.map(x => groupName(x)))), tag: u.g.tag, open: true };
+    const ng = u.g && { id: uid(), name: nextCopyName(groupName(u.g), new Set(project.groups.map(x => groupName(x)))), tag: u.g.tag, open: true, ...(u.g.rot ? { rot: u.g.rot } : {}) };   // a turned group's copy keeps its frame
     if (ng) project.groups.push(ng);
     for (const f of u.list) {
       const g = JSON.parse(JSON.stringify(snapshotGeom(f)));
@@ -4014,7 +4015,7 @@ function centreSel() {
 function rotateFixture(f, o, px, py, deg) {
   const c = Math.cos(rad(deg)), s = Math.sin(rad(deg));
   const P = (x, y) => [r3(px + (x - px) * c - (y - py) * s), r3(py + (x - px) * s + (y - py) * c)];
-  const turn = a => r3((((a + deg) % 360) + 540) % 360 - 180);
+  const turn = a => r3(wrap180(a + deg));
   if (f.type === 'line') { [f.x1, f.y1] = P(o.x1, o.y1); [f.x2, f.y2] = P(o.x2, o.y2); }
   else if (f.type === 'path') {
     const pts = [];
@@ -4037,7 +4038,6 @@ function scaleFixture(f, o, F, ax, ay, sx, sy) {
   const P = (x, y) => { const [u, v] = local(x - F.cx, y - F.cy), [X, Y] = world(ax + (u - ax) * sx, ay + (v - ay) * sy); return [r3(F.cx + X), r3(F.cy + Y)]; };
   const V = (x, y) => { const [u, v] = local(x, y); return world(u * sx, v * sy); };   // a direction or offset
   const axis = deg => { const [X, Y] = V(Math.cos(rad(deg)), Math.sin(rad(deg))); return [Math.hypot(X, Y), Math.atan2(Y, X) * 180 / Math.PI]; };
-  const norm = a => r3((((a % 360) + 540) % 360) - 180);
   if (f.type === 'line') { [f.x1, f.y1] = P(o.x1, o.y1); [f.x2, f.y2] = P(o.x2, o.y2); }
   else if (f.type === 'path') {
     const pts = [];
@@ -4047,16 +4047,16 @@ function scaleFixture(f, o, F, ax, ay, sx, sy) {
   } else if (f.type === 'matrix') {
     [f.cx, f.cy] = P(o.cx, o.cy);
     const r = numOr(o.rot, 0), [kw, a] = axis(r), [kh] = axis(r + 90);
-    f.w = r3(Math.max(1, o.w * kw)); f.h = r3(Math.max(1, o.h * kh)); f.rot = norm(a);
+    f.w = r3(Math.max(1, o.w * kw)); f.h = r3(Math.max(1, o.h * kh)); f.rot = r3(wrap180(a));
   } else if (f.type === 'circle') {
     [f.cx, f.cy] = P(o.cx, o.cy);
     const r0 = ovalRot(o), [kx, a] = axis(r0), [ky] = axis(r0 + 90), rx = Math.max(0.5, o.r * kx), ry = Math.max(0.5, ryOf(o) * ky);
-    if (Math.abs(rx - ry) < 1e-3) { f.r = r3(rx); delete f.ry; delete f.rot; f.start = norm(numOr(o.start, 0) + r0); }
+    if (Math.abs(rx - ry) < 1e-3) { f.r = r3(rx); delete f.ry; delete f.rot; f.start = r3(wrap180(numOr(o.start, 0) + r0)); }
     else {   // an oval turned by rot: its start angle is along its own axes, so pixel 1 stays where it was
-      const r1 = norm(a);
+      const r1 = r3(wrap180(a));
       f.r = r3(rx); f.ry = r3(ry);
       if (r1) f.rot = r1; else delete f.rot;
-      f.start = norm(numOr(o.start, 0) + r0 - r1);
+      f.start = r3(wrap180(numOr(o.start, 0) + r0 - r1));
     }
   }
 }
@@ -4101,7 +4101,7 @@ function selAngle(list) {
 }
 function setSelAngle(list, a) {
   if (list.length === 1 && list[0].type === 'circle') return;
-  a = r3((((a % 360) + 540) % 360) - 180);
+  a = r3(wrap180(a));
   const g = wholeGroup(list);
   if (g) { if (a) g.rot = a; else delete g.rot; }
   else ui.selRot = { key: selKey(list), a };
@@ -5205,7 +5205,7 @@ const isClip = d => isObj(d) && d.openledmapper === 'fixtures' && Array.isArray(
 function clipOfSel() {
   const sel = selected();
   if (!sel.length) return null;
-  const groups = selUnits(sel).filter(u => u.g).map(u => ({ id: u.g.id, name: u.g.name, tag: u.g.tag }));
+  const groups = selUnits(sel).filter(u => u.g).map(u => ({ id: u.g.id, name: u.g.name, tag: u.g.tag, ...(u.g.rot ? { rot: u.g.rot } : {}) }));
   const whole = new Set(groups.map(g => g.id));
   const fixtures = sel.map(f => { const c = JSON.parse(JSON.stringify(snapshotGeom(f))); if (!whole.has(c.group)) delete c.group; delete c.addr; return c; });
   return { openledmapper: 'fixtures', version: 1, fixtures, groups };
@@ -5226,7 +5226,8 @@ function pasteFixtures(d, point) {
   const ids = new Set(project.fixtures.map(f => f.id)), names = new Set(project.fixtures.map(f => f.name));
   const gnames = new Set(project.groups.map(g => groupName(g)));
   const gmap = new Map((Array.isArray(d.groups) ? d.groups : []).filter(g => isObj(g) && isId(g.id)).map((g, i) => [String(g.id),
-    { id: uid(), name: typeof g.name === 'string' && g.name ? (gnames.has(g.name) ? nextCopyName(g.name, gnames) : g.name) : nextGroupName(), tag: typeof g.tag === 'string' ? g.tag : TAGS[(project.groups.length + 2 + i) % TAGS.length], open: true }]));
+    { id: uid(), name: typeof g.name === 'string' && g.name ? (gnames.has(g.name) ? nextCopyName(g.name, gnames) : g.name) : nextGroupName(), tag: typeof g.tag === 'string' ? g.tag : TAGS[(project.groups.length + 2 + i) % TAGS.length], open: true,
+      ...(Number.isFinite(g.rot) && g.rot ? { rot: wrap180(g.rot) } : {}) }]));
   const list = d.fixtures.filter(f => isObj(f) && TYPE_LABEL[f.type]).map((f0, i) => {
     const f = JSON.parse(JSON.stringify(f0));
     delete f.id; delete f.addr; f.locked = false;

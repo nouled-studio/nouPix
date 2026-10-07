@@ -1,6 +1,6 @@
 import os, sys, time, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import FakeNode, start_bridge, CHROME_ARGS
+from harness import FakeNode, start_bridge, CHROME_ARGS, app_error
 from playwright.sync_api import sync_playwright
 node = FakeNode(); bridge = start_bridge(8084)
 fails = []
@@ -17,7 +17,7 @@ def proj(zones):
             "controllers": [{"id": "c1", "name": "C", "ip": "127.0.0.1", "enabled": True, "outputs": 1, "upo": 1, "startUniverse": 5, "split": False, "chains": [["f1"]]}], "zones": zones}
 with sync_playwright() as p:
     br = p.chromium.launch(args=CHROME_ARGS); ctx = br.new_context(viewport={"width": 1440, "height": 900}); pg = ctx.new_page()
-    errs = []; pg.on("pageerror", lambda e: errs.append(str(e))); pg.on("console", lambda m: errs.append(m.text) if m.type == "error" and "TUNNEL" not in m.text else None)
+    errs = []; pg.on("pageerror", lambda e: errs.append(str(e))); pg.on("console", lambda m: errs.append(m.text) if app_error(m) else None)
     pg.goto("http://127.0.0.1:8084/"); pg.wait_for_function("window.olm && olm.bridge.connected")
     load = lambda pr: (pg.evaluate("p => olm.loadProject(p)", pr), time.sleep(0.5))
     px = lambda: pg.evaluate("Array.from(olm.project.fixtures[0]._col)")   # 5 pixels at x = 100..300

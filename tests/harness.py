@@ -37,4 +37,12 @@ def start_bridge(port=8099, extra=()):
     time.sleep(0.8)
     return p
 
+def app_error(m):
+    """A console message that is an error of the app: not the web fonts failing to load (offline, or a proxy
+    that breaks their certificate), which the app does without"""
+    if m.type != "error" or "TUNNEL" in m.text:
+        return False
+    url = (m.location or {}).get("url", "") or ""
+    return not ("fonts.googleapis.com" in url or "fonts.gstatic.com" in url)
+
 CHROME_ARGS = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--ignore-gpu-blocklist"]
