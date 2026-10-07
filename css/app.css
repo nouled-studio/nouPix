@@ -198,7 +198,10 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .ctrl .t .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ctrl .s { display: flex; justify-content: space-between; color: var(--muted); }
 .ctrl-list .foot { padding: 8px; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); }
-.ctrl-edit { overflow: auto; display: flex; flex-direction: column; min-width: 0; }
+.ctrl-edit { overflow: auto; display: flex; flex-direction: column; min-width: 0; --cap: 840px; }
+/* On a wide dock (the right panel folded) the settings, the outputs and their fixtures keep one width, so the usage
+   meters, the bin and Fold all line up with the fixture rows; the bars behind them still run the whole width */
+.ctrl-edit .ctrl-fields, .ctrl-edit .outbar, .ctrl-edit .outhead, .ctrl-edit .outlist { padding-right: max(12px, calc(100% - var(--cap))); }
 .ctrl-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--bg1); }
 .ctrl-fields .f { display: grid; gap: 3px; }
 .onsw { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px 0 4px; border-radius: 13px; border: 1px solid var(--line2); background: var(--bg2); color: var(--muted); font: 600 11px var(--mono); letter-spacing: .06em; cursor: pointer; }
@@ -224,11 +227,11 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .outhead .ur { font-family: var(--mono); font-size: 11px; color: var(--text2); }
 .outhead .sum { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .outrow.shut .outlist { display: none; }
-.outlist { padding: 2px 12px 8px 30px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.outlist { padding: 2px 12px 8px 30px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
 .outlist .ph { padding: 2px 0 2px; color: var(--muted); font-size: 12px; font-style: italic; }
-/* fixed, compact columns, so a fixture's name, pixels, address and buttons read as one group */
+/* columns like a table: the name takes the room left, pixels, address and buttons line up under each other */
 /* each fixture is a box you can grab: drag it to reorder, or use ↑ ↓ */
-.prow { display: grid; grid-template-columns: 8px 18px 8px minmax(60px, 140px) 44px 108px 44px 20px; justify-content: start; align-items: center; column-gap: 7px; height: 26px; padding: 0 4px 0 6px; font-size: 12px; cursor: grab; background: var(--bg3); border: 1px solid var(--line2); border-radius: 4px; }
+.prow { display: grid; grid-template-columns: 8px 18px 8px minmax(60px, 1fr) 44px 108px 44px 20px; justify-content: start; align-items: center; column-gap: 7px; height: 26px; padding: 0 4px 0 6px; font-size: 12px; cursor: grab; background: var(--bg3); border: 1px solid var(--line2); border-radius: 4px; }
 .prow:active { cursor: grabbing; }
 .prow[hidden], .outrow[hidden] { display: none; }
 .prow .pgrip { width: 6px; height: 12px; opacity: .45; background-image: radial-gradient(currentColor 1px, transparent 1.2px); background-size: 3px 3px; color: var(--text2); }
@@ -447,7 +450,7 @@ input[type=color] { width: 40px; height: 24px; padding: 0 2px; border: 1px solid
   .ctrl-list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 180px; }
   .outhead { grid-template-columns: 14px 52px 1fr; }
   .outhead .sum, .outhead .usage { grid-column: 2 / -1; }
-  .prow { grid-template-columns: 8px 18px 8px minmax(60px, 140px) 40px 44px 20px; }
+  .prow { grid-template-columns: 8px 18px 8px minmax(60px, 1fr) 40px 44px 20px; }
   .prow .ad { display: none; }
   .monitor .mbody { grid-template-columns: 1fr; }
   .monitor .ulist { max-height: 120px; border-right: 0; border-bottom: 1px solid var(--line); }
