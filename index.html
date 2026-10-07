@@ -341,6 +341,10 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .nodes .scroll { overflow: auto; flex: 1; }
 .rotbtns { display: flex; flex-wrap: wrap; gap: 3px; }
 .rotbtns .btn { padding: 0 5px; font-variant-numeric: tabular-nums; }
+.vtl { position: relative; height: 18px; margin: 4px 0 2px; border-radius: 3px; background: var(--bg0); border: 1px solid var(--line2); cursor: pointer; touch-action: none; }
+.vtl .span { position: absolute; top: 0; bottom: 0; background: var(--accent-soft); border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+.vtl .head { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--warn); }
+.vtlpos { display: flex; justify-content: flex-end; margin-bottom: 4px; }
 .netchip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px 0 6px; border: 1px solid var(--line2); border-radius: 12px; color: var(--muted); cursor: pointer; max-width: 300px; }
 .netchip input { margin: 0; }
 .netchip.on { color: var(--text); border-color: rgba(60,200,255,.45); background: var(--accent-soft); }
@@ -566,7 +570,7 @@ input[type=color] { width: 40px; height: 24px; padding: 0 2px; border: 1px solid
 <div class="toasts" id="toasts"></div>
 <input type="file" id="fileOpen" class="hide-file" accept=".json,application/json" tabindex="-1" aria-hidden="true">
 <input type="file" id="fileIsf" class="hide-file" accept=".fs,.glsl,.txt" tabindex="-1" aria-hidden="true">
-<input type="file" id="fileMedia" class="hide-file" accept="image/*,video/*" tabindex="-1" aria-hidden="true">
+<input type="file" id="fileMedia" class="hide-file" accept=".mp4,.m4v,.mov,.webm,.mkv,.ogv,.png,.jpg,.jpeg,.gif,.webp,.avif,.bmp,image/*,video/*" tabindex="-1" aria-hidden="true">
 <input type="file" id="fileSvg" class="hide-file" accept=".svg,image/svg+xml" tabindex="-1" aria-hidden="true">
 <input type="file" id="fileGuide" class="hide-file" accept="image/*,.svg" tabindex="-1" aria-hidden="true">
 <script>/* interactive-shader-format 2.8.1, ISC licence, (c) VIDVOX */
@@ -943,6 +947,7 @@ function hydrate(p) {
     if (typeof s.name !== 'string') s.name = s.name != null ? String(s.name) : 'Source';
     if (s.kind === 'isf' && typeof s.code !== 'string') s.code = '';
     if ('rate' in s) s.rate = numOr(s.rate, 1);
+    if (s.kind === 'video') fixVideoOptions(s);
   }
   out.sources = builtins.concat(custom);
   if (!Array.isArray(p.zones)) { // 0.2 and older: one set of layers and scenes for the whole canvas
@@ -1399,6 +1404,7 @@ function drawMedia(src, w, h) {
   mctx.clearRect(0, top, w, h);
   const el = mediaEls.get(src.id);
   if (!el) return false;
+  if (el._done && src.kind === 'video' && src.endHold === false) return false;   // played once, then black
   const iw = el.videoWidth || el.naturalWidth, ih = el.videoHeight || el.naturalHeight;
   if (!iw || !ih) return false;
   let dw = w, dh = h;
@@ -1432,9 +1438,108 @@ function syncMedia() {
   for (const z of project.zones) for (const L of z.layers.concat(z._fade && z._fade.from || [])) if (L.on && L.src) used.add(L.src);
   for (const [id, el] of mediaEls) {
     if (!(el instanceof HTMLVideoElement)) continue;
-    if (!used.has(id)) { if (!el.paused && !el.srcObject) el.pause(); }
-    else if (el.paused && !el._held) el.play().catch(() => {});
+    const src = srcById(id), shown = used.has(id), was = el._shown;
+    el._shown = shown;
+    if (!shown) { if (!el.paused && !el.srcObject) el.pause(); continue; }
+    if (src && src.kind === 'video' && !was && src.restart) restartVideo(src, el, false);   // just came on: from its start
+    if (el.paused && !el._held && !el._done) playVideo(src, el);
   }
+}
+// ---------- video files: their options, the formats that play, trimming, once or loop, audio
+const VIDEO_DEFAULTS = { trimIn: 0, trimOut: 0, loop: true, endHold: true, restart: false, audio: false, volume: 1 };
+function fixVideoOptions(s) {
+  for (const [k, d] of Object.entries(VIDEO_DEFAULTS)) {
+    if (typeof d === 'number') s[k] = numOr(s[k], d); else if (typeof s[k] !== 'boolean') s[k] = d;
+  }
+  s.trimIn = Math.max(0, s.trimIn); s.trimOut = Math.max(0, s.trimOut); s.volume = clamp(s.volume, 0, 1);
+  return s;
+}
+// The part of a video that plays: from trimIn to trimOut (0 = to its end), within its length
+function videoSpan(src, el) {
+  const d = el && isFinite(el.duration) ? el.duration : Infinity;
+  const a = clamp(numOr(src.trimIn, 0), 0, isFinite(d) ? Math.max(0, d - 0.05) : 1e9);
+  const b = src.trimOut > a ? Math.min(src.trimOut, d) : d;
+  return [a, b];
+}
+// The browser's own loop is seamless, so it loops a whole video; a trimmed one is looped by videoTick
+function applyVideoOptions(src, el) {
+  if (!el || !(el instanceof HTMLVideoElement) || el.srcObject) return;
+  el.loop = src.loop !== false && !(src.trimIn > 0) && !(src.trimOut > 0);
+  el.muted = !src.audio;
+  el.volume = clamp(numOr(src.volume, 1), 0, 1);
+  el.playbackRate = src.rate || 1;
+}
+function playVideo(src, el) {
+  el.play().catch(e => {   // browsers may refuse sound before a click: play it silent, say so once
+    if (e && e.name === 'NotAllowedError' && !el.muted) {
+      el.muted = true; el.play().catch(() => {});
+      if (!el._audioWarned) { el._audioWarned = true; toast(`${src ? src.name : 'Video'}: the browser blocked its sound until you click in openLedMapper. It plays silent for now.`, 'warn'); }
+    }
+  });
+}
+function restartVideo(src, el, play = true) {
+  const [a] = videoSpan(src, el);
+  el._done = false;
+  try { el.currentTime = a; } catch (e) { /* not seekable yet */ }
+  if (play && el._shown !== false) playVideo(src, el);
+}
+// Each frame: keep playing videos within their trim, loop them or stop them at the end
+function videoTick() {
+  for (const [id, el] of mediaEls) {
+    if (!(el instanceof HTMLVideoElement) || el.srcObject || el.readyState < 1) continue;
+    const src = srcById(id);
+    if (!src || src.kind !== 'video') continue;
+    const [a, b] = videoSpan(src, el), t = el.currentTime;
+    if (t < a - 0.05 && !el.seeking && !el._done) { el.currentTime = a; continue; }
+    const atEnd = el.ended || (isFinite(b) && t >= b - 0.01);
+    if (!atEnd || el.loop) continue;
+    if (src.loop !== false) { if (!el.seeking) { el.currentTime = a; if (el._shown && !el._held && el.paused) playVideo(src, el); } }
+    else if (!el._done) { el._done = true; el.pause(); if (isFinite(b) && !el.ended) el.currentTime = b; refreshMediaPanel(); }
+  }
+}
+const refreshMediaPanel = () => { if (ui.rightTab === 'content' && $('#rightBody .vtl')) renderRight(); };
+// The formats openLedMapper takes. What really plays depends on the browser's codecs: a file is tried before it
+// is accepted (probeMedia), so one that cannot play gets a clear message instead of a black layer.
+const VIDEO_EXT = ['mp4', 'm4v', 'mov', 'webm', 'mkv', 'ogv'], IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
+const MEDIA_FORMATS = 'Videos: MP4 or MOV with H.264, WebM (VP8, VP9 or AV1), MKV with those codecs. Images: PNG, JPEG, GIF, WebP, AVIF, BMP.';
+function mediaKindOf(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if ((file.type || '').startsWith('video/') || VIDEO_EXT.includes(ext)) return 'video';
+  if ((file.type || '').startsWith('image/') || IMAGE_EXT.includes(ext)) return 'image';
+  return null;
+}
+// Loads a file into a hidden player and resolves once a first frame decodes, or rejects with what is wrong
+function probeMedia(file, timeout = 20000) {
+  return new Promise((resolve, reject) => {
+    const kind = mediaKindOf(file);
+    if (!kind) return reject(new Error(`${file.name} is not a video or image file openLedMapper can play. ${MEDIA_FORMATS}`));
+    const url = URL.createObjectURL(file);
+    let el, timer = null;
+    const end = (ok, v) => {
+      clearTimeout(timer);
+      if (ok) return resolve(v);
+      if (el instanceof HTMLVideoElement) { el.removeAttribute('src'); el.load(); }
+      URL.revokeObjectURL(url); reject(v);
+    };
+    timer = setTimeout(() => end(false, new Error(`${file.name} did not load. ${MEDIA_FORMATS}`)), timeout);
+    if (kind === 'video') {
+      el = document.createElement('video');
+      Object.assign(el, { muted: true, playsInline: true, preload: 'auto' });
+      el.addEventListener('loadeddata', () => el.videoWidth > 0
+        ? end(true, { kind, url, el, w: el.videoWidth, h: el.videoHeight, duration: el.duration })
+        : end(false, new Error(`${file.name} has no picture (only sound?). ${MEDIA_FORMATS}`)), { once: true });
+      el.addEventListener('error', () => {
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        end(false, new Error(`${file.name} can't be played here: its video codec isn't supported${['mp4', 'mov', 'm4v', 'mkv'].includes(ext) ? ' (H.265/HEVC and ProRes are not; export it as H.264 MP4 or as WebM)' : ''}. ${MEDIA_FORMATS}`));
+      }, { once: true });
+      el.src = url;
+    } else {
+      el = new Image();
+      el.onload = () => el.naturalWidth > 0 ? end(true, { kind, url, el, w: el.naturalWidth, h: el.naturalHeight }) : end(false, new Error(`${file.name} is empty.`));
+      el.onerror = () => end(false, new Error(`${file.name} can't be opened as an image. ${MEDIA_FORMATS}`));
+      el.src = url;
+    }
+  });
 }
 
 /* ============================================================ mixer: composites zones and layers on the GPU */
@@ -1944,6 +2049,7 @@ function tick() {
   if (ui.outputMode !== 'content') testPattern(ui.outputMode);
   try { updateThumbs(); } catch (e) { report('thumbnails', e); }
   if (now - mediaChecked > 1000) { mediaChecked = now; syncMedia(); }
+  try { videoTick(); } catch (e) { report('video', e); }
   buildOutput();
   if (ui.outputOn) sendFrame();
   lastTickEnd = performance.now();
@@ -3776,12 +3882,7 @@ function renderContentTab(body) {
     if (!el) k.push(h('p', { class: 'note' }, 'This file is not loaded in this session (browsers do not keep file access between visits).'));
     k.push(h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => pickMedia(src) }, el ? 'Replace file…' : 'Load file…')));
     k.push(row('Fit', seg([['fit', 'Fit'], ['fill', 'Fill'], ['stretch', 'Stretch']], src.fit || 'fit', v => { src.fit = v; markThumb(src); commit(); })));
-    if (src.kind === 'video') {
-      k.push(sliderRow('Speed', src, 'rate', { min: 0.1, max: 4, step: 0.05, fmt: v => v.toFixed(2) + '×', onInput: v => { if (el) el.playbackRate = v; }, onCommit: commit }));
-      k.push(h('div', { class: 'actions' },
-        h('button', { class: 'btn sm', type: 'button', onclick: () => { if (!el) return; el._held = !el.paused; el._held ? el.pause() : el.play(); } }, 'Play / pause'),
-        h('button', { class: 'btn sm', type: 'button', onclick: () => { if (el) el.currentTime = 0; } }, 'Restart')));
-    }
+    if (src.kind === 'video') k.push(...videoControls(src, el));
     body.append(sec('Media', k));
   }
   if (src.kind === 'screen') {
@@ -3793,6 +3894,54 @@ function renderContentTab(body) {
   }
   body.append(sec('Transition', sliderRow('Crossfade', project.settings, 'transition', { min: 0, max: 5, step: 0.1, fmt: v => v.toFixed(1) + ' s', onCommit: commit }),
     h('p', { class: 'note' }, 'Fade time when you click a source to play it in a layer. Scenes have their own fade time.')));
+}
+
+// The video options in the Content tab: a timeline with the trim, how it plays, speed and sound
+function videoControls(src, el) {
+  fixVideoOptions(src);
+  const apply = () => applyVideoOptions(src, el);
+  const changed = () => { apply(); commit(); renderRight(); };
+  const k = [];
+  const dur = el && isFinite(el.duration) ? el.duration : 0;
+  if (el) k.push(h('p', { class: 'note mono' }, `${el.videoWidth} × ${el.videoHeight} · ${dur ? fmtDur(dur) : '…'}`));
+  // timeline: the whole video, the trimmed part lit, the playhead; click or drag to go to a moment
+  const tl = h('div', { class: 'vtl', title: 'Click or drag to go to a moment' }, h('i', { class: 'span' }), h('i', { class: 'head' }));
+  const place = () => {
+    if (!tl.isConnected) return;
+    const d = el && isFinite(el.duration) ? el.duration : 0;
+    if (d) {
+      const [a, b] = videoSpan(src, el);
+      tl.firstChild.style.left = (a / d * 100) + '%'; tl.firstChild.style.width = ((Math.min(b, d) - a) / d * 100) + '%';
+      tl.lastChild.style.left = (el.currentTime / d * 100) + '%';
+      pos.textContent = `${fmtDur(el.currentTime)} / ${fmtDur(d)}`;
+    }
+    requestAnimationFrame(place);
+  };
+  const pos = h('span', { class: 'mono muted' }, '');
+  const seek = e => { if (!el || !dur) return; const r = tl.getBoundingClientRect(); el.currentTime = clamp((e.clientX - r.left) / r.width, 0, 1) * el.duration; el._done = false; };
+  tl.addEventListener('pointerdown', e => { tl.setPointerCapture(e.pointerId); seek(e); tl.onpointermove = seek; });
+  tl.addEventListener('pointerup', () => { tl.onpointermove = null; });
+  if (el) { k.push(tl, h('div', { class: 'vtlpos' }, pos)); requestAnimationFrame(place); }
+  // End shows the real end time; at (or past) the video's end it means "to the end" (0)
+  const out = { v: src.trimOut || dur };
+  const trimIn = numInput(src, 'trimIn', { min: 0, max: dur || 1e6, step: 0.1, aria: 'Start of the video, in seconds', onCommit: changed });
+  const trimOut = numInput(out, 'v', { min: 0, max: dur || 1e6, step: 0.1, aria: 'End of the video, in seconds', onCommit: () => { src.trimOut = dur && out.v >= dur - 0.05 ? 0 : out.v; changed(); } });
+  k.push(row('Start (s)', trimIn), row('End (s)', trimOut));
+  k.push(h('div', { class: 'actions' },
+    h('button', { class: 'btn sm', type: 'button', disabled: !el, title: 'The video starts here', onclick: () => { src.trimIn = Math.round(el.currentTime * 10) / 10; if (src.trimOut && src.trimOut <= src.trimIn) src.trimOut = 0; changed(); } }, 'Start here'),
+    h('button', { class: 'btn sm', type: 'button', disabled: !el, title: 'The video ends here', onclick: () => { const t = Math.round(el.currentTime * 10) / 10; if (t > src.trimIn) { src.trimOut = t; changed(); } } }, 'End here'),
+    h('button', { class: 'btn sm', type: 'button', disabled: !(src.trimIn || src.trimOut), onclick: () => { src.trimIn = 0; src.trimOut = 0; changed(); } }, 'Whole video')));
+  k.push(row('Play', seg([[true, 'Loop'], [false, 'Once']], src.loop !== false, v => { src.loop = v === true || v === 'true'; if (src.loop && el) { el._done = false; playVideo(src, el); } changed(); })));
+  if (src.loop === false) k.push(row('At the end', seg([[true, 'Last frame'], [false, 'Black']], src.endHold !== false, v => { src.endHold = v === true || v === 'true'; changed(); })));
+  k.push(checkRow('Restart each time it is shown', src, 'restart', () => commit()));
+  k.push(sliderRow('Speed', src, 'rate', { min: 0.1, max: 4, step: 0.05, fmt: v => v.toFixed(2) + '×', onInput: v => { if (el) el.playbackRate = v; }, onCommit: commit }));
+  k.push(checkRow('Play its sound', src, 'audio', () => { apply(); if (el && src.audio && !el.paused) playVideo(src, el); commit(); renderRight(); }));
+  if (src.audio) k.push(sliderRow('Volume', src, 'volume', { min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%', onInput: apply, onCommit: commit }));
+  k.push(h('div', { class: 'actions' },
+    h('button', { class: 'btn sm', type: 'button', disabled: !el, onclick: () => { el._held = !el.paused; el._held ? el.pause() : (el._done = false, playVideo(src, el)); renderRight(); } }, el && el.paused ? 'Play' : 'Pause'),
+    h('button', { class: 'btn sm', type: 'button', disabled: !el, onclick: () => { el._held = false; restartVideo(src, el); renderRight(); } }, 'Restart')));
+  if (el && el._done) k.push(h('p', { class: 'note' }, src.endHold !== false ? 'Played once: holding its last frame. Restart plays it again.' : 'Played once: black now. Restart plays it again.'));
+  return k;
 }
 
 /* ---------- settings tab ---------- */
@@ -4868,31 +5017,36 @@ async function addIsfFile(file) {
 }
 let mediaTarget = null;
 function pickMedia(src) { mediaTarget = src || null; $('#fileMedia').click(); }
-function attachMedia(src, file) {
+// A file that played in probeMedia becomes the source's picture
+function attachMedia(src, probe) {
   releaseMedia(src.id); // the file it replaces
-  const url = URL.createObjectURL(file);
-  let el;
-  if (file.type.startsWith('video/')) {
-    el = document.createElement('video');
-    Object.assign(el, { src: url, loop: true, muted: true, playsInline: true, autoplay: true });
-    el.playbackRate = src.rate || 1;
-    el.play().catch(() => {});
-    src.kind = 'video';
-  } else { el = new Image(); el.src = url; src.kind = 'image'; }
+  const el = probe.el;
+  src.kind = probe.kind;
+  if (probe.kind === 'video') {
+    fixVideoOptions(src);
+    Object.assign(el, { playsInline: true });
+    applyVideoOptions(src, el);
+    el._shown = false; el._done = false;
+    restartVideo(src, el, false);
+  }
   mediaEls.set(src.id, el);
   markThumb(src);
-  src.name = src.name || file.name;
 }
-function addMediaFile(file) {
-  let src = mediaTarget;
-  const isNew = !src;
-  if (isNew) { src = { id: uid(), kind: 'image', name: file.name, fit: 'fit', rate: 1 }; project.sources.push(src); }
-  attachMedia(src, file);
+async function addMediaFile(file) {
+  const target = mediaTarget;
   mediaTarget = null;
+  let probe;
+  try { probe = await probeMedia(file); } catch (e) { toast(e.message, 'err'); return; }
+  let src = target && project.sources.includes(target) ? target : null;
+  const isNew = !src;
+  if (isNew) { src = { id: uid(), kind: probe.kind, name: file.name, fit: 'fit', rate: 1 }; project.sources.push(src); }
+  attachMedia(src, probe);
   if (isNew) loadSource(src.id);
   syncMedia(); ui.rightTab = 'content';
   commit(); renderSrcList(); renderRight();
+  if (probe.kind === 'video') toast(`${src.name}: ${probe.w} × ${probe.h}, ${fmtDur(probe.duration)}`);
 }
+const fmtDur = d => !isFinite(d) ? 'live' : `${Math.floor(d / 60)}:${(d % 60).toFixed(1).padStart(4, '0')}`;
 async function startCapture(src) {
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) throw new Error('not supported');
@@ -5092,7 +5246,7 @@ function menu(anchor, items) {
       if (it === '-') return h('hr');
       if (it.head) return h('div', { class: 'mh' }, it.head);
       const o = it[2] || {};
-      const b = h('button', { type: 'button', role: 'menuitem', class: o.danger ? 'danger' : '', disabled: !!o.disabled, 'aria-haspopup': o.sub ? 'menu' : null },
+      const b = h('button', { type: 'button', role: 'menuitem', class: o.danger ? 'danger' : '', disabled: !!o.disabled, title: o.title, 'aria-haspopup': o.sub ? 'menu' : null },
         it[0], o.sub ? h('span', { class: 'sm' }, '▸') : o.key ? h('span', { class: 'mk' }, o.key) : null);
       const openSub = () => { $$('button.open', m).forEach(x => x.classList.remove('open')); b.classList.add('open'); show(o.sub, level + 1, b); };
       b.addEventListener('pointerenter', () => { if (o.sub) openSub(); else if (open.length > level + 1) { $$('button.open', m).forEach(x => x.classList.remove('open')); open.splice(level + 1).forEach(x => x.remove()); } });
@@ -5442,7 +5596,7 @@ function addFixtureMenu(anchor) {
   menu(anchor, [['Line / strip', mk('line')], ['Matrix', mk('matrix')], ['Circle / ring', mk('circle')], ['Path (draw on stage)', () => setTool('path')], '-', ['Import from SVG…', () => $('#fileSvg').click()]]);
 }
 function addSourceMenu(anchor) {
-  menu(anchor, [['ISF shader file (.fs)…', () => $('#fileIsf').click()], ['Image or video file…', () => pickMedia(null)], ['Screen / window capture', addScreenSource]]);
+  menu(anchor, [['ISF shader file (.fs)…', () => $('#fileIsf').click()], ['Image or video file…', () => pickMedia(null), { title: MEDIA_FORMATS }], ['Screen / window capture', addScreenSource]]);
 }
 
 /* ============================================================ demo */
@@ -5624,7 +5778,8 @@ function initUI() {
     if (n.endsWith('.svg')) importSvgDialog(f);
     else if (n.endsWith('.fs') || n.endsWith('.glsl')) addIsfFile(f);
     else if (n.endsWith('.json')) openProjectFile(f);
-    else if (f.type.startsWith('image/') || f.type.startsWith('video/')) { mediaTarget = null; addMediaFile(f); }
+    else if (mediaKindOf(f)) { mediaTarget = null; addMediaFile(f); }
+    else toast(`${f.name}: openLedMapper opens projects (.json), shaders (.fs), SVG layouts, videos and images. ${MEDIA_FORMATS}`, 'warn');
   });
   window.addEventListener('keydown', onKey);
   window.addEventListener('keyup', e => { if (e.code === 'Space') { spaceHeld = false; cv.style.cursor = ''; } });

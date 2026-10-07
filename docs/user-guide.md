@@ -174,6 +174,18 @@ Each zone has its own scenes. A scene stores the zone's layers: sources, paramet
 
 Circles, arcs, lines and paths become fixtures, fitted into the composition. Circles keep the start point and drawing direction from the SVG. Shapes drawn exactly on top of each other are imported once. The SVG can also be kept as a guide image for tracing. Set the real pixel count per fixture afterwards; select several fixtures to set them all at once.
 
+## Videos and images
+
+Add one with **+ Add → Image or video file…** in Sources, or drop the file on the window.
+
+- **Formats.** Videos: MP4 or MOV with H.264, WebM (VP8, VP9 or AV1), and MKV with those codecs. Images: PNG, JPEG, GIF, WebP, AVIF, BMP. A file is tried before it is added: one that can't play is refused with the reason instead of becoming a black layer. H.265 (HEVC) and ProRes don't play: export them as H.264 MP4 or WebM. A file with only sound is refused too.
+- **Timeline.** The Content tab shows the video's size and length and a timeline: the lit part is what plays, the orange line is where it is now. Click or drag on it to go to a moment.
+- **Start / End** trim the video, in seconds; **Start here** and **End here** take the current moment, **Whole video** removes the trim.
+- **Play: Loop** plays the (trimmed) video over and over. **Once** plays it one time; **At the end** it keeps its **Last frame** or goes **Black**. **Restart** plays it again.
+- **Restart each time it is shown**: the video starts from its Start whenever a layer or a scene shows it again, rather than where it stopped.
+- **Speed** from 0.1× to 4×. **Play its sound** (off by default) with **Volume**. If the browser blocks the sound until you click in the page, the video plays silent and says so.
+- A video plays only while a layer shows it.
+
 ## Network notes
 
 - **Nodes → Discover** sends ArtPoll on each network of this computer, to that network's broadcast address (2.255.255.255 for a 2.0.0.10/8 card, 192.168.1.255 for 192.168.1.20/24). The networks are listed beside the button: untick one to leave it out of scans (Wi-Fi, a venue network you shouldn't flood), and its nodes are hidden from the list. The choice is kept on this computer. **Also** takes one more address to send ArtPoll to. The table shows which network each node answered on.

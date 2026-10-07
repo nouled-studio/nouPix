@@ -69,7 +69,7 @@ with sync_playwright() as p:
       const src = olm.project.sources.at(-1);
       olm.loadSource(src.id); await wait(800);
       const old = olm.mediaEl(src.id), oldUrl = old.src; const wasPlaying = !old.paused;
-      attachMedia(src, window.__clip); syncMedia(); await wait(1200);
+      mediaTarget = src; await addMediaFile(window.__clip); await wait(1200);   // as Replace file… does
       const cur = olm.mediaEl(src.id);
       const replaced = { wasPlaying, oldPaused: old.paused, oldReleased: !old.getAttribute('src'), newPlaying: !cur.paused, newIsOther: cur !== old };
       let urlRevoked = false; try { const r = await fetch(oldUrl); urlRevoked = !r.ok; } catch (e) { urlRevoked = true; }

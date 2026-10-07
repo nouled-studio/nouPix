@@ -94,6 +94,7 @@ SUITES = [   # name, function, part of --quick
     ("groups", simple("test_groups.py", 8149, 900), True),
     ("v05", simple("test_v05.py", 8150, 600), True),
     ("v06", simple("test_v06.py", 8152, 600), True),
+    ("video", simple("test_video.py", 8153, 600), True),
     ("profile", last_line("test_profile_move.py", [], 60, lambda l: "ALL PASS" in l), True),
 ]
 
