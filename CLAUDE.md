@@ -30,6 +30,7 @@ order by `<script src>` tags at the end of `index.html`:
 | `project-io.js` | Project files: repairing what is opened, undo history, autosave, open/save, CSV, SVG import, the demo | `hydrate` `serialize` `commit` `commitSoft` `undo` `redo` `loadProject` `importSvg` `demoProject` |
 | `actions.js` | What the user can do, whichever button, key or menu asks: fixtures, selection, align/turn/resize, copy and paste, zones, layers, scenes, controllers, adding sources from files | `addFixture` `deleteSel` `duplicateSel` `groupSel` `alignSel` `rotateSel` `pasteFixtures` `addZone` `addLayer` `goScene` `storeScene` `deleteController` |
 | `ui-forms.js` | Building blocks for the panels: rows, inputs, segmented buttons, lists that reorder by dragging and their move animation | `row` `numRow` `sliderRow` `seg` `checkRow` `reorderable` `flipRows` |
+| `ui-color.js` | The colour picker for shader colour controls: wheel and intensity, RGB, HSV, colour temperature, hex, lighting presets, recent colours | `colorRow` `openColorPicker` `hsvToRgb` `rgbToHsv` `kelvinToRgb` |
 | `ui-stage.js` | The stage canvas: view and zoom, drawing, zones on the stage, hit testing, handles, tools, pointer, pixel finder, guide image | `drawView` `fitView` `setTool` `hitFixture` `dragHandle` `endDrag` `defaultFixtureAt` |
 | `ui-lists.js` | The left column: fixture list (groups, badges, drag and drop) and source list (categories, search) | `renderFxList` `renderSrcList` |
 | `ui-inspector.js` | The right panel: fixture, multi-selection, group and zone inspectors, Content tab, video controls, Settings | `renderRight` `onSelection` `showRight` |
@@ -48,7 +49,7 @@ order by `<script src>` tags at the end of `index.html`:
   earlier file doesn't exist yet: functions are only hoisted within their own file.
 - **Layers.** The engine is `util → model → geometry → patch → sources → render → output → project-io`; each
   uses only the ones before it, with one exception: `computePatch` ends with `layoutFrame` (output.js) so the
-  outgoing frame matches the new patch. The UI is `actions → ui-forms → ui-stage, ui-lists, ui-inspector,
+  outgoing frame matches the new patch. The UI is `actions → ui-forms → ui-color, ui-stage, ui-lists, ui-inspector,
   ui-dock, ui-menus → app`; UI files use any engine file and each other.
 - **The engine calls the UI only to redraw**, through these: `renderAll`, `renderRight`, `renderDock`,
   `onPatchChanged`, `renderFxList`, `renderSrcList`, `refreshScenes`, `updateUndoButtons`, `updateBridgeUI`,

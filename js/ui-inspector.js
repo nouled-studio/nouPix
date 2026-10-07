@@ -367,13 +367,7 @@ function renderContentTab(body) {
       } else if (inp.TYPE === 'event') {
         ctl.push(row(label, h('button', { class: 'btn', type: 'button', onclick: () => { set(true); setTimeout(() => set(false), 80); } }, 'Trigger')));
       } else if (inp.TYPE === 'color') {
-        const c = holder.v;
-        const hex = '#' + c.slice(0, 3).map(x => Math.round(clamp(x, 0, 1) * 255).toString(16).padStart(2, '0')).join('');
-        const ci = h('input', { type: 'color', value: hex, 'aria-label': label });
-        const hx = h('span', { class: 'mono muted' }, hex.toUpperCase());
-        ci.addEventListener('input', () => { const v = [1, 3, 5].map(i => parseInt(ci.value.substr(i, 2), 16) / 255).concat([c[3] ?? 1]); set(v); hx.textContent = ci.value.toUpperCase(); });
-        ci.addEventListener('change', commit);
-        ctl.push(row(label, h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, ci, hx)));
+        ctl.push(colorRow(label, () => paramValue(L, src, inp), set, commit, `${L.id}:${src.id}:${inp.NAME}`));
       } else if (inp.TYPE === 'point2D') {
         const pt = { x: holder.v[0], y: holder.v[1] };
         const up = () => set([pt.x, pt.y]);

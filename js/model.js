@@ -29,9 +29,9 @@ const ui = {
   outputOn: false, blackout: false, outputMode: 'content', hlMode: 'trace', pickPx: null, zone: null, layer: null, hoverSrc: null,
   showContent: true, contentOp: 0.35, showGuide: true, guideOp: 0.5, showGrid: true, snap: true, showLabels: true, showWiring: false, showZones: true,
   dockTab: 'patch', rightTab: 'inspector', rightHidden: false, scanOff: [], selCtrl: null, monitorKey: null, dockH: 250, dockCollapsed: false,
-  hoverFx: null, hoverGroup: null, hoverPx: null, cursor: null,
+  hoverFx: null, hoverGroup: null, hoverPx: null, cursor: null, colorMode: 'wheel',
 };
-const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'rightHidden', 'scanOff'];
+const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'rightHidden', 'scanOff', 'colorMode'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
 const markPatch = () => { patchDirty = true; };

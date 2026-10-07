@@ -126,6 +126,8 @@ The built-in generators include very smooth ones for architecture (**Color drift
 
 Every speed, rate and tempo slider changes how fast a pattern moves without making it jump: each layer keeps its own clock for it. A custom ISF shader gets this for a float input named `speed` used as `TIME * speed`, and for any other rate with an `OLM_CLOCKS` entry in its header: `"OLM_CLOCKS": {"phase": {"FROM": "rate", "SCALE": 1, "WRAP": 1024}}` with a float input `phase`, used instead of `TIME * rate`. The app fills `phase` with the running total of rate × SCALE and hides it from the parameters.
 
+**Colours.** A colour control shows as a swatch with its hex code; click it for the colour picker. **Wheel**: hue around, saturation from the middle out, with **Intensity** below. **RGB** and **HSV**: sliders with exact values (0–255, degrees, %). **White**: colour temperature from 1800 to 10000 K, with the usual whites (2700, 3200, 4300, 5600, 6500 K) one click away. Type a hex code at the top, or pick a **preset** (lighting colours such as Amber, Congo blue, Lavender, plus White and Off). Your last 8 colours are under **Recent**, for every control. The left half of the top swatch is the colour before you opened the picker: click it to go back. Each change is one undo step; Escape or a click elsewhere closes the picker, and it opens on the tab you used last.
+
 Sources show a still preview of each generator; hover one to see it move. A green frame marks the source in the selected layer, a green dot one playing elsewhere.
 
 The blend mode sets how a layer combines with the layers below it:
