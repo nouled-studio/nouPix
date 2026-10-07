@@ -2,7 +2,7 @@
 // What the user can do to the project, whichever button, key or menu asks: add, delete, duplicate, group, lock,
 // nudge, align, turn and resize fixtures; copy and paste; zones, layers and scenes; adding sources from files.
 
-/* ---------- geometry edits ---------- */
+/* ---------- adding fixtures ---------- */
 function addFixture(f, { select = true } = {}) {
   project.fixtures.push(f);
   markGeom();
@@ -12,7 +12,7 @@ function addFixture(f, { select = true } = {}) {
   renderRight();
 }
 
-/* ---------- drag to reorder ---------- */
+/* ---------- zones ---------- */
 // Zones are listed top first: dropping a zone above another puts it over that one
 function moveZoneTo(id, target, after) {
   const z = zoneById(id);
@@ -25,7 +25,7 @@ function moveZoneTo(id, target, after) {
   }, [z.id]);
 }
 
-/* ============================================================ fixture list */
+/* ---------- groups and locks ---------- */
 // The Group button in the Fixtures header: Group with two or more fixtures selected, Ungroup when the selection is
 // a group or one fixture inside a group, dimmed otherwise
 function groupAction(sel = selected()) {
@@ -44,7 +44,7 @@ function toggleLockSel() {
   toast(a === 'lock' ? `${what} locked: ${g || sel.length > 1 ? 'they' : 'it'} can't be moved or deleted until unlocked.` : `${what} unlocked.`);
 }
 
-/* ============================================================ source list */
+/* ---------- sources ---------- */
 function removeSource(s) {
   releaseMedia(s.id); dropRuntime(s.id); thumbs.delete(s.id);
   project.sources = project.sources.filter(x => x !== s);
@@ -126,7 +126,7 @@ function fixturesInZone(z) {
   return { list: out, px };
 }
 
-/* ---------- content tab ---------- */
+/* ---------- layers ---------- */
 function addLayer(z) {
   const L = newLayer(), cur = selLayer();
   z.layers.splice(cur ? z.layers.indexOf(cur) + 1 : z.layers.length, 0, L);
@@ -164,7 +164,7 @@ function removeLayer(z, L) {
   syncMedia(); commit(); renderRight(); renderSrcList();
 }
 
-/* ---------- selection + actions ---------- */
+/* ---------- the selection ---------- */
 function deleteSel() {
   const ids = new Set(ui.sel);
   if (!ids.size) return;
@@ -265,7 +265,7 @@ function nudge(dx, dy) {
   markGeom(); syncInspector(); commitSoft();
 }
 
-/* ---------- align and distribute ---------- */
+/* ---------- align, distribute, turn and resize ---------- */
 function boxAround(bs) {
   const o = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   for (const b of bs) { o.x0 = Math.min(o.x0, b.x0); o.y0 = Math.min(o.y0, b.y0); o.x1 = Math.max(o.x1, b.x1); o.y1 = Math.max(o.y1, b.y1); }
@@ -380,7 +380,7 @@ function moveScene(d, z, to = z.scenes.length) {
   commit();
 }
 
-/* ============================================================ files */
+/* ---------- adding sources from files and screens ---------- */
 async function addIsfFile(file) {
   const code = await file.text();
   const src = { id: uid(), kind: 'isf', name: file.name.replace(/\.(fs|glsl|txt)$/i, ''), code };
@@ -437,7 +437,7 @@ function addScreenSource() {
   startCapture(src);
 }
 
-/* ---------- right-click menus ---------- */
+/* ---------- stacking order ---------- */
 // The fixtures are drawn in list order, the last on top. A whole group moves as one; fixtures picked out of a
 // group move to the top or bottom of their group.
 function restackSel(front) {
@@ -454,7 +454,7 @@ function restackSel(front) {
   normalizeGroups(); markGeom(); commit(); renderRight();
 }
 
-/* ---------- copy and paste fixtures ---------- */
+/* ---------- copy and paste ---------- */
 // Copied fixtures go on the system clipboard as text, so they paste into another project, another openLedMapper
 // window, or the desktop app; they are also kept here for "Paste here" when the clipboard can't be read.
 let clip = store.get('openledmapper.clip', null);

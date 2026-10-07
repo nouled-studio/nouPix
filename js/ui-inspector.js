@@ -2,7 +2,7 @@
 // The right panel: fixture, multi-selection, group and zone inspectors, the Content tab (zones, layers,
 // parameters, video controls) and Settings.
 
-/* ============================================================ right panel */
+/* ---------- right panel ---------- */
 function renderRight() {
   binders = []; preview = null;
   $$('#rightTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.rightTab));
@@ -492,7 +492,7 @@ function renderSettings(body) {
   }
 }
 
-/* ---------- selection + actions ---------- */
+/* ---------- selection ---------- */
 // The right panel (Inspector, Content, Settings) can be hidden to give the stage more room
 function showRight(on) {
   ui.rightHidden = !on;
@@ -518,7 +518,7 @@ function unfoldForSelection() {
   for (const g of project.groups) { const a = c.get(g.id); if (!g.open && a && a[0] && a[0] < a[1]) g.open = true; }
 }
 
-/* ---------- align and distribute ---------- */
+/* ---------- arrange rows ---------- */
 function rotateRow(sel) {
   const off = !sel.some(f => !f.locked), tmp = { deg: 45 };
   const b = (txt, deg, title) => h('button', { class: 'btn', type: 'button', title, disabled: off, onclick: () => rotateSel(deg) }, txt);

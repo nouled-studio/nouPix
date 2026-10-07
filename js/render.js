@@ -2,7 +2,7 @@
 // Rendering: the GPU mixer that composites zones and layers, looks and fades between them, sampling the
 // composition at every pixel of the fixtures, and the highlight and test patterns. Uses util, model, geometry, sources.
 
-/* ============================================================ mixer: composites zones and layers on the GPU */
+/* ---------- mixer: composites zones and layers on the GPU ---------- */
 // Its own WebGL context, separate from the shaders'. Each zone's layers are blended at the zone's size,
 // crossfaded if the zone is fading, then laid onto the output canvas at the zone's place with its opacity.
 // That canvas is what the stage shows and what the pixels are sampled from.
@@ -192,7 +192,7 @@ void main() {
   };
 })();
 
-/* ============================================================ zones, looks and fades */
+/* ---------- zones, looks and fades ---------- */
 // Crossfade a zone from what it shows now to whatever its layers become next
 function startFade(z, dur, scene = null) {
   if (!(dur > 0.01) || !mixer.ok) { z._fade = null; return; }
@@ -257,7 +257,7 @@ function renderContent() {
   sampleMix();
 }
 
-/* ============================================================ source thumbnails */
+/* ---------- sampling, highlight and test patterns ---------- */
 // Read the mixed frame at every fixture pixel and store the pixel's colour in f._col.
 // There are two ways, with the same result: draw each pixel as a point into a small target and read that
 // back (little data to transfer), or read back the whole area the fixtures cover. Which is faster depends

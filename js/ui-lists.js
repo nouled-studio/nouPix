@@ -1,7 +1,7 @@
 // openLedMapper · js/ui-lists.js
 // The left column: the fixture list (groups, badges, drag and drop) and the source list with its categories.
 
-/* ============================================================ fixture list */
+/* ---------- fixture list ---------- */
 function patchBadge(f) {
   const p = f._patch;
   if (!p) return h('span', { class: 'badge warn', title: 'Not patched to a controller output' }, '—');
@@ -211,7 +211,7 @@ function moveGroupTo(gid, t) {
   normalizeGroups(); markGeom(); commit(); onSelection();
 }
 
-/* ============================================================ source list */
+/* ---------- source list ---------- */
 // Sources are sorted along independent facets: how energetic a source is, where it fits, what it looks like and
 // how it moves, plus its type. A shader is placed by its ISF CATEGORIES (a built-in lists one value per facet,
 // then free keywords); the common words other ISF shaders use are mapped onto the facets by SRC_ALIASES.

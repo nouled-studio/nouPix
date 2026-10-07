@@ -2,7 +2,7 @@
 // The project and its parts: constants and defaults, the project and ui state, factories (newFixture, newZone,
 // newController…), groups, the selection, look-ups by id, saved preferences. Uses util.
 
-/* ============================================================ model */
+/* ---------- constants, state, factories ---------- */
 const TAGS = ['#3cc8ff', '#ffb341', '#b58cff', '#46e08c', '#ff6f86', '#6fe3e3', '#e8d56a', '#ff9657'];
 const ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR', 'RGBW', 'GRBW', 'WRGB', 'W'];
 const TYPE_LABEL = { line: 'Line', circle: 'Circle', matrix: 'Matrix', path: 'Path' };
@@ -160,13 +160,13 @@ const srcById = id => project.sources.find(s => s.id === id);
 const selected = () => project.fixtures.filter(f => ui.sel.has(f.id));
 const ctrlLetter = c => String.fromCharCode(65 + (project.controllers.indexOf(c) % 26));
 
-/* ---------- opening project files ---------- */
+/* ---------- gamma ---------- */
 const clampGamma = v => clamp(numOr(v, 1), 1, 3);
 
-/* ============================================================ zones, looks and fades */
+/* ---------- look-ups ---------- */
 const zoneById = id => project.zones.find(z => z.id === id);
 const selZone = () => zoneById(ui.zone) || project.zones[project.zones.length - 1] || null;
 const selLayer = () => { const z = selZone(); return z ? z.layers.find(L => L.id === ui.layer) || z.layers[z.layers.length - 1] || null : null; };
 
-/* ============================================================ history + persistence */
+/* ---------- preferences ---------- */
 function savePrefs() { const o = {}; for (const k of UI_PREFS) o[k] = ui[k]; store.set('openledmapper.ui', o); }

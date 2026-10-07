@@ -2,7 +2,7 @@
 // Menus: the menu system, every right-click menu, the highlight menu, the SVG import dialog, and the
 // copy, cut and paste keys.
 
-/* ============================================================ source thumbnails */
+/* ---------- highlight menu ---------- */
 function highlightMenu(anchor) {
   const on = ui.outputMode !== 'content';
   menu(anchor, [
@@ -13,7 +13,7 @@ function highlightMenu(anchor) {
   ]);
 }
 
-/* ---------- SVG import ---------- */
+/* ---------- SVG import dialog ---------- */
 function importSvgDialog(file) {
   const opt = { fixtures: true, guide: true, pitch: 10 };
   const close = () => bg.remove();
@@ -31,7 +31,7 @@ function importSvgDialog(file) {
   document.body.append(bg);
 }
 
-/* ============================================================ menus */
+/* ---------- menus ---------- */
 // A menu under an element (a button), or at a point (a right-click: { x, y } in window pixels).
 // Items: [label, action, { key, danger, disabled }], [label, null, { sub: items }] for a submenu, '-' for a line,
 // { head: text } for a title; false is left out.
@@ -138,7 +138,7 @@ function groupMenu(e, g, m) {
   ]);
 }
 
-/* ---------- copy and paste fixtures ---------- */
+/* ---------- copy and paste keys ---------- */
 document.addEventListener('copy', e => { if (typingIn(e.target) || $('.modal-bg') || !ui.sel.size) return; if (copySel(e)) e.preventDefault(); });
 document.addEventListener('cut', e => { if (typingIn(e.target) || $('.modal-bg') || !ui.sel.size) return; if (copySel(e)) { e.preventDefault(); deleteSel(); } });
 document.addEventListener('paste', e => {
@@ -150,7 +150,7 @@ document.addEventListener('paste', e => {
   pasteFixtures(d, null);
 });
 
-/* ---------- patch to ---------- */
+/* ---------- patch to, and the other menus ---------- */
 // The outputs of every controller, to put the fixtures on, after what is there already, in list order
 function patchToItems(list) {
   if (!project.controllers.length) return [['No controllers yet: add one…', () => { ui.dockTab = 'patch'; ui.dockCollapsed = false; renderDock(); }]];

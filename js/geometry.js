@@ -2,7 +2,7 @@
 // Mapping math: where each pixel of a fixture is (computePoints, rebuildGeometry), lengths, bounds and distances,
 // and moving, turning and scaling a fixture or the frame around several. Uses util and model.
 
-/* ============================================================ geometry */
+/* ---------- pixels of each fixture ---------- */
 function matrixOrder(cols, rows, start, dir, snake) {
   const out = [];
   const fromR = start[1] === 'R', fromB = start[0] === 'B';
@@ -174,7 +174,7 @@ function rebuildGeometry() {
   computeBB();
 }
 
-/* ============================================================ source thumbnails */
+/* ---------- bounds of all the pixels ---------- */
 let fixtureBB = null, geomVersion = 0; // the version changes whenever pixel positions or the canvas change
 function computeBB() {
   geomVersion++;
@@ -192,7 +192,7 @@ function computeBB() {
   fixtureBB = x1 >= x0 && y1 >= y0 ? { x0, y0, x1, y1 } : null;
 }
 
-/* ---------- hit testing ---------- */
+/* ---------- distances ---------- */
 function distSeg(px, py, ax, ay, bx, by) {
   const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
   const t = L ? clamp(((px - ax) * dx + (py - ay) * dy) / L, 0, 1) : 0;
@@ -221,7 +221,7 @@ function distFixture(f, x, y, tol) {
   return best;
 }
 
-/* ---------- geometry edits ---------- */
+/* ---------- moving a fixture ---------- */
 function snapshotGeom(f) { return JSON.parse(JSON.stringify(f, (k, v) => k.startsWith('_') ? undefined : v)); }
 function moveFixture(f, o, dx, dy) {
   if (f.type === 'line') { f.x1 = o.x1 + dx; f.y1 = o.y1 + dy; f.x2 = o.x2 + dx; f.y2 = o.y2 + dy; }
@@ -229,7 +229,7 @@ function moveFixture(f, o, dx, dy) {
   else { f.cx = o.cx + dx; f.cy = o.cy + dy; }
 }
 
-/* ---------- align and distribute ---------- */
+/* ---------- turning, scaling and framing fixtures ---------- */
 function shiftFixture(f, dx, dy) {
   if (!dx && !dy) return;
   moveFixture(f, snapshotGeom(f), dx, dy);

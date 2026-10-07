@@ -2,7 +2,7 @@
 // Form building blocks for the panels: rows, number and slider inputs, selects, segmented buttons, lists that
 // reorder by dragging, and the animation of rows that move.
 
-/* ============================================================ form helpers */
+/* ---------- form helpers ---------- */
 let binders = [];
 function syncInspector() { for (const b of binders) b(); }
 const row = (label, ...ctl) => h('div', { class: 'row' }, typeof label === 'string' ? h('span', { class: 'lbl' }, label) : label, ctl.length > 1 ? h('div', { class: 'pair' }, ctl) : ctl[0]);
@@ -107,7 +107,7 @@ function reorderable(handle, target, kind, ids, onDrop) {
   });
 }
 
-/* ---------- patch ---------- */
+/* ---------- rows that move ---------- */
 // Rows that change place glide from where they were to where they are now, so a move is easy to follow, and the
 // moved ones flash. change() rebuilds the rows; rows are matched by data-id. A panel rebuilt again while they
 // glide (the patch panel is, a frame later) picks the motion up where it was: see replayFlip.

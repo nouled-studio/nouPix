@@ -1,7 +1,7 @@
 // openLedMapper · js/ui-dock.js
 // The bottom dock: scenes, the patch table and controller editor, Art-Net nodes, and the DMX monitor.
 
-/* ============================================================ bottom dock */
+/* ---------- bottom dock ---------- */
 function renderDock() {
   $$('#dockTabs button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.dockTab));
   const dock = $('#dock');

@@ -142,7 +142,7 @@ function hydrate(p) {
   return out;
 }
 
-/* ============================================================ history + persistence */
+/* ---------- history + persistence ---------- */
 const hist = { stack: [], idx: -1 };
 const replacer = (k, v) => (k.startsWith('_') ? undefined : v);
 function serialize(withGuide = true) {
@@ -210,7 +210,7 @@ function loadProject(p, { resetView = true } = {}) {
   renderAll(); saveSoon(); startClock();
 }
 
-/* ============================================================ files */
+/* ---------- files ---------- */
 function saveProjectFile() {
   const name = (project.name || 'openledmapper-project').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'openledmapper-project';
   download(name + '.openledmapper.json', JSON.stringify(JSON.parse(serialize(true)), null, 1));
@@ -369,7 +369,7 @@ function classifyShape(P, pitch, label) {
   return f;
 }
 
-/* ============================================================ demo */
+/* ---------- demo ---------- */
 function demoProject() {
   const saved = project;
   project = blankProject('Demo layout');

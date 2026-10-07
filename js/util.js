@@ -2,7 +2,7 @@
 // Small helpers used everywhere: page elements ($, $$, h, svgEl), numbers and text (clamp, wrap180, fmtN, pct…),
 // local storage (store), toast messages, error reports, file download and the icon set. Uses nothing else.
 
-/* ============================================================ utilities */
+/* ---------- utilities ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 function h(tag, attrs, ...kids) {
@@ -103,7 +103,7 @@ const ICONS = {
 };
 const icon = name => svgEl(ICONS[name]);
 
-/* ---------- opening project files ---------- */
+/* ---------- checking values ---------- */
 // Project files can be older, partial or edited by hand. Missing or unreadable values get their defaults,
 // so the file opens instead of stopping the app; complete files come through unchanged.
 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -111,21 +111,15 @@ const isId = v => (typeof v === 'string' && v !== '') || (typeof v === 'number' 
 // a finite number, or a string holding one; anything else gets the default
 const numOr = (v, d) => (typeof v === 'number' ? (isFinite(v) ? v : d) : typeof v === 'string' && v.trim() !== '' && isFinite(+v) ? +v : d);
 
-/* ---------- zones ---------- */
+/* ---------- formats ---------- */
 const pct = v => Math.round(v * 100) + '%';
-
-/* ---------- align and distribute ---------- */
 // Several fixtures align to the box around all of them, a single one to the canvas. Locked fixtures stay put,
 // but still count for the box, so the others can be lined up with one that is locked.
 // With one whole group selected, its fixtures are lined up with each other. Otherwise each whole group in the
 // selection moves as one block (a block holding a locked fixture stays put), and the other fixtures one by one.
 const r3 = v => Math.round(v * 1000) / 1000;
-
-/* ============================================================ files */
 const fmtDur = d => !isFinite(d) ? 'live' : `${Math.floor(d / 60)}:${(d % 60).toFixed(1).padStart(4, '0')}`;
 
-/* ============================================================ menus */
+/* ---------- keys ---------- */
 const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl ';
-
-/* ---------- copy and paste fixtures ---------- */
 const typingIn = t => t && t.closest && t.closest('input:not([type=checkbox]):not([type=range]):not([type=color]), textarea, select, [contenteditable="true"]');

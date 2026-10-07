@@ -2,7 +2,7 @@
 // Content sources: the WebGL canvas, ISF shader runtimes, parameters and speeds, images and videos (play, trim,
 // loop, sound), the format check for media files, and the small preview of each source. Uses util and model.
 
-/* ============================================================ content sources */
+/* ---------- content sources ---------- */
 // Sources draw into the bottom-left corner of these canvases, at the size of the zone they play in.
 const glCanvas = document.createElement('canvas');
 glCanvas.width = 16; glCanvas.height = 16;
@@ -278,7 +278,7 @@ function probeMedia(file, timeout = 20000) {
   });
 }
 
-/* ============================================================ source thumbnails */
+/* ---------- source thumbnails ---------- */
 // A still frame of each source, drawn once with default settings; the one under the pointer plays.
 const THUMB = 96, THUMB_TIME = 1.3;
 const thumbs = new Map(); // source id -> canvas
@@ -318,7 +318,7 @@ function updateThumbs() {
 }
 function markThumb(src) { const c = thumbs.get(src.id); if (c) c._stale = true; }
 
-/* ============================================================ files */
+/* ---------- media files ---------- */
 // A file that played in probeMedia becomes the source's picture
 function attachMedia(src, probe) {
   releaseMedia(src.id); // the file it replaces

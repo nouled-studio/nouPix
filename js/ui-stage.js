@@ -2,7 +2,7 @@
 // The stage: view and zoom, drawing fixtures, wiring, zones and the selection frame, hit testing, dragging
 // handles, the drawing tools and the pointer, the pixel finder and the guide image.
 
-/* ============================================================ source thumbnails */
+/* ---------- pixel finder ---------- */
 // Pixel finder: a pixel picked on the stage, with its address
 function pickPixel(f, i) {
   ui.pickPx = { fid: f.id, i };
@@ -11,7 +11,7 @@ function pickPixel(f, i) {
   toast(`${f.name} · pixel ${i + 1} of ${f._n}` + (a ? ` · U ${a.u} ch ${a.ch}–${a.ch + f.order.length - 1}` : ' · not patched'));
 }
 
-/* ============================================================ stage view */
+/* ---------- stage view ---------- */
 const cv = $('#view');
 const ctx = cv.getContext('2d');
 const stageEl = $('#stage');
@@ -775,13 +775,11 @@ function setTool(t) {
   if (project && ui.rightTab === 'inspector') renderRight();
 }
 
-/* ============================================================ history + persistence */
+/* ---------- guide image ---------- */
 function loadGuide() {
   guideImg = null;
   if (project.guide && project.guide.src) { guideImg = new Image(); guideImg.src = project.guide.src; }
 }
-
-/* ============================================================ files */
 async function setGuideFile(file) {
   const src = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
   project.guide = { src, name: file.name };

@@ -2,7 +2,7 @@
 // The app: top bar and status bar, wiring buttons and keys (initUI, onKey), the frame loop, boot, and window.olm,
 // the handle the browser console and the tests use. Loaded last; boot() runs at its end.
 
-/* ============================================================ source thumbnails */
+/* ---------- top bar + status ---------- */
 function updateHighlightUI() {
   const on = ui.outputMode !== 'content', m = HL_MODES.find(x => x[0] === ui.hlMode) || HL_MODES[0];
   $('#hl').classList.toggle('on', on);
@@ -10,18 +10,12 @@ function updateHighlightUI() {
   $('#btnHl').title = on ? `Highlight on: ${m[1]} (${m[2]}). Click or press I to go back to the content.` : `Highlight with ${m[1]}: ${m[2]} (I)`;
   $('#btnHl').setAttribute('aria-pressed', String(on));
 }
-
-/* ============================================================ bridge (WebSocket to openledmapper.py) */
 // The version comes from the bridge (VERSION in openledmapper.py), so the page always shows the one it runs with
 function showVersion(v) {
   $('#appVer').textContent = v ? 'v' + v : '';
   $('.brand').title = v ? 'openLedMapper ' + v : 'openLedMapper';
 }
-
-/* ============================================================ history + persistence */
 function updateUndoButtons() { $('#btnUndo').disabled = hist.idx <= 0; $('#btnRedo').disabled = hist.idx >= hist.stack.length - 1; }
-
-/* ============================================================ top bar + status */
 // The status pill only shows what matters: Art-Net going out, or something wrong. With everything fine and
 // Art-Net off it is hidden.
 function updateBridgeUI() {
@@ -93,7 +87,7 @@ function renderAll() {
   $('#masterVal').textContent = Math.round(project.settings.master * 100) + '%';
 }
 
-/* ============================================================ wiring the UI */
+/* ---------- wiring the UI ---------- */
 function initUI() {
   const prefs = store.get('openledmapper.ui', {});
   for (const k of UI_PREFS) if (k in prefs) ui[k] = prefs[k];
@@ -213,7 +207,7 @@ function onKey(e) {
   if (arrows[e.key] && ui.sel.size) { e.preventDefault(); nudge(...arrows[e.key]); }
 }
 
-/* ============================================================ boot */
+/* ---------- boot ---------- */
 // The stage is drawn when something may have changed: after each new frame of content, and on any input.
 // When drawing it after every frame would leave too little time to render the output (very large projects
 // or a slow GPU), it is drawn after every few frames instead, so the Art-Net frame rate holds.

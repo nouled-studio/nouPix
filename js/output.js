@@ -2,7 +2,7 @@
 // Output: gamma, turning sampled colours into DMX channels (buildOutput), the outgoing frame, the clock that
 // renders and sends every tick, and the WebSocket to the bridge (openledmapper.py), which sends Art-Net.
 
-/* ============================================================ output */
+/* ---------- DMX frame ---------- */
 // One lookup table per gamma value in use (fixtures have their own)
 const gammaLUTs = new Map();
 function gammaLUT(g) {
@@ -68,7 +68,7 @@ function sendFrame(black = false) {
   try { bridge.ws.send(buf); outStats.frames++; } catch (e) { /* socket closing */ } // send copies the frame
 }
 
-/* ============================================================ clock */
+/* ---------- clock ---------- */
 let lastTick = performance.now();
 let ticker = null;
 let tickPeriod = 25, tickCost = 0, lastTickEnd = 0, mediaChecked = 0;
@@ -110,7 +110,7 @@ function startClock() {
   ticker.postMessage(period);
 }
 
-/* ============================================================ bridge (WebSocket to openledmapper.py) */
+/* ---------- bridge (WebSocket to openledmapper.py) ---------- */
 const bridge = { ws: null, connected: false, state: 'idle', hello: null, stats: null, nodes: new Map(), retry: null, lastError: '' };
 function bridgeUrl() {
   if (project.settings.bridgeUrl) return project.settings.bridgeUrl.trim();
