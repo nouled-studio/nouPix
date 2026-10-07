@@ -1,4 +1,4 @@
-# The colour picker of shader colour controls: the swatch opens it; wheel, intensity, RGB, HSV, colour temperature,
+# The colour picker of shader colour controls: the swatch opens it; wheel, intensity, RGB, HSV,
 # hex, presets, recent colours and going back all reach the output exactly; one undo step per change; its tab is kept.
 import os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -24,8 +24,6 @@ try:
       for (const [h, want] of [[0, [1, 0, 0]], [120, [0, 1, 0]], [240, [0, 0, 1]], [60, [1, 1, 0]], [300, [1, 0, 1]]]) { const g = hsvToRgb(h, 1, 1); if (g.some((x, k) => Math.abs(x - want[k]) > 1e-9)) out.push([h, g]); }
       return out; })()""")
     check("RGB → HSV → RGB gives the same colour, and the hues land on the primaries", not bad, bad[:3])
-    k = ev("[kelvinToRgb(1900), kelvinToRgb(6600), kelvinToRgb(10000)].map(c => c.map(x => Math.round(x * 255)))")
-    check("colour temperature: 1900 K is orange, 6600 K white, 10000 K blueish", k[0][0] == 255 and k[0][2] < 60 and min(k[1]) >= 250 and k[2][2] == 255 and k[2][0] < 220, k)
     check("hex: #RGB and #RRGGBB, anything else refused", ev("[fromHex('#f80'), fromHex('FF8800'), fromHex('#ff880'), fromHex('red')]") == [[1, 0.5333333333333333, 0], [1, 0.5333333333333333, 0], None, None])
 
     # ---------- a solid layer, its colour control
@@ -39,7 +37,7 @@ try:
     sw = pg.locator("#rightBody .cswatch")
     check("the colour control is a swatch with its hex", sw.count() == 1 and "#FFFFFF" in sw.inner_text() and pg.locator("#rightBody input[type=color]").count() == 0, sw.inner_text() if sw.count() else "")
     sw.click(); time.sleep(0.2)
-    check("clicking it opens the picker", pg.locator(".cpop").count() == 1 and pg.locator(".cpop .seg button").all_inner_texts() == ["Wheel", "RGB", "HSV", "White"])
+    check("clicking it opens the picker", pg.locator(".cpop").count() == 1 and pg.locator(".cpop .seg button").all_inner_texts() == ["Wheel", "RGB", "HSV"])
     hist0 = ev("hist.stack.length")
     # presets
     pg.click(".cpop .cpchip[aria-label=Amber]"); o = out()
@@ -79,10 +77,7 @@ try:
     check("wheel: dragging moves the colour (towards blue-violet on the left)", o[2] > o[1] and o[2] > 200, o)
     n = pg.locator(".cpop .cpslider:has-text('Intensity') input[type=number]"); n.fill("25"); n.press("Enter"); o = out()
     check("wheel: intensity dims it, keeping the colour", max(o) in (63, 64) , o)
-    # white
-    pg.click(".cpop .seg button:has-text('White')"); time.sleep(0.1)
-    pg.click(".cpop .cpchip.k:has-text('3.2K')"); o = out(); w = ev("kelvinToRgb(3200).map(x => Math.round(x * 255))")
-    check("White: 3200 K", o == w and w[0] == 255 and w[2] < 200, (o, w))
+    check("no colour temperature tab", pg.locator(".cpop .seg button:has-text('White')").count() == 0 and ev("typeof kelvinToRgb") == "undefined")
     # before / recent
     pg.click(".cpop .cpwas"); o = out()
     check("Before: back to the colour it had when the picker opened", o == [255, 255, 255], o)

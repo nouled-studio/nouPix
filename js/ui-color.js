@@ -1,6 +1,6 @@
 // openLedMapper · js/ui-color.js
 // The colour picker for the colour controls of shaders: a swatch in the panel opens a picker with a colour wheel and
-// intensity, RGB and HSV sliders, colour temperature for whites, a hex box, lighting presets and recent colours.
+// intensity, RGB and HSV sliders, a hex box, lighting presets and recent colours.
 
 /* ---------- colour math (0–1, hue in degrees) ---------- */
 function hsvToRgb(h, s, v) {
@@ -13,14 +13,6 @@ function rgbToHsv(r, g, b) {
   if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
   return [(h * 60 + 360) % 360, mx ? d / mx : 0, mx];
 }
-// A white of a colour temperature in kelvin, as LED fixtures mix it: Tanner Helland's fit of the black-body curve
-function kelvinToRgb(k) {
-  const t = clamp(k, 1000, 40000) / 100;
-  const r = t <= 66 ? 255 : 329.698727446 * Math.pow(t - 60, -0.1332047592);
-  const g = t <= 66 ? 99.4708025861 * Math.log(t) - 161.1195681661 : 288.1221695283 * Math.pow(t - 60, -0.0755148492);
-  const b = t >= 66 ? 255 : t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307;
-  return [r, g, b].map(x => clamp(x, 0, 255) / 255);
-}
 const toHex = c => '#' + c.slice(0, 3).map(x => Math.round(clamp(x, 0, 1) * 255).toString(16).padStart(2, '0')).join('').toUpperCase();
 function fromHex(s) {
   let m = /^#?([0-9a-f]{6})$/i.exec(s.trim());
@@ -29,10 +21,9 @@ function fromHex(s) {
 }
 
 /* ---------- presets and recent colours ---------- */
-// Saturated colours as lighting people name them (gel and console names), and the usual whites
+// Colours as lighting people name them (gel and console names)
 const LIGHT_COLORS = [['Red', '#FF0000'], ['Orange', '#FF6000'], ['Amber', '#FFB000'], ['Yellow', '#FFFF00'], ['Lime', '#A0FF00'], ['Green', '#00FF00'], ['Mint', '#00FF90'],
   ['Cyan', '#00FFFF'], ['Sky blue', '#0090FF'], ['Blue', '#0000FF'], ['Congo blue', '#4000FF'], ['Lavender', '#A060FF'], ['Magenta', '#FF00FF'], ['Pink', '#FF3C82'], ['White', '#FFFFFF'], ['Off', '#000000']];
-const WHITE_KELVIN = [2700, 3200, 4300, 5600, 6500];
 const RECENT_MAX = 8;
 const recentColors = () => { const r = store.get('openledmapper.colors', []); return Array.isArray(r) ? r.filter(x => fromHex(String(x))).slice(0, RECENT_MAX) : []; };
 function rememberColor(hex) { store.set('openledmapper.colors', [hex, ...recentColors().filter(x => x !== hex)].slice(0, RECENT_MAX)); }
@@ -57,7 +48,7 @@ function closeColorPicker() {
   colorPop.close();
   colorPop = null;
 }
-const COLOR_MODES = [['wheel', 'Wheel'], ['rgb', 'RGB'], ['hsv', 'HSV'], ['white', 'White']];
+const COLOR_MODES = [['wheel', 'Wheel'], ['rgb', 'RGB'], ['hsv', 'HSV']];
 const WHEEL = 168;
 let wheelImage = null;   // the colour wheel at full intensity, drawn once
 function drawWheelImage(px) {
@@ -74,7 +65,7 @@ function drawWheelImage(px) {
 function openColorPicker(anchor, o) {
   closeColorPicker();
   const before = o.get().slice(), alpha = before[3] ?? 1;
-  let rgb = before.slice(0, 3), hsv = rgbToHsv(...rgb), kelvin = 5600;
+  let rgb = before.slice(0, 3), hsv = rgbToHsv(...rgb);
   if (!COLOR_MODES.some(([m]) => m === ui.colorMode)) ui.colorMode = 'wheel';
 
   // A change from anywhere: keep both RGB and HSV (hue stays put on greys and black), show it, send it to the layer
@@ -135,11 +126,6 @@ function openColorPicker(anchor, o) {
     hsv: [gslider('Hue', 0, 360, 1, () => hsv[0], v => fromHSV([v, hsv[1], hsv[2]]), () => grad(7, t => hsvToRgb(t * 360, 1, 1)), '°'),
       gslider('Saturation', 0, 100, 1, () => hsv[1] * 100, v => fromHSV([hsv[0], v / 100, hsv[2]]), () => grad(2, t => hsvToRgb(hsv[0], t, hsv[2] || 1)), '%'),
       intensity()],
-    white: [gslider('Temperature', 1800, 10000, 50, () => kelvin, v => { kelvin = v; const w = kelvinToRgb(v); fromRGB(w.map(x => x * (hsv[2] || 1))); },
-      () => grad(8, t => kelvinToRgb(1800 + t * 8200)), 'K'),
-      intensity(),
-      h('div', { class: 'cpchips' }, WHITE_KELVIN.map(k => h('button', { class: 'cpchip k', type: 'button', title: k + ' K', style: { background: css(kelvinToRgb(k)) },
-        onclick: () => { kelvin = k; fromRGB(kelvinToRgb(k)); done(); } }, k / 1000 + 'K')))],
   };
   const body = h('div', { class: 'cpbody' });
   const tabs = seg(COLOR_MODES, ui.colorMode, v => { ui.colorMode = v; savePrefs(); showMode(); });
