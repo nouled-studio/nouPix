@@ -7,461 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Crect width='22' height='22' rx='5' fill='%23111318'/%3E%3Cpath d='M6 4v14M11 4v14M16 4v14' stroke='%233cc8ff' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='6' cy='7' r='2' fill='%2346e08c'/%3E%3Ccircle cx='11' cy='11' r='2' fill='%2346e08c'/%3E%3Ccircle cx='16' cy='15' r='2' fill='%2346e08c'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<style>
-:root {
-  color-scheme: dark;
-  --bg0: #0a0b0e;
-  --bg1: #111318;
-  --bg2: #171a20;
-  --bg3: #1e222a;
-  --bg4: #262b35;
-  --line: #232730;
-  --line2: #2f3541;
-  --text: #dde2ea;
-  --text2: #a2a9b5;
-  --muted: #6c7481;
-  --accent: #3cc8ff;
-  --accent-ink: #04141c;
-  --accent-soft: rgba(60, 200, 255, 0.13);
-  --live: #46e08c;
-  --live-soft: rgba(70, 224, 140, 0.14);
-  --warn: #ffb341;
-  --warn-soft: rgba(255, 179, 65, 0.14);
-  --danger: #ff5a5f;
-  --danger-soft: rgba(255, 90, 95, 0.14);
-  --ui: "Barlow", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --r: 4px;
-  --bottom-h: 250px;
-}
-* { box-sizing: border-box; }
-html, body { height: 100%; }
-body { margin: 0; background: var(--bg0); color: var(--text); font: 13px/1.35 var(--ui); overflow: hidden; -webkit-font-smoothing: antialiased; }
-button, input, select, textarea { font: inherit; color: inherit; }
-::selection { background: var(--accent-soft); }
-.mono { font-family: var(--mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
-.muted { color: var(--muted); }
-
-/* ---------- app frame ---------- */
-#app { height: 100%; overflow: hidden; display: grid; grid-template-rows: 46px minmax(0, 1fr) 24px; }
-.workspace { display: grid; grid-template-columns: 250px minmax(0, 1fr) 300px; min-height: 0; }
-.workspace.noright { grid-template-columns: 250px minmax(0, 1fr); }
-.workspace.noright > .right { display: none; }
-#btnRight.on { color: var(--accent); border-color: var(--accent); }
-.right .tabs button { padding: 0 10px; }
-.center { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; border-inline: 1px solid var(--line); }
-aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: column; }
-
-/* ---------- top bar ---------- */
-.topbar { display: flex; align-items: center; gap: 10px; padding: 0 12px; background: var(--bg1); border-bottom: 1px solid var(--line); min-width: 0; overflow: hidden; }
-.hl { display: flex; flex: none; }
-.hl .btn { display: inline-flex; align-items: center; gap: 6px; }
-.hl #btnHl { border-radius: var(--r) 0 0 var(--r); min-width: 150px; justify-content: flex-start; }
-.hl #btnHl svg { width: 15px; height: 15px; flex: none; }
-.hl #btnHlMode { border-radius: 0 var(--r) var(--r) 0; border-left: 0; padding: 0 7px; }
-.hl.on .btn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
-.hl.on #btnHl { box-shadow: 0 0 12px rgba(255,179,65,.25); }
-.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; letter-spacing: 0.02em; font-size: 15px; padding-right: 6px; flex: none; }
-.brand svg { display: block; }
-.brand-ver { margin-left: 5px; font-size: 10px; font-weight: 400; letter-spacing: 0; color: var(--muted); font-variant-numeric: tabular-nums; }
-.tb-group { display: flex; align-items: center; gap: 4px; }
-.tb-sep { width: 1px; height: 22px; background: var(--line2); margin: 0 4px; }
-.topbar input.projname { width: 190px; flex: 0 1 190px; min-width: 70px; background: transparent; border: 1px solid transparent; border-radius: var(--r); padding: 4px 6px; font-weight: 500; }
-.topbar input.projname:hover { border-color: var(--line2); }
-.topbar input.projname:focus { border-color: var(--accent); outline: none; background: var(--bg2); }
-.spacer { flex: 1; }
-.pill { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 13px; background: var(--bg2); border: 1px solid var(--line2); color: var(--text2); white-space: nowrap; font-size: 12px; min-width: 0; flex-shrink: 0; }
-.pill > span:last-child { overflow: hidden; text-overflow: ellipsis; }
-#btnBlackout, #btnOutput { flex: none; }  /* the output controls always stay on screen; the rest gives way */
-@media (max-width: 1180px) { .brand-name { display: none; } .topbar .pill { flex-shrink: 1; } }
-.pill[hidden] { display: none; }
-.pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
-.pill.ok .dot { background: var(--live); box-shadow: 0 0 6px var(--live); }
-.pill.warn .dot { background: var(--warn); }
-.pill.err .dot { background: var(--danger); }
-.master { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); min-width: 0; }
-.master input[type=range] { width: 110px; flex: 0 1 110px; min-width: 50px; }
-.master .mono { width: 38px; text-align: right; color: var(--text); }
-
-.btn { height: 26px; padding: 0 10px; border-radius: var(--r); border: 1px solid var(--line2); background: var(--bg3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-size: 12.5px; font-weight: 500; }
-.btn:hover { background: var(--bg4); border-color: #3a4150; }
-.btn:disabled { opacity: 0.45; cursor: default; }
-.btn.icon { width: 28px; padding: 0; }
-.btn.ghost { background: transparent; border-color: transparent; color: var(--text2); }
-.btn.ghost:hover { background: var(--bg3); color: var(--text); }
-.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.btn.danger-t { color: var(--danger); }
-.btn.sm { height: 22px; padding: 0 7px; font-size: 11.5px; }
-.btn.grpbtn { width: 26px; padding: 0; }
-.btn.grpbtn:disabled { opacity: .3; }
-.btn.grpbtn.ready { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 1px rgba(60,200,255,.2), 0 0 10px rgba(60,200,255,.25); }
-.btn.grpbtn svg { width: 15px; height: 15px; }
-#fxList .glock svg { width: 10px; height: 10px; margin-left: 6px; vertical-align: -1px; }
-.btn.grpbtn.locked { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
-.btn.rev.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.btn svg { width: 15px; height: 15px; flex: none; }
-.btn-out { min-width: 118px; font-weight: 600; letter-spacing: 0.03em; }
-.btn-out.on { background: var(--live-soft); border-color: var(--live); color: var(--live); box-shadow: 0 0 0 1px rgba(70,224,140,.15), 0 0 14px rgba(70,224,140,.18); }
-.btn-bo.on { background: var(--danger); border-color: var(--danger); color: #fff; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-/* ---------- panels ---------- */
-.phead { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--line); flex: none; }
-.phead h2 { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); flex: 1; }
-.pbody { overflow: auto; min-height: 0; }
-.left .fixtures { flex: 1 1 58%; display: flex; flex-direction: column; min-height: 0; }
-.left .sources { flex: 1 1 42%; display: flex; flex-direction: column; min-height: 0; border-top: 1px solid var(--line); }
-.list { list-style: none; margin: 0; padding: 4px 0; }
-.list li { display: grid; grid-template-columns: 10px 16px minmax(0,1fr) auto auto; align-items: center; gap: 7px; padding: 0 8px 0 12px; height: 28px; cursor: pointer; border-left: 2px solid transparent; }
-.list li:hover { background: var(--bg2); }
-.list li.sel { background: var(--accent-soft); border-left-color: var(--accent); }
-.list li.off .nm { color: var(--muted); text-decoration: line-through; }
-.list .tag { width: 8px; height: 8px; border-radius: 2px; }
-.list .ty { color: var(--muted); display: flex; }
-.list .ty svg { width: 14px; height: 14px; }
-.list .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.list .meta { color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
-.badge { font-family: var(--mono); font-size: 10px; padding: 1px 5px; border-radius: 3px; background: var(--bg3); color: var(--text2); border: 1px solid var(--line2); white-space: nowrap; }
-.badge.warn { color: var(--warn); border-color: rgba(255,179,65,.35); background: var(--warn-soft); }
-.badge.err { color: var(--danger); border-color: rgba(255,90,95,.35); background: var(--danger-soft); }
-.badge.ok { color: var(--live); border-color: rgba(70,224,140,.35); background: var(--live-soft); }
-.list .srcrow { grid-template-columns: 16px minmax(0,1fr) auto auto; }
-/* groups in the fixture list: a header row, then its fixtures indented along a line in the group's colour */
-.list li.grp .chev { display: flex; align-items: center; justify-content: center; width: 14px; height: 20px; margin-left: -4px; padding: 0; border: 0; background: none; color: var(--text2); border-radius: 3px; cursor: pointer; }
-.list li.grp .chev:hover { background: var(--bg3); color: var(--text); }
-.list li.grp .chev svg { width: 10px; height: 10px; transition: transform .12s; }
-.list li.grp.shut .chev svg { transform: rotate(-90deg); }
-.list li.grp .ty { color: var(--gtag); }
-.list li.grp .nm { font-weight: 600; }
-.list li.grp .cnt { margin-left: 6px; color: var(--muted); font-family: var(--mono); font-size: 10.5px; font-weight: 400; }
-.list li.in { position: relative; padding-left: 28px; }
-.list li.in::before { content: ''; position: absolute; left: 17px; top: 0; bottom: 0; width: 1px; background: var(--gtag); opacity: .5; }
-.list li.in.end::before { bottom: 6px; }
-.list li.insel { background: rgba(60, 200, 255, .06); }
-/* where a dragged fixture lands: a line across the list, a line from the indent (inside a group), a group's
-   header outlined (into that group), or a line under the last row (the end of the list) */
-.list li.drop-before-in::after, .list li.drop-after-in::after { content: ''; position: absolute; left: 26px; right: 6px; height: 2px; border-radius: 1px; background: var(--accent); }
-.list li.drop-before-in::after { top: -1px; }
-.list li.drop-after-in::after { bottom: -1px; }
-.list li.grp.drop-into { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
-#fxList { padding-bottom: 28px; }   /* room under the last row to drop a fixture at the end, out of any group */
-.list.drop-end::after { content: ''; display: block; height: 2px; margin: 0 6px; border-radius: 1px; background: var(--accent); }
-.list li.live { background: var(--live-soft); border-left-color: var(--live); }
-.list li.live .nm { color: var(--text); font-weight: 600; }
-.phead .meta { flex: 1; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
-.sources .phead h2 { flex: none; }
-.sec h3 svg { width: 14px; height: 14px; flex: none; }
-.layers { padding: 2px 0 0; margin: 0 -4px; }
-.layers li { grid-template-columns: 6px 20px 12px minmax(0,1fr) auto auto 56px; padding: 0 4px; gap: 6px; cursor: grab; }
-.layers li .pgrip { width: 6px; height: 12px; opacity: .4; background-image: radial-gradient(currentColor 1px, transparent 1.2px); background-size: 3px 3px; color: var(--text2); }
-.layers li:hover .pgrip { opacity: .9; }
-.layers li.dragging { opacity: .4; }
-.layers .mv { display: flex; gap: 2px; visibility: hidden; }
-.layers li:hover .mv, .layers li.sel .mv, .layers li:focus-within .mv { visibility: visible; }
-.layers .mv button { width: 20px; height: 18px; border: 1px solid var(--line2); border-radius: 3px; background: var(--bg2); color: var(--text2); cursor: pointer; font-size: 10px; padding: 0; display: grid; place-items: center; }
-.layers .mv button:disabled { opacity: .3; cursor: default; }
-.layers .mv button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
-.layers li.nosrc .nm { color: var(--muted); font-style: italic; }
-.layers .eye { width: 20px; height: 20px; }
-.layers .eye svg { width: 14px; height: 14px; }
-.x { width: 18px; height: 18px; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 3px; padding: 0; display: grid; place-items: center; }
-.x:hover { background: var(--bg4); color: var(--text); }
-.empty { padding: 16px 14px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
-
-/* ---------- stage ---------- */
-.stagewrap { position: relative; display: grid; grid-template-rows: 32px minmax(0, 1fr); min-height: 0; background: var(--bg0); }
-.stagebar { display: flex; align-items: center; gap: 12px; padding: 0 10px 0 52px; border-bottom: 1px solid var(--line); background: var(--bg1); font-size: 12px; color: var(--text2); overflow-x: auto; white-space: nowrap; }
-.stagebar label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
-.stagebar input[type=range] { width: 70px; }
-.stagebar .zoom { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
-.stage { position: relative; min-height: 0; overflow: hidden; }
-.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.rail { position: absolute; left: 8px; top: 40px; z-index: 3; display: flex; flex-direction: column; gap: 2px; padding: 4px; background: rgba(17,19,24,.92); border: 1px solid var(--line2); border-radius: 6px; }
-.rail button { width: 30px; height: 30px; border: 0; border-radius: 4px; background: transparent; color: var(--text2); cursor: pointer; display: grid; place-items: center; position: relative; }
-.rail button:hover { background: var(--bg3); color: var(--text); }
-.rail button.on { background: var(--accent); color: var(--accent-ink); }
-.rail button svg { width: 17px; height: 17px; }
-.rail hr { border: 0; height: 1px; background: var(--line2); margin: 3px 2px; }
-.rail button[data-key]::after { content: attr(data-key); position: absolute; right: 2px; bottom: 1px; font: 8px var(--mono); opacity: .55; }
-.hint { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 3; background: rgba(17,19,24,.92); border: 1px solid var(--line2); border-radius: 14px; padding: 5px 12px; font-size: 12px; color: var(--text2); pointer-events: none; white-space: nowrap; }
-
-/* ---------- bottom dock ---------- */
-.dock { height: var(--bottom-h); display: grid; grid-template-rows: 32px minmax(0,1fr); background: var(--bg1); border-top: 1px solid var(--line); position: relative; }
-.dock.collapsed { height: 32px; }
-.dock.collapsed .dockbody { display: none; }
-.dock .grip { position: absolute; left: 0; right: 0; top: -3px; height: 6px; cursor: ns-resize; z-index: 4; }
-.tabs { display: flex; align-items: stretch; gap: 0; border-bottom: 1px solid var(--line); padding-left: 4px; }
-.tabs button { border: 0; background: none; padding: 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
-.tabs button:hover { color: var(--text2); }
-.tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
-.tabs .fill { flex: 1; }
-.tabs .tabtools { display: flex; align-items: center; gap: 6px; padding-right: 8px; }
-.dockbody { min-height: 0; overflow: hidden; }
-
-.patch { display: grid; grid-template-columns: 230px minmax(0,1fr); height: 100%; }
-.ctrl-list { border-right: 1px solid var(--line); overflow: auto; display: flex; flex-direction: column; }
-.ctrl-list .items { flex: 1; }
-.ctrl { padding: 8px 12px; border-bottom: 1px solid var(--line); cursor: pointer; border-left: 2px solid transparent; display: grid; gap: 3px; }
-.ctrl:hover { background: var(--bg2); }
-.ctrl.sel { background: var(--accent-soft); border-left-color: var(--accent); }
-.ctrl .t { display: flex; align-items: center; gap: 6px; font-weight: 600; }
-.ctrl .t .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ctrl .s { display: flex; justify-content: space-between; color: var(--muted); }
-.ctrl-list .foot { padding: 8px; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); }
-.ctrl-edit { overflow: auto; display: flex; flex-direction: column; min-width: 0; }
-.ctrl-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--bg1); }
-.ctrl-fields .f { display: grid; gap: 3px; }
-.onsw { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px 0 4px; border-radius: 13px; border: 1px solid var(--line2); background: var(--bg2); color: var(--muted); font: 600 11px var(--mono); letter-spacing: .06em; cursor: pointer; }
-.onsw i { width: 18px; height: 18px; border-radius: 50%; background: var(--bg4); transition: background .15s; }
-.onsw.on { border-color: rgba(70,224,140,.5); background: var(--live-soft); color: var(--live); }
-.onsw.on i { background: var(--live); box-shadow: 0 0 8px rgba(70,224,140,.6); }
-.skiprow { display: flex; align-items: center; gap: 6px; height: 26px; }
-.skiprow .info { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--line2); color: var(--text2); font: italic 600 10.5px/14px Georgia, serif; text-align: center; cursor: help; }
-.skiprow .info:hover, .skiprow .info:focus { border-color: var(--accent); color: var(--accent); outline: none; }
-.btn.trash { color: var(--danger); }
-.btn.trash:hover { border-color: var(--danger); background: var(--danger-soft); }
-.ctrl-fields .reported { display: flex; align-items: center; height: 26px; font: 11.5px var(--mono); color: var(--text2); }
-.ctrl-fields .f > span { font-size: 10.5px; color: var(--muted); letter-spacing: .04em; }
-.outs { padding: 6px 0; }
-/* An output: a header (fold, name, universes, totals, usage) and its fixtures, one row each, in address order */
-.outrow { border-bottom: 1px solid var(--line); }
-.outrow.drop { background: var(--accent-soft); outline: 1px dashed var(--accent); outline-offset: -2px; }
-.outhead { display: grid; grid-template-columns: 14px 52px 92px minmax(0,1fr) 170px; align-items: center; gap: 8px; padding: 5px 12px; min-height: 34px; cursor: pointer; position: sticky; top: 33px; z-index: 1; background: var(--bg1); }
-/* stays on screen above the outputs while the controller's settings scroll away */
-.outbar { position: sticky; top: 0; z-index: 2; height: 33px; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--bg2); border-bottom: 1px solid var(--line); }
-.outhead .fold { color: var(--muted); font-size: 10px; }
-.outhead .on { font-weight: 600; font-size: 12px; }
-.outhead .ur { font-family: var(--mono); font-size: 11px; color: var(--text2); }
-.outhead .sum { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.outrow.shut .outlist { display: none; }
-.outlist { padding: 2px 12px 8px 30px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
-.outlist .ph { padding: 2px 0 2px; color: var(--muted); font-size: 12px; font-style: italic; }
-/* fixed, compact columns, so a fixture's name, pixels, address and buttons read as one group */
-/* each fixture is a box you can grab: drag it to reorder, or use ↑ ↓ */
-.prow { display: grid; grid-template-columns: 8px 18px 8px minmax(60px, 140px) 44px 108px 44px 20px; justify-content: start; align-items: center; column-gap: 7px; height: 26px; padding: 0 4px 0 6px; font-size: 12px; cursor: grab; background: var(--bg3); border: 1px solid var(--line2); border-radius: 4px; }
-.prow:active { cursor: grabbing; }
-.prow[hidden], .outrow[hidden] { display: none; }
-.prow .pgrip { width: 6px; height: 12px; opacity: .45; background-image: radial-gradient(currentColor 1px, transparent 1.2px); background-size: 3px 3px; color: var(--text2); }
-.prow:hover { border-color: var(--muted); }
-.prow:hover .pgrip { opacity: .9; }
-.prow.sel { background: var(--accent-soft); border-color: var(--accent); }
-.prow.ovf .ad { color: var(--danger); }
-.prow.dragging { opacity: .4; }
-.prow.dropat { box-shadow: 0 -3px 0 var(--accent); }
-.prow .ix { font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-align: right; }
-.prow .tag { width: 8px; height: 8px; border-radius: 2px; }
-.prow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prow .px, .prow .ad { font-family: var(--mono); font-size: 10.5px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.prow .px { color: var(--muted); text-align: right; }
-.prow .mv { display: flex; gap: 2px; visibility: hidden; }
-.prow .mv button { width: 20px; height: 18px; font-size: 10px; }
-.prow:hover .mv, .prow.sel .mv { visibility: visible; }
-.prow .mv button, .prow .x { width: 24px; height: 20px; border: 1px solid var(--line2); border-radius: 3px; background: var(--bg2); color: var(--text2); cursor: pointer; font-size: 11px; padding: 0; display: grid; place-items: center; }
-.prow .mv button:disabled { opacity: .3; cursor: default; }
-.prow .mv button:not(:disabled):hover, .prow .x:hover { border-color: var(--accent); color: var(--accent); }
-.prow .x { width: 20px; height: 18px; border-color: transparent; background: none; }
-.usage { display: grid; gap: 3px; }
-.usage .bar { height: 5px; border-radius: 3px; background: var(--bg4); overflow: hidden; }
-.usage .bar i { display: block; height: 100%; background: var(--live); }
-.usage.full .bar i { background: var(--warn); }
-.usage.ovf .bar i { background: var(--danger); }
-.usage .lbl { font-family: var(--mono); font-size: 10.5px; color: var(--muted); display: flex; justify-content: space-between; }
-.usage.ovf .lbl { color: var(--danger); }
-.conflict { margin: 8px 12px; padding: 6px 10px; border-radius: var(--r); background: var(--warn-soft); color: var(--warn); font-size: 12px; }
-
-.table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.table th { text-align: left; font-weight: 600; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg1); }
-.table td { padding: 6px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-.table td.mono { font-size: 11px; }
-.nodes, .monitor, .scenepanel { height: 100%; display: flex; flex-direction: column; min-height: 0; }
-.nodes .bar, .monitor .bar, .scenepanel .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 7px 12px; border-bottom: 1px solid var(--line); color: var(--text2); font-size: 12px; }
-.bar .fill { flex: 1; }
-.zonerows { flex: 1; overflow: auto; padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 6px; }
-.scenerow { flex: none; display: flex; align-items: center; gap: 8px; padding: 5px; margin: 0 -5px; border-radius: 8px; overflow-x: auto; }
-.scenerow.sel { background: var(--accent-soft); }
-.zhead { flex: none; width: 176px; height: 54px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 8px 0 10px; border-radius: 6px; background: var(--bg2); border: 1px solid var(--line); cursor: pointer; }
-.zhead.sel { border-color: var(--accent); }
-.zhead .zt { display: flex; align-items: center; gap: 7px; font-weight: 600; min-width: 0; }
-.zhead .zt .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.zhead .zc { display: flex; align-items: center; gap: 6px; }
-.zhead input[type=range] { height: 16px; }
-.rowhint { color: var(--muted); font-size: 12px; padding: 0 6px; white-space: nowrap; }
-.ztag { flex: none; width: 10px; height: 10px; box-sizing: border-box; border-radius: 2px; border: 1.5px dashed; }
-.zones li { grid-template-columns: 10px minmax(0,1fr) 64px; height: 36px; padding: 0 4px; gap: 8px; margin: 0 -4px; }
-.zones .zn { display: flex; flex-direction: column; min-width: 0; }
-.zones .zn .nm { font-weight: 500; }
-.zones li.sel .zn .nm { font-weight: 600; }
-.zones .sub { font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.zones input[type=range], .layers input[type=range] { height: 16px; }
-.chipsline { display: flex; flex-wrap: wrap; gap: 4px; }
-.lpreview { display: block; max-width: 100%; border-radius: 4px; background: #000; border: 1px solid var(--line2); }
-.srcfind { padding: 8px 10px 0; display: grid; gap: 6px; }
-.srcfind input { width: 100%; }
-.srcfacets { display: flex; flex-wrap: wrap; gap: 4px; }
-.srcfacets select { flex: 0 1 auto; field-sizing: content; min-width: 0; max-width: 100%; width: auto; font-size: 11px; padding: 1px 4px; height: 22px; border-radius: 10px; color: var(--text2); }
-.srcfacets select.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.srcfacets button { flex: none; border: 1px solid var(--line2); background: var(--bg2); color: var(--text2); border-radius: 10px; padding: 0 8px; height: 22px; font-size: 11px; cursor: pointer; }
-.srcfacets button:hover { border-color: var(--muted); }
-.srcgrid .none { grid-column: 1 / -1; color: var(--muted); font-size: 12px; padding: 4px 2px; }
-.srcgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; padding: 10px; }
-.tile { display: flex; flex-direction: column; gap: 4px; min-width: 0; cursor: pointer; outline-offset: 2px; }
-.tile .tb { position: relative; aspect-ratio: 1 / 1; border-radius: 5px; overflow: hidden; border: 1px solid var(--line2); background: var(--bg2); }
-.tile .tb canvas { position: relative; display: block; width: 100%; height: 100%; }
-.tile .tb .ic { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
-.tile .tb .ic svg { width: 22px; height: 22px; }
-.tile:hover .tb { border-color: #4a5263; }
-.tile.live .tb::after { content: ''; position: absolute; inset: 0; border: 2px solid var(--live); border-radius: 5px; pointer-events: none; }
-.tile.used .tb::before { content: ''; position: absolute; top: 4px; left: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--live); box-shadow: 0 0 0 2px var(--bg1); z-index: 1; }
-.tile .tag { position: absolute; left: 4px; bottom: 4px; font: 9px/13px var(--mono); padding: 0 4px; border-radius: 2px; background: rgba(10,11,14,.82); color: var(--text2); }
-.tile .tag.warn { color: var(--warn); }
-.tile .tag.err { color: var(--danger); }
-.tile .x { position: absolute; top: 3px; right: 3px; display: none; background: rgba(10,11,14,.85); }
-.tile:hover .x, .tile:focus-within .x { display: grid; }
-.tile .nm { font-size: 11px; line-height: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text2); }
-.tile.live .nm { color: var(--text); font-weight: 600; }
-.tile.used .nm { color: var(--text); }
-.scene { position: relative; flex: none; width: 128px; height: 54px; box-sizing: border-box; border-radius: 6px; background: var(--bg3); border: 1px solid var(--line2); border-left: 4px solid var(--tag, var(--line2)); padding: 6px 4px 6px 9px; cursor: pointer; display: grid; grid-template-rows: auto 1fr; user-select: none; overflow: hidden; }
-.scene:hover { background: var(--bg4); }
-.scene.live { background: var(--live-soft); border-color: var(--live); border-left-color: var(--tag, var(--live)); box-shadow: 0 0 12px rgba(70,224,140,.12); }
-.scene .t { display: flex; align-items: center; gap: 6px; font-weight: 600; min-width: 0; }
-.scene .t .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.scene .k { font-family: var(--mono); font-size: 10px; color: var(--muted); }
-.scene .s { display: flex; align-items: end; gap: 6px; padding-right: 4px; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
-.scene .s .fill { flex: 1; }
-.scene .prog { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--live); }
-.scene.dragging { opacity: .4; }
-.dragging { opacity: .45; }
-.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
-.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
-.scenerow.drop-in { outline: 1px dashed var(--accent); outline-offset: -1px; }
-.arrange { display: flex; flex-wrap: wrap; gap: 6px 12px; }
-.arrange .grp { display: flex; gap: 3px; }
-.arrange + .arrange { margin-top: 6px; }
-.scene.drop { outline: 1px dashed var(--accent); outline-offset: 2px; }
-.nodes .scroll { overflow: auto; flex: 1; }
-.rotbtns { display: flex; flex-wrap: wrap; gap: 3px; }
-.rotbtns .btn { padding: 0 5px; font-variant-numeric: tabular-nums; }
-.vtl { position: relative; height: 18px; margin: 4px 0 2px; border-radius: 3px; background: var(--bg0); border: 1px solid var(--line2); cursor: pointer; touch-action: none; }
-.vtl .span { position: absolute; top: 0; bottom: 0; background: var(--accent-soft); border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); }
-.vtl .head { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--warn); }
-.vtlpos { display: flex; justify-content: flex-end; margin-bottom: 4px; }
-.netchip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px 0 6px; border: 1px solid var(--line2); border-radius: 12px; color: var(--muted); cursor: pointer; max-width: 300px; }
-.netchip input { margin: 0; }
-.netchip.on { color: var(--text); border-color: rgba(60,200,255,.45); background: var(--accent-soft); }
-.netchip .nn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
-.netchip .mono { font-size: 11px; }
-.monitor .mbody { display: grid; grid-template-columns: 210px minmax(0,1fr); flex: 1; min-height: 0; }
-.monitor .ulist { overflow: auto; border-right: 1px solid var(--line); }
-.monitor .ulist div { padding: 5px 12px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; font-family: var(--mono); font-size: 11px; border-left: 2px solid transparent; }
-.monitor .ulist div:hover { background: var(--bg2); }
-.monitor .ulist div.sel { background: var(--accent-soft); border-left-color: var(--accent); }
-.monitor .grid { position: relative; min-height: 0; overflow: auto; padding: 8px 12px; }
-.monitor canvas { display: block; width: 100%; max-width: 900px; image-rendering: pixelated; }
-.monitor .readout { font-family: var(--mono); font-size: 11px; color: var(--text2); min-height: 16px; margin-top: 6px; }
-
-/* ---------- right panel ---------- */
-.right .tabs { height: 32px; flex: none; }
-.right .pbody { flex: 1; padding: 0 0 16px; }
-.sec { padding: 10px 12px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 7px; }
-.sec h3 { margin: 0 0 2px; font-size: 10.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-.sec h3 .fill { flex: 1; }
-.sec h3 .btn { color: var(--text); }
-.row { display: grid; grid-template-columns: 78px minmax(0,1fr); align-items: center; gap: 8px; min-height: 26px; }
-.row > label, .row > .lbl { color: var(--text2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.row > label.scrub { cursor: ew-resize; }
-.row > label.scrub:hover { color: var(--accent); }
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.tri { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
-.inp { position: relative; display: flex; align-items: center; min-width: 0; }
-.inp > b { position: absolute; left: 7px; font-weight: 500; font-size: 10.5px; color: var(--muted); pointer-events: none; }
-.inp > b + input { padding-left: 20px; }
-input[type=text], input[type=number], select, textarea { width: 100%; height: 26px; min-width: 0; background: var(--bg2); border: 1px solid var(--line2); border-radius: var(--r); padding: 0 7px; }
-input[type=number] { font-family: var(--mono); font-size: 11.5px; -moz-appearance: textfield; }
-input[type=number]::-webkit-inner-spin-button { display: none; }
-input[type=text]:hover, input[type=number]:hover, select:hover { border-color: #3a4150; }
-input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus { border-color: var(--accent); outline: none; background: var(--bg3); }
-input.bad { border-color: var(--danger) !important; color: var(--danger); }
-select { padding-right: 4px; cursor: pointer; }
-input[type=checkbox] { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); cursor: pointer; }
-input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; height: 18px; cursor: pointer; }
-input[type=color] { width: 40px; height: 24px; padding: 0 2px; border: 1px solid var(--line2); border-radius: var(--r); background: var(--bg2); cursor: pointer; }
-.slider { display: grid; grid-template-columns: minmax(0,1fr) 46px; gap: 8px; align-items: center; }
-.slider .mono { text-align: right; color: var(--text2); }
-.checkrow { display: flex; align-items: center; gap: 8px; min-height: 22px; color: var(--text2); cursor: pointer; }
-.swatches { display: flex; gap: 5px; flex-wrap: wrap; }
-.swatches button { width: 18px; height: 18px; border-radius: 3px; border: 2px solid transparent; cursor: pointer; padding: 0; }
-.swatches button.on { border-color: var(--text); }
-.seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line2); border-radius: var(--r); overflow: hidden; }
-.seg button { height: 24px; border: 0; background: var(--bg2); color: var(--text2); cursor: pointer; font-size: 11.5px; padding: 0 6px; border-left: 1px solid var(--line2); }
-.seg button:first-child { border-left: 0; }
-.seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
-.readonly { font-family: var(--mono); font-size: 11.5px; color: var(--text2); padding: 4px 0; }
-.addr { font-family: var(--mono); font-size: 11.5px; background: var(--bg2); border: 1px solid var(--line2); border-radius: var(--r); padding: 6px 8px; color: var(--text); line-height: 1.5; }
-.addr.warn { border-color: rgba(255,179,65,.4); color: var(--warn); }
-.addr.err { border-color: rgba(255,90,95,.4); color: var(--danger); }
-.actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.note { font-size: 12px; color: var(--muted); line-height: 1.45; }
-.note code { font-family: var(--mono); font-size: 11px; color: var(--text2); }
-.errbox { font-family: var(--mono); font-size: 11px; color: var(--danger); background: var(--danger-soft); border-radius: var(--r); padding: 8px; white-space: pre-wrap; line-height: 1.45; }
-.wiring { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-.wiring button { height: 26px; border: 1px solid var(--line2); background: var(--bg2); border-radius: var(--r); color: var(--text2); cursor: pointer; font: 11px var(--mono); }
-.wiring button.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-
-/* ---------- status bar ---------- */
-.statusbar { display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--bg1); border-top: 1px solid var(--line); font-family: var(--mono); font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; }
-.statusbar b { color: var(--text2); font-weight: 500; }
-.statusbar .hov { color: var(--accent); }
-.statusbar .fill { flex: 1; }
-
-/* ---------- modal + toast ---------- */
-.modal-bg { position: fixed; inset: 0; background: rgba(4,5,7,.6); display: grid; place-items: center; z-index: 50; padding: 16px; }
-.modal { width: min(420px, 100%); background: var(--bg1); border: 1px solid var(--line2); border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
-.modal header { padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px; }
-.modal .mb { padding: 12px 16px; display: grid; gap: 10px; }
-.modal footer { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
-.toasts { position: fixed; right: 14px; bottom: 34px; display: grid; gap: 6px; z-index: 60; }
-.toast { background: var(--bg3); border: 1px solid var(--line2); border-left: 3px solid var(--accent); border-radius: var(--r); padding: 8px 12px; font-size: 12.5px; max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
-.toast.warn { border-left-color: var(--warn); }
-.toast.err { border-left-color: var(--danger); }
-.menu { position: fixed; z-index: 55; background: var(--bg2); border: 1px solid var(--line2); border-radius: 6px; padding: 4px; min-width: 180px; box-shadow: 0 12px 32px rgba(0,0,0,.5); }
-.menu button { display: flex; width: 100%; align-items: center; gap: 8px; border: 0; background: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-align: left; font-size: 12.5px; }
-.menu button:hover { background: var(--bg4); }
-.menu hr { border: 0; height: 1px; background: var(--line2); margin: 4px 0; }
-.menu button:disabled { opacity: .4; cursor: default; background: none; }
-.menu button.danger { color: var(--danger); }
-.menu button .mk { margin-left: auto; padding-left: 18px; color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
-.menu button .sm { margin-left: auto; padding-left: 18px; color: var(--muted); }
-.menu button.open { background: var(--bg4); }
-.menu .mh { padding: 4px 10px 5px; color: var(--muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hide-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-
-/* ---------- narrow screens ---------- */
-@media (max-width: 980px) {
-  body { overflow: auto; }
-  #app { height: auto; overflow: visible; grid-template-rows: auto auto auto; }
-  .topbar { overflow: visible; }
-  .topbar { flex-wrap: wrap; padding: 8px 16px; height: auto; row-gap: 8px; }
-  .workspace { grid-template-columns: 1fr; }
-  .center { border: 0; order: 1; }
-  .stagewrap { height: 62vh; }
-  .left { order: 2; max-height: 60vh; border-top: 1px solid var(--line); }
-  .right { order: 3; border-top: 1px solid var(--line); }
-  .right .pbody { max-height: 70vh; }
-  .patch { grid-template-columns: 1fr; }
-  .ctrl-list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 180px; }
-  .outhead { grid-template-columns: 14px 52px 1fr; }
-  .outhead .sum, .outhead .usage { grid-column: 2 / -1; }
-  .prow { grid-template-columns: 8px 18px 8px minmax(60px, 140px) 40px 44px 20px; }
-  .prow .ad { display: none; }
-  .monitor .mbody { grid-template-columns: 1fr; }
-  .monitor .ulist { max-height: 120px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .statusbar { flex-wrap: wrap; height: auto; padding: 4px 16px; }
-  .dock { height: 420px; }
-  .dockbody { overflow: auto; }
-  .stagebar { padding-left: 52px; }
-}
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-</style>
+<link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <div id="app">
@@ -578,7 +124,7 @@ input[type=color] { width: 40px; height: 24px; padding: 0 2px; border: 1px solid
 </script>
 <script>
 const BUILTINS = [{"id": "rainbow", "name": "Rainbow", "code": "/*{\"DESCRIPTION\":\"Scrolling rainbow\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"lively\",\"ambient\",\"gradient\",\"flow\",\"rainbow\",\"scroll\",\"colorful\"],\"INPUTS\":[\n{\"NAME\":\"mode\",\"LABEL\":\"Shape\",\"TYPE\":\"long\",\"VALUES\":[0,1,2],\"LABELS\":[\"Linear\",\"Radial\",\"Angular\"],\"DEFAULT\":0},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":-2,\"MAX\":2,\"DEFAULT\":0.25},\n{\"NAME\":\"scale\",\"LABEL\":\"Repeat (0 = colour cycle)\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":6,\"DEFAULT\":1},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0},\n{\"NAME\":\"saturation\",\"LABEL\":\"Saturation\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":1}]}*/\nvec3 hsv(float h, float s) { vec3 p = abs(fract(h + vec3(1.0, 2.0/3.0, 1.0/3.0)) * 6.0 - 3.0); return mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), s); }\nvoid main() {\n  vec2 p = (isf_FragNormCoord - 0.5) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  float a = radians(angle);\n  float v;\n  if (mode == 0) v = dot(p, vec2(cos(a), sin(a))) * scale;\n  else if (mode == 1) v = length(p) * scale;\n  else v = atan(p.y, p.x) / 6.2831853 * floor(scale + 0.5) + a / 6.2831853;\n  gl_FragColor = vec4(hsv(v - TIME * speed, saturation), 1.0);\n}\n"}, {"id": "plasma", "name": "Plasma", "code": "/*{\"DESCRIPTION\":\"Classic plasma\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"lively\",\"ambient\",\"organic\",\"drift\",\"rainbow\",\"psychedelic\",\"colorful\"],\"INPUTS\":[\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":3,\"DEFAULT\":0.5},\n{\"NAME\":\"scale\",\"LABEL\":\"Scale\",\"TYPE\":\"float\",\"MIN\":0.5,\"MAX\":12,\"DEFAULT\":4},\n{\"NAME\":\"hue\",\"LABEL\":\"Hue offset\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0},\n{\"NAME\":\"range\",\"LABEL\":\"Hue range\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":1},\n{\"NAME\":\"saturation\",\"LABEL\":\"Saturation\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":1}]}*/\nvec3 hsv(float h, float s) { vec3 p = abs(fract(h + vec3(1.0, 2.0/3.0, 1.0/3.0)) * 6.0 - 3.0); return mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), s); }\nvoid main() {\n  vec2 p = (isf_FragNormCoord - 0.5) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0) * scale;\n  float t = TIME * speed;\n  float v = sin(p.x + t) + sin(p.y * 0.8 - t * 1.3) + sin((p.x + p.y) * 0.7 + t * 0.7) + sin(length(p + vec2(sin(t * 0.5), cos(t * 0.4)) * 2.0) * 1.5);\n  gl_FragColor = vec4(hsv(hue + v * 0.125 * range, saturation), 1.0);\n}\n"}, {"id": "noise", "name": "Noise", "code": "/*{\"DESCRIPTION\":\"Drifting fractal noise between two colors\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"ambient\",\"organic\",\"drift\",\"clouds\",\"fractal\",\"smoke\"],\"INPUTS\":[\n{\"NAME\":\"colorA\",\"LABEL\":\"Color A\",\"TYPE\":\"color\",\"DEFAULT\":[1,0.35,0,1]},\n{\"NAME\":\"colorB\",\"LABEL\":\"Color B\",\"TYPE\":\"color\",\"DEFAULT\":[0.05,0,0.25,1]},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":3,\"DEFAULT\":0.4},\n{\"NAME\":\"scale\",\"LABEL\":\"Scale\",\"TYPE\":\"float\",\"MIN\":0.5,\"MAX\":20,\"DEFAULT\":4},\n{\"NAME\":\"contrast\",\"LABEL\":\"Contrast\",\"TYPE\":\"float\",\"MIN\":0.5,\"MAX\":4,\"DEFAULT\":1.5}]}*/\nfloat hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }\nfloat noise(vec3 p) {\n  vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n  return mix(mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),\n             mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);\n}\nvoid main() {\n  vec3 p = vec3((isf_FragNormCoord - 0.5) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0) * scale, TIME * speed);\n  float n = noise(p) * 0.55 + noise(p * 2.1 + 3.7) * 0.3 + noise(p * 4.3 + 7.1) * 0.15;\n  n = clamp((n - 0.5) * contrast + 0.5, 0.0, 1.0);\n  gl_FragColor = vec4(mix(colorB.rgb, colorA.rgb, n), 1.0);\n}\n"}, {"id": "aurora", "name": "Aurora", "code": "/*{\"DESCRIPTION\":\"Slow curtains of light\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"architectural\",\"organic\",\"drift\",\"northern lights\",\"curtains\",\"sky\",\"nature\"],\"INPUTS\":[\n{\"NAME\":\"colorA\",\"LABEL\":\"Low color\",\"TYPE\":\"color\",\"DEFAULT\":[0.1,1,0.55,1]},\n{\"NAME\":\"colorB\",\"LABEL\":\"High color\",\"TYPE\":\"color\",\"DEFAULT\":[0.55,0.2,1,1]},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":2,\"DEFAULT\":0.3},\n{\"NAME\":\"scale\",\"LABEL\":\"Scale\",\"TYPE\":\"float\",\"MIN\":0.3,\"MAX\":4,\"DEFAULT\":1},\n{\"NAME\":\"brightness\",\"LABEL\":\"Brightness\",\"TYPE\":\"float\",\"MIN\":0.2,\"MAX\":2,\"DEFAULT\":1.1}]}*/\nfloat hash(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }\nfloat noise(vec2 p) {\n  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);\n}\nvoid main() {\n  vec2 q = isf_FragNormCoord * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0) / scale;\n  float t = TIME * speed;\n  float bend = sin(q.x * 1.7 + t * 0.7) * 0.12 + sin(q.x * 3.1 - t * 0.5) * 0.06 + noise(vec2(q.x * 2.0, t * 0.3)) * 0.15;\n  float y = isf_FragNormCoord.y - 0.35 - bend;\n  float band = smoothstep(-0.12, 0.02, y) * exp(-max(y, 0.0) * 3.5);\n  float rays = 0.35 + 0.65 * noise(vec2(q.x * 9.0 + bend * 6.0, t * 0.8));\n  float m = band * rays * brightness;\n  vec3 c = mix(colorA.rgb, colorB.rgb, smoothstep(0.0, 0.45, y));\n  gl_FragColor = vec4(clamp(c * m, 0.0, 1.0), 1.0);\n}\n"}, {"id": "water", "name": "Water", "code": "/*{\"DESCRIPTION\":\"Light rippling like the bottom of a pool\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"architectural\",\"organic\",\"drift\",\"pool\",\"caustics\",\"sea\",\"nature\"],\"INPUTS\":[\n{\"NAME\":\"colorA\",\"LABEL\":\"Deep\",\"TYPE\":\"color\",\"DEFAULT\":[0,0.12,0.35,1]},\n{\"NAME\":\"colorB\",\"LABEL\":\"Light\",\"TYPE\":\"color\",\"DEFAULT\":[0.55,0.95,1,1]},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":2,\"DEFAULT\":0.4},\n{\"NAME\":\"scale\",\"LABEL\":\"Scale\",\"TYPE\":\"float\",\"MIN\":0.5,\"MAX\":10,\"DEFAULT\":3},\n{\"NAME\":\"sharpness\",\"LABEL\":\"Sharpness\",\"TYPE\":\"float\",\"MIN\":1,\"MAX\":12,\"DEFAULT\":5}]}*/\nfloat hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nfloat noise(vec2 p) {\n  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);\n}\nfloat web(vec2 p, float t) {\n  vec2 w = vec2(noise(p + vec2(t, 0.0)), noise(p + vec2(5.2, t * 1.3)));\n  float n = noise(p * 1.7 + w * 2.0 - vec2(0.0, t * 0.6));\n  return pow(1.0 - abs(sin(n * 9.0)), sharpness);\n}\nvoid main() {\n  vec2 p = isf_FragNormCoord * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0) * scale;\n  float t = TIME * speed;\n  float v = web(p, t) * 0.65 + web(p * 1.6 + 3.1, t * 1.2) * 0.45;\n  gl_FragColor = vec4(mix(colorA.rgb, colorB.rgb, clamp(v, 0.0, 1.0)), 1.0);\n}\n"}, {"id": "fire", "name": "Fire", "code": "/*{\"DESCRIPTION\":\"Flames rising from the bottom edge\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"lively\",\"ambient\",\"organic\",\"flow\",\"flames\",\"warm\",\"nature\"],\"INPUTS\":[\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":3,\"DEFAULT\":1},\n{\"NAME\":\"height\",\"LABEL\":\"Flame height\",\"TYPE\":\"float\",\"MIN\":0.1,\"MAX\":1.5,\"DEFAULT\":0.75},\n{\"NAME\":\"detail\",\"LABEL\":\"Detail\",\"TYPE\":\"float\",\"MIN\":1,\"MAX\":12,\"DEFAULT\":4},\n{\"NAME\":\"hue\",\"LABEL\":\"Hue shift\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0}]}*/\nfloat hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat noise(vec2 p) {\n  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);\n}\nfloat fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * noise(p); p = p * 2.03 + 11.7; a *= 0.5; } return v; }\nvec3 hueShift(vec3 c, float a) { const vec3 k = vec3(0.57735); float ca = cos(a); return c * ca + cross(k, c) * sin(a) + k * dot(k, c) * (1.0 - ca); }\nvoid main() {\n  vec2 uv = isf_FragNormCoord;\n  vec2 p = vec2(uv.x * RENDERSIZE.x / RENDERSIZE.y, uv.y) * detail;\n  float t = TIME * speed;\n  float n = fbm(p + vec2(0.0, -t * 1.6));\n  n = fbm(p + vec2(n * 1.3, -t * 2.2));\n  float heat = clamp(1.0 - uv.y / height + (n - 0.5) * 1.5, 0.0, 1.0);\n  heat = heat * heat * (0.55 + 0.9 * n);\n  vec3 c = clamp(vec3(heat * 1.9, heat * heat * 1.5, pow(heat, 4.0) * 1.2), 0.0, 1.0);\n  gl_FragColor = vec4(clamp(hueShift(c, hue * 6.2831853), 0.0, 1.0), 1.0);\n}\n"}, {"id": "lava", "name": "Lava lamp", "code": "/*{\"DESCRIPTION\":\"Soft blobs drifting and merging, like a lava lamp\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"ambient\",\"organic\",\"drift\",\"blobs\",\"warm\",\"retro\"],\"INPUTS\":[\n{\"NAME\":\"colorA\",\"LABEL\":\"Blob color\",\"TYPE\":\"color\",\"DEFAULT\":[1,0.3,0.05,1]},\n{\"NAME\":\"colorB\",\"LABEL\":\"Background\",\"TYPE\":\"color\",\"DEFAULT\":[0.08,0,0.12,1]},\n{\"NAME\":\"count\",\"LABEL\":\"Blobs\",\"TYPE\":\"float\",\"MIN\":1,\"MAX\":8,\"DEFAULT\":5},\n{\"NAME\":\"size\",\"LABEL\":\"Size\",\"TYPE\":\"float\",\"MIN\":0.03,\"MAX\":0.4,\"DEFAULT\":0.13},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":2,\"DEFAULT\":0.4},\n{\"NAME\":\"softness\",\"LABEL\":\"Softness\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.3}]}*/\nvoid main() {\n  vec2 asp = vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  vec2 q = isf_FragNormCoord * asp;\n  float t = TIME * speed;\n  float f = 0.0;\n  for (int i = 0; i < 8; i++) {\n    float fi = float(i);\n    if (fi >= floor(count + 0.5)) break;\n    vec2 c = vec2(0.5 + 0.42 * sin(t * (0.31 + 0.07 * fi) + fi * 1.7), 0.5 + 0.42 * sin(t * (0.23 + 0.09 * fi) + fi * 2.9)) * asp;\n    vec2 d = q - c;\n    f += size * size / max(dot(d, d), 1e-5);\n  }\n  float s = softness * 0.8 + 0.02;\n  float m = smoothstep(1.0 - s, 1.0 + s, f);\n  gl_FragColor = vec4(mix(colorB.rgb, colorA.rgb, m), 1.0);\n}\n"}, {"id": "bars", "name": "Bars", "code": "/*{\"DESCRIPTION\":\"Moving bars\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"lively\",\"show\",\"lines\",\"chase\",\"stripes\",\"scroll\"],\"INPUTS\":[\n{\"NAME\":\"color\",\"LABEL\":\"Bar color\",\"TYPE\":\"color\",\"DEFAULT\":[1,1,1,1]},\n{\"NAME\":\"background\",\"LABEL\":\"Background\",\"TYPE\":\"color\",\"DEFAULT\":[0,0,0,1]},\n{\"NAME\":\"count\",\"LABEL\":\"Bars\",\"TYPE\":\"float\",\"MIN\":1,\"MAX\":24,\"DEFAULT\":4},\n{\"NAME\":\"width\",\"LABEL\":\"Width\",\"TYPE\":\"float\",\"MIN\":0.02,\"MAX\":1,\"DEFAULT\":0.35},\n{\"NAME\":\"softness\",\"LABEL\":\"Softness\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.2},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":-3,\"MAX\":3,\"DEFAULT\":0.5},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0}]}*/\nvoid main() {\n  vec2 p = (isf_FragNormCoord - 0.5) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  float a = radians(angle);\n  float x = dot(p, vec2(cos(a), sin(a))) * count - TIME * speed;\n  float d = abs(fract(x) - 0.5) * 2.0;\n  float s = softness * 0.5 + 0.001;\n  float m = 1.0 - smoothstep(width - s, width + s, d);\n  gl_FragColor = vec4(mix(background.rgb, color.rgb, m), 1.0);\n}\n"}, {"id": "comet", "name": "Comet chase", "code": "/*{\"DESCRIPTION\":\"Comets with fading tails, along a direction, outwards from a centre, or around it\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"lively\",\"show\",\"lines\",\"chase\",\"tails\",\"trails\",\"runner\"],\"INPUTS\":[\n{\"NAME\":\"mode\",\"LABEL\":\"Path\",\"TYPE\":\"long\",\"VALUES\":[0,1,2],\"LABELS\":[\"Straight\",\"Outwards\",\"Around\"],\"DEFAULT\":0},\n{\"NAME\":\"color\",\"LABEL\":\"Color\",\"TYPE\":\"color\",\"DEFAULT\":[1,0.55,0.15,1]},\n{\"NAME\":\"count\",\"LABEL\":\"Comets\",\"TYPE\":\"float\",\"MIN\":1,\"MAX\":12,\"DEFAULT\":3},\n{\"NAME\":\"tail\",\"LABEL\":\"Tail\",\"TYPE\":\"float\",\"MIN\":0.02,\"MAX\":1,\"DEFAULT\":0.4},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":-3,\"MAX\":3,\"DEFAULT\":0.5},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0},\n{\"NAME\":\"centerX\",\"LABEL\":\"Centre X\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5},\n{\"NAME\":\"centerY\",\"LABEL\":\"Centre Y\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5}]}*/\nvoid main() {\n  vec2 p = (isf_FragNormCoord - vec2(centerX, 1.0 - centerY)) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  float a = radians(angle);\n  float x;\n  if (mode == 0) x = dot(p, vec2(cos(a), sin(a))) * count * 0.5;\n  else if (mode == 1) x = length(p) * count;\n  else x = (atan(p.x, p.y) - a) / 6.2831853 * floor(count + 0.5);\n  float d = fract((TIME * speed - x) * (speed < 0.0 ? -1.0 : 1.0));\n  float m = pow(clamp(1.0 - d / tail, 0.0, 1.0), 2.5);\n  gl_FragColor = vec4(color.rgb * m, 1.0);\n}\n"}, {"id": "wipe", "name": "Color wipe", "code": "/*{\"DESCRIPTION\":\"Two colours wiping over each other in turn\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"architectural\",\"fill\",\"flow\",\"transition\",\"two colours\"],\"INPUTS\":[\n{\"NAME\":\"mode\",\"LABEL\":\"Wipe\",\"TYPE\":\"long\",\"VALUES\":[0,1,2],\"LABELS\":[\"Straight\",\"From centre\",\"Clock\"],\"DEFAULT\":0},\n{\"NAME\":\"colorA\",\"LABEL\":\"Color A\",\"TYPE\":\"color\",\"DEFAULT\":[0.1,0.6,1,1]},\n{\"NAME\":\"colorB\",\"LABEL\":\"Color B\",\"TYPE\":\"color\",\"DEFAULT\":[1,0.2,0.5,1]},\n{\"NAME\":\"speed\",\"LABEL\":\"Wipes / s\",\"TYPE\":\"float\",\"MIN\":-2,\"MAX\":2,\"DEFAULT\":0.4},\n{\"NAME\":\"hold\",\"LABEL\":\"Hold\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":0.9,\"DEFAULT\":0.3},\n{\"NAME\":\"softness\",\"LABEL\":\"Softness\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.15},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0}]}*/\nvoid main() {\n  vec2 asp = vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  vec2 q = (isf_FragNormCoord - 0.5) * asp;\n  float a = radians(angle);\n  float x;\n  if (mode == 0) { vec2 d = vec2(cos(a), sin(a)); x = dot(q, d) / (abs(d.x) * asp.x + abs(d.y) * asp.y) + 0.5; }\n  else if (mode == 1) x = length(q) / length(0.5 * asp);\n  else x = fract((atan(q.x, q.y) - a) / 6.2831853);\n  if (speed < 0.0) x = 1.0 - x;\n  float t = TIME * abs(speed);\n  float k = mod(floor(t), 2.0);\n  float f = clamp(fract(t) / (1.0 - hold), 0.0, 1.0);\n  float s = softness * 0.25 + 0.001;\n  float m = 1.0 - smoothstep(-s, s, x - f * (1.0 + 2.0 * s) + s);\n  vec3 newC = k < 1.0 ? colorA.rgb : colorB.rgb, oldC = k < 1.0 ? colorB.rgb : colorA.rgb;\n  gl_FragColor = vec4(mix(oldC, newC, m), 1.0);\n}\n"}, {"id": "pulse", "name": "Pulse rings", "code": "/*{\"DESCRIPTION\":\"Rings expanding from a centre point\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"lively\",\"show\",\"radial\",\"flow\",\"rings\",\"ripple\"],\"INPUTS\":[\n{\"NAME\":\"color\",\"LABEL\":\"Ring color\",\"TYPE\":\"color\",\"DEFAULT\":[0.2,0.8,1,1]},\n{\"NAME\":\"background\",\"LABEL\":\"Background\",\"TYPE\":\"color\",\"DEFAULT\":[0,0,0,1]},\n{\"NAME\":\"frequency\",\"LABEL\":\"Rings\",\"TYPE\":\"float\",\"MIN\":0.5,\"MAX\":20,\"DEFAULT\":3},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":-3,\"MAX\":3,\"DEFAULT\":0.6},\n{\"NAME\":\"width\",\"LABEL\":\"Width\",\"TYPE\":\"float\",\"MIN\":0.02,\"MAX\":1,\"DEFAULT\":0.3},\n{\"NAME\":\"softness\",\"LABEL\":\"Softness\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.4},\n{\"NAME\":\"centerX\",\"LABEL\":\"Centre X\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5},\n{\"NAME\":\"centerY\",\"LABEL\":\"Centre Y\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5}]}*/\nvoid main() {\n  vec2 asp = vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  vec2 p = (isf_FragNormCoord - vec2(centerX, 1.0 - centerY)) * asp;\n  float x = length(p) * frequency - TIME * speed;\n  float d = abs(fract(x) - 0.5) * 2.0;\n  float s = softness * 0.5 + 0.001;\n  float m = 1.0 - smoothstep(width - s, width + s, d);\n  gl_FragColor = vec4(mix(background.rgb, color.rgb, m), 1.0);\n}\n"}, {"id": "sweep", "name": "Radar sweep", "code": "/*{\"DESCRIPTION\":\"Rotating radar sweep with a fading tail\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"lively\",\"show\",\"radial\",\"chase\",\"radar\",\"rotate\"],\"INPUTS\":[\n{\"NAME\":\"color\",\"LABEL\":\"Color\",\"TYPE\":\"color\",\"DEFAULT\":[0.3,1,0.5,1]},\n{\"NAME\":\"speed\",\"LABEL\":\"Turns / s\",\"TYPE\":\"float\",\"MIN\":-2,\"MAX\":2,\"DEFAULT\":0.3},\n{\"NAME\":\"tail\",\"LABEL\":\"Tail\",\"TYPE\":\"float\",\"MIN\":0.02,\"MAX\":1,\"DEFAULT\":0.35},\n{\"NAME\":\"arms\",\"LABEL\":\"Arms\",\"TYPE\":\"float\",\"MIN\":1,\"MAX\":8,\"DEFAULT\":1},\n{\"NAME\":\"centerX\",\"LABEL\":\"Centre X\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5},\n{\"NAME\":\"centerY\",\"LABEL\":\"Centre Y\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5}]}*/\nvoid main() {\n  vec2 p = (isf_FragNormCoord - vec2(centerX, 1.0 - centerY)) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  float a = atan(p.x, p.y) / 6.2831853;\n  float k = floor(arms + 0.5);\n  float x = fract((a - TIME * speed) * k);\n  if (speed < 0.0) x = 1.0 - x;\n  float m = pow(clamp(1.0 - x / tail, 0.0, 1.0), 2.0);\n  gl_FragColor = vec4(color.rgb * m, 1.0);\n}\n"}, {"id": "spiral", "name": "Spiral", "code": "/*{\"DESCRIPTION\":\"Rotating spiral arms\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"party\",\"show\",\"radial\",\"flow\",\"rotate\",\"hypnotic\",\"psychedelic\"],\"INPUTS\":[\n{\"NAME\":\"color\",\"LABEL\":\"Arm color\",\"TYPE\":\"color\",\"DEFAULT\":[0.2,0.9,1,1]},\n{\"NAME\":\"background\",\"LABEL\":\"Background\",\"TYPE\":\"color\",\"DEFAULT\":[0,0,0,1]},\n{\"NAME\":\"rainbow\",\"LABEL\":\"Rainbow arms\",\"TYPE\":\"bool\",\"DEFAULT\":false},\n{\"NAME\":\"arms\",\"LABEL\":\"Arms\",\"TYPE\":\"float\",\"MIN\":1,\"MAX\":12,\"DEFAULT\":3},\n{\"NAME\":\"twist\",\"LABEL\":\"Twist\",\"TYPE\":\"float\",\"MIN\":-8,\"MAX\":8,\"DEFAULT\":2.5},\n{\"NAME\":\"speed\",\"LABEL\":\"Turns / s\",\"TYPE\":\"float\",\"MIN\":-2,\"MAX\":2,\"DEFAULT\":0.2},\n{\"NAME\":\"width\",\"LABEL\":\"Width\",\"TYPE\":\"float\",\"MIN\":0.05,\"MAX\":1,\"DEFAULT\":0.4},\n{\"NAME\":\"centerX\",\"LABEL\":\"Centre X\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5},\n{\"NAME\":\"centerY\",\"LABEL\":\"Centre Y\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5}]}*/\nvec3 hsv(float h) { return clamp(abs(fract(h + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0, 0.0, 1.0); }\nvoid main() {\n  vec2 q = (isf_FragNormCoord - vec2(centerX, 1.0 - centerY)) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  float th = atan(q.y, q.x) / 6.2831853;\n  float k = floor(arms + 0.5);\n  float x = (th + length(q) * twist * 0.5 - TIME * speed) * k;\n  float d = abs(fract(x) - 0.5) * 2.0;\n  float m = 1.0 - smoothstep(width - 0.12, width + 0.12, d);\n  vec3 c = rainbow ? hsv(floor(x) / k + TIME * speed * 0.25) : color.rgb;\n  gl_FragColor = vec4(mix(background.rgb, c, m), 1.0);\n}\n"}, {"id": "rain", "name": "Rain", "code": "/*{\"DESCRIPTION\":\"Falling drops with fading trails, each column at its own speed\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"ambient\",\"particles\",\"flow\",\"drops\",\"water\",\"nature\"],\"INPUTS\":[\n{\"NAME\":\"color\",\"LABEL\":\"Color\",\"TYPE\":\"color\",\"DEFAULT\":[0.55,0.8,1,1]},\n{\"NAME\":\"background\",\"LABEL\":\"Background\",\"TYPE\":\"color\",\"DEFAULT\":[0,0,0,1]},\n{\"NAME\":\"cell\",\"LABEL\":\"Column width (px)\",\"TYPE\":\"float\",\"MIN\":2,\"MAX\":80,\"DEFAULT\":10},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":4,\"DEFAULT\":0.8},\n{\"NAME\":\"trail\",\"LABEL\":\"Trail\",\"TYPE\":\"float\",\"MIN\":0.02,\"MAX\":1,\"DEFAULT\":0.3},\n{\"NAME\":\"density\",\"LABEL\":\"Density\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0}]}*/\nfloat hash(float n) { return fract(sin(n * 91.3458) * 47453.5453); }\nvoid main() {\n  vec2 c = (isf_FragNormCoord - 0.5) * RENDERSIZE;\n  float a = radians(angle);\n  c = vec2(c.x * cos(a) + c.y * sin(a), c.y * cos(a) - c.x * sin(a));\n  float col = floor(c.x / cell);\n  float spd = speed * (0.5 + hash(col));\n  float u = c.y / RENDERSIZE.y + TIME * spd + hash(col + 17.0);\n  float on = step(hash(col * 7.31 + floor(u) * 13.7), density);\n  float m = on * pow(clamp(1.0 - fract(u) / trail, 0.0, 1.0), 2.0);\n  gl_FragColor = vec4(mix(background.rgb, color.rgb, m), 1.0);\n}\n"}, {"id": "twinkle", "name": "Twinkle", "code": "/*{\"DESCRIPTION\":\"Random twinkling cells\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"ambient\",\"particles\",\"drift\",\"stars\",\"sparkle\",\"glitter\",\"dots\"],\"INPUTS\":[\n{\"NAME\":\"color\",\"LABEL\":\"Color\",\"TYPE\":\"color\",\"DEFAULT\":[1,0.85,0.6,1]},\n{\"NAME\":\"background\",\"LABEL\":\"Background\",\"TYPE\":\"color\",\"DEFAULT\":[0,0,0,1]},\n{\"NAME\":\"cells\",\"LABEL\":\"Cell size (px)\",\"TYPE\":\"float\",\"MIN\":2,\"MAX\":80,\"DEFAULT\":10},\n{\"NAME\":\"density\",\"LABEL\":\"Density\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.25},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":4,\"DEFAULT\":1},\n{\"NAME\":\"decay\",\"LABEL\":\"Decay\",\"TYPE\":\"float\",\"MIN\":0.5,\"MAX\":8,\"DEFAULT\":3}]}*/\nfloat hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 c = floor(isf_FragNormCoord * RENDERSIZE / cells);\n  float h = hash(c);\n  float t = TIME * speed + h * 17.0;\n  float ph = fract(t);\n  float on = step(1.0 - density, hash(c + floor(t) * 1.618));\n  float m = on * pow(1.0 - ph, decay);\n  gl_FragColor = vec4(mix(background.rgb, color.rgb, m), 1.0);\n}\n"}, {"id": "checker", "name": "Checkerboard", "code": "/*{\"DESCRIPTION\":\"Checkerboard that can flip and scroll\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"party\",\"show\",\"geometric\",\"flash\",\"squares\",\"grid\"],\"OLM_CLOCKS\":{\"flip\":{\"FROM\":\"rate\",\"WRAP\":1024},\"travel\":{\"FROM\":\"scroll\",\"WRAP\":1024}},\"INPUTS\":[\n{\"NAME\":\"colorA\",\"LABEL\":\"Color A\",\"TYPE\":\"color\",\"DEFAULT\":[1,1,1,1]},\n{\"NAME\":\"colorB\",\"LABEL\":\"Color B\",\"TYPE\":\"color\",\"DEFAULT\":[0,0,0,1]},\n{\"NAME\":\"size\",\"LABEL\":\"Square (px)\",\"TYPE\":\"float\",\"MIN\":2,\"MAX\":300,\"DEFAULT\":60},\n{\"NAME\":\"rate\",\"LABEL\":\"Flips / s\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":10,\"DEFAULT\":1},\n{\"NAME\":\"scroll\",\"LABEL\":\"Scroll\",\"TYPE\":\"float\",\"MIN\":-4,\"MAX\":4,\"DEFAULT\":0},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":90,\"DEFAULT\":0},\n{\"NAME\":\"flip\",\"TYPE\":\"float\",\"DEFAULT\":0},\n{\"NAME\":\"travel\",\"TYPE\":\"float\",\"DEFAULT\":0}]}*/\nvoid main() {\n  vec2 c = (isf_FragNormCoord - 0.5) * RENDERSIZE;\n  float a = radians(angle);\n  c = vec2(c.x * cos(a) + c.y * sin(a), c.y * cos(a) - c.x * sin(a));\n  c.x += travel * size;\n  vec2 k = floor(c / size);\n  float m = abs(mod(k.x + k.y, 2.0) - mod(floor(flip), 2.0));\n  gl_FragColor = vec4(mix(colorB.rgb, colorA.rgb, m), 1.0);\n}\n"}, {"id": "breathe", "name": "Breathe", "code": "/*{\"DESCRIPTION\":\"Slow breathing between two colours, optionally as a wave across the canvas\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"architectural\",\"fill\",\"drift\",\"fade\",\"two colours\"],\"OLM_CLOCKS\":{\"breath\":{\"FROM\":\"rate\",\"SCALE\":0.016666666666666666,\"WRAP\":1024}},\"INPUTS\":[\n{\"NAME\":\"colorA\",\"LABEL\":\"Bright\",\"TYPE\":\"color\",\"DEFAULT\":[1,0.75,0.45,1]},\n{\"NAME\":\"colorB\",\"LABEL\":\"Dim\",\"TYPE\":\"color\",\"DEFAULT\":[0.02,0.01,0,1]},\n{\"NAME\":\"rate\",\"LABEL\":\"Breaths / min\",\"TYPE\":\"float\",\"MIN\":1,\"MAX\":60,\"DEFAULT\":12},\n{\"NAME\":\"curve\",\"LABEL\":\"Curve\",\"TYPE\":\"float\",\"MIN\":0.3,\"MAX\":4,\"DEFAULT\":1.6},\n{\"NAME\":\"spread\",\"LABEL\":\"Wave\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":3,\"DEFAULT\":0},\n{\"NAME\":\"angle\",\"LABEL\":\"Wave angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0},\n{\"NAME\":\"breath\",\"TYPE\":\"float\",\"DEFAULT\":0}]}*/\nvoid main() {\n  vec2 q = (isf_FragNormCoord - 0.5) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  float a = radians(angle);\n  float ph = breath - dot(q, vec2(cos(a), sin(a))) * spread;\n  float v = pow(0.5 - 0.5 * cos(6.2831853 * ph), curve);\n  gl_FragColor = vec4(mix(colorB.rgb, colorA.rgb, v), 1.0);\n}\n"}, {"id": "strobe", "name": "Strobe", "code": "/*{\"DESCRIPTION\":\"Strobe\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"party\",\"show\",\"fill\",\"flash\",\"blinder\",\"white\"],\"OLM_CLOCKS\":{\"flash\":{\"FROM\":\"rate\",\"WRAP\":1024}},\"INPUTS\":[\n{\"NAME\":\"color\",\"LABEL\":\"Color\",\"TYPE\":\"color\",\"DEFAULT\":[1,1,1,1]},\n{\"NAME\":\"rate\",\"LABEL\":\"Rate (Hz)\",\"TYPE\":\"float\",\"MIN\":0.25,\"MAX\":20,\"DEFAULT\":4},\n{\"NAME\":\"duty\",\"LABEL\":\"On time\",\"TYPE\":\"float\",\"MIN\":0.02,\"MAX\":0.95,\"DEFAULT\":0.2},\n{\"NAME\":\"flash\",\"TYPE\":\"float\",\"DEFAULT\":0}]}*/\nvoid main() {\n  float on = step(fract(flash), duty);\n  gl_FragColor = vec4(color.rgb * on, 1.0);\n}\n"}, {"id": "drift", "name": "Color drift", "code": "/*{\"DESCRIPTION\":\"A very slow drift through the hues, with a gentle gradient across the canvas\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"architectural\",\"fill\",\"drift\",\"hue\",\"colour cycle\",\"colorful\"],\"INPUTS\":[\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.08},\n{\"NAME\":\"spread\",\"LABEL\":\"Spread\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1.5,\"DEFAULT\":0.12},\n{\"NAME\":\"saturation\",\"LABEL\":\"Saturation\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.65},\n{\"NAME\":\"brightness\",\"LABEL\":\"Brightness\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":1},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0}]}*/\nvec3 hsv(float h, float s, float v) { vec3 p = abs(fract(vec3(h) + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0); return v * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), s); }\nvoid main() {\n  vec2 q = (isf_FragNormCoord - 0.5) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  float a = radians(angle);\n  float h = TIME * speed * 0.05 + dot(q, vec2(cos(a), sin(a))) * spread;\n  gl_FragColor = vec4(hsv(h, saturation, brightness), 1.0);\n}\n"}, {"id": "clouds", "name": "Soft clouds", "code": "/*{\"DESCRIPTION\":\"Slow, soft clouds drifting over a sky\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"architectural\",\"organic\",\"drift\",\"sky\",\"nature\"],\"INPUTS\":[\n{\"NAME\":\"colorA\",\"LABEL\":\"Sky\",\"TYPE\":\"color\",\"DEFAULT\":[0.02,0.06,0.22,1]},\n{\"NAME\":\"colorB\",\"LABEL\":\"Clouds\",\"TYPE\":\"color\",\"DEFAULT\":[0.75,0.82,1,1]},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.15},\n{\"NAME\":\"scale\",\"LABEL\":\"Scale\",\"TYPE\":\"float\",\"MIN\":0.5,\"MAX\":8,\"DEFAULT\":2.5},\n{\"NAME\":\"coverage\",\"LABEL\":\"Coverage\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5},\n{\"NAME\":\"softness\",\"LABEL\":\"Softness\",\"TYPE\":\"float\",\"MIN\":0.05,\"MAX\":1,\"DEFAULT\":0.6}]}*/\nfloat hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nfloat vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }\nfloat fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * vnoise(p); p = p * 2.03 + vec2(17.0, 9.0); a *= 0.5; } return v; }\nvoid main() {\n  vec2 q = isf_FragNormCoord * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0) * scale;\n  float t = TIME * speed;\n  vec2 p = q + vec2(t * 0.4, t * 0.12);\n  float f = fbm(p + 0.8 * vec2(fbm(p + vec2(t * 0.07, 0.0)), fbm(p + vec2(5.2, 1.3 - t * 0.05))));\n  float m = smoothstep(1.0 - coverage - softness * 0.5, 1.0 - coverage + softness * 0.5, f);\n  gl_FragColor = vec4(mix(colorA.rgb, colorB.rgb, m), 1.0);\n}\n"}, {"id": "horizon", "name": "Horizon", "code": "/*{\"DESCRIPTION\":\"A sky gradient with a warm glow at the horizon that slowly rises and sets\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"architectural\",\"gradient\",\"drift\",\"sky\",\"sunrise\",\"sunset\",\"warm\"],\"INPUTS\":[\n{\"NAME\":\"colorA\",\"LABEL\":\"Sky\",\"TYPE\":\"color\",\"DEFAULT\":[0.03,0.05,0.25,1]},\n{\"NAME\":\"colorB\",\"LABEL\":\"Glow\",\"TYPE\":\"color\",\"DEFAULT\":[1,0.42,0.08,1]},\n{\"NAME\":\"colorC\",\"LABEL\":\"Ground\",\"TYPE\":\"color\",\"DEFAULT\":[0.08,0.02,0.0,1]},\n{\"NAME\":\"height\",\"LABEL\":\"Horizon\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.35},\n{\"NAME\":\"width\",\"LABEL\":\"Glow width\",\"TYPE\":\"float\",\"MIN\":0.02,\"MAX\":1,\"DEFAULT\":0.25},\n{\"NAME\":\"drift\",\"LABEL\":\"Rise and set\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":0.5,\"DEFAULT\":0.1},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.1}]}*/\nvoid main() {\n  float y = isf_FragNormCoord.y;\n  float hz = height + sin(TIME * speed) * drift;\n  vec3 sky = mix(colorB.rgb, colorA.rgb, smoothstep(hz, hz + width * 2.0, y));\n  vec3 col = y < hz ? mix(colorC.rgb, colorB.rgb, smoothstep(hz - width, hz, y)) : sky;\n  col += colorB.rgb * 0.6 * exp(-abs(y - hz) / max(width * 0.35, 0.001));\n  gl_FragColor = vec4(min(col, 1.0), 1.0);\n}\n"}, {"id": "stars", "name": "Starfield", "code": "/*{\"DESCRIPTION\":\"Scattered stars that softly twinkle on a night sky\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"ambient\",\"particles\",\"drift\",\"night\",\"twinkle\",\"sparkle\",\"sky\",\"dots\"],\"INPUTS\":[\n{\"NAME\":\"color\",\"LABEL\":\"Stars\",\"TYPE\":\"color\",\"DEFAULT\":[1,0.95,0.85,1]},\n{\"NAME\":\"background\",\"LABEL\":\"Sky\",\"TYPE\":\"color\",\"DEFAULT\":[0.0,0.01,0.05,1]},\n{\"NAME\":\"cells\",\"LABEL\":\"Spacing (px)\",\"TYPE\":\"float\",\"MIN\":4,\"MAX\":80,\"DEFAULT\":14},\n{\"NAME\":\"density\",\"LABEL\":\"Density\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5},\n{\"NAME\":\"size\",\"LABEL\":\"Size\",\"TYPE\":\"float\",\"MIN\":0.05,\"MAX\":0.5,\"DEFAULT\":0.18},\n{\"NAME\":\"speed\",\"LABEL\":\"Twinkle speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":2,\"DEFAULT\":0.4}]}*/\nfloat hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 p = isf_FragNormCoord * RENDERSIZE / cells, c = floor(p), f = fract(p) - 0.5;\n  float h = hash(c);\n  vec2 o = vec2(hash(c + 3.1), hash(c + 7.7)) - 0.5;\n  float d = length(f - o * 0.6);\n  float star = step(1.0 - density, h) * smoothstep(size, size * 0.3, d);\n  float tw = 0.35 + 0.65 * (0.5 + 0.5 * sin(TIME * speed * (1.0 + 2.0 * h) * 3.0 + h * 40.0));\n  gl_FragColor = vec4(mix(background.rgb, color.rgb, star * tw * (0.5 + 0.5 * hash(c + 1.9))), 1.0);\n}\n"}, {"id": "waves", "name": "Slow waves", "code": "/*{\"DESCRIPTION\":\"Soft bands of two colours rolling slowly across\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"architectural\",\"lines\",\"flow\",\"bands\",\"sea\",\"two colours\"],\"INPUTS\":[\n{\"NAME\":\"colorA\",\"LABEL\":\"Color A\",\"TYPE\":\"color\",\"DEFAULT\":[0.0,0.35,0.6,1]},\n{\"NAME\":\"colorB\",\"LABEL\":\"Color B\",\"TYPE\":\"color\",\"DEFAULT\":[0.6,0.95,1,1]},\n{\"NAME\":\"count\",\"LABEL\":\"Waves\",\"TYPE\":\"float\",\"MIN\":0.5,\"MAX\":12,\"DEFAULT\":2},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.2},\n{\"NAME\":\"softness\",\"LABEL\":\"Softness\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":1},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":90}]}*/\nvoid main() {\n  vec2 q = (isf_FragNormCoord - 0.5) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  float a = radians(angle);\n  float v = 0.5 + 0.5 * sin((dot(q, vec2(cos(a), sin(a))) * count - TIME * speed) * 6.2831853);\n  v = mix(step(0.5, v), smoothstep(0.0, 1.0, v), softness);\n  gl_FragColor = vec4(mix(colorA.rgb, colorB.rgb, v), 1.0);\n}\n"}, {"id": "discodots", "name": "Disco dots", "code": "/*{\"DESCRIPTION\":\"A grid of round dots, each taking a new colour on the beat\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"party\",\"show\",\"particles\",\"beat\",\"dots\",\"grid\",\"bpm\",\"disco\"],\"OLM_CLOCKS\":{\"beat\":{\"FROM\":\"bpm\",\"SCALE\":0.016666666666666666,\"WRAP\":1024}},\"INPUTS\":[\n{\"NAME\":\"bpm\",\"LABEL\":\"Tempo (BPM)\",\"TYPE\":\"float\",\"MIN\":30,\"MAX\":200,\"DEFAULT\":120},\n{\"NAME\":\"cells\",\"LABEL\":\"Dot spacing (px)\",\"TYPE\":\"float\",\"MIN\":6,\"MAX\":120,\"DEFAULT\":40},\n{\"NAME\":\"size\",\"LABEL\":\"Dot size\",\"TYPE\":\"float\",\"MIN\":0.1,\"MAX\":0.5,\"DEFAULT\":0.38},\n{\"NAME\":\"decay\",\"LABEL\":\"Fade\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":8,\"DEFAULT\":1},\n{\"NAME\":\"saturation\",\"LABEL\":\"Saturation\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":1},\n{\"NAME\":\"beat\",\"TYPE\":\"float\",\"DEFAULT\":0}]}*/\nvec3 hsv(float h, float s, float v) { vec3 p = abs(fract(vec3(h) + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0); return v * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), s); }\nfloat hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 p = isf_FragNormCoord * RENDERSIZE / cells, c = floor(p);\n  float n = floor(beat), ph = fract(beat);\n  float h = hash(c + n * 1.37);\n  float disc = smoothstep(size, size - 0.06, length(fract(p) - 0.5));\n  float lvl = pow(1.0 - ph, decay) * step(0.25, hash(c * 1.7 + n));\n  gl_FragColor = vec4(hsv(h, saturation, 1.0) * disc * lvl, 1.0);\n}\n"}, {"id": "scanner", "name": "Scanner", "code": "/*{\"DESCRIPTION\":\"Beams sweeping back and forth, like moving heads\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"party\",\"show\",\"lines\",\"chase\",\"beams\",\"moving heads\",\"disco\"],\"INPUTS\":[\n{\"NAME\":\"color\",\"LABEL\":\"Color\",\"TYPE\":\"color\",\"DEFAULT\":[0.4,0.7,1,1]},\n{\"NAME\":\"count\",\"LABEL\":\"Beams\",\"TYPE\":\"float\",\"MIN\":1,\"MAX\":8,\"DEFAULT\":3},\n{\"NAME\":\"width\",\"LABEL\":\"Width\",\"TYPE\":\"float\",\"MIN\":0.005,\"MAX\":0.3,\"DEFAULT\":0.05},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":3,\"DEFAULT\":0.8},\n{\"NAME\":\"spread\",\"LABEL\":\"Spread\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0},\n{\"NAME\":\"rainbow\",\"LABEL\":\"Rainbow\",\"TYPE\":\"bool\",\"DEFAULT\":false}]}*/\nvec3 hsv(float h, float s, float v) { vec3 p = abs(fract(vec3(h) + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0); return v * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), s); }\nvoid main() {\n  vec2 q = (isf_FragNormCoord - 0.5) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  float a = radians(angle);\n  float x = dot(q, vec2(cos(a), sin(a)));\n  vec3 col = vec3(0.0);\n  for (int i = 0; i < 8; i++) {\n    float fi = float(i);\n    if (fi >= count) break;\n    float pos = sin(TIME * speed * 3.1415927 + fi * spread * 6.2831853 / max(count, 1.0)) * 0.6;\n    float b = exp(-pow((x - pos) / width, 2.0));\n    col += (rainbow ? hsv(fi / max(count, 1.0), 1.0, 1.0) : color.rgb) * b;\n  }\n  gl_FragColor = vec4(min(col, 1.0), 1.0);\n}\n"}, {"id": "confetti", "name": "Confetti", "code": "/*{\"DESCRIPTION\":\"Sparks of random colours popping all over\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"party\",\"show\",\"particles\",\"flash\",\"sparkle\",\"sparks\",\"dots\",\"disco\",\"colorful\"],\"INPUTS\":[\n{\"NAME\":\"cells\",\"LABEL\":\"Spark size (px)\",\"TYPE\":\"float\",\"MIN\":2,\"MAX\":60,\"DEFAULT\":8},\n{\"NAME\":\"density\",\"LABEL\":\"Density\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.3},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":6,\"DEFAULT\":2},\n{\"NAME\":\"decay\",\"LABEL\":\"Fade\",\"TYPE\":\"float\",\"MIN\":0.5,\"MAX\":12,\"DEFAULT\":5},\n{\"NAME\":\"saturation\",\"LABEL\":\"Saturation\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":1}]}*/\nvec3 hsv(float h, float s, float v) { vec3 p = abs(fract(vec3(h) + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0); return v * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), s); }\nfloat hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 c = floor(isf_FragNormCoord * RENDERSIZE / cells);\n  float t = TIME * speed + hash(c) * 31.0;\n  float n = floor(t), ph = fract(t);\n  float on = step(1.0 - density, hash(c + n * 2.13));\n  gl_FragColor = vec4(hsv(hash(c * 0.71 + n), saturation, 1.0) * on * pow(1.0 - ph, decay), 1.0);\n}\n"}, {"id": "hits", "name": "Color hits", "code": "/*{\"DESCRIPTION\":\"The whole canvas, or a few segments, flashing a new colour on every beat\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"party\",\"show\",\"fill\",\"beat\",\"bpm\",\"segments\",\"disco\",\"colorful\"],\"OLM_CLOCKS\":{\"beat\":{\"FROM\":\"bpm\",\"SCALE\":0.016666666666666666,\"WRAP\":1024}},\"INPUTS\":[\n{\"NAME\":\"bpm\",\"LABEL\":\"Tempo (BPM)\",\"TYPE\":\"float\",\"MIN\":30,\"MAX\":200,\"DEFAULT\":120},\n{\"NAME\":\"segments\",\"LABEL\":\"Segments\",\"TYPE\":\"float\",\"MIN\":1,\"MAX\":12,\"DEFAULT\":1},\n{\"NAME\":\"decay\",\"LABEL\":\"Fade\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":12,\"DEFAULT\":4},\n{\"NAME\":\"saturation\",\"LABEL\":\"Saturation\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":1},\n{\"NAME\":\"base\",\"LABEL\":\"Glow between hits\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.15},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0},\n{\"NAME\":\"beat\",\"TYPE\":\"float\",\"DEFAULT\":0}]}*/\nvec3 hsv(float h, float s, float v) { vec3 p = abs(fract(vec3(h) + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0); return v * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), s); }\nfloat hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 q = isf_FragNormCoord - 0.5;\n  float a = radians(angle);\n  vec2 d = vec2(cos(a), sin(a));\n  float x = dot(q, d) / (0.5 * (abs(d.x) + abs(d.y))) * 0.5 + 0.5;   // 0 to 1 across the canvas, at any angle\n  float seg = floor(clamp(x, 0.0, 0.9999) * floor(segments));\n  float n = floor(beat), ph = fract(beat);\n  float h = hash(vec2(seg * 7.13 + 1.7, n * 3.71 + 0.3));\n  gl_FragColor = vec4(hsv(h, saturation, 1.0) * mix(base, 1.0, pow(1.0 - ph, decay)), 1.0);\n}\n"}, {"id": "mirrorball", "name": "Mirror ball", "code": "/*{\"DESCRIPTION\":\"Spots of light sweeping round, like a mirror ball\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"party\",\"show\",\"particles\",\"flow\",\"dots\",\"spots\",\"rotate\",\"disco\"],\"INPUTS\":[\n{\"NAME\":\"color\",\"LABEL\":\"Color\",\"TYPE\":\"color\",\"DEFAULT\":[1,0.95,0.9,1]},\n{\"NAME\":\"cells\",\"LABEL\":\"Spot spacing (px)\",\"TYPE\":\"float\",\"MIN\":6,\"MAX\":100,\"DEFAULT\":28},\n{\"NAME\":\"size\",\"LABEL\":\"Spot size\",\"TYPE\":\"float\",\"MIN\":0.05,\"MAX\":0.5,\"DEFAULT\":0.18},\n{\"NAME\":\"density\",\"LABEL\":\"Density\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.6},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":2,\"DEFAULT\":0.25},\n{\"NAME\":\"centerX\",\"LABEL\":\"Center X\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5},\n{\"NAME\":\"centerY\",\"LABEL\":\"Center Y\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5}]}*/\nfloat hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 q = (isf_FragNormCoord - vec2(centerX, centerY)) * RENDERSIZE;\n  float r = length(q), a = atan(q.y, q.x) + TIME * speed;\n  float ring = floor(r / cells);\n  float per = max(6.0, floor(6.2831853 * (ring + 0.5)));\n  vec2 c = vec2(ring, floor(a / 6.2831853 * per));\n  vec2 f = vec2(fract(r / cells), fract(a / 6.2831853 * per)) - 0.5;\n  float spot = step(1.0 - density, hash(c)) * smoothstep(size, size * 0.4, length(f));\n  gl_FragColor = vec4(color.rgb * spot * (0.6 + 0.4 * hash(c + 4.0)), 1.0);\n}\n"}, {"id": "equalizer", "name": "Equalizer", "code": "/*{\"DESCRIPTION\":\"Bars bouncing like a music equalizer, green to red\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"party\",\"show\",\"lines\",\"flow\",\"bars\",\"music\",\"vu\",\"disco\"],\"INPUTS\":[\n{\"NAME\":\"count\",\"LABEL\":\"Bars\",\"TYPE\":\"float\",\"MIN\":2,\"MAX\":48,\"DEFAULT\":12},\n{\"NAME\":\"gap\",\"LABEL\":\"Gap\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":0.8,\"DEFAULT\":0.2},\n{\"NAME\":\"speed\",\"LABEL\":\"Speed\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":4,\"DEFAULT\":1.2},\n{\"NAME\":\"level\",\"LABEL\":\"Level\",\"TYPE\":\"float\",\"MIN\":0.1,\"MAX\":1,\"DEFAULT\":0.7},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0}]}*/\nfloat hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nfloat vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }\nfloat fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * vnoise(p); p = p * 2.03 + vec2(17.0, 9.0); a *= 0.5; } return v; }\nvoid main() {\n  vec2 q = isf_FragNormCoord - 0.5;\n  float a = radians(angle);\n  vec2 r = vec2(dot(q, vec2(cos(a), sin(a))), dot(q, vec2(-sin(a), cos(a)))) + 0.5;\n  float i = floor(r.x * count);\n  float hgt = clamp(level * (0.25 + 1.1 * vnoise(vec2(i * 3.7, TIME * speed))), 0.0, 1.0);\n  float on = step(r.y, hgt) * step(gap * 0.5, fract(r.x * count)) * step(fract(r.x * count), 1.0 - gap * 0.5);\n  vec3 col = mix(vec3(0.1, 1.0, 0.2), vec3(1.0, 0.85, 0.0), smoothstep(0.45, 0.7, r.y));\n  col = mix(col, vec3(1.0, 0.1, 0.05), smoothstep(0.75, 0.9, r.y));\n  gl_FragColor = vec4(col * on, 1.0);\n}\n"}, {"id": "gradient", "name": "Gradient", "code": "/*{\"DESCRIPTION\":\"Two-color gradient, optionally scrolling\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"architectural\",\"gradient\",\"still\",\"two colours\",\"scroll\"],\"INPUTS\":[\n{\"NAME\":\"colorA\",\"LABEL\":\"Color A\",\"TYPE\":\"color\",\"DEFAULT\":[1,0.1,0.4,1]},\n{\"NAME\":\"colorB\",\"LABEL\":\"Color B\",\"TYPE\":\"color\",\"DEFAULT\":[0.1,0.4,1,1]},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0},\n{\"NAME\":\"speed\",\"LABEL\":\"Scroll\",\"TYPE\":\"float\",\"MIN\":-2,\"MAX\":2,\"DEFAULT\":0},\n{\"NAME\":\"mirror\",\"LABEL\":\"Mirror\",\"TYPE\":\"bool\",\"DEFAULT\":true}]}*/\nvoid main() {\n  vec2 p = (isf_FragNormCoord - 0.5) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  float a = radians(angle);\n  float x = dot(p, vec2(cos(a), sin(a))) + 0.5 - TIME * speed;\n  float t = mirror ? 1.0 - abs(fract(x * 0.5) * 2.0 - 1.0) : fract(x);\n  gl_FragColor = vec4(mix(colorA.rgb, colorB.rgb, t), 1.0);\n}\n"}, {"id": "shape", "name": "Shape mask", "code": "/*{\"DESCRIPTION\":\"A circle, ring, rectangle or band. White on black: put it on a layer set to Multiply to show the layers below only inside the shape\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"utility\",\"geometric\",\"still\",\"mask\",\"circle\",\"ring\",\"rectangle\"],\"INPUTS\":[\n{\"NAME\":\"shape\",\"LABEL\":\"Shape\",\"TYPE\":\"long\",\"VALUES\":[0,1,2,3],\"LABELS\":[\"Circle\",\"Ring\",\"Rectangle\",\"Band\"],\"DEFAULT\":0},\n{\"NAME\":\"color\",\"LABEL\":\"Inside\",\"TYPE\":\"color\",\"DEFAULT\":[1,1,1,1]},\n{\"NAME\":\"background\",\"LABEL\":\"Outside\",\"TYPE\":\"color\",\"DEFAULT\":[0,0,0,1]},\n{\"NAME\":\"invert\",\"LABEL\":\"Invert\",\"TYPE\":\"bool\",\"DEFAULT\":false},\n{\"NAME\":\"size\",\"LABEL\":\"Size\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":2,\"DEFAULT\":0.6},\n{\"NAME\":\"thickness\",\"LABEL\":\"Thickness\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.15},\n{\"NAME\":\"softness\",\"LABEL\":\"Softness\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.1},\n{\"NAME\":\"angle\",\"LABEL\":\"Angle\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":360,\"DEFAULT\":0},\n{\"NAME\":\"centerX\",\"LABEL\":\"Centre X\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5},\n{\"NAME\":\"centerY\",\"LABEL\":\"Centre Y\",\"TYPE\":\"float\",\"MIN\":0,\"MAX\":1,\"DEFAULT\":0.5}]}*/\nvoid main() {\n  vec2 q = (isf_FragNormCoord - vec2(centerX, 1.0 - centerY)) * vec2(RENDERSIZE.x / RENDERSIZE.y, 1.0);\n  float a = radians(angle);\n  q = vec2(q.x * cos(a) + q.y * sin(a), q.y * cos(a) - q.x * sin(a));\n  float d;\n  if (shape == 0) d = length(q) - size * 0.5;\n  else if (shape == 1) d = abs(length(q) - size * 0.5) - thickness * 0.5;\n  else if (shape == 2) { vec2 e = abs(q) - vec2(size, thickness * 2.0) * 0.5; d = length(max(e, 0.0)) + min(max(e.x, e.y), 0.0); }\n  else d = abs(q.y) - thickness * 0.5;\n  float s = softness * 0.2 + 0.002;\n  float m = 1.0 - smoothstep(-s, s, d);\n  if (invert) m = 1.0 - m;\n  gl_FragColor = vec4(mix(background.rgb, color.rgb, m), 1.0);\n}\n"}, {"id": "solid", "name": "Solid color", "code": "/*{\"DESCRIPTION\":\"Solid color\",\"CREDIT\":\"openLedMapper\",\"CATEGORIES\":[\"calm\",\"architectural\",\"fill\",\"still\",\"plain\",\"one colour\"],\"INPUTS\":[\n{\"NAME\":\"color\",\"LABEL\":\"Color\",\"TYPE\":\"color\",\"DEFAULT\":[1,1,1,1]}]}*/\nvoid main() { gl_FragColor = vec4(color.rgb, 1.0); }\n"}];
-'use strict';
+
 /* ============================================================ utilities */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -646,7 +192,6 @@ function download(name, text, type = 'application/json') {
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
-
 const ICONS = {
   line: '<svg viewBox="0 0 16 16"><path d="M2.5 13.5l11-11" stroke="currentColor" stroke-width="1.5"/><circle cx="2.5" cy="13.5" r="1.6" fill="currentColor"/><circle cx="13.5" cy="2.5" r="1.6" fill="currentColor"/></svg>',
   matrix: '<svg viewBox="0 0 16 16"><g fill="currentColor"><rect x="2" y="2" width="3" height="3"/><rect x="6.5" y="2" width="3" height="3"/><rect x="11" y="2" width="3" height="3"/><rect x="2" y="6.5" width="3" height="3"/><rect x="6.5" y="6.5" width="3" height="3"/><rect x="11" y="6.5" width="3" height="3"/><rect x="2" y="11" width="3" height="3"/><rect x="6.5" y="11" width="3" height="3"/><rect x="11" y="11" width="3" height="3"/></g></svg>',
@@ -702,7 +247,6 @@ const BLEND_NOTES = {
   darken: 'Keeps whichever is darker: this layer or the layers below.',
   difference: 'Inverts the layers below where this layer is bright.',
 };
-
 let project = null;
 const ui = {
   sel: new Set(), tool: 'select', view: { zoom: 1, x: 0, y: 0 }, fitted: false,
@@ -712,11 +256,9 @@ const ui = {
   hoverFx: null, hoverGroup: null, hoverPx: null, cursor: null,
 };
 const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'rightHidden', 'scanOff'];
-
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
 const markPatch = () => { patchDirty = true; };
-
 function blankProject(name = 'Untitled') {
   const settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
   return {
@@ -1282,7 +824,6 @@ let clockT = 0, clockDT = 1 / 40, frameIndex = 0;
 let isfTime = null;           // a fixed TIME while drawing still thumbnails
 let layerTime = null;         // the TIME of the layer being drawn, when its shader has a speed input (see speedTime)
 let readBuf = new Uint8Array(4);
-
 function parseISFHeader(code) {
   const a = code.indexOf('/*'), b = code.indexOf('*/');
   if (a < 0 || b < 0) return null;
@@ -1839,7 +1380,6 @@ function updateThumbs() {
   }
 }
 function markThumb(src) { const c = thumbs.get(src.id); if (c) c._stale = true; }
-
 let fixtureBB = null, geomVersion = 0; // the version changes whenever pixel positions or the canvas change
 function computeBB() {
   geomVersion++;
@@ -2134,11 +1674,9 @@ let pathDraft = null;     // a path being drawn: its points, and with the pen to
 let marquee = null;
 let spaceHeld = false;
 let guideImg = null;
-
 const toS = (x, y) => [x * ui.view.zoom + ui.view.x, y * ui.view.zoom + ui.view.y];
 const toC = (sx, sy) => [(sx - ui.view.x) / ui.view.zoom, (sy - ui.view.y) / ui.view.zoom];
 function snapV(v, e) { const g = project.settings.grid; return ui.snap && !(e && e.altKey) && g > 0 ? Math.round(v / g) * g : v; }
-
 function resizeView() {
   const r = stageEl.getBoundingClientRect();
   DPR = window.devicePixelRatio || 1;
@@ -3394,7 +2932,6 @@ function renderRight() {
 }
 const geoIn = () => markGeom();
 const geo = (extra = {}) => Object.assign({ onInput: geoIn, onCommit: commit }, extra);
-
 function renderInspector(body) {
   if (ui.tool === 'zone') return renderZoneInspector(body);
   const sel = selected();
@@ -3895,7 +3432,6 @@ function renderContentTab(body) {
   body.append(sec('Transition', sliderRow('Crossfade', project.settings, 'transition', { min: 0, max: 5, step: 0.1, fmt: v => v.toFixed(1) + ' s', onCommit: commit }),
     h('p', { class: 'note' }, 'Fade time when you click a source to play it in a layer. Scenes have their own fade time.')));
 }
-
 // The video options in the Content tab: a timeline with the trim, how it plays, speed and sound
 function videoControls(src, el) {
   fixVideoOptions(src);
@@ -5351,6 +4887,7 @@ function restackSel(front) {
   project.fixtures = F;
   normalizeGroups(); markGeom(); commit(); renderRight();
 }
+
 /* ---------- copy and paste fixtures ---------- */
 // Copied fixtures go on the system clipboard as text, so they paste into another project, another openLedMapper
 // window, or the desktop app; they are also kept here for "Paste here" when the clipboard can't be read.
@@ -5886,7 +5423,6 @@ function boot() {
   window.olm = { get project() { return project; }, get tickCost() { return tickCost; }, get drawCost() { return drawCost; }, get frameIndex() { return frameIndex; }, get clockT() { return clockT; }, glCanvas, samplePick, loadProject, ui, universes: () => universes, computePatch, setOutput, bridge, tick, mixer, goScene, storeScene, loadSource, selectZone, addZone, setTool, mediaEl: id => mediaEls.get(id) };
 }
 boot();
-
 </script>
 </body>
 </html>
