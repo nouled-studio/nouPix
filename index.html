@@ -220,8 +220,7 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .skiprow .info:hover, .skiprow .info:focus { border-color: var(--accent); color: var(--accent); outline: none; }
 .btn.trash { color: var(--danger); }
 .btn.trash:hover { border-color: var(--danger); background: var(--danger-soft); }
-.discovered { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 7px 12px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--text2); }
-.discovered b { color: var(--text); font-weight: 600; }
+.ctrl-fields .reported { display: flex; align-items: center; height: 26px; font: 11.5px var(--mono); color: var(--text2); }
 .ctrl-fields .f > span { font-size: 10.5px; color: var(--muted); letter-spacing: .04em; }
 .outs { padding: 6px 0; }
 /* An output: a header (fold, name, universes, totals, usage) and its fixtures, one row each, in address order */
@@ -230,13 +229,11 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .outhead { display: grid; grid-template-columns: 14px 52px 92px minmax(0,1fr) 170px; align-items: center; gap: 8px; padding: 5px 12px; min-height: 34px; cursor: pointer; position: sticky; top: 33px; z-index: 1; background: var(--bg1); }
 /* stays on screen above the outputs while the controller's settings scroll away */
 .outbar { position: sticky; top: 0; z-index: 2; height: 33px; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--bg2); border-bottom: 1px solid var(--line); }
-.outbar .pfind { width: 170px; }
 .outhead .fold { color: var(--muted); font-size: 10px; }
 .outhead .on { font-weight: 600; font-size: 12px; }
 .outhead .ur { font-family: var(--mono); font-size: 11px; color: var(--text2); }
 .outhead .sum { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .outrow.shut .outlist { display: none; }
-.ctrl-edit.filtering .outrow.shut .outlist { display: block; }
 .outlist { padding: 2px 12px 8px 30px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .outlist .ph { padding: 2px 0 2px; color: var(--muted); font-size: 12px; font-style: italic; }
 /* fixed, compact columns, so a fixture's name, pixels, address and buttons read as one group */
@@ -263,7 +260,6 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .prow .mv button:disabled { opacity: .3; cursor: default; }
 .prow .mv button:not(:disabled):hover, .prow .x:hover { border-color: var(--accent); color: var(--accent); }
 .prow .x { width: 20px; height: 18px; border-color: transparent; background: none; }
-.pfind { width: 150px; }
 .usage { display: grid; gap: 3px; }
 .usage .bar { height: 5px; border-radius: 3px; background: var(--bg4); overflow: hidden; }
 .usage .bar i { display: block; height: 100%; background: var(--live); }
@@ -4187,7 +4183,6 @@ function renderDock() {
   $('#btnDock').title = ui.dockCollapsed ? 'Expand panel' : 'Collapse panel';
   const body = $('#dockBody');
   const keep = body.firstElementChild && body.querySelector('.ctrl-edit') ? body.querySelector('.ctrl-edit').scrollTop : 0;
-  const refind = document.activeElement && document.activeElement.classList.contains('pfind');
   body.replaceChildren();
   if (ui.dockCollapsed) return;
   if (ui.dockTab === 'scenes') renderScenes(body);
@@ -4196,7 +4191,6 @@ function renderDock() {
   else renderMonitor(body);
   replayFlip();
   const ce = body.querySelector('.ctrl-edit'); if (ce) ce.scrollTop = keep;
-  if (refind) { const fb = body.querySelector('.pfind'); if (fb) { fb.focus(); fb.setSelectionRange(fb.value.length, fb.value.length); } }
 }
 function onPatchChanged() { schedulePanels(); }
 let panelsQueued = false;
@@ -4383,12 +4377,6 @@ function renderPatch(body) {
   else edit.append(h('div', { class: 'empty' }, 'Controllers are the Art-Net devices your LEDs are wired to. Each controller has an IP address and a number of physical outputs; every output gets a block of universes, and the fixtures you chain on it are addressed automatically in order.'));
   body.append(h('div', { class: 'patch' }, list, edit));
 }
-function findBox() {
-  const inp = h('input', { type: 'search', class: 'pfind', placeholder: 'Find a fixture…', value: ui.patchFilter || '', 'aria-label': 'Find a fixture on the outputs' });
-  inp.addEventListener('input', () => { ui.patchFilter = inp.value; applyPatchFilter(inp.closest('.ctrl-edit')); });
-  inp.addEventListener('keydown', e => { if (e.key === 'Escape') { inp.value = ''; ui.patchFilter = ''; applyPatchFilter(inp.closest('.ctrl-edit')); } });
-  return inp;
-}
 function renderCtrlEditor(edit, c) {
   const f = (label, el, title) => h('label', { class: 'f', title }, h('span', null, label), el);
   const small = (el, w) => { el.style.width = w + 'px'; return el; };
@@ -4428,15 +4416,15 @@ function renderCtrlEditor(edit, c) {
     f('Outputs', small(numInput(c, 'outputs', { int: true, min: 1, max: 128, aria: 'Outputs', onCommit: onStruct }), 64)),
     f('Unis / output', small(numInput(c, 'upo', { int: true, min: 1, max: 64, aria: 'Universes per output', onCommit: onStruct }), 64), 'Universes per output'),
     f('First uni', small(numInput(c, 'startUniverse', { int: true, min: 0, max: 32767, aria: 'First universe', onCommit: onStruct }), 64), 'First universe: the universe of output 1'),
+    c.discovered && c.discovered.length ? f('ArtPoll', h('span', { class: 'reported' }, 'U ' + universeList(c.discovered)),
+      `Universes this device reported when discovered (${c.discovered.length}). Set Outputs and Unis / output to how the device is set up.`) : null,
     h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')),
     h('span', { style: { flex: 1 } }), del));
-  const found = discoveredNote(c);
-  if (found) edit.append(found);
   if (patchConflicts.length) edit.append(h('div', { class: 'conflict' }, 'Universe clash: ' + patchConflicts[0] + (patchConflicts.length > 1 ? ` (+${patchConflicts.length - 1} more)` : '')));
   const folds = ui.foldOuts || (ui.foldOuts = new Set());
   const foldAll = shut => { c.chains.forEach((_, o) => { const k = c.id + ':' + o; shut ? folds.add(k) : folds.delete(k); }); renderDock(); };
-  edit.append(h('div', { class: 'outbar' }, findBox(),
+  edit.append(h('div', { class: 'outbar' },
     h('span', { style: { flex: 1 } }),
     h('button', { class: 'btn sm', type: 'button', onclick: () => foldAll(true) }, 'Fold all'),
     h('button', { class: 'btn sm', type: 'button', onclick: () => foldAll(false) }, 'Unfold all')));
@@ -4499,17 +4487,6 @@ function renderCtrlEditor(edit, c) {
     outs.append(rowEl);
   });
   edit.append(outs);
-  applyPatchFilter(edit);
-}
-// Find: shows only the fixtures whose name contains the text, in every output of the controller, folded ones too
-function applyPatchFilter(edit) {
-  const q = (ui.patchFilter || '').trim().toLowerCase();
-  edit.classList.toggle('filtering', !!q);
-  for (const r of $$('.prow', edit)) r.hidden = !!q && !r.dataset.name.includes(q);
-  for (const o of $$('.outrow', edit)) {
-    const rows = $$('.prow', o), shown = rows.filter(r => !r.hidden).length;
-    o.hidden = !!q && !shown;
-  }
 }
 // Rows that change place glide from where they were to where they are now, so a move is easy to follow, and the
 // moved ones flash. change() rebuilds the rows; rows are matched by data-id. A panel rebuilt again while they
@@ -4712,21 +4689,6 @@ function universeList(u) {
     i = j;
   }
   return parts.join(', ');
-}
-// The Patch tab's reminder: what the device reported, against what this controller covers
-function discoveredNote(c) {
-  const u = c.discovered;
-  if (!u || !u.length) return null;
-  const first = c.startUniverse, last = first + c.outputs * c.upo - 1;
-  const missing = u.filter(v => v < first || v > last), extra = c.outputs * c.upo - (u.length - missing.length);
-  const ours = `This controller covers ${last > first ? `universes ${first}–${last}` : `universe ${first}`} (${c.outputs} output${c.outputs === 1 ? '' : 's'} × ${c.upo})`;
-  const status = missing.length ? h('span', { class: 'badge warn' }, `not covered: ${universeList(missing)}`)
-    : extra > 0 ? h('span', { class: 'badge', title: 'Many devices report only the first universe of each port, so this can be right.' }, `${extra} not reported by the device`)
-    : h('span', { class: 'badge ok' }, 'matches');
-  return h('div', { class: 'discovered' },
-    h('span', null, h('b', null, 'Discovery: '), `the device reports ${u.length} universe${u.length === 1 ? '' : 's'}: ${universeList(u)}. ${ours}. `),
-    status,
-    h('span', { class: 'muted' }, ' Set Outputs and Universes / output to how the device is set up.'));
 }
 
 /* ---------- DMX monitor ---------- */
