@@ -159,6 +159,7 @@ function pushHistory() {
   if (hist.stack.length > 150) hist.stack.shift();
   hist.idx = hist.stack.length - 1;
   updateUndoButtons();
+  remoteChanged();
 }
 function restore(s) {
   const guide = project.guide;
@@ -180,6 +181,7 @@ function redo() { if (hist.idx < hist.stack.length - 1) { hist.idx++; restore(hi
 // under its own key and written only when it changes, not with every edit or scene change.
 let saveWarned = false, guideKept;
 const saveSoon = debounce(() => {
+  if (REMOTE_CLIENT) return;   // on a device the project belongs to the main computer
   const g = project.guide && project.guide.src ? project.guide : null;
   if ((g && g.src) !== guideKept) {
     guideKept = g && g.src;

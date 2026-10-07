@@ -8,6 +8,7 @@ Browsers cannot send UDP, so this script does the network side:
   * receives pixel frames from the interface over a WebSocket
   * sends them to your controllers as Art-Net ArtDmx packets (UDP 6454)
   * runs ArtPoll discovery and reports the nodes it finds
+  * with Remote control on (Settings), lets phones, tablets and other computers on the network use it too
 
 Python 3.8+ and the standard library only. No installs needed.
 
@@ -25,11 +26,13 @@ packed with PyInstaller (openledmapper.spec), with --embedded.
 import argparse
 import base64
 import hashlib
+import hmac
 import http.client
 import http.server
 import json
 import os
 import re
+import secrets
 import shutil
 import socket
 import struct
@@ -498,6 +501,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "discovery": art.discovery, "discoveryNote": art.discovery_note, "interfaces": local_ips(),
             "nets": network_interfaces(),
             "nodes": list(art.nodes.values()),
+            "remote": self.server.remote.status(),
         })
 
         def stats():
@@ -517,7 +521,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if op == 2:
                     art.frame_from(ws, payload)
                 elif op == 1:
-                    self.handle_message(art, ws, payload)
+                    self.handle_message(art, ws, payload, self.server.remote)
         except (ConnectionError, OSError, ValueError):
             pass
         finally:
@@ -527,9 +531,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if art.owner is ws:
                 art.owner = None
                 log("The openLedMapper window closed or disconnected while Art-Net was on.")
+            self.server.remote.host_gone(ws)
 
     @staticmethod
-    def handle_message(art, ws, payload):
+    def handle_message(art, ws, payload, remote=None):
         try:
             msg = json.loads(payload.decode("utf-8"))
         except ValueError:
@@ -538,6 +543,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if msg.get("t") == "output":
             art.set_output(ws, bool(msg.get("on")))
+        elif msg.get("t") == "remote" and remote:
+            remote.configure(ws, msg)
+        elif msg.get("t") == "rout" and remote:
+            remote.route(ws, msg)
         elif msg.get("t") == "poll":
             if not art.discovery:
                 ws.send_json({"t": "error", "msg": "Discovery unavailable: " + art.discovery_note})
@@ -575,6 +584,269 @@ class Server(http.server.ThreadingHTTPServer):
             self.windows += delta
             self.seen_window = True
             self.windows_changed = time.monotonic()
+
+
+# --------------------------------------------------------------------------- remote control
+# With Remote control switched on (Settings, in the main window), phones, tablets and other computers on the network
+# can use openLedMapper. They get a second web server on all network cards, apart from the local one that only this
+# computer reaches: a login page that asks who you are, then
+#   programmer  the whole interface, with the password set in the main window
+#   operator    the interface with the mapping locked: content, layers, scenes, zone levels
+#   remote      a page for phones: play the scenes of each zone and dim the zones
+# The main window stays in charge. Every change a device makes is passed to it with the device's role (which the
+# device cannot choose: it comes from its login), the main window applies what that role may change and sends the
+# result to every device. Remote devices never send Art-Net.
+
+REMOTE_ROLES = ("programmer", "operator", "remote")
+REMOTE_PAGES = {"/": "login.html", "/app": "index.html", "/remote": "remote.html"}
+REMOTE_PORT = 8090
+REMOTE_MAX_TRIES, REMOTE_LOCK = 8, 60.0   # wrong passwords from one address before it waits, and how long
+
+
+class RemoteClient:
+    def __init__(self, cid, role, ws, sock, addr):
+        self.cid, self.role, self.ws, self.sock, self.addr = cid, role, ws, sock, addr
+
+    def close(self, reason=""):
+        if reason:
+            self.ws.send_json({"t": "bye", "reason": reason})
+        self.ws.alive = False
+        try:
+            self.sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+
+
+class LanServer(http.server.ThreadingHTTPServer):
+    daemon_threads = True
+    allow_reuse_address = os.name != "nt"
+
+
+class Remote:
+    def __init__(self):
+        self.server = None    # the network web server, while remote control is on
+        self.port = 0
+        self.password = ""
+        self.tokens = {}      # login token -> role
+        self.clients = {}     # cid -> RemoteClient
+        self.host = None      # the main window: its WebSocket on the local server
+        self.lock = threading.Lock()
+        self.tries = {}       # address -> [wrong passwords, waiting until]
+        self.next_cid = 1
+
+    # ---- from the main window
+    def configure(self, ws, msg):
+        if not msg.get("on"):
+            if self.host in (ws, None):
+                self.stop("Remote control was switched off on the main computer.")
+            return ws.send_json(self.status())
+        try:
+            port = int(msg.get("port") or REMOTE_PORT)
+        except (TypeError, ValueError):
+            port = REMOTE_PORT
+        port = min(65535, max(1024, port))
+        password = str(msg.get("password") or "")[:200]
+        error = None
+        with self.lock:
+            changed = password != self.password
+            self.password, self.host = password, ws
+        if changed:   # a new password: whoever logged in with the old one logs in again
+            self.forget("programmer", "The programmer password changed on the main computer. Log in again.")
+        if self.server and self.port != port:
+            self.stop("Remote control moved to another port.")
+        if not self.server:
+            try:
+                srv = LanServer(("0.0.0.0", port), RemoteHandler)
+            except OSError as e:
+                error = "Port %d is not free (%s). Choose another port." % (port, e.strerror or e)
+            else:
+                srv.remote = self
+                self.server, self.port = srv, port
+                threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.25}, daemon=True).start()
+                log("Remote control on: %s" % ", ".join(self.urls()))
+        ws.send_json(self.status(error))
+        with self.lock:
+            clients = list(self.clients.values())
+        for c in clients:   # the main window may have reloaded: it needs to know who is connected
+            ws.send_json({"t": "rjoin", "cid": c.cid, "role": c.role, "addr": c.addr})
+            c.ws.send_json({"t": "host", "on": True})
+
+    def route(self, ws, msg):
+        """A message from the main window to one device (to), or to every device of some roles."""
+        if ws is not self.host or not isinstance(msg.get("m"), dict):
+            return
+        data = json.dumps(msg["m"])
+        to, roles = msg.get("to"), msg.get("roles")
+        with self.lock:
+            targets = [c for c in self.clients.values() if (to is None or c.cid == to) and (not isinstance(roles, list) or c.role in roles)]
+        for c in targets:
+            c.ws.send(data)
+
+    def host_gone(self, ws):
+        with self.lock:
+            if self.host is not ws:
+                return
+            self.host = None
+            clients = list(self.clients.values())
+        for c in clients:
+            c.ws.send_json({"t": "host", "on": False})
+
+    def stop(self, reason):
+        srv, self.server = self.server, None
+        self.forget(None, reason)
+        with self.lock:
+            self.tokens.clear()
+        if srv:
+            threading.Thread(target=lambda: (srv.shutdown(), srv.server_close()), daemon=True).start()
+            log("Remote control off.")
+
+    def forget(self, role, reason):
+        with self.lock:
+            self.tokens = {t: r for t, r in self.tokens.items() if role is not None and r != role}
+            gone = [c for c in self.clients.values() if role is None or c.role == role]
+        for c in gone:
+            c.close(reason)
+
+    def urls(self):
+        return ["http://%s:%d/" % (ip, self.port) for ip in local_ips() if not ip.startswith("127.")] or ["http://127.0.0.1:%d/" % self.port]
+
+    def status(self, error=None):
+        with self.lock:
+            clients = [{"cid": c.cid, "role": c.role, "addr": c.addr} for c in self.clients.values()]
+        return {"t": "remote", "on": bool(self.server), "port": self.port, "urls": self.urls() if self.server else [],
+                "error": error, "clients": clients, "hasPassword": bool(self.password)}
+
+    # ---- from the devices
+    def login(self, addr, role, password):
+        """Returns (http status, reply)."""
+        if role not in REMOTE_ROLES:
+            return 400, {"error": "Choose programmer, operator or remote."}
+        if role == "programmer":
+            now = time.time()
+            with self.lock:
+                tries, until = self.tries.get(addr, [0, 0])
+            if until > now:
+                return 429, {"error": "Too many wrong passwords. Try again in %d s." % (until - now + 1)}
+            if not self.password:
+                return 403, {"error": "No programmer password is set on the main computer (Settings, Remote control)."}
+            if not hmac.compare_digest(password.encode("utf-8"), self.password.encode("utf-8")):
+                time.sleep(0.6)   # slows down guessing
+                with self.lock:
+                    tries += 1
+                    self.tries[addr] = [0, now + REMOTE_LOCK] if tries >= REMOTE_MAX_TRIES else [tries, 0]
+                return 401, {"error": "Wrong password."}
+            with self.lock:
+                self.tries.pop(addr, None)
+        token = secrets.token_urlsafe(18)
+        with self.lock:
+            self.tokens[token] = role
+        return 200, {"token": token, "role": role}
+
+    def join(self, token, ws, sock, addr):
+        with self.lock:
+            role = self.tokens.get(token)
+            if not role or not self.server:
+                return None
+            c = RemoteClient(self.next_cid, role, ws, sock, addr)
+            self.next_cid += 1
+            self.clients[c.cid] = c
+            host = self.host
+        ws.send_json({"t": "hello", "role": role, "cid": c.cid, "version": VERSION, "host": host is not None})
+        if host:
+            host.send_json({"t": "rjoin", "cid": c.cid, "role": role, "addr": addr})
+        log("Remote %s connected from %s." % (role, addr))
+        return c
+
+    def leave(self, c):
+        with self.lock:
+            self.clients.pop(c.cid, None)
+            host = self.host
+        if host:
+            host.send_json({"t": "rleave", "cid": c.cid})
+
+    def message(self, c, payload):
+        try:
+            m = json.loads(payload.decode("utf-8"))
+        except ValueError:
+            return
+        host = self.host
+        if isinstance(m, dict) and host:
+            host.send_json({"t": "rmsg", "cid": c.cid, "role": c.role, "m": m})
+
+
+class RemoteHandler(Handler):
+    """The network web server of remote control: its pages, the interface's files, logging in, and devices' WebSocket."""
+
+    def do_GET(self):
+        path = urllib.parse.urlparse(self.path).path
+        if path == "/rws" and self.headers.get("Upgrade", "").lower() == "websocket":
+            return self.remote_socket()
+        if path == "/favicon.ico":
+            return self.send_file(os.path.join(HERE, "icons", "openledmapper.ico"), "image/x-icon")
+        if path == "/info":
+            r = self.server.remote
+            return self.send_json(200, {"version": VERSION, "hasPassword": bool(r.password), "host": r.host is not None})
+        if path in REMOTE_PAGES:
+            return self.send_file(os.path.join(HERE, REMOTE_PAGES[path]), "text/html; charset=utf-8")
+        m = STATIC.match(path)
+        if m:
+            return self.send_file(os.path.join(HERE, *path.lstrip("/").split("/")), STATIC_TYPES[m.group(1)])
+        self.send_error(404)
+
+    def do_POST(self):
+        if urllib.parse.urlparse(self.path).path != "/login" or not self.same_origin():
+            return self.send_error(404)
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(n).decode("utf-8")) if 0 < n <= 4096 else {}
+        except (ValueError, OSError):
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        status, reply = self.server.remote.login(self.client_address[0], body.get("role"), str(body.get("password") or ""))
+        self.send_json(status, reply)
+
+    def send_json(self, status, obj):
+        data = json.dumps(obj).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def same_origin(self):
+        origin = self.headers.get("Origin")
+        return not origin or urllib.parse.urlparse(origin).netloc == self.headers.get("Host")
+
+    def remote_socket(self):
+        if not self.same_origin():
+            return self.send_error(403, "Origin not allowed")
+        token = (urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get("token") or [""])[0]
+        key = self.headers.get("Sec-WebSocket-Key", "")
+        accept = base64.b64encode(hashlib.sha1(key.encode() + WS_GUID).digest()).decode()
+        self.send_response(101, "Switching Protocols")
+        self.send_header("Upgrade", "websocket")
+        self.send_header("Connection", "Upgrade")
+        self.send_header("Sec-WebSocket-Accept", accept)
+        self.end_headers()
+        self.close_connection = True
+        ws = WebSocket(self.rfile, self.wfile)
+        remote = self.server.remote
+        c = remote.join(token, ws, self.connection, self.client_address[0])
+        if not c:
+            ws.send_json({"t": "denied", "reason": "Log in again: openLedMapper was restarted or remote control was switched off and on."})
+            return
+        try:
+            while ws.alive:
+                op, payload = ws.recv()
+                if op == 1:
+                    remote.message(c, payload)
+        except (ConnectionError, OSError, ValueError):
+            pass
+        finally:
+            ws.alive = False
+            remote.leave(c)
 
 
 # --------------------------------------------------------------------------- background mode
@@ -804,6 +1076,7 @@ def run(args, background):
     if server is None:
         sys.exit("Could not open a web port between %d and %d." % (args.port, args.port + 9))
     server.artnet = art
+    server.remote = Remote()
     url = "http://%s:%d/" % (shown_host(args), server.server_address[1])
 
     exe = None if args.no_browser or args.default_browser else (args.browser_path or find_browser())

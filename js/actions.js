@@ -112,6 +112,7 @@ function deleteZone(z) {
 // The opacity of a zone is its master. Every slider for it (Content tab, Scenes tab, Inspector) stays in step.
 function setZoneOpacity(z, v, from) {
   z.opacity = v;
+  if (REMOTE_CLIENT && from) remoteOp({ op: 'opacity', zone: z.id, value: v });   // live on the main computer while it moves
   for (const el of $$(`[data-zone-op="${z.id}"]`)) if (el !== from) el.value = v;
   for (const el of $$(`[data-zone-pct="${z.id}"]`)) el.textContent = pct(v);
 }
@@ -359,6 +360,7 @@ function resizeSel(w, h) {
 const lookOf = layers => JSON.stringify(layers.map(L => [L.src, L.on, L.opacity, L.blend, L.params[L.src] || {}]));
 const snapshotLayers = z => cloneLayers(z.layers).map(L => Object.assign(L, { params: L.src && L.params[L.src] ? { [L.src]: L.params[L.src] } : {} }));
 function goScene(z, sc, cut = false) {
+  if (REMOTE_CLIENT) remoteOp({ op: 'scene', zone: z.id, scene: sc.id, cut });   // the main computer fades its output too
   startFade(z, cut ? 0 : sc.fade, sc.id);
   z.layers = cloneLayers(sc.layers).map(L => Object.assign(L, { src: srcById(L.src) ? L.src : null }));
   z.scene = sc.id;

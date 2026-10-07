@@ -120,6 +120,7 @@ function bridgeUrl() {
   return null;
 }
 function connectBridge() {
+  if (REMOTE_CLIENT) { connectRemote(); return; }   // a device: it talks to the main computer, not to Art-Net
   clearTimeout(bridge.retry);
   if (bridge.ws) { try { bridge.ws.onclose = null; bridge.ws.close(); } catch (e) {} bridge.ws = null; }
   bridge.connected = false;
@@ -135,7 +136,7 @@ function connectBridge() {
   ws.onmessage = ev => {
     if (typeof ev.data !== 'string') return;
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
-    if (m.t === 'hello') { bridge.hello = m; showVersion(m.version); (m.nodes || []).forEach(n => bridge.nodes.set(n.ip + '#' + n.bindIndex, n)); updateBridgeUI(); if (ui.dockTab === 'nodes') renderDock(); }
+    if (m.t === 'hello') { bridge.hello = m; showVersion(m.version); (m.nodes || []).forEach(n => bridge.nodes.set(n.ip + '#' + n.bindIndex, n)); updateBridgeUI(); if (ui.dockTab === 'nodes') renderDock(); remoteHello(m.remote); }
     else if (m.t === 'stats') { bridge.stats = m; updateBridgeUI(); }
     else if (m.t === 'node') { bridge.nodes.set(m.node.ip + '#' + m.node.bindIndex, m.node); if (ui.dockTab === 'nodes') renderDock(); }
     else if (m.t === 'polled') {
@@ -145,12 +146,14 @@ function connectBridge() {
     }
     else if (m.t === 'error') { toast(m.msg, 'warn'); }
     else if (m.t === 'takeover' && ui.outputOn) { ui.outputOn = false; keepAwake(false); updateBridgeUI(); toast('Art-Net was switched on in another openLedMapper window, so this window stopped sending.', 'warn'); }
+    else remoteHostMessage(m);
   };
   ws.onclose = () => {
     const was = bridge.connected;
     bridge.connected = false; bridge.state = 'connecting'; bridge.ws = null;
     if (was) toast('Lost the connection to the Art-Net output. Retrying…', 'warn');
-    updateBridgeUI();
+    remote.status = null; remote.clients.clear();
+    updateBridgeUI(); updateRemoteUI();
     bridge.retry = setTimeout(connectBridge, 2000);
   };
 }

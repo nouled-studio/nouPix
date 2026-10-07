@@ -536,6 +536,12 @@ cv.addEventListener('pointerdown', e => {
   if (e.button === 1 || e.button === 2 || spaceHeld) { drag = { kind: 'pan', sx, sy, vx: ui.view.x, vy: ui.view.y, button: e.button, space: spaceHeld }; cv.style.cursor = 'grabbing'; return; }
   if (e.button !== 0) return;
   if (ui.outputMode === 'pixel' && !spaceHeld) { const hp = hoverPixel(x, y); if (hp) { pickPixel(hp.f, hp.i); return; } }
+  if (mappingLocked()) {   // an operator selects to look; nothing moves
+    const f = hitFixture(x, y);
+    if (f) ui.sel = new Set(stagePick(f)); else ui.sel.clear();
+    onSelection();
+    return;
+  }
   const tool = ui.tool;
   if (tool === 'zone') {
     // handles resize the selected zone, a label moves its zone, a drag anywhere else draws a new zone, a click selects
@@ -700,7 +706,7 @@ function endDrag(e) {
 // What was right-clicked on the stage: a zone (with the Zone tool), a fixture, or empty canvas
 function stageMenu(e, sx, sy) {
   const [x, y] = toC(sx, sy);
-  if (pathDraft) return;
+  if (pathDraft || mappingLocked()) return;
   if (ui.tool === 'zone') { const z = hitZoneLabel(sx, sy) || hitZone(x, y); return z ? zoneMenu(e, z) : canvasMenu(e, x, y); }
   const f = hitFixture(x, y);
   if (f) return fixtureMenu(e, f, stagePick(f));
@@ -760,6 +766,7 @@ function finishPath() {
   setTool('select');
 }
 function setTool(t) {
+  if (mappingLocked()) t = 'select';
   if (pathDraft && t !== ui.tool) { if (pathDraft.pts.length >= 4) pathFromDraft(); else pathDraft = null; }
   ui.tool = t;
   $$('#rail button').forEach(b => b.classList.toggle('on', b.dataset.tool === t));

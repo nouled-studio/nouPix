@@ -48,6 +48,7 @@ function setOutput(on) {
   ui.outputOn = on;
   keepAwake(on);
   updateBridgeUI();
+  remoteLiveChanged();
 }
 // While Art-Net is on, hold a Web Lock: Chrome does not freeze a background page that holds one.
 let releaseLock = null;
@@ -89,6 +90,10 @@ function renderAll() {
 function initUI() {
   const prefs = store.get('openledmapper.ui', {});
   for (const k of UI_PREFS) if (k in prefs) ui[k] = prefs[k];
+  remoteLoadCfg();
+  document.body.classList.toggle('remote-client', REMOTE_CLIENT);
+  if (REMOTE_CLIENT && ui.dockTab === 'nodes') ui.dockTab = 'patch';
+  $('#btnRemote').addEventListener('click', e => remoteMenu(e.currentTarget));
   $('#projName').addEventListener('change', e => { project.name = e.target.value.trim() || 'Untitled'; commit(); });
   $('#btnFile').addEventListener('click', e => projectMenu(e.currentTarget));
   $('#btnUndo').addEventListener('click', undo);
@@ -104,7 +109,7 @@ function initUI() {
   $('#btnHl').addEventListener('click', toggleHighlight);
   $('#btnHlMode').addEventListener('click', e => highlightMenu(e.currentTarget.parentElement));
   updateHighlightUI();
-  $('#master').addEventListener('input', e => { project.settings.master = parseFloat(e.target.value); $('#masterVal').textContent = pct(project.settings.master); });
+  $('#master').addEventListener('input', e => { project.settings.master = parseFloat(e.target.value); $('#masterVal').textContent = pct(project.settings.master); if (REMOTE_CLIENT) remoteOp({ op: 'master', value: project.settings.master }); else remoteLiveChanged(); });
   $('#master').addEventListener('change', () => { saveSoon(); });
   const bindView = (id, key, isRange) => {
     const el = $(id);
@@ -158,9 +163,11 @@ function initUI() {
   window.addEventListener('pagehide', () => { if (ui.outputOn) sendFrame(true); });
 }
 function toggleBlackout() {
+  if (REMOTE_CLIENT) remoteOp({ op: 'blackout', on: !ui.blackout });   // the main computer blacks out; it says so back
   ui.blackout = !ui.blackout;
   $('#btnBlackout').classList.toggle('on', ui.blackout);
   $('#btnBlackout').setAttribute('aria-pressed', ui.blackout);
+  remoteLiveChanged();
 }
 function onKey(e) {
   const t = e.target;
@@ -171,6 +178,8 @@ function onKey(e) {
   if ($('.modal-bg')) { if (e.key === 'Escape') $('.modal-bg').remove(); return; }
   const k = e.key.toLowerCase();
   if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  // an operator can't change the mapping: no keys that edit fixtures or switch to a drawing tool
+  if (mappingLocked() && ((mod && 'dglv'.includes(k)) || (!mod && ('rlmcpnz'.includes(k) || ['Delete', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key))))) { if (mod) e.preventDefault(); return; }
   if (mod && k === 'y') { e.preventDefault(); redo(); return; }
   if (mod && k === 'd') { e.preventDefault(); duplicateSel(); return; }
   if (mod && k === 'g') { e.preventDefault(); e.shiftKey ? ungroupSel() : groupSel(); return; }
@@ -234,8 +243,8 @@ const redrawStage = () => { stageDirty = true; };
 function boot() {
   carryOverStorage();
   initUI();
-  const saved = store.get('openledmapper.project', null);
-  let p = null;
+  const saved = REMOTE_CLIENT ? null : store.get('openledmapper.project', null);   // a device gets the project from the main computer
+  let p = REMOTE_CLIENT ? blankProject('Connecting…') : null;
   if (saved && Array.isArray(saved.fixtures)) p = saved;
   if (p && p.guide && !p.guide.src) { // the guide image is saved on its own (see saveSoon)
     const g = store.get('openledmapper.guide', null);
@@ -250,6 +259,7 @@ function boot() {
   }
   setTool('select');
   connectBridge();
+  remoteOverlay(); updateRemoteUI();
   new ResizeObserver(() => { resizeView(); redrawStage(); }).observe(stageEl);
   for (const t of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'keyup', 'input', 'change', 'click', 'drop']) window.addEventListener(t, redrawStage, { capture: true, passive: true });
   requestAnimationFrame(frameLoop);

@@ -490,3 +490,26 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
   .stagebar { padding-left: 52px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---------- remote control ---------- */
+.rbtn { position: relative; }
+.rbtn.on { color: var(--live); }
+.rbtn.warn { color: var(--warn); }
+.rcount { position: absolute; top: -4px; right: -5px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: var(--live); color: #062b18; font: 600 9.5px/15px var(--mono); text-align: center; }
+body.remote-client .rbtn { width: auto; padding: 0 8px; gap: 6px; }
+body.remote-client .rcount { position: static; padding: 0; background: none; color: inherit; font: 600 11.5px var(--ui); }
+body.remote-client #btnOutput, body.remote-client #hl, body.remote-client #dockTabs [data-tab=nodes], body.remote-client #bridgePill { display: none; }
+body.ro-map #btnImportSvg, body.ro-map #btnAddFx, body.ro-map #btnGroup, body.ro-map #btnLock, body.ro-map .map-only,
+body.ro-map #rail button:not([data-tool=select]), body.ro-map #rail hr { display: none; }
+.ro { pointer-events: none; opacity: .78; }
+.ronote { margin: 8px 12px 0; color: var(--warn); }
+.pwrow { display: flex; align-items: center; gap: 8px; }
+.pwrow input[type=password], .pwrow input[type=text] { flex: 1; }
+.rurls { display: grid; gap: 4px; margin: 4px 0; }
+.rurl { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid var(--line2); border-radius: var(--r); background: var(--bg2); }
+.rurl .mono { font-size: 12.5px; color: var(--text); overflow-wrap: anywhere; }
+.note.err { color: var(--danger); }
+.rwait { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(10, 11, 14, .9); }
+.rwbox { max-width: 360px; display: grid; justify-items: center; gap: 14px; text-align: center; color: var(--text2); font-size: 14px; }
+.rwspin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line2); border-top-color: var(--accent); animation: rwspin 0.9s linear infinite; }
+@keyframes rwspin { to { transform: rotate(360deg); } }

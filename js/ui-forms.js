@@ -96,8 +96,9 @@ function selectionActions() {
 // working. The drag can start on one element (a zone's header) and be dropped on a bigger one (its row).
 const dragType = kind => 'application/x-openledmapper-' + kind;
 function reorderable(handle, target, kind, ids, onDrop) {
-  handle.draggable = true;
-  handle.addEventListener('pointerdown', e => { handle.draggable = !e.target.closest('input, button, select'); });
+  const locked = () => kind === 'zone' && mappingLocked();   // the order of zones is part of the mapping
+  handle.draggable = !locked();
+  handle.addEventListener('pointerdown', e => { handle.draggable = !locked() && !e.target.closest('input, button, select'); });
   handle.addEventListener('dragstart', e => {
     if (e.target !== handle) return;
     e.dataTransfer.setData(dragType(kind), ids().join(','));

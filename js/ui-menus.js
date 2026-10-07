@@ -85,6 +85,7 @@ const at = e => ({ x: e.clientX, y: e.clientY });
 
 /* ---------- right-click menus ---------- */
 function fixtureMenu(e, f, pick) {
+  if (mappingLocked()) return;   // the operator's mapping is locked
   if (!ui.sel.has(f.id)) { ui.sel = new Set(pick); onSelection(); }
   const sel = selected(), one = sel.length === 1 ? sel[0] : null, ga = groupAction(sel);
   const allOn = sel.every(x => x.enabled), allLocked = sel.every(x => x.locked);
@@ -118,6 +119,7 @@ function fixtureMenu(e, f, pick) {
   ]);
 }
 function groupMenu(e, g, m) {
+  if (mappingLocked()) return;   // the operator's mapping is locked
   const ids = m.map(f => f.id);
   if (!ids.every(id => ui.sel.has(id)) || ui.sel.size !== ids.length) { ui.sel = new Set(ids); onSelection(); }
   menu(at(e), [
@@ -140,8 +142,9 @@ function groupMenu(e, g, m) {
 
 /* ---------- copy and paste keys ---------- */
 document.addEventListener('copy', e => { if (typingIn(e.target) || $('.modal-bg') || !ui.sel.size) return; if (copySel(e)) e.preventDefault(); });
-document.addEventListener('cut', e => { if (typingIn(e.target) || $('.modal-bg') || !ui.sel.size) return; if (copySel(e)) { e.preventDefault(); deleteSel(); } });
+document.addEventListener('cut', e => { if (typingIn(e.target) || $('.modal-bg') || !ui.sel.size || mappingLocked()) return; if (copySel(e)) { e.preventDefault(); deleteSel(); } });
 document.addEventListener('paste', e => {
+  if (mappingLocked()) return;
   if (typingIn(e.target) || $('.modal-bg')) return;
   let d = null;
   try { d = JSON.parse(e.clipboardData.getData('text/plain')); } catch (err) { /* not fixtures */ }
@@ -182,6 +185,7 @@ function showInPatch(f) {
   renderDock(); revealInPatch();
 }
 function canvasMenu(e, x, y) {
+  if (mappingLocked()) return;   // the operator's mapping is locked
   const W = project.settings.compW, H = project.settings.compH;
   const px = clamp(Math.round(snapV(x)), 0, W), py = clamp(Math.round(snapV(y)), 0, H);
   const add = type => () => {
@@ -207,6 +211,7 @@ function canvasMenu(e, x, y) {
   ]);
 }
 function zoneMenu(e, z) {
+  if (mappingLocked()) return;   // the operator's mapping is locked
   if (ui.zone !== z.id) selectZone(z);
   const i = project.zones.indexOf(z), last = project.zones.length - 1, hidden = z.opacity === 0;
   menu(at(e), [
@@ -260,6 +265,7 @@ function sourceMenu(e, s, play) {
   ]);
 }
 function controllerMenu(e, c) {
+  if (mappingLocked()) return;   // the operator's mapping is locked
   if (ui.selCtrl !== c.id) { ui.selCtrl = c.id; renderDock(); }
   const n = c.chains.flat().length;
   menu(at(e), [
@@ -272,6 +278,7 @@ function controllerMenu(e, c) {
   ]);
 }
 function chipMenu(e, fid, c, o) {
+  if (mappingLocked()) return;   // the operator's mapping is locked
   const fx = fxById(fid), chain = c.chains[o], k = chain.indexOf(fid);
   menu(at(e), [
     { head: `${fx.name} · OUT ${o + 1} · #${k + 1} of ${chain.length}` },
@@ -285,6 +292,7 @@ function chipMenu(e, fid, c, o) {
   ]);
 }
 function nodeMenu(e, n) {
+  if (mappingLocked()) return;   // the operator's mapping is locked
   menu(at(e), [
     { head: n.shortName || n.ip },
     [project.controllers.some(c => c.ip === n.ip) ? 'Refresh reported universes' : 'Add as controller', () => addNodeAsController(n), { disabled: !n.universes.length }],
@@ -292,16 +300,17 @@ function nodeMenu(e, n) {
   ]);
 }
 function projectMenu(anchor) {
+  const m = !mappingLocked();   // an operator can save a copy, not replace the project or its mapping
   menu(anchor, [
-    ['New empty project', () => { loadProject(blankProject('Untitled')); toast('New project'); }],
-    ['Load demo layout', () => { loadProject(demoProject()); toast('Demo layout loaded'); }],
+    m && ['New empty project', () => { loadProject(blankProject('Untitled')); toast('New project'); }],
+    m && ['Load demo layout', () => { loadProject(demoProject()); toast('Demo layout loaded'); }],
     '-',
-    ['Open project…', () => $('#fileOpen').click()],
+    m && ['Open project…', () => $('#fileOpen').click()],
     ['Save project file  (Ctrl S)', saveProjectFile],
     ['Export patch list (CSV)', exportCSV],
     '-',
-    ['Import SVG…', () => $('#fileSvg').click()],
-    ['Load guide image…', () => $('#fileGuide').click()],
+    m && ['Import SVG…', () => $('#fileSvg').click()],
+    m && ['Load guide image…', () => $('#fileGuide').click()],
   ]);
 }
 function addFixtureMenu(anchor) {
@@ -316,5 +325,7 @@ function addFixtureMenu(anchor) {
   menu(anchor, [['Line / strip', mk('line')], ['Matrix', mk('matrix')], ['Circle / ring', mk('circle')], ['Path (draw on stage)', () => setTool('path')], '-', ['Import from SVG…', () => $('#fileSvg').click()]]);
 }
 function addSourceMenu(anchor) {
-  menu(anchor, [['ISF shader file (.fs)…', () => $('#fileIsf').click()], ['Image or video file…', () => pickMedia(null), { title: MEDIA_FORMATS }], ['Screen / window capture', addScreenSource]]);
+  // files and screens play on the main computer: a device can't hand it a file of its own
+  const here = REMOTE_CLIENT ? { disabled: true, title: 'Add videos, images and screen capture on the main computer.' } : null;
+  menu(anchor, [['ISF shader file (.fs)…', () => $('#fileIsf').click()], ['Image or video file…', () => pickMedia(null), here || { title: MEDIA_FORMATS }], ['Screen / window capture', addScreenSource, here]]);
 }

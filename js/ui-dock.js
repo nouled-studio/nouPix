@@ -14,7 +14,10 @@ function renderDock() {
   body.replaceChildren();
   if (ui.dockCollapsed) return;
   if (ui.dockTab === 'scenes') renderScenes(body);
-  else if (ui.dockTab === 'patch') renderPatch(body);
+  else if (ui.dockTab === 'patch') {
+    renderPatch(body);
+    if (mappingLocked()) { const ce = body.querySelector('.ctrl-edit'); if (ce) lockPanel(ce, 'Operator: you can see the patch but not change it.'); body.querySelectorAll('.ctrl-list .foot button').forEach(b => { b.disabled = true; }); }
+  }
   else if (ui.dockTab === 'nodes') renderNodes(body);
   else renderMonitor(body);
   replayFlip();

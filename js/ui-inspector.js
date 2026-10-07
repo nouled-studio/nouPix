@@ -12,6 +12,7 @@ function renderRight() {
   if (ui.rightTab === 'inspector') renderInspector(body);
   else if (ui.rightTab === 'content') renderContentTab(body);
   else renderSettings(body);
+  if (mappingLocked() && ui.rightTab !== 'content') lockPanel(body);
   body.scrollTop = keep;
   replayFlip();
 }
@@ -280,7 +281,7 @@ function zonesSection() {
   }
   if (!project.zones.length) list.append(emptyRow('No zones, so the output is black. Add one to play content.'));
   return sec(null, h('h3', null, 'Zones', h('span', { class: 'fill' }),
-    h('button', { class: 'btn sm', type: 'button', title: 'Add a zone around the selected fixtures (or the whole canvas), under the others', onclick: newZoneFromUI }, '+ Zone')), list);
+    h('button', { class: 'btn sm map-only', type: 'button', title: 'Add a zone around the selected fixtures (or the whole canvas), under the others', onclick: newZoneFromUI }, '+ Zone')), list);
 }
 function layersSection(z) {
   const cur = selLayer();
@@ -497,8 +498,9 @@ function renderSettings(body) {
       h('button', { class: 'btn', type: 'button', onclick: () => $('#fileGuide').click() }, 'Load guide image…'),
       project.guide ? h('button', { class: 'btn', type: 'button', onclick: () => { project.guide = null; guideImg = null; commit(); renderRight(); } }, 'Remove guide') : null),
     h('p', { class: 'note' }, 'A guide image (for example your layout SVG) is drawn over the stage, fitted to the composition, so you can trace fixtures over it.')));
+  if (!REMOTE_CLIENT) body.append(remoteSection());
   // Where the page finds openledmapper.py. The desktop app always uses its own, so there is nothing to set there.
-  if (!/Electron/.test(navigator.userAgent)) {
+  if (!/Electron/.test(navigator.userAgent) && !REMOTE_CLIENT) {
     const auto = bridgeUrl();
     body.append(sec('Art-Net connection',
       row('Address', textInput(s, 'bridgeUrl', { placeholder: auto || 'ws://127.0.0.1:8080/ws', aria: 'Art-Net connection address', onCommit: () => { commit(); connectBridge(); } })),

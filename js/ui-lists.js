@@ -121,7 +121,7 @@ function fixtureRow(f) {
 // whole, before or after what it is dropped on, never into another group.
 let listDrag = null, dropShown = [];   // what is being dragged ({ ids, gid }), and the rows showing where it lands
 function listDraggable(li, ids, gid) {
-  li.addEventListener('pointerdown', e => { li.draggable = !e.target.closest('input, button, select, .chev'); });
+  li.addEventListener('pointerdown', e => { li.draggable = !mappingLocked() && !e.target.closest('input, button, select, .chev'); });
   li.addEventListener('dragstart', e => {
     const list = ids();
     listDrag = { ids: list, gid };
