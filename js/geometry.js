@@ -192,6 +192,12 @@ function computeBB() {
   fixtureBB = x1 >= x0 && y1 >= y0 ? { x0, y0, x1, y1 } : null;
 }
 
+// The point x, y turned around ox, oy to the nearest multiple of 45° (Shift while drawing or dragging a line end)
+function snap45(ox, oy, x, y) {
+  const a = Math.round(Math.atan2(y - oy, x - ox) / (Math.PI / 4)) * Math.PI / 4, L = Math.hypot(x - ox, y - oy);
+  return [ox + Math.cos(a) * L, oy + Math.sin(a) * L];
+}
+
 /* ---------- distances ---------- */
 function distSeg(px, py, ax, ay, bx, by) {
   const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;

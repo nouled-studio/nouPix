@@ -476,7 +476,7 @@ function dragHandle(f, o, hd, x, y, e) {
   if (f.type === 'line') {
     const [ox, oy] = hd.id === 'p1' ? [o.x2, o.y2] : [o.x1, o.y1];
     let px = snapV(x, e), py = snapV(y, e);
-    if (e.shiftKey) { const a = Math.round(Math.atan2(y - oy, x - ox) / (Math.PI / 4)) * Math.PI / 4, L = Math.hypot(x - ox, y - oy); px = ox + Math.cos(a) * L; py = oy + Math.sin(a) * L; }
+    if (e.shiftKey) [px, py] = snap45(ox, oy, x, y);
     if (hd.id === 'p1') { f.x1 = px; f.y1 = py; } else { f.x2 = px; f.y2 = py; }
   } else if (f.type === 'circle') {
     const t = rad(ovalRot(f)), lx = (x - f.cx) * Math.cos(t) + (y - f.cy) * Math.sin(t), ly = -(x - f.cx) * Math.sin(t) + (y - f.cy) * Math.cos(t);   // along its own axes
@@ -619,7 +619,7 @@ cv.addEventListener('pointermove', e => {
   if (drag.kind === 'create') {
     drag.moved = drag.moved || Math.hypot(x - drag.x0, y - drag.y0) * ui.view.zoom > 4;
     let px = snapV(x, e), py = snapV(y, e);
-    if (drag.type === 'line' && e.shiftKey) { const a = Math.round(Math.atan2(y - drag.y0, x - drag.x0) / (Math.PI / 4)) * Math.PI / 4, L = Math.hypot(x - drag.x0, y - drag.y0); px = drag.x0 + Math.cos(a) * L; py = drag.y0 + Math.sin(a) * L; }
+    if (drag.type === 'line' && e.shiftKey) [px, py] = snap45(drag.x0, drag.y0, x, y);
     draft = draftFrom(drag.type, drag.x0, drag.y0, px, py, e);
     return;
   }
