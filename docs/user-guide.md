@@ -179,8 +179,9 @@ Circles, arcs, lines and paths become fixtures, fitted into the composition. Cir
 Add one with **+ Add → Image or video file…** in Sources, or drop the file on the window.
 
 - **Formats.** Videos: MP4 or MOV with H.264, WebM (VP8, VP9 or AV1), and MKV with those codecs. Images: PNG, JPEG, GIF, WebP, AVIF, BMP. A file is tried before it is added: one that can't play is refused with the reason instead of becoming a black layer. H.265 (HEVC) and ProRes don't play: export them as H.264 MP4 or WebM. A file with only sound is refused too.
-- **Timeline.** The Content tab shows the video's size and length and a timeline: the lit part is what plays, the orange line is where it is now. Click or drag on it to go to a moment.
-- **Start / End** trim the video, in seconds; **Start here** and **End here** take the current moment, **Whole video** removes the trim.
+- **Timeline.** The Content tab shows the video's size and length and a timeline: the lit part is what plays, the orange line is where it is now. Click or drag on it to go to a moment. Drag the handles at the two ends of the lit part to trim the start and the end with the mouse; the video shows the frame you are at while you drag. (When the two handles are on top of each other, drag left to move the start, right to move the end.)
+- **⏮ ◀ ❚❚ ▶** under the timeline: **Restart**, play **Backward**, **Pause** here, play **Forward**. Backward plays the trimmed part in reverse at the video's speed, looping or once like forward; the direction is saved with the project, a pause is for now only. Backward is silent.
+- **Start / End** trim the video, in seconds (or drag the handles on the timeline); **Start here** and **End here** take the current moment, **Whole video** removes the trim.
 - **Play: Loop** plays the (trimmed) video over and over. **Once** plays it one time; **At the end** it keeps its **Last frame** or goes **Black**. **Restart** plays it again.
 - **Restart each time it is shown**: the video starts from its Start whenever a layer or a scene shows it again, rather than where it stopped.
 - **Speed** from 0.1× to 4×. **Play its sound** (off by default) with **Volume**. If the browser blocks the sound until you click in the page, the video plays silent and says so.

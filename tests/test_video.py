@@ -86,7 +86,7 @@ with sync_playwright() as pw:
     check("or goes black", ev("drawMedia(olm.project.sources.at(-1), 64, 36)") is False)
     ev("olm.ui.rightTab = 'content'; renderRight()")
     check("the panel says it played once", "Played once" in pg.inner_text("#rightBody"))
-    pg.click("#rightBody button:has-text('Restart')"); time.sleep(0.5); v = vid()
+    pg.click("#rightBody .transport button[aria-label=Restart]"); time.sleep(0.5); v = vid()
     check("Restart plays it again from its start", not v["done"] and not v["paused"] and 4 <= v["t"] < 5.5, v)
 
     # ---------- restart when shown
@@ -110,12 +110,54 @@ with sync_playwright() as pw:
     pg.mouse.click(box["x"] + box["width"] * 0.75, box["y"] + box["height"] / 2); time.sleep(0.1)
     check("clicking the timeline goes there", 4.2 <= vid()["t"] <= 5.4, vid()["t"])
 
+    # ---------- forward, backward, pause
+    ev("(() => { const s = olm.project.sources.at(-1); s.loop = true; s.restart = false; s.trimIn = 1; s.trimOut = 5; s.audio = false; applyVideoOptions(s, olm.mediaEl(s.id)); })()")
+    ev("olm.ui.rightTab = 'content'; renderRight()")
+    tr = lambda label: pg.click(f"#rightBody .transport button[aria-label={label}]")
+    tr("Backward"); ts = []
+    for _ in range(25): time.sleep(0.2); ts.append(round(vid()["t"], 2))
+    downs = sum(1 for x, y in zip(ts, ts[1:]) if y < x); ups = [(x, y) for x, y in zip(ts, ts[1:]) if y > x]
+    check("Backward plays it backwards", downs >= 15 and vid()["s"]["reverse"] is True, ts)
+    check("within its trim, going round from the start to the end", all(0.9 <= t <= 5.1 for t in ts) and any(y - x > 2 for x, y in ups), ts)
+    check("the Backward button shows it is on", "on" in (pg.get_attribute("#rightBody .transport button[aria-label=Backward]", "class") or ""))
+    tr("Pause"); t1 = vid()["t"]; time.sleep(0.6); v = vid()
+    check("Pause stops it where it is", abs(v["t"] - t1) < 0.05 and v["paused"], (t1, v["t"]))
+    time.sleep(0.3); ev("syncMedia()"); time.sleep(0.3)
+    check("and it stays paused", abs(vid()["t"] - t1) < 0.05)
+    tr("Forward"); ts = []
+    for _ in range(6): time.sleep(0.2); ts.append(round(vid()["t"], 2))
+    check("Forward plays it forwards again", all(y >= x for x, y in zip(ts, ts[1:])) and ts[-1] > ts[0] and vid()["s"]["reverse"] is False and not vid()["paused"], ts)
+    ev("(() => { const s = olm.project.sources.at(-1); s.loop = false; s.reverse = true; applyVideoOptions(s, olm.mediaEl(s.id)); restartVideo(s, olm.mediaEl(s.id)); })()")
+    t0 = vid()["t"]; time.sleep(5); v = vid()
+    check("backwards once: from its end, stops at its start", t0 > 4.5 and v["done"] and abs(v["t"] - 1) < 0.15, (t0, v))
+    ev("(() => { const s = olm.project.sources.at(-1); s.loop = true; s.reverse = false; s.trimIn = 0; s.trimOut = 0; applyVideoOptions(s, olm.mediaEl(s.id)); restartVideo(s, olm.mediaEl(s.id)); })()")
+
+    # ---------- trimming with the mouse
+    ev("olm.ui.rightTab = 'content'; renderRight()"); time.sleep(0.2)
+    box = pg.locator("#rightBody .vtl").bounding_box(); y = box["y"] + box["height"] / 2
+    def drag(sel, frac):
+        hb = pg.locator(f"#rightBody .vtl {sel}").bounding_box()
+        pg.mouse.move(hb["x"] + hb["width"] / 2, y); pg.mouse.down(); pg.mouse.move(box["x"] + box["width"] * frac, y, steps=6); pg.mouse.up(); time.sleep(0.2)
+    drag(".trim.in", 0.3); s1 = ev("olm.project.sources.at(-1).trimIn")
+    check("dragging the start handle trims the start", abs(s1 - 1.8) < 0.15, s1)
+    drag(".trim.out", 0.8); s2 = ev("olm.project.sources.at(-1).trimOut")
+    check("dragging the end handle trims the end", abs(s2 - 4.8) < 0.15, s2)
+    check("the Start and End boxes show them", abs(float(pg.locator("#rightBody .row:has-text('Start (s)') input").input_value()) - s1) < 0.01 and abs(float(pg.locator("#rightBody .row:has-text('End (s)') input").input_value()) - s2) < 0.01)
+    drag(".trim.in", 0.95); s3 = ev("[olm.project.sources.at(-1).trimIn, olm.project.sources.at(-1).trimOut]")
+    check("the start can't pass the end", s3[0] <= s3[1] - 0.09, s3)
+    drag(".trim.out", 0.0); s5 = ev("olm.project.sources.at(-1).trimIn")
+    check("handles on top of each other: dragging left moves the start", s5 < 0.2, s5)
+    drag(".trim.out", 1.0); s4 = ev("[olm.project.sources.at(-1).trimIn, olm.project.sources.at(-1).trimOut]")
+    check("dragged to the ends: the whole video", s4 == [0, 0], s4)
+    ev("undo()"); check("a trim is one undo step", ev("olm.project.sources.at(-1).trimOut") > 0)
+    ev("(() => { const s = olm.project.sources.at(-1); s.trimIn = 1; s.trimOut = 0; s.reverse = true; s.restart = true; s.audio = true; })()")
+
     # ---------- saved with the project; old projects get the defaults
     saved = ev("JSON.parse(serialize(false)).sources.at(-1)")
-    check("the options are saved", all(saved.get(k) == v for k, v in {"loop": True, "restart": True, "audio": True, "volume": 0.25, "trimIn": 1}.items()), saved)
-    old = ev("""(() => { const p = JSON.parse(serialize(false)); const s = p.sources.at(-1); for (const k of ['trimIn', 'trimOut', 'loop', 'endHold', 'restart', 'audio', 'volume']) delete s[k];
+    check("the options are saved", all(saved.get(k) == v for k, v in {"loop": True, "restart": True, "audio": True, "volume": 0.25, "trimIn": 1, "reverse": True}.items()), saved)
+    old = ev("""(() => { const p = JSON.parse(serialize(false)); const s = p.sources.at(-1); for (const k of ['trimIn', 'trimOut', 'loop', 'endHold', 'restart', 'audio', 'volume', 'reverse']) delete s[k];
       olm.loadProject(p); return olm.project.sources.at(-1); })()""")
-    check("a video from an older project loops whole and silent", old["loop"] is True and old["audio"] is False and old["trimIn"] == 0 and old["trimOut"] == 0 and old["volume"] == 1, old)
+    check("a video from an older project loops whole and silent", old["loop"] is True and old["audio"] is False and old["trimIn"] == 0 and old["trimOut"] == 0 and old["volume"] == 1 and old["reverse"] is False, old)
     check("no page errors", not errs, errs)
     br.close()
 bridge.terminate()

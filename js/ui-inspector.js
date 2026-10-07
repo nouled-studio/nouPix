@@ -410,24 +410,63 @@ function videoControls(src, el) {
   const k = [];
   const dur = el && isFinite(el.duration) ? el.duration : 0;
   if (el) k.push(h('p', { class: 'note mono' }, `${el.videoWidth} × ${el.videoHeight} · ${dur ? fmtDur(dur) : '…'}`));
-  // timeline: the whole video, the trimmed part lit, the playhead; click or drag to go to a moment
-  const tl = h('div', { class: 'vtl', title: 'Click or drag to go to a moment' }, h('i', { class: 'span' }), h('i', { class: 'head' }));
+  // timeline: the whole video, the trimmed part lit, the playhead. Click or drag on it to go to a moment; drag the
+  // handles at the ends of the lit part to trim the start and the end.
+  const span = h('i', { class: 'span' }), head = h('i', { class: 'head' });
+  const hIn = h('i', { class: 'trim in', title: 'Drag to trim the start' }), hOut = h('i', { class: 'trim out', title: 'Drag to trim the end' });
+  const tl = h('div', { class: 'vtl', title: 'Click or drag to go to a moment' }, span, head, hIn, hOut);
   const place = () => {
     if (!tl.isConnected) return;
     const d = el && isFinite(el.duration) ? el.duration : 0;
     if (d) {
-      const [a, b] = videoSpan(src, el);
-      tl.firstChild.style.left = (a / d * 100) + '%'; tl.firstChild.style.width = ((Math.min(b, d) - a) / d * 100) + '%';
-      tl.lastChild.style.left = (el.currentTime / d * 100) + '%';
-      pos.textContent = `${fmtDur(el.currentTime)} / ${fmtDur(d)}`;
+      const [a, b] = videoSpan(src, el), e = Math.min(b, d);
+      span.style.left = hIn.style.left = (a / d * 100) + '%'; span.style.width = ((e - a) / d * 100) + '%'; hOut.style.left = (e / d * 100) + '%';
+      head.style.left = (el.currentTime / d * 100) + '%';
+      pos.textContent = trimming ? `${trimming === 'in' ? 'Start' : 'End'} ${fmtDur(trimming === 'in' ? a : e)}` : `${fmtDur(el.currentTime)} / ${fmtDur(d)}`;
     }
     requestAnimationFrame(place);
   };
   const pos = h('span', { class: 'mono muted' }, '');
-  const seek = e => { if (!el || !dur) return; const r = tl.getBoundingClientRect(); el.currentTime = clamp((e.clientX - r.left) / r.width, 0, 1) * el.duration; el._done = false; };
-  tl.addEventListener('pointerdown', e => { tl.setPointerCapture(e.pointerId); seek(e); tl.onpointermove = seek; });
-  tl.addEventListener('pointerup', () => { tl.onpointermove = null; });
+  let trimming = null;
+  const timeAt = e => { const r = tl.getBoundingClientRect(); return clamp((e.clientX - r.left) / r.width, 0, 1) * el.duration; };
+  const go = t => { el.currentTime = t; el._revT = null; el._done = false; };
+  const seek = e => { if (el && dur) go(timeAt(e)); };
+  // Dragging a handle moves that end of the trim (at least 0.1 s of video stays) and shows the frame there
+  const trim = e => {
+    const t = Math.round(timeAt(e) * 100) / 100, [a, b] = videoSpan(src, el), end = Math.min(b, el.duration);
+    if (trimming === 'in') { src.trimIn = clamp(t, 0, Math.max(0, end - 0.1)); go(src.trimIn); }
+    else { const v = clamp(t, a + 0.1, el.duration); src.trimOut = v >= el.duration - 0.05 ? 0 : v; go(Math.min(v, el.duration - 0.01)); }
+    apply();
+  };
+  tl.addEventListener('pointerdown', e => {
+    if (!el || !dur) return;
+    tl.setPointerCapture(e.pointerId);
+    if (e.target !== hIn && e.target !== hOut) { seek(e); tl.onpointermove = seek; return; }
+    tl.classList.add('trimming');
+    // Handles on top of each other: dragging left moves the start, dragging right the end
+    const x0 = e.clientX, close = Math.abs(hIn.getBoundingClientRect().left - hOut.getBoundingClientRect().left) < 12;
+    trimming = close ? null : e.target === hIn ? 'in' : 'out';
+    if (trimming) trim(e);
+    tl.onpointermove = ev => { if (!trimming) { if (ev.clientX === x0) return; trimming = ev.clientX < x0 ? 'in' : 'out'; } trim(ev); };
+  });
+  tl.addEventListener('pointerup', () => { tl.onpointermove = null; if (tl.classList.contains('trimming')) { const did = trimming; trimming = null; tl.classList.remove('trimming'); if (did) { commit(); renderRight(); } } });
   if (el) { k.push(tl, h('div', { class: 'vtlpos' }, pos)); requestAnimationFrame(place); }
+  // Backward, Pause, Forward: the direction is kept with the project, pausing is for now only
+  const state = !el ? null : el._held || el._done || !videoPlaying(el) ? 'pause' : src.reverse ? 'back' : 'fwd';
+  const playDir = rev => {
+    const turned = !!src.reverse !== rev;
+    src.reverse = rev; el._held = false; el._done = false; apply();
+    if (turned) pauseVideo(el);
+    playVideo(src, el);
+    if (turned) commit();
+    renderRight();
+  };
+  const tb = (label, icon, on, title, onclick) => h('button', { class: 'btn sm' + (on ? ' on' : ''), type: 'button', disabled: !el, title, 'aria-label': label, 'aria-pressed': on ? 'true' : 'false', onclick }, icon);
+  k.push(h('div', { class: 'transport', role: 'group', 'aria-label': 'Play the video' },
+    tb('Restart', '⏮', false, src.reverse ? 'Restart: play again from its end' : 'Restart: play again from its start', () => { el._held = false; restartVideo(src, el); renderRight(); }),
+    tb('Backward', '◀', state === 'back', 'Play backwards', () => playDir(true)),
+    tb('Pause', '❚❚', state === 'pause', 'Pause here', () => { el._held = true; pauseVideo(el); renderRight(); }),
+    tb('Forward', '▶', state === 'fwd', 'Play forwards', () => playDir(false))));
   // End shows the real end time; at (or past) the video's end it means "to the end" (0)
   const out = { v: src.trimOut || dur };
   const trimIn = numInput(src, 'trimIn', { min: 0, max: dur || 1e6, step: 0.1, aria: 'Start of the video, in seconds', onCommit: changed });
@@ -443,9 +482,6 @@ function videoControls(src, el) {
   k.push(sliderRow('Speed', src, 'rate', { min: 0.1, max: 4, step: 0.05, fmt: v => v.toFixed(2) + '×', onInput: v => { if (el) el.playbackRate = v; }, onCommit: commit }));
   k.push(checkRow('Play its sound', src, 'audio', () => { apply(); if (el && src.audio && !el.paused) playVideo(src, el); commit(); renderRight(); }));
   if (src.audio) k.push(sliderRow('Volume', src, 'volume', { min: 0, max: 1, step: 0.01, fmt: pct, onInput: apply, onCommit: commit }));
-  k.push(h('div', { class: 'actions' },
-    h('button', { class: 'btn sm', type: 'button', disabled: !el, onclick: () => { el._held = !el.paused; el._held ? el.pause() : (el._done = false, playVideo(src, el)); renderRight(); } }, el && el.paused ? 'Play' : 'Pause'),
-    h('button', { class: 'btn sm', type: 'button', disabled: !el, onclick: () => { el._held = false; restartVideo(src, el); renderRight(); } }, 'Restart')));
   if (el && el._done) k.push(h('p', { class: 'note' }, src.endHold !== false ? 'Played once: holding its last frame. Restart plays it again.' : 'Played once: black now. Restart plays it again.'));
   return k;
 }
