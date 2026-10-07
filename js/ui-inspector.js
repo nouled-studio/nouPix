@@ -91,7 +91,7 @@ function renderInspector(body) {
   P.push(...trimRows([f]));
   P.push(gammaRow([f]));
   if (f.type !== 'matrix') P.push(checkRow('Reverse direction', f, 'reverse', () => { markGeom(); commit(); }));
-  P.push(sliderRow('Dimmer', f, 'dimmer', { min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%', onCommit: commit }));
+  P.push(sliderRow('Dimmer', f, 'dimmer', { min: 0, max: 1, step: 0.01, fmt: pct, onCommit: commit }));
   body.append(sec('Pixels', P));
 
   body.append(outputSection([f]));
@@ -112,7 +112,7 @@ function gammaRow(list) {
 function trimRows(list) {
   const hasW = list.some(f => f.order.includes('W')), one = list.length === 1, tmp = list[0].trim.slice();
   return [['Red trim', 0], ['Green trim', 1], ['Blue trim', 2], ['White trim', 3]].filter(([, i]) => i < 3 || hasW).map(([label, i]) =>
-    sliderRow(label, one ? list[0].trim : tmp, i, { min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%', onInput: v => { if (!one) list.forEach(f => { f.trim[i] = v; }); }, onCommit: commit }));
+    sliderRow(label, one ? list[0].trim : tmp, i, { min: 0, max: 1, step: 0.01, fmt: pct, onInput: v => { if (!one) list.forEach(f => { f.trim[i] = v; }); }, onCommit: commit }));
 }
 function outputSection(list) {
   const f = list[0];
@@ -448,7 +448,7 @@ function videoControls(src, el) {
   k.push(checkRow('Restart each time it is shown', src, 'restart', () => commit()));
   k.push(sliderRow('Speed', src, 'rate', { min: 0.1, max: 4, step: 0.05, fmt: v => v.toFixed(2) + '×', onInput: v => { if (el) el.playbackRate = v; }, onCommit: commit }));
   k.push(checkRow('Play its sound', src, 'audio', () => { apply(); if (el && src.audio && !el.paused) playVideo(src, el); commit(); renderRight(); }));
-  if (src.audio) k.push(sliderRow('Volume', src, 'volume', { min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%', onInput: apply, onCommit: commit }));
+  if (src.audio) k.push(sliderRow('Volume', src, 'volume', { min: 0, max: 1, step: 0.01, fmt: pct, onInput: apply, onCommit: commit }));
   k.push(h('div', { class: 'actions' },
     h('button', { class: 'btn sm', type: 'button', disabled: !el, onclick: () => { el._held = !el.paused; el._held ? el.pause() : (el._done = false, playVideo(src, el)); renderRight(); } }, el && el.paused ? 'Play' : 'Pause'),
     h('button', { class: 'btn sm', type: 'button', disabled: !el, onclick: () => { el._held = false; restartVideo(src, el); renderRight(); } }, 'Restart')));

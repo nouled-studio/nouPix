@@ -77,14 +77,14 @@ function updateStatus() {
   }
   const html = parts.join('<span class="muted">  │  </span>') + '<span class="fill"></span>' + hov;
   if (html !== updateStatus.last) { updateStatus.last = html; $('#status').innerHTML = html; }
-  const zl = Math.round(ui.view.zoom * 100) + '%';
+  const zl = pct(ui.view.zoom);
   if ($('#zoomLbl').textContent !== zl) $('#zoomLbl').textContent = zl;
 }
 function renderAll() {
   $('#projName').value = project.name;
   renderFxList(); renderSrcList(); renderRight(); renderDock(); updateUndoButtons(); updateBridgeUI();
   $('#master').value = project.settings.master;
-  $('#masterVal').textContent = Math.round(project.settings.master * 100) + '%';
+  $('#masterVal').textContent = pct(project.settings.master);
 }
 
 /* ---------- wiring the UI ---------- */
@@ -106,7 +106,7 @@ function initUI() {
   $('#btnHl').addEventListener('click', toggleHighlight);
   $('#btnHlMode').addEventListener('click', e => highlightMenu(e.currentTarget.parentElement));
   updateHighlightUI();
-  $('#master').addEventListener('input', e => { project.settings.master = parseFloat(e.target.value); $('#masterVal').textContent = Math.round(project.settings.master * 100) + '%'; });
+  $('#master').addEventListener('input', e => { project.settings.master = parseFloat(e.target.value); $('#masterVal').textContent = pct(project.settings.master); });
   $('#master').addEventListener('change', () => { saveSoon(); });
   const bindView = (id, key, isRange) => {
     const el = $(id);
