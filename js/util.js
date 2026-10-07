@@ -71,6 +71,9 @@ function download(name, text, type = 'application/json') {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 const ICONS = {
+  play: '<svg viewBox="0 0 16 16"><path d="M4.5 2.8v10.4L13 8z" fill="currentColor"/></svg>',
+  pause: '<svg viewBox="0 0 16 16"><g fill="currentColor"><rect x="3.5" y="3" width="3" height="10" rx=".5"/><rect x="9.5" y="3" width="3" height="10" rx=".5"/></g></svg>',
+  restart: '<svg viewBox="0 0 16 16"><g fill="currentColor"><rect x="3" y="3" width="2" height="10" rx=".5"/><path d="M13 2.8v10.4L5.5 8z"/></g></svg>',
   line: '<svg viewBox="0 0 16 16"><path d="M2.5 13.5l11-11" stroke="currentColor" stroke-width="1.5"/><circle cx="2.5" cy="13.5" r="1.6" fill="currentColor"/><circle cx="13.5" cy="2.5" r="1.6" fill="currentColor"/></svg>',
   matrix: '<svg viewBox="0 0 16 16"><g fill="currentColor"><rect x="2" y="2" width="3" height="3"/><rect x="6.5" y="2" width="3" height="3"/><rect x="11" y="2" width="3" height="3"/><rect x="2" y="6.5" width="3" height="3"/><rect x="6.5" y="6.5" width="3" height="3"/><rect x="11" y="6.5" width="3" height="3"/><rect x="2" y="11" width="3" height="3"/><rect x="6.5" y="11" width="3" height="3"/><rect x="11" y="11" width="3" height="3"/></g></svg>',
   circle: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="2.5" r="1.6" fill="currentColor"/></svg>',

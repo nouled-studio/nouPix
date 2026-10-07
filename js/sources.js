@@ -176,18 +176,19 @@ function syncMedia() {
     if (!(el instanceof HTMLVideoElement)) continue;
     const src = srcById(id), shown = used.has(id), was = el._shown;
     el._shown = shown;
-    if (!shown) { if (videoPlaying(el) && !el.srcObject) pauseVideo(el); continue; }
+    if (!shown) { if (!el.paused && !el.srcObject) el.pause(); continue; }
     if (src && src.kind === 'video' && !was && src.restart) restartVideo(src, el, false);   // just came on: from its start
-    if (!videoPlaying(el) && !el._held && !el._done) playVideo(src, el);
+    if (el.paused && !el._held && !el._done) playVideo(src, el);
   }
 }
 // ---------- video files: their options, the formats that play, trimming, once or loop, audio
-const VIDEO_DEFAULTS = { trimIn: 0, trimOut: 0, loop: true, endHold: true, restart: false, audio: false, volume: 1, reverse: false };
+const VIDEO_DEFAULTS = { trimIn: 0, trimOut: 0, loop: true, endHold: true, restart: false, audio: false, volume: 1 };
 function fixVideoOptions(s) {
   for (const [k, d] of Object.entries(VIDEO_DEFAULTS)) {
     if (typeof d === 'number') s[k] = numOr(s[k], d); else if (typeof s[k] !== 'boolean') s[k] = d;
   }
   s.trimIn = Math.max(0, s.trimIn); s.trimOut = Math.max(0, s.trimOut); s.volume = clamp(s.volume, 0, 1);
+  delete s.reverse;   // backward playback, saved by 0.6.0 for a while and taken out again
   return s;
 }
 // The part of a video that plays: from trimIn to trimOut (0 = to its end), within its length
@@ -200,16 +201,12 @@ function videoSpan(src, el) {
 // The browser's own loop is seamless, so it loops a whole video; a trimmed one is looped by videoTick
 function applyVideoOptions(src, el) {
   if (!el || !(el instanceof HTMLVideoElement) || el.srcObject) return;
-  el.loop = src.loop !== false && !(src.trimIn > 0) && !(src.trimOut > 0) && !src.reverse;
+  el.loop = src.loop !== false && !(src.trimIn > 0) && !(src.trimOut > 0);
   el.muted = !src.audio;
   el.volume = clamp(numOr(src.volume, 1), 0, 1);
   el.playbackRate = src.rate || 1;
 }
-// Browsers only play forwards: a video set to play backwards stays paused, and videoTick steps it back each frame
-// (el._rev while it does, el._revT the moment it is at, kept apart from currentTime while a seek is under way).
 function playVideo(src, el) {
-  if (src && src.reverse) { el._rev = true; el._revT = null; if (!el.paused) el.pause(); return; }
-  el._rev = false;
   el.play().catch(e => {   // browsers may refuse sound before a click: play it silent, say so once
     if (e && e.name === 'NotAllowedError' && !el.muted) {
       el.muted = true; el.play().catch(() => {});
@@ -217,13 +214,10 @@ function playVideo(src, el) {
     }
   });
 }
-function pauseVideo(el) { el._rev = false; el.pause(); }
-// Whether the video is moving, either way
-const videoPlaying = el => !el.paused || !!el._rev;
 function restartVideo(src, el, play = true) {
-  const [a, b] = videoSpan(src, el);
-  el._done = false; el._revT = null;
-  try { el.currentTime = src.reverse && isFinite(b) ? Math.max(a, b - 0.02) : a; } catch (e) { /* not seekable yet */ }
+  const [a] = videoSpan(src, el);
+  el._done = false;
+  try { el.currentTime = a; } catch (e) { /* not seekable yet */ }
   if (play && el._shown !== false) playVideo(src, el);
 }
 // Each frame: keep playing videos within their trim, loop them or stop them at the end
@@ -234,25 +228,11 @@ function videoTick() {
     if (!src || src.kind !== 'video') continue;
     const [a, b] = videoSpan(src, el), t = el.currentTime;
     if (t < a - 0.05 && !el.seeking && !el._done) { el.currentTime = a; continue; }
-    if (src.reverse) { reverseTick(src, el, a, b); continue; }
     const atEnd = el.ended || (isFinite(b) && t >= b - 0.01);
     if (!atEnd || el.loop) continue;
     if (src.loop !== false) { if (!el.seeking) { el.currentTime = a; if (el._shown && !el._held && el.paused) playVideo(src, el); } }
     else if (!el._done) { el._done = true; el.pause(); if (isFinite(b) && !el.ended) el.currentTime = b; refreshMediaPanel(); }
   }
-}
-// One frame backwards, at the video's speed; at its start it goes round to its end, or stops there when it plays once
-function reverseTick(src, el, a, b) {
-  if (!el._rev || el._held || el._done || el._shown === false) return;
-  if (!el.paused) el.pause();
-  if (el._revT == null) el._revT = el.currentTime;
-  if (isFinite(b) && el._revT > b) el._revT = b;
-  el._revT -= clockDT * (src.rate || 1);
-  if (el._revT <= a) {
-    if (src.loop !== false) el._revT = isFinite(b) ? Math.max(a, b - 0.02) : a;
-    else { el._done = true; el._rev = false; if (!el.seeking) el.currentTime = a; refreshMediaPanel(); return; }
-  }
-  if (!el.seeking) el.currentTime = el._revT;
 }
 const refreshMediaPanel = () => { if (ui.rightTab === 'content' && $('#rightBody .vtl')) renderRight(); };
 // The formats openLedMapper takes. What really plays depends on the browser's codecs: a file is tried before it

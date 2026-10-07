@@ -429,7 +429,7 @@ function videoControls(src, el) {
   const pos = h('span', { class: 'mono muted' }, '');
   let trimming = null;
   const timeAt = e => { const r = tl.getBoundingClientRect(); return clamp((e.clientX - r.left) / r.width, 0, 1) * el.duration; };
-  const go = t => { el.currentTime = t; el._revT = null; el._done = false; };
+  const go = t => { el.currentTime = t; el._done = false; };
   const seek = e => { if (el && dur) go(timeAt(e)); };
   // Dragging a handle moves that end of the trim (at least 0.1 s of video stays) and shows the frame there
   const trim = e => {
@@ -451,22 +451,13 @@ function videoControls(src, el) {
   });
   tl.addEventListener('pointerup', () => { tl.onpointermove = null; if (tl.classList.contains('trimming')) { const did = trimming; trimming = null; tl.classList.remove('trimming'); if (did) { commit(); renderRight(); } } });
   if (el) { k.push(tl, h('div', { class: 'vtlpos' }, pos)); requestAnimationFrame(place); }
-  // Backward, Pause, Forward: the direction is kept with the project, pausing is for now only
-  const state = !el ? null : el._held || el._done || !videoPlaying(el) ? 'pause' : src.reverse ? 'back' : 'fwd';
-  const playDir = rev => {
-    const turned = !!src.reverse !== rev;
-    src.reverse = rev; el._held = false; el._done = false; apply();
-    if (turned) pauseVideo(el);
-    playVideo(src, el);
-    if (turned) commit();
-    renderRight();
-  };
-  const tb = (label, icon, on, title, onclick) => h('button', { class: 'btn sm' + (on ? ' on' : ''), type: 'button', disabled: !el, title, 'aria-label': label, 'aria-pressed': on ? 'true' : 'false', onclick }, icon);
+  // Restart, Play, Pause; a pause is for now only, it isn't saved
+  const playing = el && !el.paused && !el._held && !el._done;
+  const tb = (label, name, on, title, onclick) => h('button', { class: 'btn sm' + (on ? ' on' : ''), type: 'button', disabled: !el, title, 'aria-label': label, 'aria-pressed': on ? 'true' : 'false', onclick }, icon(name));
   k.push(h('div', { class: 'transport', role: 'group', 'aria-label': 'Play the video' },
-    tb('Restart', '⏮', false, src.reverse ? 'Restart: play again from its end' : 'Restart: play again from its start', () => { el._held = false; restartVideo(src, el); renderRight(); }),
-    tb('Backward', '◀', state === 'back', 'Play backwards', () => playDir(true)),
-    tb('Pause', '❚❚', state === 'pause', 'Pause here', () => { el._held = true; pauseVideo(el); renderRight(); }),
-    tb('Forward', '▶', state === 'fwd', 'Play forwards', () => playDir(false))));
+    tb('Restart', 'restart', false, 'Restart: play again from its start', () => { el._held = false; restartVideo(src, el); renderRight(); }),
+    tb('Play', 'play', playing, 'Play', () => { el._held = false; if (el._done) restartVideo(src, el); else playVideo(src, el); renderRight(); }),
+    tb('Pause', 'pause', el && !playing, 'Pause here', () => { el._held = true; el.pause(); renderRight(); })));
   // End shows the real end time; at (or past) the video's end it means "to the end" (0)
   const out = { v: src.trimOut || dur };
   const trimIn = numInput(src, 'trimIn', { min: 0, max: dur || 1e6, step: 0.1, aria: 'Start of the video, in seconds', onCommit: changed });

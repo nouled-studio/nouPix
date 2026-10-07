@@ -341,8 +341,9 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .vtl .trim { position: absolute; top: -4px; bottom: -4px; width: 10px; margin-left: -5px; cursor: ew-resize; z-index: 1; }
 .vtl .trim::after { content: ''; position: absolute; left: 3px; top: 2px; bottom: 2px; width: 4px; border-radius: 2px; background: var(--accent); opacity: .85; }
 .vtl .trim:hover::after, .vtl.trimming .trim::after { opacity: 1; box-shadow: 0 0 0 2px var(--accent-soft); }
-.transport { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 6px 0; }
-.transport .btn { justify-content: center; font-size: 13px; }
+.transport { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 6px 0; }
+.transport .btn { justify-content: center; }
+.transport .btn svg { width: 14px; height: 14px; }
 .transport .btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .netchip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px 0 6px; border: 1px solid var(--line2); border-radius: 12px; color: var(--muted); cursor: pointer; max-width: 300px; }
 .netchip input { margin: 0; }
