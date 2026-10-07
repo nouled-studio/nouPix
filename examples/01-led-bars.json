@@ -671,7 +671,7 @@
        "src": "b-strobe",
        "params": {
         "b-strobe": {
-         "rate": 10
+         "rate": 6
         }
        },
        "opacity": 1,

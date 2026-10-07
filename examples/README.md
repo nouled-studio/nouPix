@@ -12,7 +12,6 @@ at your own controllers (in the Patch tab of the dock) before sending.
 | `04-stage-mixed.json` | Everything together: RGBW strips (GRBW), a curved path, a matrix turned 45°, rings with trims and dimmer, a locked and disabled spare, gamma 2.2, pixels split across universes, an advanced patch start address, three zones with blend modes. | Project menu > Open project… |
 | `05-facade.svg` | A building front drawn as lines, a circle, an ellipse, rectangles and paths, with names. | Project menu > Import SVG… (or SVG… above the fixture list), then Import |
 | `06-GradientBounce.fs` | A small custom ISF shader with colour, number and on/off controls, commented, to start your own from. | Sources: + Add > ISF shader file (.fs)… |
-| `FruitOfLife_CircleChase.fs` | A larger ISF shader made for a 13-circle LED piece. | Sources: + Add > ISF shader file (.fs)… |
 | `07-test-clip.webm` | A 6-second 320 × 180 test video with sound, to try trim, loop or once, and sound. | Sources: + Add > Image or video file… |
 
 The four projects are made by `tests/make_examples.py`, which builds them with the app itself so they stay in

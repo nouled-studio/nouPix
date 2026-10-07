@@ -210,7 +210,7 @@ The `examples/` folder has files to try without building a layout (each is descr
 
 - **Projects** (Project ▾ → Open project…): `01-led-bars.json` (twelve vertical bars), `02-matrix-wall.json` (four 32 × 32 panels on two controllers), `03-rings-and-arcs.json` (rings, arcs, an oval), `04-stage-mixed.json` (most options together: RGBW, a turned matrix, trims, gamma, a locked spare, an advanced patch start address, blend modes).
 - **An SVG layout** to import: `05-facade.svg`.
-- **ISF shaders** to add as sources: `06-GradientBounce.fs` (small and commented, a starting point for your own) and `FruitOfLife_CircleChase.fs`.
+- **An ISF shader** to add as a source: `06-GradientBounce.fs` (small and commented, a starting point for your own).
 - **A test video** with sound, for trim, loop or once and sound: `07-test-clip.webm`.
 
 Their controllers have made-up 10.0.0.x addresses: set your own in the Patch panel before sending.

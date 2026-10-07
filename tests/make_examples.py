@@ -36,7 +36,7 @@ EXAMPLES = {
       S('Rain', TAGS[5], 2, [L('b-rain', { params: { angle: 90, color: [0.3, 0.7, 1, 1] } })]),
       S('Equalizer', TAGS[4], 0.5, [L('b-equalizer', { params: { count: 12, angle: 90 } })]),
       S('Fire', TAGS[1], 3, [L('b-fire')]),
-      S('Strobe hit', TAGS[6], 0, [L('b-strobe', { params: { rate: 10 } })]),
+      S('Strobe hit', TAGS[6], 0, [L('b-strobe', { params: { rate: 6 } })]),
     ] })];
   """,
   '02-matrix-wall.json': """
@@ -132,8 +132,8 @@ try:
             for s in z['scenes']:
                 pg.evaluate("([zi, id]) => { const z = olm.project.zones[zi]; olm.goScene(z, z.scenes.find(s => s.id === id), true); }", [zi, s['id']])
                 light = 0
-                for _ in range(8):   # a strobe is dark between flashes: look a few times
-                    time.sleep(0.1); light = max(light, pg.evaluate("olm.universes().reduce((a, u) => a + u.data.reduce((x, v) => x + v, 0), 0)"))
+                for _ in range(30):   # a strobe is dark between flashes: look often (faster than it flashes)
+                    time.sleep(0.03); light = max(light, pg.evaluate("olm.universes().reduce((a, u) => a + u.data.reduce((x, v) => x + v, 0), 0)"))
                 lit.append((s['name'], light))
         check(f"{name}: every scene plays and lights the pixels", all(v > 0 for _, v in lit), [n for n, v in lit if not v])
     # the other example files: an SVG layout, a custom ISF shader, a short video
@@ -149,9 +149,6 @@ try:
     check("06-GradientBounce.fs adds a shader source with its six controls", pg.evaluate("olm.project.sources.length") == n0 + 1 and src["ins"] == ["colorA", "colorB", "speed", "softness", "angle", "mirror"], src)
     pg.evaluate("(() => { const z = olm.project.zones[0]; z.layers = [newLayer(olm.project.sources.at(-1).id)]; })()"); time.sleep(0.5)
     check("and it renders without shader errors", not [e for e in errs if 'shader' in e.lower() or 'isf' in e.lower()], errs[:3])
-    for f in ["FruitOfLife_CircleChase.fs"]:
-        pg.set_input_files("#fileIsf", os.path.join(EX, f)); time.sleep(0.8)
-        check(f + " adds a shader source", pg.evaluate("olm.project.sources.at(-1).kind") == "isf", pg.evaluate("olm.project.sources.at(-1).kind"))
     pg.set_input_files("#fileMedia", os.path.join(EX, "07-test-clip.webm")); time.sleep(3)
     check("07-test-clip.webm adds a video source", pg.evaluate("olm.project.sources.at(-1).kind") == "video", pg.evaluate("[...document.querySelectorAll('.toast')].map(t => t.textContent).join(' | ')"))
     check("no page errors", not errs, errs[:5])

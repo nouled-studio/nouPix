@@ -73,14 +73,14 @@ scC = {"name": "C", "settings": {"compW": 400, "compH": 300, "gamma": 1, "transi
   "zones": [Z("fit", 0, 0, 200, 150, []), Z("fill", 200, 0, 200, 300, []), Z("stretch", 0, 150, 200, 150, [])]}
 
 
-# ---- scenario D: Albert's example ISF shader as a custom source, still (speed 0), in two modes
-FOL = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "examples", "FruitOfLife_CircleChase.fs")).read()
+# ---- scenario D: the example ISF shader as a custom source, still (speed 0), with two sets of controls
+FOL = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "examples", "06-GradientBounce.fs")).read()
 RD = [F("circle", cx=285 + 90 * math_cos(a), cy=320 + 90 * math_sin(a), r=45, pixels=48, start=0, sweep=360, ccw=False) for a in [i * 1.0472 for i in range(6)]] + [F("circle", cx=285, cy=320, r=45, pixels=48, start=0, sweep=360, ccw=False)]
 def LC(params): return {"id": "l%d" % next(uid), "src": "fol", "params": {"fol": params}, "opacity": 1, "blend": "alpha", "on": True}
 scD = {"name": "D", "settings": {"compW": 571, "compH": 640, "gamma": 1.8, "transition": 0},
   "fixtures": RD, "sources": [{"id": "fol", "kind": "isf", "name": "Fruit of Life", "code": FOL}],
   "controllers": [{"id": "c5", "name": "C5", "ip": "127.0.0.2", "enabled": True, "outputs": 1, "upo": 4, "startUniverse": 20, "split": False, "chains": [[f["id"] for f in RD]]}],
-  "zones": [Z("fol", 0, 0, 571, 640, [LC({"mat_speed": 0, "mat_mode": 0, "mat_color_mode": 1})])]}
+  "zones": [Z("fol", 0, 0, 571, 640, [LC({"speed": 0, "softness": 0.6, "angle": 30})])]}
 # ---- scenario E: the 30k-pixel project (192 universes), everything still
 from bigproj import big_project
 scE = big_project(ctrl_ip="127.0.0.2", k=1 / 6)
@@ -149,8 +149,8 @@ with sync_playwright() as p:
       pg.evaluate("olm.ui.blackout = true"); capture(pg, "C blackout")
       pg.evaluate("olm.ui.blackout = false")
     if "D" in ONLY:
-        load(scD); capture(pg, "D custom ISF mode 0")
-        pg.evaluate("() => { const L = olm.project.zones[0].layers[0]; L.params.fol.mat_mode = 3; L.params.fol.mat_color_mode = 2; }"); capture(pg, "D custom ISF mode 3")
+        load(scD); capture(pg, "D custom ISF")
+        pg.evaluate("() => { const P = olm.project.zones[0].layers[0].params.fol; Object.assign(P, { mirror: true, angle: 120, softness: 0.2, colorA: [0.1, 1, 0.3, 1] }); }"); capture(pg, "D custom ISF mirrored")
     if "E" in ONLY:
         load(scE); capture(pg, "E 30k pixels")
     print("page errors:", errs[:3])
