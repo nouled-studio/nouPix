@@ -522,6 +522,10 @@ function draftFrom(type, x0, y0, x1, y1, e) {
   }
   return d;
 }
+// A fixture of the default size centred on x, y: a line 200 long, a circle of radius 60, a 160 × 160 matrix
+function defaultFixtureAt(type, x, y) {
+  return type === 'line' ? draftFrom('line', x - 100, y, x + 100, y) : type === 'circle' ? draftFrom('circle', x, y, x + 60, y) : draftFrom('matrix', x - 80, y - 80, x + 80, y + 80);
+}
 
 /* ---------- pointer ---------- */
 function evPos(e) { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
@@ -675,7 +679,7 @@ function endDrag(e) {
     let f = draft; draft = null;
     if (!d.moved) { // click without drag: default size centred on the click
       const x = d.x0, y = d.y0;
-      f = d.type === 'line' ? draftFrom('line', x - 100, y, x + 100, y) : d.type === 'circle' ? draftFrom('circle', x, y, x + 60, y) : draftFrom('matrix', x - 80, y - 80, x + 80, y + 80);
+      f = defaultFixtureAt(d.type, x, y);
     }
     f.name = nextName(f.type);
     addFixture(f);

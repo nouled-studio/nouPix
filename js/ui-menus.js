@@ -185,7 +185,7 @@ function canvasMenu(e, x, y) {
   const W = project.settings.compW, H = project.settings.compH;
   const px = clamp(Math.round(snapV(x)), 0, W), py = clamp(Math.round(snapV(y)), 0, H);
   const add = type => () => {
-    const f = type === 'line' ? draftFrom('line', px - 100, py, px + 100, py) : type === 'circle' ? draftFrom('circle', px, py, px + 60, py) : draftFrom('matrix', px - 80, py - 80, px + 80, py + 80);
+    const f = defaultFixtureAt(type, px, py);
     f.name = nextName(type);
     addFixture(f);
   };
@@ -309,7 +309,7 @@ function addFixtureMenu(anchor) {
     const W = project.settings.compW, H = project.settings.compH;
     const [cx, cy] = VW ? toC(VW / 2, VH / 2) : [W / 2, H / 2];
     const x = clamp(Math.round(cx), 0, W), y = clamp(Math.round(cy), 0, H);
-    const f = type === 'line' ? draftFrom('line', x - 100, y, x + 100, y) : type === 'circle' ? draftFrom('circle', x, y, x + 60, y) : draftFrom('matrix', x - 80, y - 80, x + 80, y + 80);
+    const f = defaultFixtureAt(type, x, y);
     f.name = nextName(type);
     addFixture(f);
   };
