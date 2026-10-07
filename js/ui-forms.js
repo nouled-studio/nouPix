@@ -74,6 +74,22 @@ function seg(options, value, onChange) {
   return el;
 }
 
+// The colour tag swatches of a fixture, group or zone
+function tagSwatches(o, label) {
+  return h('div', { class: 'swatches' }, TAGS.map(c => h('button', { type: 'button', class: o.tag === c ? 'on' : '', style: { background: c }, 'aria-label': label + ' ' + c, onclick: () => { o.tag = c; commit(); renderRight(); } })));
+}
+// The row a list shows when it is empty
+function emptyRow(text) { return h('li', { class: 'empty', style: { display: 'block', height: 'auto', cursor: 'default' } }, text); }
+// How a source fits its zone
+const FIT_OPTIONS = [['fit', 'Fit'], ['fill', 'Fill'], ['stretch', 'Stretch']];
+// Highlight, Duplicate and Delete, under the inspector of one or more fixtures
+function selectionActions() {
+  return h('div', { class: 'actions' },
+    h('button', { class: 'btn', type: 'button', onclick: toggleIdentify }, ui.outputMode !== 'content' ? 'Stop highlight' : 'Highlight'),
+    h('button', { class: 'btn', type: 'button', onclick: duplicateSel }, 'Duplicate'),
+    h('button', { class: 'btn danger-t', type: 'button', onclick: deleteSel }, 'Delete'));
+}
+
 /* ---------- drag to reorder ---------- */
 // Items of a list are dragged to put them in another order: the dragged item goes above or below the one it
 // is dropped on, by which half of that item the pointer is over. Sliders and buttons inside an item keep

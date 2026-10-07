@@ -41,7 +41,7 @@ function renderInspector(body) {
   const f = sel[0], alone = f.group != null && groupById(f.group);
   if (alone && project.fixtures.filter(x => x.group === f.group).length === 1) body.append(groupSection(alone, [f]));   // a group of one
   const nameIn = textInput(f, 'name', { id: 'fxName', aria: 'Fixture name', onInput: () => renderFxList(), onCommit: commit });
-  const sw = h('div', { class: 'swatches' }, TAGS.map(c => h('button', { type: 'button', class: f.tag === c ? 'on' : '', style: { background: c }, 'aria-label': 'Tag colour ' + c, onclick: () => { f.tag = c; commit(); renderRight(); } })));
+  const sw = tagSwatches(f, 'Tag colour');
   body.append(sec(null,
     h('h3', null, h('span', { class: 'ty', style: { display: 'flex', color: 'var(--text2)' } }, icon(f.type)), isOval(f) ? 'Oval' : TYPE_LABEL[f.type], h('span', { class: 'fill' }), h('span', { class: 'mono muted', style: { letterSpacing: 0, textTransform: 'none' } }, pixelCount(f) + ' px')),
     row('Name', nameIn), row('Tag', sw),
@@ -95,10 +95,7 @@ function renderInspector(body) {
   body.append(sec('Pixels', P));
 
   body.append(outputSection([f]));
-  body.append(sec(null, h('div', { class: 'actions' },
-    h('button', { class: 'btn', type: 'button', onclick: toggleIdentify }, ui.outputMode !== 'content' ? 'Stop highlight' : 'Highlight'),
-    h('button', { class: 'btn', type: 'button', onclick: duplicateSel }, 'Duplicate'),
-    h('button', { class: 'btn danger-t', type: 'button', onclick: deleteSel }, 'Delete'))));
+  body.append(sec(null, selectionActions()));
 }
 // Red, green and blue trims (and white, for colour orders with W) scale that colour of the fixture's output, to
 // match fixtures that look different. With several fixtures, moving a slider sets it for all of them.
@@ -191,7 +188,7 @@ function advancedPatch(f) {
 function groupSection(g, sel) {
   const px = sel.reduce((a, f) => a + pixelCount(f), 0);
   const nameIn = textInput(g, 'name', { id: 'grpName', aria: 'Group name', onInput: () => renderFxList(), onCommit: commit });
-  const sw = h('div', { class: 'swatches' }, TAGS.map(c => h('button', { type: 'button', class: g.tag === c ? 'on' : '', style: { background: c }, 'aria-label': 'Group colour ' + c, onclick: () => { g.tag = c; commit(); renderRight(); } })));
+  const sw = tagSwatches(g, 'Group colour');
   return sec(null,
     h('h3', null, h('span', { class: 'ty', style: { display: 'flex', color: g.tag } }, icon('group')), 'Group'),
     row('Name', nameIn), row('Colour', sw),
@@ -219,10 +216,7 @@ function renderMulti(body, sel) {
         h('button', { class: 'btn', type: 'button', title: `${MOD}L, or the lock button above the fixture list`, onclick: toggleLockSel }, lockAction(sel) === 'unlock' ? (g ? 'Unlock group' : 'Unlock all') : (g ? 'Lock group' : 'Lock all')))),
     arrangeSection(sel),
     outputSection(sel),
-    sec(null, h('div', { class: 'actions' },
-      h('button', { class: 'btn', type: 'button', onclick: toggleIdentify }, ui.outputMode !== 'content' ? 'Stop highlight' : 'Highlight'),
-      h('button', { class: 'btn', type: 'button', onclick: duplicateSel }, 'Duplicate'),
-      h('button', { class: 'btn danger-t', type: 'button', onclick: deleteSel }, 'Delete')))].filter(Boolean));
+    sec(null, selectionActions())].filter(Boolean));
 }
 
 /* ---------- zones ---------- */
@@ -243,7 +237,7 @@ function renderZoneInspector(body) {
   const upd = () => { sizeTxt.textContent = `${z.w} × ${z.h}`; };
   upd(); binders.push(upd);
   const g = o => Object.assign({ int: true, onInput: () => { clampZone(z); syncInspector(); }, onCommit: () => { clampZone(z); commit(); syncInspector(); } }, o);
-  const sw = h('div', { class: 'swatches' }, TAGS.map(c => h('button', { type: 'button', class: z.tag === c ? 'on' : '', style: { background: c }, 'aria-label': 'Zone color ' + c, onclick: () => { z.tag = c; commit(); renderRight(); } })));
+  const sw = tagSwatches(z, 'Zone color');
   body.append(sec(null,
     h('h3', null, h('span', { class: 'ty', style: { display: 'flex', color: 'var(--text2)' } }, icon('zone')), 'Zone', h('span', { class: 'fill' }), sizeTxt),
     row('Name', textInput(z, 'name', { id: 'zoneName', aria: 'Zone name', onInput: () => refreshScenes(), onCommit: () => { commit(); renderSrcList(); } })),
@@ -284,7 +278,7 @@ function zonesSection() {
     onRightClick(li, e => zoneMenu(e, z));
     list.append(li);
   }
-  if (!project.zones.length) list.append(h('li', { class: 'empty', style: { display: 'block', height: 'auto', cursor: 'default' } }, 'No zones, so the output is black. Add one to play content.'));
+  if (!project.zones.length) list.append(emptyRow('No zones, so the output is black. Add one to play content.'));
   return sec(null, h('h3', null, 'Zones', h('span', { class: 'fill' }),
     h('button', { class: 'btn sm', type: 'button', title: 'Add a zone around the selected fixtures (or the whole canvas), under the others', onclick: newZoneFromUI }, '+ Zone')), list);
 }
@@ -309,7 +303,7 @@ function layersSection(z) {
     onRightClick(li, e => layerMenu(e, z, L));
     list.append(li);
   }
-  if (!z.layers.length) list.append(h('li', { class: 'empty', style: { display: 'block', height: 'auto', cursor: 'default' } }, 'No layers, so this zone is black. Add a layer, or click a source.'));
+  if (!z.layers.length) list.append(emptyRow('No layers, so this zone is black. Add a layer, or click a source.'));
   return sec(null, h('h3', null, 'Layers', h('span', { style: { color: z.tag, letterSpacing: '.06em' } }, '· ' + z.name), h('span', { class: 'fill' }),
     h('button', { class: 'btn sm', type: 'button', title: 'Add an empty layer above the selected one', onclick: () => addLayer(z) }, '+ Layer')), list);
 }
@@ -394,7 +388,7 @@ function renderContentTab(body) {
     const k = [];
     if (!el) k.push(h('p', { class: 'note' }, 'This file is not loaded in this session (browsers do not keep file access between visits).'));
     k.push(h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => pickMedia(src) }, el ? 'Replace file…' : 'Load file…')));
-    k.push(row('Fit', seg([['fit', 'Fit'], ['fill', 'Fill'], ['stretch', 'Stretch']], src.fit || 'fit', v => { src.fit = v; markThumb(src); commit(); })));
+    k.push(row('Fit', seg(FIT_OPTIONS, src.fit || 'fit', v => { src.fit = v; markThumb(src); commit(); })));
     if (src.kind === 'video') k.push(...videoControls(src, el));
     body.append(sec('Media', k));
   }
@@ -403,7 +397,7 @@ function renderContentTab(body) {
     body.append(sec('Screen capture',
       h('p', { class: 'note' }, 'Captures a window or screen, for example the output window of Resolume or TouchDesigner, and maps it onto the fixtures.'),
       h('div', { class: 'actions' }, el ? h('button', { class: 'btn', type: 'button', onclick: () => stopCapture(src) }, 'Stop capture') : h('button', { class: 'btn primary', type: 'button', onclick: () => startCapture(src) }, 'Choose window…')),
-      row('Fit', seg([['fit', 'Fit'], ['fill', 'Fill'], ['stretch', 'Stretch']], src.fit || 'stretch', v => { src.fit = v; commit(); }))));
+      row('Fit', seg(FIT_OPTIONS, src.fit || 'stretch', v => { src.fit = v; commit(); }))));
   }
   body.append(sec('Transition', sliderRow('Crossfade', project.settings, 'transition', { min: 0, max: 5, step: 0.1, fmt: v => v.toFixed(1) + ' s', onCommit: commit }),
     h('p', { class: 'note' }, 'Fade time when you click a source to play it in a layer. Scenes have their own fade time.')));

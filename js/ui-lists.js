@@ -44,7 +44,7 @@ function groupRow(g, m, whole) {
 function renderFxList() {
   const ul = $('#fxList');
   if (!project.fixtures.length) {
-    ul.replaceChildren(h('li', { class: 'empty', style: { display: 'block', height: 'auto', cursor: 'default' } }, 'No fixtures yet. Pick a tool on the stage (L, M, C, P) and drag, or import an SVG.'));
+    ul.replaceChildren(emptyRow('No fixtures yet. Pick a tool on the stage (L, M, C, P) and drag, or import an SVG.'));
     return;
   }
   const groups = new Map(project.groups.map(g => [g.id, { g, m: [], whole: false }]));
