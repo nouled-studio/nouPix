@@ -144,7 +144,6 @@ function hydrate(p) {
 
 /* ---------- history + persistence ---------- */
 const hist = { stack: [], idx: -1 };
-const replacer = (k, v) => (k.startsWith('_') ? undefined : v);
 function serialize(withGuide = true) {
   return JSON.stringify(project, (k, v) => {
     if (k.startsWith('_')) return undefined;

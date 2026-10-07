@@ -113,6 +113,8 @@ const numOr = (v, d) => (typeof v === 'number' ? (isFinite(v) ? v : d) : typeof 
 
 /* ---------- formats ---------- */
 const pct = v => Math.round(v * 100) + '%';
+// For JSON.stringify: leaves out the keys starting with _ (worked out at run time, never saved)
+const replacer = (k, v) => (k.startsWith('_') ? undefined : v);
 // Several fixtures align to the box around all of them, a single one to the canvas. Locked fixtures stay put,
 // but still count for the box, so the others can be lined up with one that is locked.
 // With one whole group selected, its fixtures are lined up with each other. Otherwise each whole group in the

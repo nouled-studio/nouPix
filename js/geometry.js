@@ -222,7 +222,7 @@ function distFixture(f, x, y, tol) {
 }
 
 /* ---------- moving a fixture ---------- */
-function snapshotGeom(f) { return JSON.parse(JSON.stringify(f, (k, v) => k.startsWith('_') ? undefined : v)); }
+function snapshotGeom(f) { return JSON.parse(JSON.stringify(f, replacer)); }
 function moveFixture(f, o, dx, dy) {
   if (f.type === 'line') { f.x1 = o.x1 + dx; f.y1 = o.y1 + dy; f.x2 = o.x2 + dx; f.y2 = o.y2 + dy; }
   else if (f.type === 'path') f.pts = o.pts.map((v, i) => v + (i % 2 ? dy : dx));
