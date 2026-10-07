@@ -6,9 +6,8 @@
 // Pixel finder: a pixel picked on the stage, with its address
 function pickPixel(f, i) {
   ui.pickPx = { fid: f.id, i };
-  const p = f._patch, L = f._out && f._out.lin[i];
-  const a = p && L >= 0 ? addrOf(p.base, L) : null;
-  toast(`${f.name} · pixel ${i + 1} of ${f._n}` + (a ? ` · U ${a.u} ch ${a.ch}–${a.ch + f.order.length - 1}` : ' · not patched'));
+  const a = pixelAddrText(f, i);
+  toast(`${f.name} · pixel ${i + 1} of ${f._n}` + (a ? ` · ${a}` : ' · not patched'));
 }
 
 /* ---------- stage view ---------- */

@@ -5,7 +5,7 @@
 function patchBadge(f) {
   const p = f._patch;
   if (!p) return h('span', { class: 'badge warn', title: 'Not patched to a controller output' }, '—');
-  const lbl = (project.controllers.length > 1 ? ctrlLetter(p.ctrl) : '') + (p.out + 1);
+  const lbl = outLabel(p);
   const title = `${p.ctrl.name} · OUT ${p.out + 1}${p.first >= 0 ? ' · ' + addrText(p) : ''}`;
   if (p.overflow) return h('span', { class: 'badge err', title: title + ` · ${p.overflow} pixels do not fit` }, lbl + '!');
   if (p.overlap || p.outside) return h('span', { class: 'badge warn', title: title + (p.overlap ? ' · its set start address overlaps the fixture before it' : ' · its set start address is outside this output, so it is not used') }, 'OUT ' + lbl + '!');
@@ -13,8 +13,7 @@ function patchBadge(f) {
 }
 // The outputs a group's fixtures are patched to, in one badge
 function groupBadge(m) {
-  const lbl = p => (project.controllers.length > 1 ? ctrlLetter(p.ctrl) : '') + (p.out + 1);
-  const outs = [...new Set(m.filter(f => f._patch).map(f => lbl(f._patch)))];
+  const outs = [...new Set(m.filter(f => f._patch).map(f => outLabel(f._patch)))];
   const un = m.filter(f => !f._patch).length, ovf = m.some(f => f._patch && f._patch.overflow);
   if (!outs.length) return h('span', { class: 'badge warn', title: 'Not patched to a controller output' }, '—');
   const title = `OUT ${outs.join(', ')}` + (un ? ` · ${un} not patched` : '') + (ovf ? ' · some pixels do not fit' : '');

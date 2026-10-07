@@ -69,9 +69,7 @@ function updateStatus() {
   let hov = '';
   const hp = ui.hoverPx;
   if (hp && hp.f && fxById(hp.f.id)) {
-    const f = hp.f, p = f._patch;
-    let a = '';
-    if (p && f._out && f._out.lin[hp.i] >= 0) { const ad = addrOf(p.base, f._out.lin[hp.i]); a = ` · U ${ad.u} ch ${ad.ch}–${ad.ch + f.order.length - 1}`; }
+    const f = hp.f, ad = pixelAddrText(f, hp.i), a = ad ? ` · ${ad}` : '';
     const d = f._disp;
     hov = `<span class="hov">${esc(f.name)} · px ${hp.i + 1}/${f._n}${a} · rgb ${d[3 * hp.i]},${d[3 * hp.i + 1]},${d[3 * hp.i + 2]}</span>`;
   }

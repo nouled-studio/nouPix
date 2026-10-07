@@ -82,6 +82,15 @@ function addrText(p) {
   const a = addrOf(p.base, p.first), b = addrOf(p.base, p.last);
   return `U ${a.u} · ch ${a.ch}  →  U ${b.u} · ch ${b.ch}`;
 }
+// A pixel's address, as U 1 ch 4–6, or '' when it isn't patched
+function pixelAddrText(f, i) {
+  const p = f._patch;
+  if (!(p && f._out && f._out.lin[i] >= 0)) return '';
+  const a = addrOf(p.base, f._out.lin[i]);
+  return `U ${a.u} ch ${a.ch}–${a.ch + f.order.length - 1}`;
+}
+// The output a patch is on, as shown on the badges: 1, 2… or A1, B2… with more than one controller
+function outLabel(p) { return (project.controllers.length > 1 ? ctrlLetter(p.ctrl) : '') + (p.out + 1); }
 function unassign(fid) {
   for (const c of project.controllers) for (const ch of c.chains) { const i = ch.indexOf(fid); if (i >= 0) ch.splice(i, 1); }
 }
