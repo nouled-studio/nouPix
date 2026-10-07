@@ -1,4 +1,4 @@
-# openLedMapper 0.5.3
+# openLedMapper 0.6.0
 
 <img src="icons/openledmapper-256.png" alt="" width="96" align="right">
 
@@ -43,10 +43,12 @@ On Windows or macOS you can also double-click `start-openledmapper.bat` or `star
 
 Right-click anything for its options.
 
+To see it working before you build anything, open one of the [examples](examples/) (**Project ▾ → Open project…**), or **Project ▾ → Load demo layout**.
+
 ## What it does
 
 - Fixtures: lines, matrices, circles and ovals, straight or curved paths. Fixtures can be grouped, locked, aligned, rotated and resized together, copied and pasted.
-- Content: 32 built-in generators, from very smooth ones for architecture (Color drift, Soft clouds, Horizon, Slow waves) to disco ones (Disco dots, Scanner, Confetti, Color hits, Mirror ball, Equalizer), plus your own ISF shaders, images, video and window capture (for example Resolume's output), in zones with layers and blend modes. Sources are sorted by **mood, use, look and motion** (Calm · Architectural · Organic · Drift, Party · Show · Particles · Beat…), with a search box.
+- Content: 32 built-in generators, from very smooth ones for architecture (Color drift, Soft clouds, Horizon, Slow waves) to disco ones (Disco dots, Scanner, Confetti, Color hits, Mirror ball, Equalizer), plus your own ISF shaders, images, video (trim, loop or play once, with or without its sound) and window capture (for example Resolume's output), in zones with layers and blend modes. Sources are sorted by **mood, use, look and motion** (Calm · Architectural · Organic · Drift, Party · Show · Particles · Beat…), with a search box.
 - Scenes per zone, with crossfades.
 - Art-Net output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
 - The output keeps running when the window is minimised or covered.
@@ -73,12 +75,13 @@ Right-click anything for its options.
 
 ## For developers
 
-- **Interface:** `index.html`.
+- **Interface:** `index.html` (markup), `css/app.css`, and the scripts in `js/`, one per responsibility (model, geometry, patch, sources, render, output, project files, actions, and the panels). [CLAUDE.md](CLAUDE.md) describes the architecture and the conventions. Plain scripts, no build step: the page also opens straight from disk.
 - **Art-Net bridge:** `openledmapper.py` (Python, standard library only).
 - **Desktop app:** an Electron window in `desktop/`, around the interface, with the bridge packed inside.
   - Run it from source with `cd desktop && npm install && npm start`.
-- **Tests:** `python tests/run_tests.py --quick`.
-- **Release:** set `VERSION` in `openledmapper.py`, then push a matching tag (`git tag v0.5.3 && git push origin v0.5.3`). GitHub builds the Windows and Mac apps and attaches them to a release (`.github/workflows/release.yml`).
+- **Tests:** `python tests/run_tests.py --quick` (about 10 minutes), or without `--quick` for everything, including the byte-for-byte Art-Net comparison, a soak test and the UI fuzzer.
+- **Examples:** `examples/`; `python tests/make_examples.py` rebuilds the example projects.
+- **Release:** set `VERSION` in `openledmapper.py`, then push a matching tag (`git tag v0.6.0 && git push origin v0.6.0`). GitHub builds the Windows and Mac apps and attaches them to a release (`.github/workflows/release.yml`).
 
 ## Licence and credits
 
