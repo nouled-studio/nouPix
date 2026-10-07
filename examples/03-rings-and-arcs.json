@@ -1,0 +1,546 @@
+{
+ "format": "openledmapper-project",
+ "version": 3,
+ "name": "Rings and arcs",
+ "settings": {
+  "compW": 1000,
+  "compH": 640,
+  "fps": 40,
+  "gamma": 1,
+  "master": 1,
+  "whiteMode": "off",
+  "artSync": false,
+  "grid": 10,
+  "broadcast": "",
+  "bridgeUrl": "",
+  "transition": 0.5,
+  "fade": 2
+ },
+ "fixtures": [
+  {
+   "id": "lz416h3z",
+   "type": "circle",
+   "name": "Ring 1",
+   "enabled": true,
+   "locked": false,
+   "tag": "#b58cff",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "cx": 200,
+   "cy": 220,
+   "r": 120,
+   "pixels": 72,
+   "start": 0,
+   "sweep": 360,
+   "ccw": false,
+   "group": "wjx1yzmo"
+  },
+  {
+   "id": "8rq2d33t",
+   "type": "circle",
+   "name": "Ring 2",
+   "enabled": true,
+   "locked": false,
+   "tag": "#b58cff",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "cx": 500,
+   "cy": 220,
+   "r": 120,
+   "pixels": 72,
+   "start": 0,
+   "sweep": 360,
+   "ccw": false,
+   "group": "wjx1yzmo"
+  },
+  {
+   "id": "cal3qdg7",
+   "type": "circle",
+   "name": "Ring 3",
+   "enabled": true,
+   "locked": false,
+   "tag": "#b58cff",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "cx": 800,
+   "cy": 220,
+   "r": 120,
+   "pixels": 72,
+   "start": 0,
+   "sweep": 360,
+   "ccw": false,
+   "group": "wjx1yzmo"
+  },
+  {
+   "id": "xj69gs4r",
+   "type": "circle",
+   "name": "Arc 1",
+   "enabled": true,
+   "locked": false,
+   "tag": "#46e08c",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "cx": 350,
+   "cy": 460,
+   "r": 110,
+   "pixels": 40,
+   "start": 270,
+   "sweep": 180,
+   "ccw": false,
+   "group": "67cd9vtu"
+  },
+  {
+   "id": "uwvthn8u",
+   "type": "circle",
+   "name": "Arc 2",
+   "enabled": true,
+   "locked": false,
+   "tag": "#46e08c",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "cx": 650,
+   "cy": 460,
+   "r": 110,
+   "pixels": 40,
+   "start": 270,
+   "sweep": 180,
+   "ccw": true,
+   "group": "67cd9vtu"
+  },
+  {
+   "id": "m9ydre87",
+   "type": "circle",
+   "name": "Oval",
+   "enabled": true,
+   "locked": false,
+   "tag": "#ff6f86",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "cx": 500,
+   "cy": 560,
+   "r": 200,
+   "pixels": 90,
+   "start": 0,
+   "sweep": 360,
+   "ccw": false,
+   "ry": 50
+  },
+  {
+   "id": "rivdw1p3",
+   "type": "circle",
+   "name": "Ring CCW",
+   "enabled": true,
+   "locked": false,
+   "tag": "#6fe3e3",
+   "order": "GRB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "cx": 900,
+   "cy": 520,
+   "r": 70,
+   "pixels": 48,
+   "start": 0,
+   "sweep": 360,
+   "ccw": true
+  }
+ ],
+ "groups": [
+  {
+   "id": "wjx1yzmo",
+   "name": "Rings",
+   "tag": "#b58cff",
+   "open": true
+  },
+  {
+   "id": "67cd9vtu",
+   "name": "Arcs",
+   "tag": "#46e08c",
+   "open": true
+  }
+ ],
+ "controllers": [
+  {
+   "id": "z605sk4g",
+   "name": "Ring controller",
+   "ip": "10.0.0.70",
+   "enabled": true,
+   "outputs": 4,
+   "upo": 2,
+   "startUniverse": 0,
+   "split": false,
+   "chains": [
+    [
+     "lz416h3z",
+     "8rq2d33t",
+     "cal3qdg7"
+    ],
+    [
+     "xj69gs4r",
+     "uwvthn8u"
+    ],
+    [
+     "m9ydre87"
+    ],
+    [
+     "rivdw1p3"
+    ]
+   ]
+  }
+ ],
+ "sources": [
+  {
+   "id": "b-rainbow",
+   "kind": "isf",
+   "builtin": "rainbow",
+   "name": "Rainbow"
+  },
+  {
+   "id": "b-plasma",
+   "kind": "isf",
+   "builtin": "plasma",
+   "name": "Plasma"
+  },
+  {
+   "id": "b-noise",
+   "kind": "isf",
+   "builtin": "noise",
+   "name": "Noise"
+  },
+  {
+   "id": "b-aurora",
+   "kind": "isf",
+   "builtin": "aurora",
+   "name": "Aurora"
+  },
+  {
+   "id": "b-water",
+   "kind": "isf",
+   "builtin": "water",
+   "name": "Water"
+  },
+  {
+   "id": "b-fire",
+   "kind": "isf",
+   "builtin": "fire",
+   "name": "Fire"
+  },
+  {
+   "id": "b-lava",
+   "kind": "isf",
+   "builtin": "lava",
+   "name": "Lava lamp"
+  },
+  {
+   "id": "b-bars",
+   "kind": "isf",
+   "builtin": "bars",
+   "name": "Bars"
+  },
+  {
+   "id": "b-comet",
+   "kind": "isf",
+   "builtin": "comet",
+   "name": "Comet chase"
+  },
+  {
+   "id": "b-wipe",
+   "kind": "isf",
+   "builtin": "wipe",
+   "name": "Color wipe"
+  },
+  {
+   "id": "b-pulse",
+   "kind": "isf",
+   "builtin": "pulse",
+   "name": "Pulse rings"
+  },
+  {
+   "id": "b-sweep",
+   "kind": "isf",
+   "builtin": "sweep",
+   "name": "Radar sweep"
+  },
+  {
+   "id": "b-spiral",
+   "kind": "isf",
+   "builtin": "spiral",
+   "name": "Spiral"
+  },
+  {
+   "id": "b-rain",
+   "kind": "isf",
+   "builtin": "rain",
+   "name": "Rain"
+  },
+  {
+   "id": "b-twinkle",
+   "kind": "isf",
+   "builtin": "twinkle",
+   "name": "Twinkle"
+  },
+  {
+   "id": "b-checker",
+   "kind": "isf",
+   "builtin": "checker",
+   "name": "Checkerboard"
+  },
+  {
+   "id": "b-breathe",
+   "kind": "isf",
+   "builtin": "breathe",
+   "name": "Breathe"
+  },
+  {
+   "id": "b-strobe",
+   "kind": "isf",
+   "builtin": "strobe",
+   "name": "Strobe"
+  },
+  {
+   "id": "b-drift",
+   "kind": "isf",
+   "builtin": "drift",
+   "name": "Color drift"
+  },
+  {
+   "id": "b-clouds",
+   "kind": "isf",
+   "builtin": "clouds",
+   "name": "Soft clouds"
+  },
+  {
+   "id": "b-horizon",
+   "kind": "isf",
+   "builtin": "horizon",
+   "name": "Horizon"
+  },
+  {
+   "id": "b-stars",
+   "kind": "isf",
+   "builtin": "stars",
+   "name": "Starfield"
+  },
+  {
+   "id": "b-waves",
+   "kind": "isf",
+   "builtin": "waves",
+   "name": "Slow waves"
+  },
+  {
+   "id": "b-discodots",
+   "kind": "isf",
+   "builtin": "discodots",
+   "name": "Disco dots"
+  },
+  {
+   "id": "b-scanner",
+   "kind": "isf",
+   "builtin": "scanner",
+   "name": "Scanner"
+  },
+  {
+   "id": "b-confetti",
+   "kind": "isf",
+   "builtin": "confetti",
+   "name": "Confetti"
+  },
+  {
+   "id": "b-hits",
+   "kind": "isf",
+   "builtin": "hits",
+   "name": "Color hits"
+  },
+  {
+   "id": "b-mirrorball",
+   "kind": "isf",
+   "builtin": "mirrorball",
+   "name": "Mirror ball"
+  },
+  {
+   "id": "b-equalizer",
+   "kind": "isf",
+   "builtin": "equalizer",
+   "name": "Equalizer"
+  },
+  {
+   "id": "b-gradient",
+   "kind": "isf",
+   "builtin": "gradient",
+   "name": "Gradient"
+  },
+  {
+   "id": "b-shape",
+   "kind": "isf",
+   "builtin": "shape",
+   "name": "Shape mask"
+  },
+  {
+   "id": "b-solid",
+   "kind": "isf",
+   "builtin": "solid",
+   "name": "Solid color"
+  }
+ ],
+ "zones": [
+  {
+   "id": "j5inrhtt",
+   "name": "All",
+   "tag": "#b58cff",
+   "x": 0,
+   "y": 0,
+   "w": 1000,
+   "h": 640,
+   "opacity": 1,
+   "layers": [
+    {
+     "id": "d62mviho",
+     "src": "b-pulse",
+     "params": {
+      "b-pulse": {
+       "frequency": 6
+      }
+     },
+     "opacity": 1,
+     "blend": "alpha",
+     "on": true
+    }
+   ],
+   "scenes": [
+    {
+     "id": "lk6ktfg6",
+     "name": "Pulse rings",
+     "tag": "#3cc8ff",
+     "fade": 1,
+     "layers": [
+      {
+       "id": "d62mviho",
+       "src": "b-pulse",
+       "params": {
+        "b-pulse": {
+         "frequency": 6
+        }
+       },
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    },
+    {
+     "id": "ql8tuv27",
+     "name": "Radar",
+     "tag": "#b58cff",
+     "fade": 1.5,
+     "layers": [
+      {
+       "id": "8f55b8cc",
+       "src": "b-sweep",
+       "params": {
+        "b-sweep": {
+         "arms": 2
+        }
+       },
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    },
+    {
+     "id": "jwvnqiqi",
+     "name": "Comets",
+     "tag": "#ff6f86",
+     "fade": 1,
+     "layers": [
+      {
+       "id": "gciemstg",
+       "src": "b-comet",
+       "params": {
+        "b-comet": {
+         "mode": 2,
+         "count": 4
+        }
+       },
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    },
+    {
+     "id": "co8qdrhw",
+     "name": "Aurora",
+     "tag": "#6fe3e3",
+     "fade": 4,
+     "layers": [
+      {
+       "id": "p34zswbp",
+       "src": "b-aurora",
+       "params": {},
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    }
+   ],
+   "scene": "lk6ktfg6"
+  }
+ ],
+ "guide": null
+}

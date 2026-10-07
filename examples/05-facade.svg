@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="1000" height="640" viewBox="0 0 1000 640">
+  <!-- An LED layout for a small building front, drawn as it would be in Inkscape or Illustrator.
+       Import it with Project menu > Import SVG…: each line, circle, ellipse, rectangle and path becomes a fixture, and the
+       drawing can stay behind the stage as a guide. Labels (inkscape:label or id) become the fixture names. -->
+  <g fill="none" stroke="#ffb020" stroke-width="3">
+    <!-- the roof line and the two edges of the building -->
+    <path inkscape:label="Roof" d="M 80 200 L 500 40 L 920 200"/>
+    <line id="Edge left" x1="80" y1="200" x2="80" y2="620"/>
+    <line id="Edge right" x1="920" y1="200" x2="920" y2="620"/>
+    <!-- a round window under the roof -->
+    <circle id="Rose window" cx="500" cy="170" r="60"/>
+    <!-- five windows outlined with LED strip -->
+    <rect id="Window 1" x="140" y="260" width="140" height="120"/>
+    <rect id="Window 2" x="430" y="260" width="140" height="120"/>
+    <rect id="Window 3" x="720" y="260" width="140" height="120"/>
+    <rect id="Window 4" x="140" y="440" width="140" height="120"/>
+    <rect id="Window 5" x="720" y="440" width="140" height="120"/>
+    <!-- the arch over the door -->
+    <path id="Door arch" d="M 430 620 L 430 500 A 70 70 0 0 1 570 500 L 570 620"/>
+    <!-- a light in the garden: an ellipse -->
+    <ellipse id="Fountain" cx="500" cy="600" rx="300" ry="18"/>
+  </g>
+</svg>

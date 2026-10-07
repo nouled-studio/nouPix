@@ -1,0 +1,532 @@
+{
+ "format": "openledmapper-project",
+ "version": 3,
+ "name": "Matrix wall",
+ "settings": {
+  "compW": 1280,
+  "compH": 640,
+  "fps": 40,
+  "gamma": 1,
+  "master": 1,
+  "whiteMode": "off",
+  "artSync": false,
+  "grid": 10,
+  "broadcast": "",
+  "bridgeUrl": "",
+  "transition": 0.5,
+  "fade": 2
+ },
+ "fixtures": [
+  {
+   "id": "046lkjv6",
+   "type": "matrix",
+   "name": "Panel A",
+   "enabled": true,
+   "locked": false,
+   "tag": "#3cc8ff",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "cx": 160,
+   "cy": 320,
+   "w": 300,
+   "h": 300,
+   "rot": 0,
+   "cols": 32,
+   "rows": 32,
+   "start": "TL",
+   "dir": "H",
+   "snake": true,
+   "group": "0jegwnr9"
+  },
+  {
+   "id": "re11dju8",
+   "type": "matrix",
+   "name": "Panel B",
+   "enabled": true,
+   "locked": false,
+   "tag": "#ffb341",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "cx": 480,
+   "cy": 320,
+   "w": 300,
+   "h": 300,
+   "rot": 0,
+   "cols": 32,
+   "rows": 32,
+   "start": "TR",
+   "dir": "H",
+   "snake": true,
+   "group": "0jegwnr9"
+  },
+  {
+   "id": "0d1v10wl",
+   "type": "matrix",
+   "name": "Panel C",
+   "enabled": true,
+   "locked": false,
+   "tag": "#b58cff",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "cx": 800,
+   "cy": 320,
+   "w": 300,
+   "h": 300,
+   "rot": 0,
+   "cols": 32,
+   "rows": 32,
+   "start": "TL",
+   "dir": "H",
+   "snake": true,
+   "group": "0jegwnr9"
+  },
+  {
+   "id": "q9d6rj8g",
+   "type": "matrix",
+   "name": "Panel D",
+   "enabled": true,
+   "locked": false,
+   "tag": "#46e08c",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "cx": 1120,
+   "cy": 320,
+   "w": 300,
+   "h": 300,
+   "rot": 0,
+   "cols": 32,
+   "rows": 32,
+   "start": "TR",
+   "dir": "H",
+   "snake": true,
+   "group": "0jegwnr9"
+  }
+ ],
+ "groups": [
+  {
+   "id": "0jegwnr9",
+   "name": "Wall",
+   "tag": "#b58cff",
+   "open": true
+  }
+ ],
+ "controllers": [
+  {
+   "id": "rhq47ero",
+   "name": "Left controller",
+   "ip": "10.0.0.60",
+   "enabled": true,
+   "outputs": 2,
+   "upo": 8,
+   "startUniverse": 0,
+   "split": false,
+   "chains": [
+    [
+     "046lkjv6"
+    ],
+    [
+     "re11dju8"
+    ]
+   ]
+  },
+  {
+   "id": "l10qfb5z",
+   "name": "Right controller",
+   "ip": "10.0.0.61",
+   "enabled": true,
+   "outputs": 2,
+   "upo": 8,
+   "startUniverse": 16,
+   "split": false,
+   "chains": [
+    [
+     "0d1v10wl"
+    ],
+    [
+     "q9d6rj8g"
+    ]
+   ]
+  }
+ ],
+ "sources": [
+  {
+   "id": "b-rainbow",
+   "kind": "isf",
+   "builtin": "rainbow",
+   "name": "Rainbow"
+  },
+  {
+   "id": "b-plasma",
+   "kind": "isf",
+   "builtin": "plasma",
+   "name": "Plasma"
+  },
+  {
+   "id": "b-noise",
+   "kind": "isf",
+   "builtin": "noise",
+   "name": "Noise"
+  },
+  {
+   "id": "b-aurora",
+   "kind": "isf",
+   "builtin": "aurora",
+   "name": "Aurora"
+  },
+  {
+   "id": "b-water",
+   "kind": "isf",
+   "builtin": "water",
+   "name": "Water"
+  },
+  {
+   "id": "b-fire",
+   "kind": "isf",
+   "builtin": "fire",
+   "name": "Fire"
+  },
+  {
+   "id": "b-lava",
+   "kind": "isf",
+   "builtin": "lava",
+   "name": "Lava lamp"
+  },
+  {
+   "id": "b-bars",
+   "kind": "isf",
+   "builtin": "bars",
+   "name": "Bars"
+  },
+  {
+   "id": "b-comet",
+   "kind": "isf",
+   "builtin": "comet",
+   "name": "Comet chase"
+  },
+  {
+   "id": "b-wipe",
+   "kind": "isf",
+   "builtin": "wipe",
+   "name": "Color wipe"
+  },
+  {
+   "id": "b-pulse",
+   "kind": "isf",
+   "builtin": "pulse",
+   "name": "Pulse rings"
+  },
+  {
+   "id": "b-sweep",
+   "kind": "isf",
+   "builtin": "sweep",
+   "name": "Radar sweep"
+  },
+  {
+   "id": "b-spiral",
+   "kind": "isf",
+   "builtin": "spiral",
+   "name": "Spiral"
+  },
+  {
+   "id": "b-rain",
+   "kind": "isf",
+   "builtin": "rain",
+   "name": "Rain"
+  },
+  {
+   "id": "b-twinkle",
+   "kind": "isf",
+   "builtin": "twinkle",
+   "name": "Twinkle"
+  },
+  {
+   "id": "b-checker",
+   "kind": "isf",
+   "builtin": "checker",
+   "name": "Checkerboard"
+  },
+  {
+   "id": "b-breathe",
+   "kind": "isf",
+   "builtin": "breathe",
+   "name": "Breathe"
+  },
+  {
+   "id": "b-strobe",
+   "kind": "isf",
+   "builtin": "strobe",
+   "name": "Strobe"
+  },
+  {
+   "id": "b-drift",
+   "kind": "isf",
+   "builtin": "drift",
+   "name": "Color drift"
+  },
+  {
+   "id": "b-clouds",
+   "kind": "isf",
+   "builtin": "clouds",
+   "name": "Soft clouds"
+  },
+  {
+   "id": "b-horizon",
+   "kind": "isf",
+   "builtin": "horizon",
+   "name": "Horizon"
+  },
+  {
+   "id": "b-stars",
+   "kind": "isf",
+   "builtin": "stars",
+   "name": "Starfield"
+  },
+  {
+   "id": "b-waves",
+   "kind": "isf",
+   "builtin": "waves",
+   "name": "Slow waves"
+  },
+  {
+   "id": "b-discodots",
+   "kind": "isf",
+   "builtin": "discodots",
+   "name": "Disco dots"
+  },
+  {
+   "id": "b-scanner",
+   "kind": "isf",
+   "builtin": "scanner",
+   "name": "Scanner"
+  },
+  {
+   "id": "b-confetti",
+   "kind": "isf",
+   "builtin": "confetti",
+   "name": "Confetti"
+  },
+  {
+   "id": "b-hits",
+   "kind": "isf",
+   "builtin": "hits",
+   "name": "Color hits"
+  },
+  {
+   "id": "b-mirrorball",
+   "kind": "isf",
+   "builtin": "mirrorball",
+   "name": "Mirror ball"
+  },
+  {
+   "id": "b-equalizer",
+   "kind": "isf",
+   "builtin": "equalizer",
+   "name": "Equalizer"
+  },
+  {
+   "id": "b-gradient",
+   "kind": "isf",
+   "builtin": "gradient",
+   "name": "Gradient"
+  },
+  {
+   "id": "b-shape",
+   "kind": "isf",
+   "builtin": "shape",
+   "name": "Shape mask"
+  },
+  {
+   "id": "b-solid",
+   "kind": "isf",
+   "builtin": "solid",
+   "name": "Solid color"
+  }
+ ],
+ "zones": [
+  {
+   "id": "z43fyaj8",
+   "name": "Whole wall",
+   "tag": "#b58cff",
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 640,
+   "opacity": 1,
+   "layers": [
+    {
+     "id": "kqfc85jr",
+     "src": "b-spiral",
+     "params": {
+      "b-spiral": {
+       "rainbow": true,
+       "arms": 3
+      }
+     },
+     "opacity": 1,
+     "blend": "alpha",
+     "on": true
+    }
+   ],
+   "scenes": [
+    {
+     "id": "t2dp2wc4",
+     "name": "Spiral",
+     "tag": "#ff6f86",
+     "fade": 2,
+     "layers": [
+      {
+       "id": "kqfc85jr",
+       "src": "b-spiral",
+       "params": {
+        "b-spiral": {
+         "rainbow": true,
+         "arms": 3
+        }
+       },
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    },
+    {
+     "id": "5q1d8jo7",
+     "name": "Mirror ball",
+     "tag": "#e8d56a",
+     "fade": 2,
+     "layers": [
+      {
+       "id": "p2bwr03p",
+       "src": "b-mirrorball",
+       "params": {},
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    },
+    {
+     "id": "09y0oj3j",
+     "name": "Lava",
+     "tag": "#ffb341",
+     "fade": 3,
+     "layers": [
+      {
+       "id": "kainfdxt",
+       "src": "b-lava",
+       "params": {},
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    },
+    {
+     "id": "736dwzfx",
+     "name": "Plasma + stars",
+     "tag": "#3cc8ff",
+     "fade": 2,
+     "layers": [
+      {
+       "id": "m6i9eria",
+       "src": "b-plasma",
+       "params": {},
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      },
+      {
+       "id": "8cquqmcb",
+       "src": "b-stars",
+       "params": {},
+       "opacity": 0.8,
+       "blend": "add",
+       "on": true
+      }
+     ]
+    }
+   ],
+   "scene": "t2dp2wc4"
+  },
+  {
+   "id": "fcysf3uj",
+   "name": "Panel B only",
+   "tag": "#ffb341",
+   "x": 330,
+   "y": 170,
+   "w": 300,
+   "h": 300,
+   "opacity": 0,
+   "layers": [
+    {
+     "id": "b2m86ab9",
+     "src": "b-checker",
+     "params": {
+      "b-checker": {
+       "size": 0.25
+      }
+     },
+     "opacity": 1,
+     "blend": "alpha",
+     "on": true
+    }
+   ],
+   "scenes": [
+    {
+     "id": "jdbojq7e",
+     "name": "Checker",
+     "tag": "#46e08c",
+     "fade": 1,
+     "layers": [
+      {
+       "id": "b2m86ab9",
+       "src": "b-checker",
+       "params": {
+        "b-checker": {
+         "size": 0.25
+        }
+       },
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    }
+   ],
+   "scene": "jdbojq7e"
+  }
+ ],
+ "guide": null
+}

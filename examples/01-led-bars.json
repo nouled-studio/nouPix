@@ -1,0 +1,688 @@
+{
+ "format": "openledmapper-project",
+ "version": 3,
+ "name": "LED bars",
+ "settings": {
+  "compW": 1000,
+  "compH": 640,
+  "fps": 40,
+  "gamma": 1,
+  "master": 1,
+  "whiteMode": "off",
+  "artSync": false,
+  "grid": 10,
+  "broadcast": "",
+  "bridgeUrl": "",
+  "transition": 0.5,
+  "fade": 2
+ },
+ "fixtures": [
+  {
+   "id": "brlo8yk4",
+   "type": "line",
+   "name": "Bar 1",
+   "enabled": true,
+   "locked": false,
+   "tag": "#3cc8ff",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 115,
+   "y1": 560,
+   "x2": 115,
+   "y2": 80,
+   "pixels": 60,
+   "group": "xawody82"
+  },
+  {
+   "id": "ox9uww1g",
+   "type": "line",
+   "name": "Bar 2",
+   "enabled": true,
+   "locked": false,
+   "tag": "#3cc8ff",
+   "order": "RGB",
+   "reverse": true,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 185,
+   "y1": 560,
+   "x2": 185,
+   "y2": 80,
+   "pixels": 60,
+   "group": "xawody82"
+  },
+  {
+   "id": "7i6i3kp6",
+   "type": "line",
+   "name": "Bar 3",
+   "enabled": true,
+   "locked": false,
+   "tag": "#3cc8ff",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 255,
+   "y1": 560,
+   "x2": 255,
+   "y2": 80,
+   "pixels": 60,
+   "group": "xawody82"
+  },
+  {
+   "id": "aipxjpul",
+   "type": "line",
+   "name": "Bar 4",
+   "enabled": true,
+   "locked": false,
+   "tag": "#3cc8ff",
+   "order": "RGB",
+   "reverse": true,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 325,
+   "y1": 560,
+   "x2": 325,
+   "y2": 80,
+   "pixels": 60,
+   "group": "xawody82"
+  },
+  {
+   "id": "rbaj1yws",
+   "type": "line",
+   "name": "Bar 5",
+   "enabled": true,
+   "locked": false,
+   "tag": "#3cc8ff",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 395,
+   "y1": 560,
+   "x2": 395,
+   "y2": 80,
+   "pixels": 60,
+   "group": "xawody82"
+  },
+  {
+   "id": "56aoulpz",
+   "type": "line",
+   "name": "Bar 6",
+   "enabled": true,
+   "locked": false,
+   "tag": "#3cc8ff",
+   "order": "RGB",
+   "reverse": true,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 465,
+   "y1": 560,
+   "x2": 465,
+   "y2": 80,
+   "pixels": 60,
+   "group": "xawody82"
+  },
+  {
+   "id": "l91m6d6a",
+   "type": "line",
+   "name": "Bar 7",
+   "enabled": true,
+   "locked": false,
+   "tag": "#ffb341",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 535,
+   "y1": 560,
+   "x2": 535,
+   "y2": 80,
+   "pixels": 60,
+   "group": "ie3cp3am"
+  },
+  {
+   "id": "6buwzpaf",
+   "type": "line",
+   "name": "Bar 8",
+   "enabled": true,
+   "locked": false,
+   "tag": "#ffb341",
+   "order": "RGB",
+   "reverse": true,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 605,
+   "y1": 560,
+   "x2": 605,
+   "y2": 80,
+   "pixels": 60,
+   "group": "ie3cp3am"
+  },
+  {
+   "id": "pjbfekas",
+   "type": "line",
+   "name": "Bar 9",
+   "enabled": true,
+   "locked": false,
+   "tag": "#ffb341",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 675,
+   "y1": 560,
+   "x2": 675,
+   "y2": 80,
+   "pixels": 60,
+   "group": "ie3cp3am"
+  },
+  {
+   "id": "3e8xldza",
+   "type": "line",
+   "name": "Bar 10",
+   "enabled": true,
+   "locked": false,
+   "tag": "#ffb341",
+   "order": "RGB",
+   "reverse": true,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 745,
+   "y1": 560,
+   "x2": 745,
+   "y2": 80,
+   "pixels": 60,
+   "group": "ie3cp3am"
+  },
+  {
+   "id": "gjayxxqv",
+   "type": "line",
+   "name": "Bar 11",
+   "enabled": true,
+   "locked": false,
+   "tag": "#ffb341",
+   "order": "RGB",
+   "reverse": false,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 815,
+   "y1": 560,
+   "x2": 815,
+   "y2": 80,
+   "pixels": 60,
+   "group": "ie3cp3am"
+  },
+  {
+   "id": "31inkv8e",
+   "type": "line",
+   "name": "Bar 12",
+   "enabled": true,
+   "locked": false,
+   "tag": "#ffb341",
+   "order": "RGB",
+   "reverse": true,
+   "dimmer": 1,
+   "trim": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "gamma": 1,
+   "x1": 885,
+   "y1": 560,
+   "x2": 885,
+   "y2": 80,
+   "pixels": 60,
+   "group": "ie3cp3am"
+  }
+ ],
+ "groups": [
+  {
+   "id": "xawody82",
+   "name": "Left",
+   "tag": "#3cc8ff",
+   "open": true
+  },
+  {
+   "id": "ie3cp3am",
+   "name": "Right",
+   "tag": "#ffb341",
+   "open": true
+  }
+ ],
+ "controllers": [
+  {
+   "id": "0xgv7bss",
+   "name": "Bar controller",
+   "ip": "10.0.0.50",
+   "enabled": true,
+   "outputs": 4,
+   "upo": 2,
+   "startUniverse": 0,
+   "split": false,
+   "chains": [
+    [
+     "brlo8yk4",
+     "ox9uww1g",
+     "7i6i3kp6"
+    ],
+    [
+     "aipxjpul",
+     "rbaj1yws",
+     "56aoulpz"
+    ],
+    [
+     "l91m6d6a",
+     "6buwzpaf",
+     "pjbfekas"
+    ],
+    [
+     "3e8xldza",
+     "gjayxxqv",
+     "31inkv8e"
+    ]
+   ]
+  }
+ ],
+ "sources": [
+  {
+   "id": "b-rainbow",
+   "kind": "isf",
+   "builtin": "rainbow",
+   "name": "Rainbow"
+  },
+  {
+   "id": "b-plasma",
+   "kind": "isf",
+   "builtin": "plasma",
+   "name": "Plasma"
+  },
+  {
+   "id": "b-noise",
+   "kind": "isf",
+   "builtin": "noise",
+   "name": "Noise"
+  },
+  {
+   "id": "b-aurora",
+   "kind": "isf",
+   "builtin": "aurora",
+   "name": "Aurora"
+  },
+  {
+   "id": "b-water",
+   "kind": "isf",
+   "builtin": "water",
+   "name": "Water"
+  },
+  {
+   "id": "b-fire",
+   "kind": "isf",
+   "builtin": "fire",
+   "name": "Fire"
+  },
+  {
+   "id": "b-lava",
+   "kind": "isf",
+   "builtin": "lava",
+   "name": "Lava lamp"
+  },
+  {
+   "id": "b-bars",
+   "kind": "isf",
+   "builtin": "bars",
+   "name": "Bars"
+  },
+  {
+   "id": "b-comet",
+   "kind": "isf",
+   "builtin": "comet",
+   "name": "Comet chase"
+  },
+  {
+   "id": "b-wipe",
+   "kind": "isf",
+   "builtin": "wipe",
+   "name": "Color wipe"
+  },
+  {
+   "id": "b-pulse",
+   "kind": "isf",
+   "builtin": "pulse",
+   "name": "Pulse rings"
+  },
+  {
+   "id": "b-sweep",
+   "kind": "isf",
+   "builtin": "sweep",
+   "name": "Radar sweep"
+  },
+  {
+   "id": "b-spiral",
+   "kind": "isf",
+   "builtin": "spiral",
+   "name": "Spiral"
+  },
+  {
+   "id": "b-rain",
+   "kind": "isf",
+   "builtin": "rain",
+   "name": "Rain"
+  },
+  {
+   "id": "b-twinkle",
+   "kind": "isf",
+   "builtin": "twinkle",
+   "name": "Twinkle"
+  },
+  {
+   "id": "b-checker",
+   "kind": "isf",
+   "builtin": "checker",
+   "name": "Checkerboard"
+  },
+  {
+   "id": "b-breathe",
+   "kind": "isf",
+   "builtin": "breathe",
+   "name": "Breathe"
+  },
+  {
+   "id": "b-strobe",
+   "kind": "isf",
+   "builtin": "strobe",
+   "name": "Strobe"
+  },
+  {
+   "id": "b-drift",
+   "kind": "isf",
+   "builtin": "drift",
+   "name": "Color drift"
+  },
+  {
+   "id": "b-clouds",
+   "kind": "isf",
+   "builtin": "clouds",
+   "name": "Soft clouds"
+  },
+  {
+   "id": "b-horizon",
+   "kind": "isf",
+   "builtin": "horizon",
+   "name": "Horizon"
+  },
+  {
+   "id": "b-stars",
+   "kind": "isf",
+   "builtin": "stars",
+   "name": "Starfield"
+  },
+  {
+   "id": "b-waves",
+   "kind": "isf",
+   "builtin": "waves",
+   "name": "Slow waves"
+  },
+  {
+   "id": "b-discodots",
+   "kind": "isf",
+   "builtin": "discodots",
+   "name": "Disco dots"
+  },
+  {
+   "id": "b-scanner",
+   "kind": "isf",
+   "builtin": "scanner",
+   "name": "Scanner"
+  },
+  {
+   "id": "b-confetti",
+   "kind": "isf",
+   "builtin": "confetti",
+   "name": "Confetti"
+  },
+  {
+   "id": "b-hits",
+   "kind": "isf",
+   "builtin": "hits",
+   "name": "Color hits"
+  },
+  {
+   "id": "b-mirrorball",
+   "kind": "isf",
+   "builtin": "mirrorball",
+   "name": "Mirror ball"
+  },
+  {
+   "id": "b-equalizer",
+   "kind": "isf",
+   "builtin": "equalizer",
+   "name": "Equalizer"
+  },
+  {
+   "id": "b-gradient",
+   "kind": "isf",
+   "builtin": "gradient",
+   "name": "Gradient"
+  },
+  {
+   "id": "b-shape",
+   "kind": "isf",
+   "builtin": "shape",
+   "name": "Shape mask"
+  },
+  {
+   "id": "b-solid",
+   "kind": "isf",
+   "builtin": "solid",
+   "name": "Solid color"
+  }
+ ],
+ "zones": [
+  {
+   "id": "zz5zrduy",
+   "name": "Bars",
+   "tag": "#ffb341",
+   "x": 0,
+   "y": 0,
+   "w": 1000,
+   "h": 640,
+   "opacity": 1,
+   "layers": [
+    {
+     "id": "3u9o8hbl",
+     "src": "b-scanner",
+     "params": {
+      "b-scanner": {
+       "count": 2,
+       "angle": 0,
+       "rainbow": true
+      }
+     },
+     "opacity": 1,
+     "blend": "alpha",
+     "on": true
+    }
+   ],
+   "scenes": [
+    {
+     "id": "cqr1fb2s",
+     "name": "Scanner",
+     "tag": "#3cc8ff",
+     "fade": 1,
+     "layers": [
+      {
+       "id": "3u9o8hbl",
+       "src": "b-scanner",
+       "params": {
+        "b-scanner": {
+         "count": 2,
+         "angle": 0,
+         "rainbow": true
+        }
+       },
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    },
+    {
+     "id": "7f8co8xq",
+     "name": "Rain",
+     "tag": "#6fe3e3",
+     "fade": 2,
+     "layers": [
+      {
+       "id": "6extnljp",
+       "src": "b-rain",
+       "params": {
+        "b-rain": {
+         "angle": 90,
+         "color": [
+          0.3,
+          0.7,
+          1,
+          1
+         ]
+        }
+       },
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    },
+    {
+     "id": "qfk90lyh",
+     "name": "Equalizer",
+     "tag": "#ff6f86",
+     "fade": 0.5,
+     "layers": [
+      {
+       "id": "zc2al6f6",
+       "src": "b-equalizer",
+       "params": {
+        "b-equalizer": {
+         "count": 12,
+         "angle": 90
+        }
+       },
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    },
+    {
+     "id": "a56zq89y",
+     "name": "Fire",
+     "tag": "#ffb341",
+     "fade": 3,
+     "layers": [
+      {
+       "id": "du6cfbk8",
+       "src": "b-fire",
+       "params": {},
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    },
+    {
+     "id": "cormj8q6",
+     "name": "Strobe hit",
+     "tag": "#e8d56a",
+     "fade": 0,
+     "layers": [
+      {
+       "id": "94b7dv6x",
+       "src": "b-strobe",
+       "params": {
+        "b-strobe": {
+         "rate": 10
+        }
+       },
+       "opacity": 1,
+       "blend": "alpha",
+       "on": true
+      }
+     ]
+    }
+   ],
+   "scene": "cqr1fb2s"
+  }
+ ],
+ "guide": null
+}
