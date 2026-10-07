@@ -431,6 +431,11 @@ def network_interfaces():
     return sorted(nets, key=lambda n: n["ip"])
 
 
+# The interface's styles and scripts: only files in css/ and js/ (and js/vendor/), named plainly, so nothing else is served
+STATIC = re.compile(r"^/(?:css|js|js/vendor)/[A-Za-z0-9_-]+\.(css|js)$")
+STATIC_TYPES = {"css": "text/css; charset=utf-8", "js": "text/javascript; charset=utf-8"}
+
+
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = "openLedMapper/" + VERSION
     protocol_version = "HTTP/1.1"
@@ -446,6 +451,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.send_file(os.path.join(HERE, "icons", "openledmapper.ico"), "image/x-icon")
         if path in ("/", "/index.html"):
             return self.send_file(os.path.join(HERE, "index.html"), "text/html; charset=utf-8")
+        m = STATIC.match(path)
+        if m:
+            return self.send_file(os.path.join(HERE, *path.lstrip("/").split("/")), STATIC_TYPES[m.group(1)])
         self.send_error(404)
 
     def send_file(self, fn, ctype):

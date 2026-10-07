@@ -61,7 +61,7 @@ jobs:
           pid=$!
           ok=
           for i in $(seq 1 30); do
-            if curl -fsS -o page.html http://127.0.0.1:8080/ && grep -q "<title>" page.html; then ok=1; break; fi
+            if curl -fsS -o page.html http://127.0.0.1:8080/ && grep -q "<title>" page.html && curl -fsS -o app.js http://127.0.0.1:8080/js/app.js; then ok=1; break; fi
             sleep 1
           done
           if [ "$RUNNER_OS" = Windows ]; then taskkill //IM openledmapper-bridge.exe //F; else kill "$pid"; fi
@@ -98,7 +98,7 @@ jobs:
           pid=$!
           up=
           for i in $(seq 1 60); do
-            if curl -fsS -o page.html http://127.0.0.1:8080/ && grep -q "<title>" page.html; then up=1; break; fi
+            if curl -fsS -o page.html http://127.0.0.1:8080/ && grep -q "<title>" page.html && curl -fsS -o app.js http://127.0.0.1:8080/js/app.js; then up=1; break; fi
             sleep 1
           done
           if [ "$RUNNER_OS" = Windows ]; then taskkill //IM openLedMapper.exe //F || true; else kill -9 "$pid" || true; fi
