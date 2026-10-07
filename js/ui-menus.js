@@ -268,7 +268,7 @@ function controllerMenu(e, c) {
     [c.enabled ? 'Turn its output off' : 'Turn its output on', () => { c.enabled = !c.enabled; markPatch(); commit(); }],
     ['Unpatch all its fixtures', () => { c.chains = c.chains.map(() => []); markPatch(); commit(); renderRight(); toast(`${n} fixtures unpatched from ${c.name}. ${MOD}Z brings them back.`); }, { disabled: !n }],
     '-',
-    ['Delete controller', () => { project.controllers = project.controllers.filter(x => x !== c); ui.selCtrl = null; markPatch(); commit(); renderRight(); toast(`${c.name} deleted. ${MOD}Z brings it back.`); }, { danger: true }],
+    ['Delete controller', () => deleteController(c), { danger: true }],
   ]);
 }
 function chipMenu(e, fid, c, o) {

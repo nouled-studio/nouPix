@@ -180,12 +180,8 @@ function renderCtrlEditor(edit, c) {
   ipIn.classList.toggle('bad', !parseIP(c.ip));
   // Delete takes a double-click, so a stray click can't remove a controller and its patch
   const del = h('button', { class: 'btn icon trash', type: 'button', title: 'Delete this controller (double-click)', 'aria-label': 'Delete controller ' + c.name }, icon('trash'));
-  del.addEventListener('click', e => { if (e.detail === 1) toast('Double-click the bin to delete ' + c.name + '. Ctrl Z brings it back.'); });
-  del.addEventListener('dblclick', () => {
-    project.controllers = project.controllers.filter(x => x !== c);
-    ui.selCtrl = null; markPatch(); commit(); renderRight();
-    toast(c.name + ' deleted. Ctrl Z brings it back.');
-  });
+  del.addEventListener('click', e => { if (e.detail === 1) toast(`Double-click the bin to delete ${c.name}. ${MOD}Z brings it back.`); });
+  del.addEventListener('dblclick', () => deleteController(c));
   const onStruct = () => {
     const before = c.chains.flat().length;
     ensureChains(c);

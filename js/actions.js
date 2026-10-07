@@ -164,6 +164,14 @@ function removeLayer(z, L) {
   syncMedia(); commit(); renderRight(); renderSrcList();
 }
 
+/* ---------- controllers ---------- */
+// The fixtures on it become unpatched; undo brings it back
+function deleteController(c) {
+  project.controllers = project.controllers.filter(x => x !== c);
+  ui.selCtrl = null; markPatch(); commit(); renderRight();
+  toast(`${c.name} deleted. ${MOD}Z brings it back.`);
+}
+
 /* ---------- the selection ---------- */
 function deleteSel() {
   const ids = new Set(ui.sel);
