@@ -320,9 +320,9 @@ function classifyShape(P, pitch, label) {
     if (r > 0.5 && (rmax - rmin) / r < 0.04) {
       const ang = i => Math.atan2(P[2 * i] - cx, -(P[2 * i + 1] - cy)) * 180 / Math.PI;
       let sweep = 0;
-      for (let i = 1; i < n; i++) { let d = ang(i) - ang(i - 1); d = ((d + 540) % 360) - 180; sweep += d; }
+      for (let i = 1; i < n; i++) { let d = ang(i) - ang(i - 1); d = wrap180(d); sweep += d; }
       const full = closed || Math.abs(sweep) > 355;
-      const f = newFixture('circle', { cx, cy, r, start: ((ang(0) % 360) + 360) % 360, sweep: full ? 360 : Math.abs(sweep), ccw: sweep < 0 });
+      const f = newFixture('circle', { cx, cy, r, start: wrap360(ang(0)), sweep: full ? 360 : Math.abs(sweep), ccw: sweep < 0 });
       f.pixels = Math.max(3, Math.round(fixtureLength(f) / pitch) + (full ? 0 : 1));
       if (label) f.name = label;
       return f;
@@ -337,8 +337,8 @@ function classifyShape(P, pitch, label) {
       if (rx > 0.5 && ry > 0.5 && worst < 0.03) {
         const ang = i => Math.atan2((P[2 * i] - ox) / rx, -(P[2 * i + 1] - oy) / ry) * 180 / Math.PI;
         let turn = 0;
-        for (let i = 1; i < n; i++) { let d = ang(i) - ang(i - 1); d = ((d + 540) % 360) - 180; turn += d; }
-        const f = newFixture('circle', { cx: ox, cy: oy, r: rx, ry, start: ((ang(0) % 360) + 360) % 360, sweep: 360, ccw: turn < 0 });
+        for (let i = 1; i < n; i++) { let d = ang(i) - ang(i - 1); d = wrap180(d); turn += d; }
+        const f = newFixture('circle', { cx: ox, cy: oy, r: rx, ry, start: wrap360(ang(0)), sweep: 360, ccw: turn < 0 });
         f.pixels = Math.max(3, Math.round(fixtureLength(f) / pitch));
         if (label) f.name = label;
         return f;

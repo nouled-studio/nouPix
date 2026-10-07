@@ -26,6 +26,7 @@ const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 const uid = () => Math.random().toString(36).slice(2, 10);
 const rad = d => d * Math.PI / 180;
 const wrap180 = a => ((a % 360) + 540) % 360 - 180;   // an angle in degrees, as -180 to 180
+const wrap360 = a => ((a % 360) + 360) % 360;         // an angle in degrees, as 0 to 360
 const fmtN = n => Math.round(n).toLocaleString('en-US');
 const fmtV = v => (Number.isInteger(v) ? String(v) : String(Math.round(v * 100) / 100));
 function parseIP(s) {
