@@ -1,6 +1,6 @@
 # Builds the openLedMapper desktop apps (Windows, macOS Apple silicon, macOS Intel): the Art-Net bridge is packed
 # with PyInstaller (openledmapper.spec), then wrapped with the interface window in an Electron app (desktop/).
-#   - Push a tag named after the version in openledmapper.py (git tag v0.6.0 && git push origin v0.6.0):
+#   - Push a tag named after the version in openledmapper.py (git tag v0.6.1 && git push origin v0.6.1):
 #     the apps are built, tested and attached to a new GitHub release.
 #   - Or run it by hand from the Actions tab: the apps are built and kept as run artifacts, no release.
 name: Build apps
