@@ -8,6 +8,8 @@ bridge packed inside.
 index.html, css/, js/  ── the interface (browser): fixtures, content, scenes, patch; renders and builds DMX
         │  WebSocket /ws: JSON messages + binary frames of universes
 openledmapper.py       ── the bridge (Python 3.8+, standard library only): serves the page, sends Art-Net
+        │  with remote control on: a second web server on the network (default port 8090)
+login.html, remote.html── what other devices open: the login page, and the phone page; /app is index.html
 desktop/               ── Electron window that starts the bridge and loads http://127.0.0.1:<port>/
 ```
 
@@ -28,6 +30,7 @@ order by `<script src>` tags at the end of `index.html`:
 | `render.js` | The GPU mixer (zones, layers, blend modes), looks and fades, sampling the composition at every pixel, highlight and test patterns | `mixer` `renderContent` `loadSource` `startFade` `sampleMix` `testPattern` `setHighlight` |
 | `output.js` | Gamma, sampled colours to DMX channels, the outgoing frame, the clock, the bridge connection | `buildOutput` `layoutFrame` `sendFrame` `tick` `startClock` `connectBridge` `bridge` |
 | `project-io.js` | Project files: repairing what is opened, undo history, autosave, open/save, CSV, SVG import, the demo | `hydrate` `serialize` `commit` `commitSoft` `undo` `redo` `loadProject` `importSvg` `demoProject` |
+| `remote.js` | Remote control: the host side (configure the bridge, send the project and the phones' state, apply devices' changes by role) and the client side (this page opened on a device at `/app`) | `remote` `REMOTE_CLIENT` `mappingLocked` `remoteChanged` `remoteFromDevice` `contentOf` `connectRemote` `remoteOp` |
 | `actions.js` | What the user can do, whichever button, key or menu asks: fixtures, selection, align/turn/resize, copy and paste, zones, layers, scenes, controllers, adding sources from files | `addFixture` `deleteSel` `duplicateSel` `groupSel` `alignSel` `rotateSel` `pasteFixtures` `addZone` `addLayer` `goScene` `storeScene` `deleteController` |
 | `ui-forms.js` | Building blocks for the panels: rows, inputs, segmented buttons, lists that reorder by dragging and their move animation | `row` `numRow` `sliderRow` `seg` `checkRow` `reorderable` `flipRows` |
 | `ui-color.js` | The colour picker for shader colour controls: wheel and intensity, RGB, HSV, hex, lighting presets, recent colours | `colorRow` `openColorPicker` `hsvToRgb` `rgbToHsv` |
@@ -36,6 +39,7 @@ order by `<script src>` tags at the end of `index.html`:
 | `ui-inspector.js` | The right panel: fixture, multi-selection, group and zone inspectors, Content tab, video controls, Settings | `renderRight` `onSelection` `showRight` |
 | `ui-dock.js` | The bottom dock: scenes, patch and controller editor, Art-Net nodes, DMX monitor | `renderDock` `onPatchChanged` `refreshScenes` `autoPatch` |
 | `ui-menus.js` | The menu system and every menu, the SVG import dialog, copy/cut/paste keys | `menu` `fixtureMenu` `canvasMenu` `projectMenu` … |
+| `ui-remote.js` | Remote control in the interface: the top-bar button and menu, the Settings section, the waiting screen on devices, `lockPanel` for operators | `updateRemoteUI` `remoteMenu` `remoteSection` `remoteOverlay` `lockPanel` |
 | `app.js` | Top bar and status bar, wiring buttons and keys, the frame loop, `boot()`, and `window.olm` | `initUI` `onKey` `renderAll` `boot` |
 
 ### How the files fit together
@@ -47,13 +51,15 @@ order by `<script src>` tags at the end of `index.html`:
   stage canvas and the document, the autosave timer) may only use what earlier files define. Everything else runs
   later, after `boot()` at the end of `app.js`, when all files are there. A function used at load time from an
   earlier file doesn't exist yet: functions are only hoisted within their own file.
-- **Layers.** The engine is `util → model → geometry → patch → sources → render → output → project-io`; each
+- **Layers.** The engine is `util → model → geometry → patch → sources → render → output → project-io → remote`; each
   uses only the ones before it, with one exception: `computePatch` ends with `layoutFrame` (output.js) so the
   outgoing frame matches the new patch. The UI is `actions → ui-forms → ui-color, ui-stage, ui-lists, ui-inspector,
   ui-dock, ui-menus → app`; UI files use any engine file and each other.
 - **The engine calls the UI only to redraw**, through these: `renderAll`, `renderRight`, `renderDock`,
   `onPatchChanged`, `renderFxList`, `renderSrcList`, `refreshScenes`, `updateUndoButtons`, `updateBridgeUI`,
-  `updateHighlightUI`, `showVersion`, `keepAwake`, `loadGuide`. Keep it to that list.
+  `updateHighlightUI`, `showVersion`, `keepAwake`, `loadGuide`, and for remote control `updateRemoteUI`,
+  `remoteOverlay`, `redrawStage`. Keep it to that list. (`remote.js` also calls the actions it carries out for
+  devices: `goScene`, `setZoneOpacity`, `toggleBlackout`.)
 - **Not strict mode.** The scripts run without `'use strict'`, as the app always has. Don't add the directive to a
   file without testing everything: it changes what some code does.
 
@@ -77,11 +83,33 @@ Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimatio
   default there.
 - `ui` holds view and selection state; the part listed in `UI_PREFS` is kept between sessions (`savePrefs`).
 
+## Remote control
+
+- **Servers:** the local server (`/`, `/ws`) is only reachable from this computer. With remote control on, the
+  bridge's `Remote` class opens a second server on all network cards that serves `login.html` (`/`), `index.html`
+  (`/app`), `remote.html` (`/remote`), the css/js files, `POST /login`, `/info`, and the devices' WebSocket `/rws`.
+- **Roles:** `POST /login` gives a token for a role: `programmer` (password, compared in constant time, wrong ones
+  slowed and locked out per address), `operator` or `remote`. The bridge passes every device message to the main
+  window as `{t: 'rmsg', cid, role, m}`. The role comes from the token, never from the device.
+- **The main window decides** (`remoteFromDevice`): `remote` may only play scenes and set zone levels; `operator` and
+  `programmer` also the master and blackout, and send their whole project. An operator's project goes through
+  `contentOf`, which keeps everything but the zones' layers, scenes and levels and the shaders. A programmer's
+  replaces the project. The main window then sends the result to every device (`remoteChanged`, after every
+  `pushHistory` and `restore`).
+- **A device** (`REMOTE_CLIENT`, the page at `/app`) loads nothing from local storage and saves nothing. It sends its
+  project after changes, with a sequence number. It applies the main window's copy only when that copy has its last
+  change (`acks`), and not while the user drags or types. Scene changes and zone levels also go as small operations
+  (`remoteOp`), so the main window fades and dims live. A device never sends Art-Net (`setOutput` does nothing),
+  and can't add files or screen capture.
+- **The operator's lock** is in the interface (`mappingLocked()`: stage, keys, menus, lists, `lockPanel`) for
+  convenience, and in `contentOf` for real.
+
 ## The bridge (openledmapper.py)
 
 Python standard library only. Serves `/` and `/index.html`, plain-named files in `css/`, `js/` and `js/vendor/`
-(nothing else), and the WebSocket at `/ws`. The page sends binary frames (`layoutFrame` in output.js describes
-the layout) that the bridge turns into Art-Net packets, plus JSON messages (discovery polls, settings). `VERSION`
+(nothing else), and the WebSocket at `/ws`; with remote control on, the network server described above. The
+page sends binary frames (`layoutFrame` in output.js describes the layout) that the bridge turns into Art-Net
+packets, plus JSON messages (discovery polls, settings, remote control). `VERSION`
 is the app's version; it shows next to the name in the top bar. `openledmapper.spec` packs the bridge and the
 interface files for the desktop apps; `.github/workflows/release.yml` builds them when a `v<VERSION>` tag is
 pushed.
@@ -107,4 +135,6 @@ everything, including `golden` (the Art-Net bytes of fixed projects must stay id
 fuzzer. Tests drive the page with Playwright through the bridge, and use the global functions and `window.olm`
 (app.js), so keep those names working. Each suite is a script in `tests/` that prints PASS/FAIL lines and
 `FAILED: none`; add new ones to `SUITES` in `run_tests.py`. `tests/make_examples.py` rebuilds the projects in
-`examples/` with the app itself and checks every example file.
+`examples/` with the app itself and checks every example file. `test_remote.py` checks remote control end to end
+(roles, permissions, phone page, disconnects); `test_remote_soak.py` (full run only) runs 400 mixed changes from
+several devices and checks they all end equal.

@@ -52,6 +52,7 @@ To see it working before you build anything, open one of the [examples](examples
 - Scenes per zone, with crossfades.
 - Art-Net output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
 - The output keeps running when the window is minimised or covered.
+- **Remote control:** phones, tablets and other computers on the network log in as Programmer (everything, with a password), Operator (content and scenes; the mapping is locked) or Remote, a simple page that plays the scenes of each zone and dims the zones.
 - Projects save to a file. You can also export a CSV patch list for the install crew.
 
 ## Shortcuts
@@ -76,7 +77,7 @@ To see it working before you build anything, open one of the [examples](examples
 ## For developers
 
 - **Interface:** `index.html` (markup), `css/app.css`, and the scripts in `js/`, one per responsibility (model, geometry, patch, sources, render, output, project files, actions, and the panels). [CLAUDE.md](CLAUDE.md) describes the architecture and the conventions. Plain scripts, no build step: the page also opens straight from disk.
-- **Art-Net bridge:** `openledmapper.py` (Python, standard library only).
+- **Art-Net bridge:** `openledmapper.py` (Python, standard library only). With remote control on it also serves `login.html` and `remote.html` (the phone page) to the network.
 - **Desktop app:** an Electron window in `desktop/`, around the interface, with the bridge packed inside.
   - Run it from source with `cd desktop && npm install && npm start`.
 - **Tests:** `python tests/run_tests.py --quick` (about 10 minutes), or without `--quick` for everything, including the byte-for-byte Art-Net comparison, a soak test and the UI fuzzer.

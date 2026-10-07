@@ -189,6 +189,28 @@ Add one with **+ Add → Image or video file…** in Sources, or drop the file o
 - **Speed** from 0.1× to 4×. **Play its sound** (off by default) with **Volume**. If the browser blocks the sound until you click in the page, the video plays silent and says so.
 - A video plays only while a layer shows it.
 
+## Remote control
+
+Phones, tablets and other computers on the same network can use openLedMapper too, while this computer keeps sending the Art-Net.
+
+**Switching it on.** In **Settings → Remote control**: set a **password** for programmers, choose a **port** if 8090 is taken, and switch it **ON**. Settings then shows the address to open on the other devices (for example `http://192.168.1.20:8090/`), and so does the remote button in the top bar (the phone icon, with the number of devices connected). It switches itself on again the next time openLedMapper starts. On a Mac, allow openLedMapper to accept incoming connections if macOS asks.
+
+**Logging in.** The address opens a page that asks who you are:
+
+- **Programmer** (needs the password): the whole interface, as on this computer. Fixtures, patch, zones, content, scenes, settings.
+- **Operator** (no password): the interface with the mapping locked. You see the fixtures, the patch and the zones, but can't move, add or delete fixtures, change the patch, the zones' areas or the settings. You can change the content: layers, sources, parameters, blend modes, zone levels, scenes (play, store, edit), the master and blackout.
+- **Remote** (no password): a simple page for phones, tablets or a computer. Each zone shows its name, what plays in it, a dimmer, and its scenes: tap a scene to play it (with its fade), drag the dimmer to set the zone's level. It is the programmer who makes the zones and scenes; the remote only plays and dims them.
+
+**How it works.** This computer stays in charge: every change made on a device comes here, and is shared with every other device. What a device may change depends on how it logged in, checked here, not on the device. Devices never send Art-Net, and can't switch it on or off. Undo works on every device: it goes back one step of what that device has seen (on an operator's device, only the content goes back).
+
+**Good to know.**
+
+- Wrong programmer passwords are slowed down, and after 8 in a row that device waits a minute. A new password logs every programmer out.
+- Switching remote control off disconnects every device. If this window closes, the devices wait and carry on when it is back.
+- Videos, images and screen capture play on this computer: add them here, not from a device. The guide image isn't shown on devices.
+- The devices render the content too, to show it: an old phone is happier on the Remote page than with the whole interface.
+- Anyone on the network can open the Operator and Remote pages. Use it on a network you trust (the show network, not public Wi-Fi).
+
 ## Network notes
 
 - **Nodes → Discover** sends ArtPoll on each network of this computer, to that network's broadcast address (2.255.255.255 for a 2.0.0.10/8 card, 192.168.1.255 for 192.168.1.20/24). The networks are listed beside the button: untick one to leave it out of scans (Wi-Fi, a venue network you shouldn't flood), and its nodes are hidden from the list. The choice is kept on this computer. **Also** takes one more address to send ArtPoll to. The table shows which network each node answered on.

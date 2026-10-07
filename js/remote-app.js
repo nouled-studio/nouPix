@@ -63,7 +63,8 @@
       order.push(card);
     }
     if (!state.zones.length) order.push(el('p', { class: 'empty' }, 'No zones in this project yet. The programmer adds them in openLedMapper.'));
-    zones.replaceChildren(...order);
+    // cards move only when the zones change order: moving a card would stop a finger dragging its dimmer
+    if (order.length !== zones.children.length || order.some((c, i) => zones.children[i] !== c)) zones.replaceChildren(...order);
   }
   function makeCard(z) {
     const range = el('input', { type: 'range', min: 0, max: 100, step: 1, 'aria-label': z.name + ' level' });
@@ -98,7 +99,14 @@
     now.replaceChildren(sc ? el('em', null, '▶ ' + sc.name) : el('em', null, 'Live look'), z.content.length ? ' · ' + z.content.join(' + ') : ' · Black');
     if (!dragging.has(z.id)) { card.querySelector('.dim input').value = Math.round(z.opacity * 100); paintLevel(card, z.opacity); }
     const box = card.querySelector('.scenes');
-    box.replaceChildren(...(z.scenes.length ? z.scenes.map(s => el('button', {
+    // the buttons are made again only when the scenes change, so a tap is never lost; otherwise the playing one moves
+    const key = JSON.stringify(z.scenes.map(s => [s.id, s.name, s.tag, s.fade]));
+    if (box.dataset.key === key) {
+      box.querySelectorAll('.scene').forEach(b => { const on = b.dataset.id === z.scene; b.classList.toggle('live', on); b.setAttribute('aria-pressed', String(on)); });
+      return;
+    }
+    box.dataset.key = key;
+    box.replaceChildren(...(z.scenes.length ? z.scenes.map(s => el('button', { 'data-id': s.id,
       class: 'scene' + (s.id === z.scene ? ' live' : ''), type: 'button', style: { '--st': s.tag || '' }, 'aria-pressed': String(s.id === z.scene),
       title: s.fade ? `Fades in ${s.fade} s` : 'Cuts straight to it',
       onclick: e => {

@@ -174,6 +174,7 @@ function restore(s) {
   ui.sel = new Set([...ui.sel].filter(id => fxById(id)));
   markGeom(); markPatch(); rebuildGeometry();
   renderAll(); saveSoon();
+  remoteChanged();   // an undo is a change for the other devices too
 }
 function undo() { if (hist.idx > 0) { hist.idx--; restore(hist.stack[hist.idx]); updateUndoButtons(); } }
 function redo() { if (hist.idx < hist.stack.length - 1) { hist.idx++; restore(hist.stack[hist.idx]); updateUndoButtons(); } }

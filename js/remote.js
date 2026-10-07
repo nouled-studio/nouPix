@@ -13,6 +13,8 @@ const remote = {
   cfg: { on: false, port: REMOTE_PORT, password: '' },
   status: null,      // { on, port, urls, error, clients, hasPassword }
   clients: new Map(),   // cid -> { role, addr }
+  acks: {},             // cid -> the number of the last project change from that device that was applied here
+  seq: 0,               // as a client: the number of the last project change sent
 };
 // The operator sees the mapping but cannot change it: fixtures, patch, controllers, zone areas, settings
 const mappingLocked = () => remote.role === 'operator';
@@ -47,7 +49,7 @@ function remoteHostMessage(m) {
     remoteWelcome(m.cid, m.role);
     updateRemoteUI();
   } else if (m.t === 'rleave') {
-    remote.clients.delete(m.cid);
+    remote.clients.delete(m.cid); delete remote.acks[m.cid];
     updateRemoteUI();
   } else if (m.t === 'rmsg') { remoteFromDevice(m.cid, m.role, m.m); return true; }
   else return false;
@@ -68,7 +70,7 @@ function remoteState() {
       content: z.layers.filter(L => L.on && L.src && name(L.src)).map(L => name(L.src)) })) };
 }
 function remoteWelcome(cid, role) {
-  if (FULL_ROLES.includes(role)) remoteSend(cid, null, { t: 'project', data: serialize(false), live: remoteLive() });
+  if (FULL_ROLES.includes(role)) remoteSend(cid, null, { t: 'project', data: serialize(false), live: remoteLive(), acks: remote.acks });
   else remoteSend(cid, null, remoteState());
 }
 // After every change on the host: the project to the programmers and operators, the state to the phones.
@@ -81,8 +83,8 @@ function remoteChanged() {
     remoteTimer = null;
     if (!bridge.connected) return;
     if (hasClients(FULL_ROLES)) {
-      const data = serialize(false);
-      if (data !== remoteLast) { remoteLast = data; remoteSend(null, FULL_ROLES, { t: 'project', data }); }
+      const data = serialize(false), key = data + JSON.stringify(remote.acks);
+      if (key !== remoteLast) { remoteLast = key; remoteSend(null, FULL_ROLES, { t: 'project', data, acks: remote.acks }); }
     }
     if (hasClients(['remote'])) remoteSend(null, ['remote'], remoteState());
   }, 80);
@@ -109,11 +111,12 @@ function remoteFromDevice(cid, role, m) {
   } else if (m.op === 'blackout' && role !== 'remote') {
     if (!!m.on !== ui.blackout) toggleBlackout();
   } else if (m.op === 'project' && typeof m.data === 'string' && FULL_ROLES.includes(role)) {
+    if (isFinite(m.seq)) remote.acks[cid] = Math.max(remote.acks[cid] || 0, +m.seq);   // that device's change is in from now on
     let data = m.data;
     try { if (role === 'operator') data = contentOf(data); } catch (e) { return; }
     if (data === serialize(false)) { remoteWelcome(cid, role); return; }   // nothing new: just put that device right
     try { restore(data); } catch (e) { report('a change from a remote device', e); remoteWelcome(cid, role); return; }
-    pushHistory();
+    pushHistory(); remoteChanged();   // the others get it, and that device hears its change is in
   }
 }
 // From an operator's project, only the content goes in: each zone's layers, scenes, scene playing and level, and the
@@ -149,7 +152,7 @@ function connectRemote() {
     } else if (m.t === 'denied') { sessionStorage.removeItem('olm.remote.token'); location.replace('/'); }
     else if (m.t === 'bye') { remote.bye = m.reason || 'Disconnected.'; remoteOverlay(); }
     else if (m.t === 'host') { remote.hostOn = m.on; remoteOverlay(); updateRemoteUI(); }
-    else if (m.t === 'project') { remote.hostOn = true; remoteApply(m.data); if (m.live) remoteApplyLive(m.live); remoteOverlay(); }
+    else if (m.t === 'project') { remote.hostOn = true; remoteApply(m.data, m.acks && m.acks[remote.cid]); if (m.live) remoteApplyLive(m.live); remoteOverlay(); }
     else if (m.t === 'live') remoteApplyLive(m);
   };
   ws.onclose = () => {
@@ -159,14 +162,16 @@ function connectRemote() {
   };
 }
 // The project from the host replaces this one; selection and view stay, and it is one step of undo here.
-// While the user drags, types, or has just changed something, the host's copy can be a step behind: the newest one
-// waits until that is over, so nothing jumps back under the pointer.
-let remoteDown = false, remoteSentAt = 0, remoteHeld = null, remoteHeldTimer = null;
-function remoteApply(data) {
-  remoteHeld = data;
+// A copy made before the host had this device's last change (ack is the number of the last one it had) is a step
+// behind: it is skipped, a newer one follows. While the user drags or types, the newest copy waits until that is over,
+// so nothing jumps under the pointer.
+let remoteDown = false, remoteHeld = null, remoteHeldTimer = null;
+function remoteApply(data, ack) {
+  if (remote.loaded && (ack || 0) < remote.seq) return;
+  remoteHeld = { data, ack };
   clearTimeout(remoteHeldTimer);
-  const busy = remote.loaded && (remoteDown || Date.now() - remoteSentAt < 500 || typingIn(document.activeElement));
-  if (busy) { remoteHeldTimer = setTimeout(() => remoteApply(remoteHeld), 200); return; }
+  const busy = remote.loaded && (remoteDown || remoteOut || typingIn(document.activeElement));
+  if (busy) { remoteHeldTimer = setTimeout(() => { const h = remoteHeld; if (h) remoteApply(h.data, h.ack); }, 200); return; }
   remoteHeld = null;
   if (remote.loaded && data === serialize(false)) return;
   remote.applying = true;
@@ -191,8 +196,7 @@ function remoteApplyLive(m) {
 let remoteOut = null;
 function remoteClientChanged() {
   if (remote.applying || !remote.loaded || remoteOut) return;
-  remoteSentAt = Date.now();
-  remoteOut = setTimeout(() => { remoteOut = null; remoteSentAt = Date.now(); remoteOp({ op: 'project', data: serialize(false) }); }, 80);
+  remoteOut = setTimeout(() => { remoteOut = null; remoteOp({ op: 'project', data: serialize(false), seq: ++remote.seq }); }, 80);
 }
 function remoteOp(m) { if (bridge.connected && bridge.ws) bridge.ws.send(JSON.stringify(m)); }
 function remoteLogout() { sessionStorage.removeItem('olm.remote.token'); location.replace('/'); }

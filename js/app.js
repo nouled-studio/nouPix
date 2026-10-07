@@ -39,6 +39,7 @@ function updateBridgeUI() {
   ob.setAttribute('aria-pressed', ui.outputOn);
 }
 function setOutput(on) {
+  if (REMOTE_CLIENT) return;   // only the main computer sends Art-Net
   if (on && !bridge.connected) {
     toast(bridge.state === 'none' ? 'This page can\'t send Art-Net on its own: start openLedMapper (the app, or openledmapper.py) and use the window it opens.' : 'The Art-Net output isn\'t connected yet. Try again in a moment.', 'warn');
     return;
