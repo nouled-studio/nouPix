@@ -1,4 +1,4 @@
-# openLedMapper 0.7.0
+# openLedMapper 0.7.1
 
 <img src="icons/openledmapper-256.png" alt="" width="96" align="right">
 
@@ -83,7 +83,7 @@ To see it working before you build anything, open one of the [examples](examples
   - Run it from source with `cd desktop && npm install && npm start`.
 - **Tests:** `python tests/run_tests.py --quick` (about 10 minutes), or without `--quick` for everything, including the byte-for-byte Art-Net comparison, a soak test and the UI fuzzer.
 - **Examples:** `examples/`; `python tests/make_examples.py` rebuilds the example projects.
-- **Release:** set `VERSION` in `openledmapper.py`, then push a matching tag (`git tag v0.7.0 && git push origin v0.7.0`). GitHub builds the Windows and Mac apps and attaches them to a release (`.github/workflows/release.yml`).
+- **Release:** set `VERSION` in `openledmapper.py`, then push a matching tag (`git tag v0.7.1 && git push origin v0.7.1`). GitHub builds the Windows and Mac apps and attaches them to a release (`.github/workflows/release.yml`).
 
 ## Licence and credits
 

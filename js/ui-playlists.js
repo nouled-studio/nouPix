@@ -136,18 +136,30 @@ function dropOnPlaylist(e, z, pl, at) {
 function stepTile(z, pl, st, i) {
   const sc = sceneOfStep(z, st), f = stepFade(z, pl, st), p = z._play, live = playingList(z) === pl && p.i === i;
   const t = h('div', { class: 'pstep' + (live ? ' live' + (p.on ? '' : ' paused') : '') + (ui.playlistStep === st.id ? ' sel' : ''), role: 'button', tabindex: 0, draggable: true,
-    'data-step': st.id, title: `${sc ? sc.name : 'A scene that is gone'} · plays ${fmtPlayTime(st.time)} · fades in ${fmtFade(f.v)} (${f.from === 'step' ? 'its own' : f.from === 'playlist' ? "the playlist's" : "the scene's"})\nClick to edit. Drag to move.` },
+    'data-step': st.id, title: `${sc ? sc.name : 'A scene that is gone'} · plays ${fmtPlayTime(st.time)} · fades in ${fmtFade(f.v)} (${f.from === 'step' ? 'its own' : f.from === 'playlist' ? "the playlist's" : "the scene's"})\nClick to edit. Drag, or Alt ← →, to move it.` },
     h('div', { class: 't' }, h('span', { class: 'k' }, i + 1), h('span', { class: 'nm' }, sc ? sc.name : '?')),
-    h('div', { class: 's' }, h('span', null, fmtPlayTime(st.time)), h('span', { class: f.clipped ? 'clip' : f.from === 'step' ? 'own' : '' }, f.v > 0 ? '◢ ' + fmtFade(f.v) : 'cut')),
+    h('div', { class: 's' }, h('span', null, fmtPlayTime(st.time))),
     h('div', { class: 'pbar' }, h('i', { class: 'ramp', style: { width: (st.time ? Math.min(1, f.v / st.time) * 100 : 0) + '%' } }), h('i', { class: 'fill' })));
   t.style.setProperty('--tag', sc ? sc.tag : 'var(--line2)');
+  // the step's fade: its own (blue) once it is changed here, whatever the scene's; typing nothing goes back to automatic
+  const from = () => { const g = stepFade(z, pl, st); return g.from === 'step' ? 'its own, in this playlist only' : g.from === 'playlist' ? "the playlist's (One for all)" : `the scene's own (${sc ? sc.name : ''})`; };
+  $('.s', t).append(fadeControl(t, { name: `Step ${i + 1}`,
+    get: () => stepFade(z, pl, st).want, set: v => { st.fade = v; }, auto: () => st.fade == null, clear: () => { st.fade = null; },
+    text: () => { const g = stepFade(z, pl, st); return g.v > 0 ? '◢ ' + fmtFade(g.v) : 'cut'; },
+    cls: () => { const g = stepFade(z, pl, st); return g.clipped ? 'clip' : g.from === 'step' ? 'own' : ''; },
+    tip: () => `Fade in: ${fmtFade(stepFade(z, pl, st).v)}, ${from()}. Changing it here doesn't change the scene; type nothing to go back to automatic` }));
   const pick = () => { ui.playlistStep = ui.playlistStep === st.id ? null : st.id; ui.playlistAdd = null; renderDock(); };
   t.addEventListener('click', pick);
-  t.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pick(); } });
+  t.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); pick(); }
+    else if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); e.stopPropagation(); shiftStep(z, pl, st, e.key === 'ArrowLeft' ? -1 : 1); }
+  });
   onRightClick(t, e => menu(at(e), [
     { head: `Step ${i + 1} · ${sc ? sc.name : ''}` },
     ['Play from here', () => playlistDo(z, pl, 'play', i)],
     ['Edit…', pick],
+    ['Move earlier', () => shiftStep(z, pl, st, -1), { key: 'Alt ←', disabled: i === 0 }],
+    ['Move later', () => shiftStep(z, pl, st, 1), { key: 'Alt →', disabled: i === pl.steps.length - 1 }],
     ['Duplicate', () => { const keep = playingStepId(z, pl); pl.steps.splice(i + 1, 0, Object.assign({}, st, { id: uid() })); playlistEdited(z, pl, keep); commit(); }],
     '-',
     ['Remove', () => removeStep(z, pl, st), { danger: true }],
@@ -158,6 +170,16 @@ function stepTile(z, pl, st, i) {
   t.addEventListener('dragleave', () => t.classList.remove('drop'));
   t.addEventListener('drop', e => { t.classList.remove('drop'); if (!dropKind(e)) return; e.preventDefault(); dropOnPlaylist(e, z, pl, i); });
   return t;
+}
+// A step one place earlier or later. The step, or the editor's button, keeps the focus for the next press.
+function shiftStep(z, pl, st, d, fromEditor = false) {
+  const i = pl.steps.indexOf(st);
+  if (i + d < 0 || i + d >= pl.steps.length) return;
+  moveStep(z, pl, st.id, i + d);
+  const box = $(`#dockBody .plist[data-zone="${z.id}"]`);
+  if (!box) return;
+  const btn = fromEditor && $(`.peditor button[data-mv="${d}"]`, box), t = $(`.pstep[data-step="${st.id}"]`, box);
+  if (btn && !btn.disabled) btn.focus(); else if (t) t.focus();
 }
 function stepEditor(z, pl) {
   const st = pl.steps.find(s => s.id === ui.playlistStep);
@@ -170,6 +192,7 @@ function stepEditor(z, pl) {
   const scene = selectEl(z.scenes.map(s => [s.id, s.name]), st.scene, v => { const s = z.scenes.find(x => String(x.id) === v); if (s) { st.scene = s.id; commit(); } }, { aria: 'Scene' });
   const auto = pl.fade != null ? `Auto · ${fmtFade(pl.fade)}, the playlist's` : `Auto · ${fmtFade(sc ? sc.fade : 0)}, the scene's`;
   const fadeMode = seg([['auto', auto], ['own', 'Its own']], st.fade == null ? 'auto' : 'own', v => { st.fade = v === 'auto' ? null : f.want; commit(); });
+  fadeMode.title = "Its own: a fade for this step only, whatever the scene's (the scene keeps its own when clicked)";
   return h('div', { class: 'peditor' },
     h('div', { class: 'pedhead' }, h('b', null, `${pl.name} · step ${i + 1}`), h('span', { class: 'muted' }, `of ${pl.steps.length} · starts at ${fmtClock(startsAt)}`)),
     h('label', { class: 'pfield' }, h('span', null, 'Scene'), scene),
@@ -177,6 +200,8 @@ function stepEditor(z, pl) {
     h('div', { class: 'pfield' }, h('span', null, 'Fade in'), h('div', { class: 'pair' }, fadeMode,
       st.fade != null ? numInput(st, 'fade', { min: 0, max: 60, step: 0.1, aria: 'Fade of this step', onCommit: commit }) : null, st.fade != null ? 's' : null)),
     h('div', { class: 'pact' },
+      h('button', { class: 'btn sm', type: 'button', 'data-mv': -1, title: 'One place earlier (Alt ← on the step)', disabled: i === 0, onclick: () => shiftStep(z, pl, st, -1, true) }, '← Earlier'),
+      h('button', { class: 'btn sm', type: 'button', 'data-mv': 1, title: 'One place later (Alt → on the step)', disabled: i === pl.steps.length - 1, onclick: () => shiftStep(z, pl, st, 1, true) }, 'Later →'),
       h('button', { class: 'btn sm', type: 'button', onclick: () => playlistDo(z, pl, 'play', i) }, '▶ Play from here'),
       h('button', { class: 'btn sm danger-t', type: 'button', onclick: () => removeStep(z, pl, st) }, 'Remove'),
       h('button', { class: 'btn sm', type: 'button', onclick: () => { ui.playlistStep = null; renderDock(); } }, 'Done')),
@@ -207,31 +232,62 @@ function playlistMenu(anchor, z, pl) {
 }
 
 /* ---------- the New playlist window ---------- */
-// Tick some of the zone's scenes and give them play times; they become the steps, in the order of the scenes
+// Tick some of the zone's scenes, put them in order (↑ ↓, or Alt ↑ ↓) and give them play times: they become the steps
 function newPlaylistDialog(z, only = null) {
   if (!z.scenes.length) { toast(`${z.name} has no scenes yet. Set up its layers in the Content tab, then + Store, and make a playlist of them.`, 'warn'); return; }
-  const picks = z.scenes.map(sc => ({ sc, on: only == null || sc.id === only, time: 30 }));
+  const picks = z.scenes.map(sc => ({ sc, on: only == null || sc.id === only, time: 30, fade: null }));   // fade null: automatic
   const o = { name: nextPlaylistName(z), fade: project.settings.fade, all: 30 };
   let mode = 'scene', endV = 'loop';
   const close = () => bg.remove();
   const list = h('div', { class: 'ppicks' });
-  const paint = () => list.replaceChildren(...picks.map(pk => {
-    const time = h('input', { type: 'text', value: fmtPlayTime(pk.time), disabled: !pk.on, 'aria-label': pk.sc.name + ' play time', title: 'Seconds (90), or minutes:seconds (1:30)' });
-    time.addEventListener('change', () => { const v = parsePlayTime(time.value); if (v > 0) pk.time = clamp(Math.round(v * 10) / 10, 0.1, 86400); time.value = fmtPlayTime(pk.time); });
-    return h('label', { class: 'ppick' + (pk.on ? '' : ' off') },
-      h('input', { type: 'checkbox', checked: pk.on, onchange: e => { pk.on = e.target.checked; paint(); } }),
-      h('i', { style: { background: pk.sc.tag } }), h('span', { class: 'nm' }, pk.sc.name), h('span', { class: 'mono muted' }, '◢ ' + fmtFade(pk.sc.fade)), time);
-  }));
+  // move a scene one place earlier or later; the control used keeps the focus, for the next press
+  const move = (pk, d, keep) => {
+    const i = picks.indexOf(pk), j = i + d;
+    if (j < 0 || j >= picks.length) return;
+    picks.splice(i, 1); picks.splice(j, 0, pk);
+    paint();
+    const row = list.children[j + 1], f = row.querySelector(keep);
+    (f && !f.disabled ? f : row.querySelector(d < 0 ? '.dn' : '.up')).focus();
+    row.scrollIntoView({ block: 'nearest' });
+  };
+  const paint = () => {
+    let n = 0;
+    const auto = pk => (mode === 'all' ? fmtFade(clamp(numOr(o.fade, 2), 0, 60)) : fmtFade(pk.sc.fade));
+    list.replaceChildren(h('div', { class: 'ppick head' }, h('span', null, '#'), h('span', null, 'Scene'), h('span', null, 'Fade in'), h('span', null, 'Play time'), h('span')), ...picks.map((pk, i) => {
+      const time = h('input', { type: 'text', value: fmtPlayTime(pk.time), disabled: !pk.on, 'aria-label': pk.sc.name + ' play time', title: 'Seconds (90), or minutes:seconds (1:30)' });
+      time.addEventListener('change', () => { const v = parsePlayTime(time.value); if (v > 0) pk.time = clamp(Math.round(v * 10) / 10, 0.1, 86400); time.value = fmtPlayTime(pk.time); });
+      // the step's own fade, in this playlist only: empty follows the scene's (or the playlist's One for all)
+      const fade = h('input', { type: 'text', class: 'pfade' + (pk.fade != null ? ' own' : ''), value: pk.fade != null ? fmtV(pk.fade) : '', placeholder: auto(pk), disabled: !pk.on, 'aria-label': pk.sc.name + ' fade in',
+        title: `Its own fade in this playlist, in seconds (0 cuts). Empty: ${mode === 'all' ? 'the playlist\'s One for all' : 'the scene\'s own'}, ${auto(pk)}. The scene itself keeps its fade.` });
+      fade.addEventListener('change', () => { const t = fade.value.trim().replace(',', '.'), v = parseFloat(t); pk.fade = t === '' || !isFinite(v) ? null : clamp(Math.round(v * 10) / 10, 0, 60); fade.value = pk.fade != null ? fmtV(pk.fade) : ''; fade.classList.toggle('own', pk.fade != null); });
+      const mv = (cls, txt, d, label) => h('button', { class: cls, type: 'button', disabled: !picks[i + d], title: label + ' (Alt ' + txt + ')', 'aria-label': `${label}: ${pk.sc.name}`, onclick: () => move(pk, d, '.' + cls) }, txt);
+      const row = h('div', { class: 'ppick' + (pk.on ? '' : ' off') },
+        h('span', { class: 'ix', title: pk.on ? 'Step ' + (n + 1) : 'Not in the playlist' }, pk.on ? ++n : ''),
+        h('label', { class: 'pick' },
+          h('input', { type: 'checkbox', checked: pk.on, 'aria-label': pk.sc.name, onchange: e => { pk.on = e.target.checked; paint(); list.children[picks.indexOf(pk) + 1].querySelector('input[type=checkbox]').focus(); } }),
+          h('i', { style: { background: pk.sc.tag } }), h('span', { class: 'nm' }, pk.sc.name)),
+        fade, time,
+        h('span', { class: 'mv' }, mv('up', '↑', -1, 'Move earlier'), mv('dn', '↓', 1, 'Move later')));
+      row.addEventListener('keydown', e => {
+        if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+        e.preventDefault(); e.stopPropagation();
+        const t = e.target, keep = t.matches('input[type=checkbox]') ? 'input[type=checkbox]' : t.matches('.pfade') ? '.pfade' : t.matches('input[type=text]') ? 'input[type=text]:not(.pfade)' : t.matches('.dn') ? '.dn' : '.up';
+        if (t.matches('input[type=text]')) t.dispatchEvent(new Event('change'));   // keep what was typed
+        move(pk, e.key === 'ArrowUp' ? -1 : 1, keep);
+      });
+      return row;
+    }));
+  };
   paint();
   const name = textInput(o, 'name', { aria: 'Playlist name' });
   const allTime = h('input', { type: 'text', value: fmtPlayTime(o.all), class: 'ptime', 'aria-label': 'Play time for the ticked scenes' });
-  const fadeAll = numInput(o, 'fade', { min: 0, max: 60, step: 0.1, aria: 'Fade for all steps' });
+  const fadeAll = numInput(o, 'fade', { min: 0, max: 60, step: 0.1, aria: 'Fade for all steps', onCommit: paint });
   fadeAll.disabled = true;
   const save = () => {
     const chosen = picks.filter(pk => pk.on);
     if (!chosen.length) { toast('Tick at least one scene.', 'warn'); return; }
     close();
-    const pl = addPlaylist(z, { name: o.name.trim() || nextPlaylistName(z), steps: chosen.map(pk => newStep(pk.sc.id, pk.time)), fade: mode === 'all' ? clamp(numOr(o.fade, 2), 0, 60) : null, end: endV, autoplay: auto.checked });
+    const pl = addPlaylist(z, { name: o.name.trim() || nextPlaylistName(z), steps: chosen.map(pk => newStep(pk.sc.id, pk.time, pk.fade)), fade: mode === 'all' ? clamp(numOr(o.fade, 2), 0, 60) : null, end: endV, autoplay: auto.checked });
     toast(`${pl.name} made in ${z.name}. ▶ on its tab plays it.`);
   };
   name.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
@@ -244,10 +300,10 @@ function newPlaylistDialog(z, only = null) {
         list,
         row('Play time', h('div', { class: 'pair' }, allTime, h('button', { class: 'btn sm', type: 'button', title: 'Give every ticked scene this play time',
           onclick: () => { const v = parsePlayTime(allTime.value); if (!(v > 0)) return; picks.forEach(pk => { if (pk.on) pk.time = clamp(Math.round(v * 10) / 10, 0.1, 86400); }); paint(); } }, 'Set for the ticked ones'))),
-        row('Fades', h('div', { class: 'pair' }, seg([['scene', "Each scene's own"], ['all', 'One for all']], mode, v => { mode = v; fadeAll.disabled = v !== 'all'; }), fadeAll)),
+        row('Fades', h('div', { class: 'pair' }, seg([['scene', "Each scene's own"], ['all', 'One for all']], mode, v => { mode = v; fadeAll.disabled = v !== 'all'; paint(); }), fadeAll)),
         row('At the end', selectEl([['loop', 'Loop'], ['stop', 'Stop on the last step'], ...z.playlists.map(x => [x.id, 'Then play ' + x.name])], endV, v => { endV = v; }, { aria: 'At the end' })),
         h('label', { class: 'checkrow' }, auto, 'Play when the project opens'),
-        h('p', { class: 'note' }, 'A play time counts from the moment a step starts, its fade in included, until the next step starts. The steps follow the order of the scenes; drag them in the Scenes panel to change it.')),
+        h('p', { class: 'note' }, 'The ticked scenes are the steps, in this order: ↑ ↓ (or Alt ↑ ↓) move a scene earlier or later. A fade typed here is the step\'s own, in this playlist only: the scene keeps its fade. Left empty, the step fades like the scene (or with One for all). A play time counts from the moment a step starts, its fade in included, until the next step starts.')),
       h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'), h('button', { class: 'btn primary', type: 'button', onclick: save }, 'Create playlist'))));
   document.body.append(bg);
   name.focus(); name.select();

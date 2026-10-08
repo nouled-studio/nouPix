@@ -1,6 +1,6 @@
 # openLedMapper: detailed reference
 
-Everything openLedMapper 0.7.0 does, in detail (the version shows next to the app name, top left). This is the source text for the PDF guide; the [README](../README.md) has the essentials.
+Everything openLedMapper 0.7.1 does, in detail (the version shows next to the app name, top left). This is the source text for the PDF guide; the [README](../README.md) has the essentials.
 
 A basic pixel-mapping tool: draw or import LED fixtures (lines, matrices, circles, free paths), split the canvas into zones, layer generators, ISF shaders, images, video or a screen capture in each zone, store looks as scenes to play live or in playlists, patch the fixtures to Art-Net controller outputs, and send it out.
 
@@ -155,20 +155,21 @@ Each zone has its own scenes. A scene stores the zone's layers: sources, paramet
 
 A playlist plays some of a zone's scenes one after another, by itself: Evening, Party, Closing… A zone can have as many as you like; one plays at a time (a zone shows one look).
 
-**Making one.** The playlist button on a zone's row (next to **+ Store**) opens **New playlist**: name it, tick the scenes you want, give them a play time, and choose the fades and what happens at the end. A zone that already has playlists shows **+ New playlist** after its tabs. A scene's **⋯ → Add to playlist** adds it to one of them, or starts a new one with it.
+**Making one.** The playlist button on a zone's row (next to its name) opens **New playlist**: name it, tick the scenes you want and put them in order with **↑ ↓** (or **Alt ↑ ↓** on a row), as with fixtures on an output. Give each a play time and, if it should fade differently in this playlist, its own fade (left empty, it fades like the scene). Then choose the fades and what happens at the end. A zone that already has playlists shows **+ New playlist** after its tabs. A scene's **⋯ → Add to playlist** adds it to one of them, or starts a new one with it.
 
 **On the Scenes panel.** Under a zone's scenes, one line holds its playlists as tabs, with the one playing and its time left. The tab playing is green (orange when paused), with a thin line that fills as the whole playlist plays.
 
 - **▶ on a tab** plays that playlist from its first step (or pauses the one playing, or carries on with the paused one). Starting another playlist fades the zone over to it.
 - **Click a tab** to open it: its steps, with the step playing filling up as it plays. **Click the tab again**, or **▴ Close**, to fold it back to one line; it keeps playing. The zone's playlist button opens and folds it too, and is green while a playlist plays.
-- In the open playlist: previous, play/pause and next; the steps; **+ Add** to add a scene at the end (or drag a scene's button onto the playlist); drag steps to reorder them.
-- **Click a step** to edit it: its scene, its **play time** (seconds, like 90, or minutes:seconds, like 1:30), its fade, **Play from here**, **Remove**.
+- In the open playlist: previous, play/pause and next; the steps; **+ Add** to add a scene at the end (or drag a scene's button onto the playlist). Drag steps to reorder them, or select one and press **Alt ← →**.
+- **A step's fade** shows on the step. Drag it sideways, click it to type one, or use **↑ ↓**, as on a scene's button: that gives the step its own fade, in this playlist only (it shows blue); the scene keeps its own. Type nothing to go back to the scene's.
+- **Click a step** to edit it: its scene, its **play time** (seconds, like 90, or minutes:seconds, like 1:30), its fade (**Auto** or **Its own**), **← Earlier** and **Later →**, **Play from here**, **Remove**.
 - Right-click a tab, or **⋯** on the open one: play or pause, rename (or double-click the tab), duplicate, what happens at the end, play when the project opens, delete.
 - The zone's right-click menu has **Playlists** too: click one to play it.
 
 **Play time.** A step's play time counts from the moment it starts, its fade in included, until the next step starts, like a follow time on a lighting desk. So the playlist lasts the sum of its play times, and changing a fade never moves what comes after. A fade longer than its step's play time is cut short (the step shows it in orange).
 
-**Fades.** A step fades in with its scene's own fade, unless the playlist is set to **One for all** (the same fade for each of its steps), unless the step has **its own** (in the step editor, for the one transition that should be different). Each step shows the fade it will use: grey when it comes from the scene or the playlist, blue when it is its own. Picking a scene by hand always uses the scene's own fade.
+**Fades.** A step fades in with its scene's own fade, unless the playlist is set to **One for all** (the same fade for each of its steps), unless the step has **its own** (set on the step, in the step editor or in the New playlist window, for the transitions that should be different). A step's own fade never changes the scene: the same scene can cut in one playlist and fade slowly in another. Each step shows the fade it will use: grey when it comes from the scene or the playlist, blue when it is its own. Picking a scene by hand always uses the scene's own fade.
 
 **At the end** a playlist loops, stops on its last step, or plays another playlist of the zone (**Then play…**): Evening, then Party, then Closing.
 
@@ -287,7 +288,7 @@ Art-Net only (no sACN/E1.31 yet). No Syphon, Spout or NDI: use window capture in
 The apps are an [Electron](https://www.electronjs.org/) window (`desktop/`) around the interface, with the Art-Net bridge (`openledmapper.py`, packed with PyInstaller by `openledmapper.spec`) running inside: the app starts it with `--embedded` and it stops when the app quits. GitHub builds them (`.github/workflows/release.yml`) on Windows, an Apple silicon Mac and an Intel Mac. To publish a version:
 
 1. Set `VERSION` in `openledmapper.py` (and the README title), and commit.
-2. Tag it with the same version and push the tag: `git tag v0.7.0 && git push origin v0.7.0`.
+2. Tag it with the same version and push the tag: `git tag v0.7.1 && git push origin v0.7.1`.
 
 The three apps are built, started once to check that they start the bridge and stop it again, and attached to a new release on the Releases page, in about 10 minutes. The app's version comes from `VERSION`; a tag that doesn't match it fails the build. To build without releasing, run **Build apps** from the Actions tab: the apps are kept as downloads of that run.
 

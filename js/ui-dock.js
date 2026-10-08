@@ -95,18 +95,26 @@ function editScene(sc) {
   document.body.append(bg);
   nameIn.focus(); nameIn.select();
 }
-// The fade time on a scene's button: drag it sideways to change it (Shift = ×10), click it to type one, or use the
-// arrow keys. 0 cuts. It works the same on the scene playing, so a fade can be tried and changed at once.
-function fadeControl(sc, tile) {
-  const label = () => (sc.fade > 0 ? '◢ ' + fmtV(Math.round(sc.fade * 10) / 10) + ' s' : 'cut');
-  const tip = () => `Fade in: ${sc.fade > 0 ? fmtV(sc.fade) + ' s' : 'none, it cuts'}. Drag sideways to change it (Shift = ×10), click to type, or ↑ ↓.`;
-  const el = h('span', { class: 'fd' + (sc.fade > 0 ? '' : ' cut'), role: 'button', tabindex: 0, title: tip(), 'aria-label': sc.name + ' fade time' }, label());
-  const show = () => { el.textContent = label(); el.classList.toggle('cut', !(sc.fade > 0)); el.title = tip(); };
-  const set = v => { sc.fade = clamp(Math.round(v * 10) / 10, 0, 60); show(); };
+// A fade time on a button (a scene's, a playlist step's): drag it sideways to change it (Shift = ×10), click it to type
+// one, or use the arrow keys. 0 cuts. It works the same while that scene plays, so a fade can be tried and changed at
+// once. o: get() and set(v) the value; text() and tip() what it shows; clear(), if typing nothing goes back to automatic.
+function fadeControl(tile, o) {
+  const label = () => o.text ? o.text() : (o.get() > 0 ? '◢ ' + fmtV(Math.round(o.get() * 10) / 10) + ' s' : 'cut');
+  const tip = () => (o.tip ? o.tip() : `Fade in: ${o.get() > 0 ? fmtV(o.get()) + ' s' : 'none, it cuts'}`) + '. Drag sideways to change it (Shift = ×10), click to type, or ↑ ↓.';
+  const el = h('span', { class: 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : ''), role: 'button', tabindex: 0, title: tip(), 'aria-label': o.name + ' fade time' }, label());
+  const show = () => { el.textContent = label(); el.className = 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : '') + (el.classList.contains('scrub') ? ' scrub' : ''); el.title = tip(); };
+  const set = v => { o.set(clamp(Math.round(v * 10) / 10, 0, 60)); show(); };
   const type = () => {
     let done = false;
-    const inp = h('input', { type: 'number', class: 'fdin', min: 0, max: 60, step: 0.1, value: fmtV(sc.fade), 'aria-label': sc.name + ' fade time' });
-    const finish = ok => { if (done) return; done = true; const v = parseFloat(inp.value); if (ok && isFinite(v) && clamp(v, 0, 60) !== sc.fade) { set(v); commit(); } else renderDock(); };
+    const inp = h('input', { type: 'text', class: 'fdin', value: o.clear && o.auto && o.auto() ? '' : fmtV(o.get()), placeholder: o.clear ? 'auto' : '', 'aria-label': o.name + ' fade time',
+      title: 'Seconds; 0 cuts' + (o.clear ? '; empty: automatic' : '') });
+    const finish = ok => {
+      if (done) return; done = true;
+      const txt = inp.value.trim().replace(',', '.'), v = parseFloat(txt);
+      if (ok && txt === '' && o.clear) { o.clear(); commit(); }
+      else if (ok && isFinite(v) && (clamp(v, 0, 60) !== o.get() || (o.auto && o.auto()))) { set(v); commit(); }
+      else renderDock();
+    };
     inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); });
     inp.addEventListener('blur', () => finish(true));
     inp.addEventListener('click', e => e.stopPropagation());
@@ -120,7 +128,7 @@ function fadeControl(sc, tile) {
     e.stopPropagation(); e.preventDefault();
     tile.draggable = false;
     el.setPointerCapture(e.pointerId);
-    const x0 = e.clientX, v0 = sc.fade;
+    const x0 = e.clientX, v0 = o.get(), a0 = !!(o.auto && o.auto());
     let moved = false;
     const mv = ev => {
       if (!moved && Math.abs(ev.clientX - x0) < 3) return;
@@ -130,13 +138,13 @@ function fadeControl(sc, tile) {
     const up = () => {
       el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
       tile.draggable = true; el.classList.remove('scrub');
-      if (!moved) type(); else if (sc.fade !== v0) commit();
+      if (!moved) type(); else if (o.get() !== v0 || a0 !== !!(o.auto && o.auto())) commit(); else renderDock();
     };
     el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   });
   el.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); type(); }
-    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); set(sc.fade + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 1 : 0.1)); commitSoft(); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); set(o.get() + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 1 : 0.1)); commitSoft(); }
   });
   return el;
 }
@@ -152,7 +160,7 @@ function sceneTile(z, sc, i, keys, look) {
     h('div', { class: 's' }, null, h('span', { class: 'fill' }),
       edited ? h('span', { class: 'badge warn', title: 'The layers have changed since this scene was recalled. ⋯ → Update saves the changes into it.' }, 'edited') : null),
     h('i', { class: 'prog' }));
-  tile.querySelector('.s').prepend(fadeControl(sc, tile));
+  tile.querySelector('.s').prepend(fadeControl(tile, { name: sc.name, get: () => sc.fade, set: v => { sc.fade = v; } }));
   tile.style.setProperty('--tag', sc.tag);
   tile.addEventListener('click', e => goScene(z, sc, e.shiftKey));
   onRightClick(tile, e => sceneMenu(at(e), z, sc));
