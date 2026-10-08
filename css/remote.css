@@ -51,6 +51,13 @@ button { cursor: pointer; }
 .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
 .chip.ok i { background: var(--live); box-shadow: 0 0 6px var(--live); }
 .rtop .out { border: 0; background: none; color: var(--muted); font-size: 13px; padding: 4px; }
+.rtop .tb { height: 32px; padding: 0 12px; border: 1px solid var(--line2); border-radius: 16px; background: var(--bg2); color: var(--text); font-size: 13px; font-weight: 500; }
+.rtop .tb[hidden] { display: none; }
+.rtop .tb.ic { width: 36px; padding: 0; display: grid; place-items: center; }
+.rtop .tb svg { width: 18px; height: 18px; }
+.rtop .tb .outp, .rtop .tb.on .in { display: none; }
+.rtop .tb.on .outp { display: inline; }
+.rtop .tb.on { border-color: var(--accent); color: var(--accent); }
 .banner { margin: 12px 16px 0; padding: 10px 14px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-weight: 500; }
 .banner[hidden] { display: none; }
 .zones { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; padding: 14px 16px; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
@@ -81,3 +88,5 @@ button { cursor: pointer; }
 .spin { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--line2); border-top-color: var(--accent); animation: spin .9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (hover: hover) { .scene:hover { border-color: var(--accent); } }
+/* narrow phones: the connection chip is just its light, so the project name has room */
+@media (max-width: 440px) { .chip { width: 26px; padding: 0; justify-content: center; } .chip span { display: none; } .rtop { gap: 8px; } }

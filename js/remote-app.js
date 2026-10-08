@@ -18,7 +18,7 @@
   const dragging = new Map();   // zone id -> the level being dragged here (the main computer's echo waits)
 
   function wait(text) { $('#wait').hidden = !text; if (text) $('#waitMsg').textContent = text; $('#wait').querySelector('.spin').hidden = !!bye; }
-  function conn(ok, text) { $('#conn').classList.toggle('ok', ok); $('#conn span').textContent = text; }
+  function conn(ok, text) { $('#conn').classList.toggle('ok', ok); $('#conn span').textContent = text; $('#conn').title = text; $('#conn').setAttribute('aria-label', text); }
   function status() {
     if (bye) { wait(bye); conn(false, 'Disconnected'); return; }
     if (!ws || ws.readyState !== 1) { wait('Connecting to openLedMapper…'); conn(false, 'Connecting'); return; }
@@ -115,6 +115,30 @@
       } }, el('b', null, s.name), el('span', null, s.fade ? s.fade + ' s' : 'cut'))) : [el('p', { class: 'empty' }, 'No scenes stored for this zone.')]));
   }
   $('#out').addEventListener('click', () => { sessionStorage.removeItem('olm.remote.token'); location.href = '/'; });
+
+  // ---- an app on the phone
+  // Installed (from Chrome's menu, or the Install button when Chrome offers it) it opens without the browser's bars.
+  // Chrome only installs pages it counts as secure; until then Full screen hides the bars while the page is open.
+  const standalone = () => matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone === true;
+  const full = $('#full'), root = document.documentElement;
+  const canFull = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+  const isFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const pref = v => { try { if (v === undefined) return localStorage.getItem('olm.remote.full') === '1'; localStorage.setItem('olm.remote.full', v ? '1' : '0'); } catch (e) { return false; } };
+  const goFull = () => { const f = root.requestFullscreen || root.webkitRequestFullscreen; const p = f && f.call(root, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => {}); };
+  const leaveFull = () => { const f = document.exitFullscreen || document.webkitExitFullscreen; if (f) f.call(document); };
+  const showFull = () => { full.hidden = !canFull || standalone(); full.classList.toggle('on', isFull()); full.setAttribute('aria-pressed', String(isFull())); full.title = isFull() ? 'Leave full screen' : 'Full screen'; };
+  full.addEventListener('click', () => { if (isFull()) { pref(false); leaveFull(); } else { pref(true); goFull(); } });
+  // Left by switching apps or a reload, full screen comes back with the next tap; left on purpose (Back), it stays off
+  let leaving = false;   // the page went to the background: full screen ended by itself
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') leaving = true; });
+  for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { if (!isFull() && document.visibilityState === 'visible' && !leaving) pref(false); leaving = false; showFull(); });
+  addEventListener('pointerdown', e => { if (pref() && canFull && !isFull() && !standalone() && !e.target.closest('#full, #out')) goFull(); }, true);
+  showFull();
+  let installEvent = null;
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvent = e; $('#install').hidden = false; });
+  $('#install').addEventListener('click', async () => { if (!installEvent) return; installEvent.prompt(); await installEvent.userChoice.catch(() => {}); installEvent = null; $('#install').hidden = true; });
+  addEventListener('appinstalled', () => { $('#install').hidden = true; });
+  if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register('/remote-sw.js').catch(() => {});
   status();
   connect();
 })();

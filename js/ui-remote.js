@@ -64,6 +64,7 @@ function remoteSection() {
     const list = [...remote.clients.values()];
     parts.push(h('p', { class: 'note' }, list.length ? 'Connected: ' + list.map(c => `${ROLE_NAMES[c.role] || c.role} (${c.addr})`).join(', ') : 'No device connected yet.'));
     if (/Mac/.test(navigator.platform)) parts.push(h('p', { class: 'note' }, 'If macOS asks whether openLedMapper may accept incoming connections, allow it, or devices cannot reach it.'));
+    parts.push(h('p', { class: 'note' }, 'The Remote page installs as an app on phones (LED Remote). On Android, Chrome first needs this address in chrome://flags, "Insecure origins treated as secure"; without it, the page\'s full screen button hides the browser\'s bars. The user guide has the steps.'));
   } else if (st && st.error) parts.push(h('p', { class: 'note err' }, st.error));
   const s = sec('Remote control', parts);
   s.id = 'remoteSec';

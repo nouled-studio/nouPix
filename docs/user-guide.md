@@ -203,6 +203,13 @@ Phones, tablets and other computers on the same network can use openLedMapper to
 
 **How it works.** This computer stays in charge: every change made on a device comes here, and is shared with every other device. What a device may change depends on how it logged in, checked here, not on the device. Devices never send Art-Net, and can't switch it on or off. Undo works on every device: it goes back one step of what that device has seen (on an operator's device, only the content goes back).
 
+**The remote as an app on a phone.** The Remote page can be installed like an app: an icon on the home screen that opens without the browser's address bar.
+
+- **Android (Chrome):** Chrome only installs pages from a secure address, and openLedMapper's address on your network is plain `http://`. Tell Chrome to trust it, once per phone: open `chrome://flags`, search for **Insecure origins treated as secure**, enable it, type the address from Settings (for example `http://192.168.1.20:8090`) and tap **Relaunch**. Then open the address, choose **Remote**, and use **Install** on the page or **⋮ → Install app** in Chrome. The app is called **LED Remote**.
+- **Without that setting**, **⋮ → Add to Home screen** still adds an icon, but it opens in Chrome with the address bar. Tap the **full screen** button at the top of the Remote page to hide the bars; after switching to another app, the next tap brings full screen back. The Back gesture leaves it.
+- **iPhone and iPad (Safari):** **Share → Add to Home Screen**.
+- The app opens the address it was installed from, so give the computer a fixed address on the network (a DHCP reservation in the router), or install it again when the address changes.
+
 **Good to know.**
 
 - Wrong programmer passwords are slowed down, and after 8 in a row that device waits a minute. A new password logs every programmer out.

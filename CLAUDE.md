@@ -101,6 +101,11 @@ Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimatio
   change (`acks`), and not while the user drags or types. Scene changes and zone levels also go as small operations
   (`remoteOp`), so the main window fades and dims live. A device never sends Art-Net (`setOutput` does nothing),
   and can't add files or screen capture.
+- **The remote as an app:** `remote.html` links `remote.webmanifest` (start `/remote`, standalone, icons
+  `icons/remote-*.png` made from `icons/openledmapper.svg`) and registers `remote-sw.js` (network first, a cached copy
+  of the page and its files when the computer can't be reached). The network server serves them (`REMOTE_FILES`).
+  Chrome installs only from a secure address: plain http on the network needs its "insecure origins treated as
+  secure" setting; the page's full screen button covers the rest.
 - **The operator's lock** is in the interface (`mappingLocked()`: stage, keys, menus, lists, `lockPanel`) for
   convenience, and in `contentOf` for real.
 
@@ -136,5 +141,6 @@ fuzzer. Tests drive the page with Playwright through the bridge, and use the glo
 (app.js), so keep those names working. Each suite is a script in `tests/` that prints PASS/FAIL lines and
 `FAILED: none`; add new ones to `SUITES` in `run_tests.py`. `tests/make_examples.py` rebuilds the projects in
 `examples/` with the app itself and checks every example file. `test_remote.py` checks remote control end to end
-(roles, permissions, phone page, disconnects); `test_remote_soak.py` (full run only) runs 400 mixed changes from
+(roles, permissions, phone page, disconnects); `test_remote_app.py` the remote as an installable app and over the
+computer's network address; `test_remote_soak.py` (full run only) runs 400 mixed changes from
 several devices and checks they all end equal.

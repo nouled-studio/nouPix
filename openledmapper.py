@@ -599,6 +599,10 @@ class Server(http.server.ThreadingHTTPServer):
 
 REMOTE_ROLES = ("programmer", "operator", "remote")
 REMOTE_PAGES = {"/": "login.html", "/app": "index.html", "/remote": "remote.html"}
+# The remote page installs as an app on phones: its manifest, service worker and icons
+REMOTE_FILES = {"/remote.webmanifest": ("remote.webmanifest", "application/manifest+json"), "/remote-sw.js": ("remote-sw.js", "text/javascript; charset=utf-8"),
+                "/icons/remote-192.png": ("icons/remote-192.png", "image/png"), "/icons/remote-512.png": ("icons/remote-512.png", "image/png"),
+                "/icons/remote-maskable-512.png": ("icons/remote-maskable-512.png", "image/png")}
 REMOTE_PORT = 8090
 REMOTE_MAX_TRIES, REMOTE_LOCK = 8, 60.0   # wrong passwords from one address before it waits, and how long
 
@@ -788,6 +792,9 @@ class RemoteHandler(Handler):
             return self.send_json(200, {"version": VERSION, "hasPassword": bool(r.password), "host": r.host is not None})
         if path in REMOTE_PAGES:
             return self.send_file(os.path.join(HERE, REMOTE_PAGES[path]), "text/html; charset=utf-8")
+        if path in REMOTE_FILES:
+            fn, ctype = REMOTE_FILES[path]
+            return self.send_file(os.path.join(HERE, *fn.split("/")), ctype)
         m = STATIC.match(path)
         if m:
             return self.send_file(os.path.join(HERE, *path.lstrip("/").split("/")), STATIC_TYPES[m.group(1)])
