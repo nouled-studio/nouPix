@@ -94,7 +94,9 @@ function moveZone(z, d) {
 }
 function duplicateZone(z) {
   const c = Object.assign(JSON.parse(JSON.stringify(z, replacer)), { id: uid(), name: nextCopyName(z.name, new Set(project.zones.map(x => x.name))), scene: null });
-  c.scenes.forEach(sc => { sc.id = uid(); });
+  const ids = new Map();
+  c.scenes.forEach(sc => { const id = uid(); ids.set(sc.id, id); sc.id = id; });
+  c.playlists.forEach(pl => pl.steps.forEach(st => { st.id = uid(); st.scene = ids.get(st.scene); }));   // the copy's playlists play the copy's scenes
   const off = Math.max(project.settings.grid, 10) * 2;
   if (c.x + c.w + off <= project.settings.compW && c.y + c.h + off <= project.settings.compH) { c.x += off; c.y += off; }
   project.zones.splice(project.zones.indexOf(z), 0, c);
@@ -359,11 +361,11 @@ function resizeSel(w, h) {
 // Each zone has its own scenes. A scene is a copy of the zone's layers; recalling it crossfades that zone to it.
 const lookOf = layers => JSON.stringify(layers.map(L => [L.src, L.on, L.opacity, L.blend, L.params[L.src] || {}]));
 const snapshotLayers = z => cloneLayers(z.layers).map(L => Object.assign(L, { params: L.src && L.params[L.src] ? { [L.src]: L.params[L.src] } : {} }));
+// A scene picked by hand: the zone fades to it over the scene's own fade, and its playlist pauses
 function goScene(z, sc, cut = false) {
   if (REMOTE_CLIENT) remoteOp({ op: 'scene', zone: z.id, scene: sc.id, cut });   // the main computer fades its output too
-  startFade(z, cut ? 0 : sc.fade, sc.id);
-  z.layers = cloneLayers(sc.layers).map(L => Object.assign(L, { src: srcById(L.src) ? L.src : null }));
-  z.scene = sc.id;
+  else playlistManual(z, sc.id);
+  recallScene(z, sc, cut ? 0 : sc.fade);
   if (ui.zone !== z.id || !z.layers.some(L => L.id === ui.layer)) ui.layer = null;
   ui.zone = z.id;
   syncMedia(); renderSrcList(); renderDock();
@@ -387,7 +389,83 @@ function moveScene(d, z, to = z.scenes.length) {
   fz.scenes.splice(fz.scenes.indexOf(moving), 1);
   z.scenes.splice(to, 0, moving);
   if (fz !== z && fz.scene === moving.id) fz.scene = null;
+  if (fz !== z) dropSceneSteps(fz, moving.id);
   commit();
+}
+
+/* ---------- playlists ---------- */
+// Play, pause, next… of a playlist, from any button, menu or key. On a device they go to the main computer, which
+// plays the playlists.
+function playlistDo(z, pl, what, i = 0) {
+  if (REMOTE_CLIENT) { remoteOp({ op: 'playlist', zone: z.id, list: pl ? pl.id : null, do: what, i }); return; }
+  if (what === 'toggle') togglePlaylist(z, pl.id);
+  else if (what === 'start') startPlaylist(z, pl.id);
+  else if (what === 'play') playPlaylist(z, pl.id, i);
+  else if (what === 'pause') pausePlaylist(z);
+  else if (what === 'resume') resumePlaylist(z);
+  else if (what === 'next') stepPlaylist(z, 1);
+  else if (what === 'prev') stepPlaylist(z, -1);
+  else if (what === 'stop') stopPlaylist(z);
+}
+function nextPlaylistName(z) { let n = 1; while (z.playlists.some(p => p.name === 'Playlist ' + n)) n++; return 'Playlist ' + n; }
+// A new playlist opens in the Scenes panel. One playlist per zone plays when the project opens.
+function addPlaylist(z, props = {}) {
+  const pl = newPlaylist(Object.assign({ name: nextPlaylistName(z) }, props));
+  if (pl.autoplay) z.playlists.forEach(o => { o.autoplay = false; });
+  z.playlists.push(pl);
+  ui.playlistOpen[z.id] = pl.id; ui.playlistStep = null; ui.playlistAdd = pl.steps.length ? null : z.id;
+  if (ui.zone !== z.id) { ui.zone = z.id; ui.layer = null; renderRight(); renderSrcList(); }
+  commit();
+  return pl;
+}
+function duplicatePlaylist(z, pl) {
+  const c = Object.assign(JSON.parse(JSON.stringify(pl)), { id: uid(), name: nextCopyName(pl.name, new Set(z.playlists.map(p => p.name))), autoplay: false });
+  c.steps.forEach(st => { st.id = uid(); });
+  z.playlists.splice(z.playlists.indexOf(pl) + 1, 0, c);
+  ui.playlistOpen[z.id] = c.id; ui.playlistStep = null;
+  commit();
+  toast(`${pl.name} copied as ${c.name}.`);
+}
+function deletePlaylist(z, pl) {
+  z.playlists = z.playlists.filter(p => p !== pl);
+  for (const p of z.playlists) if (p.end === pl.id) p.end = 'stop';   // one that led to it stops at its end instead
+  if (z._play && z._play.list === pl.id) stopPlaylist(z);
+  if (ui.playlistOpen[z.id] === pl.id) delete ui.playlistOpen[z.id];
+  commit();
+  toast(`${pl.name} deleted. ${MOD}Z brings it back.`);
+}
+function setPlaylistAutoplay(z, pl, on) { z.playlists.forEach(o => { o.autoplay = false; }); pl.autoplay = !!on; commit(); }
+// The id of the step playing, when pl is the zone's current playlist: it stays the one playing when steps move
+const playingStepId = (z, pl) => { const p = z._play; return p && p.list === pl.id && pl.steps[p.i] ? pl.steps[p.i].id : null; };
+function addToPlaylist(z, pl, sceneId, at = pl.steps.length, time = 30) {
+  const keep = playingStepId(z, pl);
+  pl.steps.splice(clamp(at, 0, pl.steps.length), 0, newStep(sceneId, time));
+  playlistEdited(z, pl, keep);
+  commit();
+}
+// A step dropped on another takes its place
+function moveStep(z, pl, id, to) {
+  const keep = playingStepId(z, pl), from = pl.steps.findIndex(st => st.id === id);
+  if (from < 0 || from === to) return;
+  const [st] = pl.steps.splice(from, 1);
+  pl.steps.splice(clamp(to, 0, pl.steps.length), 0, st);
+  playlistEdited(z, pl, keep);
+  commit();
+}
+function removeStep(z, pl, st) {
+  const keep = playingStepId(z, pl);
+  pl.steps = pl.steps.filter(x => x !== st);
+  playlistEdited(z, pl, keep === st.id ? null : keep);
+  if (ui.playlistStep === st.id) ui.playlistStep = null;
+  commit();
+}
+// A scene that leaves its zone (deleted, or moved to another zone) leaves the zone's playlists too
+function dropSceneSteps(z, sceneId) {
+  for (const pl of z.playlists) {
+    const keep = playingStepId(z, pl), n = pl.steps.length;
+    pl.steps = pl.steps.filter(st => st.scene !== sceneId);
+    if (pl.steps.length !== n) playlistEdited(z, pl, keep);
+  }
 }
 
 /* ---------- adding sources from files and screens ---------- */

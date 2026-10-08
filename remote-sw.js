@@ -3,7 +3,7 @@
 // (and says it is connecting) even while openLedMapper on the main computer isn't reachable. Everything else, and
 // the live connection, always goes to the network.
 'use strict';
-const CACHE = 'olm-remote-1';
+const CACHE = 'olm-remote-2';
 const SHELL = ['/remote', '/css/remote.css', '/js/remote-app.js', '/remote.webmanifest', '/icons/remote-192.png', '/icons/remote-512.png', '/icons/remote-maskable-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {

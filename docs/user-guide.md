@@ -1,8 +1,8 @@
 # openLedMapper: detailed reference
 
-Everything openLedMapper 0.6.2 does, in detail (the version shows next to the app name, top left). This is the source text for the PDF guide; the [README](../README.md) has the essentials.
+Everything openLedMapper 0.7.0 does, in detail (the version shows next to the app name, top left). This is the source text for the PDF guide; the [README](../README.md) has the essentials.
 
-A basic pixel-mapping tool: draw or import LED fixtures (lines, matrices, circles, free paths), split the canvas into zones, layer generators, ISF shaders, images, video or a screen capture in each zone, store looks as scenes to play live, patch the fixtures to Art-Net controller outputs, and send it out.
+A basic pixel-mapping tool: draw or import LED fixtures (lines, matrices, circles, free paths), split the canvas into zones, layer generators, ISF shaders, images, video or a screen capture in each zone, store looks as scenes to play live or in playlists, patch the fixtures to Art-Net controller outputs, and send it out.
 
 The interface runs in your browser. `openledmapper.py` is a small local server that sends the Art-Net packets, because browsers cannot send UDP.
 
@@ -43,7 +43,7 @@ On Windows, allow openLedMapper (or Python) through the firewall on private netw
 2. **Fixtures.** Pick a tool on the stage: `L` line, `M` matrix, `C` circle/ring, `P` path (straight segments), `N` pen (curves). Drag to draw, or click for a default size. You can also bring fixtures in with **SVG…** (see below). Edit exact values in the Inspector, including pixel count, color order, wiring start and direction.
 3. **Patch.** In the Patch panel, add a controller: IP address, number of outputs, universes per output and first universe. Then drag fixtures from the list onto an output. Fixtures chained on one output are addressed in order, automatically.
 4. **Content.** Click a generator in Sources to play it in the selected layer of the selected zone. Add zones, layers, blend modes and parameters in the Content tab (see below). You can also add your own ISF shader, an image, a video, or a window capture (for example Resolume's output).
-5. **Scenes.** When a zone's look is right, press **+ Store** on its row in the Scenes panel.
+5. **Scenes.** When a zone's look is right, press **+ Store** on its row in the Scenes panel. Put scenes in a **playlist** to have the zone play them one after another by itself.
 6. **Art-Net ON.**
 
 **Ovals.** A circle stretches into an oval: drag the side handles of its frame on the stage, or set **Radius X** and **Y** in the Inspector (**Make it round** brings it back). Its pixels are spaced evenly along the curve, as on a real strip. Ellipses in an imported SVG become ovals.
@@ -146,9 +146,41 @@ Each zone has its own scenes. A scene stores the zone's layers: sources, paramet
 - Click a scene to fade that zone to it over the scene's fade time; other zones carry on. **Shift**-click cuts straight to it. Keys **1–9** do the same for the first nine scenes of the selected zone.
 - With a zone's master at 0 you can still recall its scenes; they just don't show until you bring the master up.
 - The fade crossfades the zone's picture, so any two looks fade smoothly into each other. Starting another scene in the middle of a fade continues from what the zone shows at that moment.
-- **⋯** on a scene: update it with the zone's current layers, rename it, change its fade time or colour, duplicate or delete it. Drag scenes to reorder them, or onto another zone's row (even one with no scenes yet) to move them there.
+- **The fade time** shows on each scene's button (◢ 2 s, or **cut**). Drag it sideways to change it (**Shift** for bigger steps), click it to type one, or select it and use **↑ ↓**. It works on the scene playing too, so you can try a fade and change it straight away. 0 cuts.
+- **⋯** on a scene: add it to a playlist, update it with the zone's current layers, rename it, change its fade time or colour, duplicate or delete it. Drag scenes to reorder them, or onto another zone's row (even one with no scenes yet) to move them there.
 - **edited** on the current scene means the layers changed since you recalled it.
 - New scenes get the fade time set in the panel. Scenes are saved in the project; **Ctrl Z** undoes a delete.
+
+## Playlists
+
+A playlist plays some of a zone's scenes one after another, by itself: Evening, Party, Closing… A zone can have as many as you like; one plays at a time (a zone shows one look).
+
+**Making one.** The playlist button on a zone's row (next to **+ Store**) opens **New playlist**: name it, tick the scenes you want, give them a play time, and choose the fades and what happens at the end. A zone that already has playlists shows **+ New playlist** after its tabs. A scene's **⋯ → Add to playlist** adds it to one of them, or starts a new one with it.
+
+**On the Scenes panel.** Under a zone's scenes, one line holds its playlists as tabs, with the one playing and its time left. The tab playing is green (orange when paused), with a thin line that fills as the whole playlist plays.
+
+- **▶ on a tab** plays that playlist from its first step (or pauses the one playing, or carries on with the paused one). Starting another playlist fades the zone over to it.
+- **Click a tab** to open it: its steps, with the step playing filling up as it plays. **Click the tab again**, or **▴ Close**, to fold it back to one line; it keeps playing. The zone's playlist button opens and folds it too, and is green while a playlist plays.
+- In the open playlist: previous, play/pause and next; the steps; **+ Add** to add a scene at the end (or drag a scene's button onto the playlist); drag steps to reorder them.
+- **Click a step** to edit it: its scene, its **play time** (seconds, like 90, or minutes:seconds, like 1:30), its fade, **Play from here**, **Remove**.
+- Right-click a tab, or **⋯** on the open one: play or pause, rename (or double-click the tab), duplicate, what happens at the end, play when the project opens, delete.
+- The zone's right-click menu has **Playlists** too: click one to play it.
+
+**Play time.** A step's play time counts from the moment it starts, its fade in included, until the next step starts, like a follow time on a lighting desk. So the playlist lasts the sum of its play times, and changing a fade never moves what comes after. A fade longer than its step's play time is cut short (the step shows it in orange).
+
+**Fades.** A step fades in with its scene's own fade, unless the playlist is set to **One for all** (the same fade for each of its steps), unless the step has **its own** (in the step editor, for the one transition that should be different). Each step shows the fade it will use: grey when it comes from the scene or the playlist, blue when it is its own. Picking a scene by hand always uses the scene's own fade.
+
+**At the end** a playlist loops, stops on its last step, or plays another playlist of the zone (**Then play…**): Evening, then Party, then Closing.
+
+**Playing.**
+
+- Picking a scene by hand (a click, keys 1–9, a phone, an operator) pauses the zone's playlist. **▶** fades back to the step it was on and plays the rest of it.
+- **Pause** stops the step's time; the zone keeps its look. Previous and next work paused too.
+- Each zone plays its own playlist: the ceiling on Evening while the bar plays Happy hour.
+- **Play when the project opens** (one playlist per zone) starts it as soon as the project is opened or the app starts, for installations that run by themselves. Its tab shows a small power sign.
+- Playlists run on this computer's clock, also with the window in the background.
+- Steps that play by themselves are not undo steps; editing playlists is. An undo while a playlist plays doesn't take the zone back to an earlier step.
+- Deleting a scene takes its steps out of the playlists. Playlists are saved in the project; where they are playing is not.
 
 ## Keeping the output running
 
@@ -198,8 +230,8 @@ Phones, tablets and other computers on the same network can use openLedMapper to
 **Logging in.** The address opens a page that asks who you are:
 
 - **Programmer** (needs the password): the whole interface, as on this computer. Fixtures, patch, zones, content, scenes, settings.
-- **Operator** (no password): the interface with the mapping locked. You see the fixtures, the patch and the zones, but can't move, add or delete fixtures, change the patch, the zones' areas or the settings. You can change the content: layers, sources, parameters, blend modes, zone levels, scenes (play, store, edit), the master and blackout.
-- **Remote** (no password): a simple page for phones, tablets or a computer. Each zone shows its name, what plays in it, a dimmer, and its scenes: tap a scene to play it (with its fade), drag the dimmer to set the zone's level. It is the programmer who makes the zones and scenes; the remote only plays and dims them.
+- **Operator** (no password): the interface with the mapping locked. You see the fixtures, the patch and the zones, but can't move, add or delete fixtures, change the patch, the zones' areas or the settings. You can change the content: layers, sources, parameters, blend modes, zone levels, scenes (play, store, edit), playlists (play, make, edit), the master and blackout.
+- **Remote** (no password): a simple page for phones, tablets or a computer. Each zone shows its name, what plays in it, a dimmer, its playlists and its scenes: tap a playlist to play it (pause, play and next are under it, with the step playing and its time left), tap a scene to play it (with its fade; it pauses the playlist), drag the dimmer to set the zone's level. It is the programmer who makes the zones, scenes and playlists; the remote only plays and dims them.
 
 **How it works.** This computer stays in charge: every change made on a device comes here, and is shared with every other device. What a device may change depends on how it logged in, checked here, not on the device. Devices never send Art-Net, and can't switch it on or off. Undo works on every device: it goes back one step of what that device has seen (on an operator's device, only the content goes back).
 
@@ -255,7 +287,7 @@ Art-Net only (no sACN/E1.31 yet). No Syphon, Spout or NDI: use window capture in
 The apps are an [Electron](https://www.electronjs.org/) window (`desktop/`) around the interface, with the Art-Net bridge (`openledmapper.py`, packed with PyInstaller by `openledmapper.spec`) running inside: the app starts it with `--embedded` and it stops when the app quits. GitHub builds them (`.github/workflows/release.yml`) on Windows, an Apple silicon Mac and an Intel Mac. To publish a version:
 
 1. Set `VERSION` in `openledmapper.py` (and the README title), and commit.
-2. Tag it with the same version and push the tag: `git tag v0.6.2 && git push origin v0.6.2`.
+2. Tag it with the same version and push the tag: `git tag v0.7.0 && git push origin v0.7.0`.
 
 The three apps are built, started once to check that they start the bridge and stop it again, and attached to a new release on the Releases page, in about 10 minutes. The app's version comes from `VERSION`; a tag that doesn't match it fails the build. To build without releasing, run **Build apps** from the Actions tab: the apps are kept as downloads of that run.
 

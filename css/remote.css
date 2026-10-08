@@ -82,6 +82,31 @@ button { cursor: pointer; }
 .scene.live { background: var(--accent-soft); border-color: var(--accent); }
 .scene.live b { color: var(--accent); }
 .empty { color: var(--muted); font-size: 13.5px; }
+/* a zone's playlists, and the one playing */
+.plists { display: grid; gap: 6px; }
+.plists[hidden], .pplay[hidden] { display: none; }
+.plabel { font-size: 11px; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; }
+.ppills { display: flex; gap: 6px; overflow-x: auto; padding: 2px; margin: 0 -2px; scrollbar-width: none; }
+.ppill { flex: none; display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px 0 10px; border-radius: 20px; border: 1px solid var(--line2); background: var(--bg2); font-size: 14.5px; font-weight: 500; }
+.ppill .ico { display: grid; color: var(--muted); }
+.ppill .ico svg { width: 14px; height: 14px; }
+.ppill.on { background: var(--live-soft); border-color: var(--live); color: var(--live); }
+.ppill.on .ico { color: var(--live); }
+.ppill.paused { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.ppill.paused .ico { color: var(--warn); }
+.pplay { display: grid; grid-template-columns: 52px 44px minmax(0, 1fr); gap: 10px; align-items: center; padding: 10px; border-radius: 10px; background: var(--bg2); border: 1px solid var(--line2); }
+.pbig { width: 52px; height: 52px; border-radius: 50%; border: 0; background: var(--live); color: #062012; display: grid; place-items: center; padding: 0; }
+.pbig.paused { background: var(--bg4); color: var(--text); }
+.pbig svg { width: 24px; height: 24px; }
+.pnext { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line2); background: var(--bg3); display: grid; place-items: center; padding: 0; }
+.pnext svg { width: 18px; height: 18px; }
+.pnow { min-width: 0; }
+.pnow b { display: block; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pnow span { display: block; font: 11.5px var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pprog { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--bg4); overflow: hidden; }
+.pprog i { display: block; height: 100%; width: 0; background: var(--live); }
+.pplay.paused .pprog i { background: var(--warn); }
+.pbig:active, .pnext:active, .ppill:active { transform: scale(.97); }
 .wait { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: rgba(10, 11, 14, .92); text-align: center; color: var(--text2); }
 .wait[hidden] { display: none; }
 .wait .box { display: grid; justify-items: center; gap: 14px; max-width: 340px; }

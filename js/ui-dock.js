@@ -37,18 +37,39 @@ function schedulePanels() {
 }
 
 /* ---------- scenes ---------- */
-function refreshScenes() { if (ui.dockTab === 'scenes' && !ui.dockCollapsed) renderDock(); }
+// While a slider or a fade is dragged, something is dragged and dropped, or a field is typed in, in the Scenes panel,
+// a redraw from elsewhere (a playlist moving on, another device) waits until it is over
+let scenesHeld = false, scenesDragging = false, scenesPending = false;
+const scenesBusy = () => scenesHeld || scenesDragging || !!(typingIn(document.activeElement) && document.activeElement.closest('#dockBody'));
+function refreshScenes() {
+  if (ui.dockTab !== 'scenes' || ui.dockCollapsed) return;
+  if (scenesBusy()) { scenesPending = true; return; }
+  scenesPending = false;
+  renderDock();
+}
+const scenesLetGo = () => { if (scenesPending) setTimeout(() => { if (scenesPending && !scenesBusy()) refreshScenes(); }); };
+document.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest('#dockBody input[type=range], #dockBody .fd')) scenesHeld = true; }, true);
+document.addEventListener('dragstart', e => { if (e.target.closest && e.target.closest('#dockBody')) scenesDragging = true; }, true);
+for (const t of ['pointerup', 'pointercancel']) document.addEventListener(t, () => { if (scenesHeld) { scenesHeld = false; scenesLetGo(); } }, true);
+for (const t of ['dragend', 'drop']) document.addEventListener(t, () => { if (scenesDragging) { scenesDragging = false; scenesLetGo(); } }, true);
+document.addEventListener('focusout', e => { if (e.target.closest && e.target.closest('#dockBody')) scenesLetGo(); }, true);
 function sceneMenu(anchor, z, sc) {
+  const n = pl => pl.steps.filter(st => st.scene === sc.id).length;
   menu(anchor, [
     !(anchor instanceof Element) && { head: `${sc.name} · ${z.name}` },
     !(anchor instanceof Element) && ['Go to it' + (sc.fade > 0 ? ` (fade ${fmtV(sc.fade)} s)` : ''), () => goScene(z, sc)],
     !(anchor instanceof Element) && sc.fade > 0 && ['Cut to it', () => goScene(z, sc, true), { key: '⇧click' }],
     !(anchor instanceof Element) && '-',
+    ['Add to playlist', null, { sub: [
+      ...z.playlists.map(pl => [pl.name, () => { addToPlaylist(z, pl, sc.id); ui.playlistOpen[z.id] = pl.id; renderDock(); toast(`${sc.name} added to ${pl.name}.`); }, { key: n(pl) ? `in it ×${n(pl)}` : '' }]),
+      z.playlists.length && '-',
+      ['New playlist with it…', () => newPlaylistDialog(z, sc.id)],
+    ] }],
     [`Update with ${z.name}'s current layers`, () => { sc.layers = snapshotLayers(z); z.scene = sc.id; commit(); toast(`${sc.name} updated`); }],
     ['Rename, fade time, color…', () => editScene(sc)],
     ['Duplicate', () => { const c = Object.assign(JSON.parse(JSON.stringify(sc)), { id: uid(), name: nextCopyName(sc.name, new Set(z.scenes.map(x => x.name))) }); z.scenes.splice(z.scenes.indexOf(sc) + 1, 0, c); commit(); }],
     '-',
-    ['Delete', () => { z.scenes = z.scenes.filter(x => x !== sc); if (z.scene === sc.id) z.scene = null; commit(); toast(`${sc.name} deleted. Ctrl Z brings it back.`); }, { danger: true }],
+    ['Delete', () => { z.scenes = z.scenes.filter(x => x !== sc); if (z.scene === sc.id) z.scene = null; dropSceneSteps(z, sc.id); commit(); toast(`${sc.name} deleted. Ctrl Z brings it back.`); }, { danger: true }],
   ]);
 }
 function editScene(sc) {
@@ -69,26 +90,74 @@ function editScene(sc) {
         row('Name', nameIn),
         numRow('Fade (s)', tmp, 'fade', { min: 0, max: 60, step: 0.1 }),
         row('Color', sw),
-        h('p', { class: 'note' }, 'The fade is how long the zone takes to change to this scene when you click it. 0 cuts straight to it.')),
+        h('p', { class: 'note' }, 'The fade is how long the zone takes to change to this scene when you click it. 0 cuts straight to it. It can also be changed on the scene\'s button: drag its fade time sideways, or click it to type one.')),
       h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'), h('button', { class: 'btn primary', type: 'button', onclick: save }, 'Save'))));
   document.body.append(bg);
   nameIn.focus(); nameIn.select();
 }
+// The fade time on a scene's button: drag it sideways to change it (Shift = ×10), click it to type one, or use the
+// arrow keys. 0 cuts. It works the same on the scene playing, so a fade can be tried and changed at once.
+function fadeControl(sc, tile) {
+  const label = () => (sc.fade > 0 ? '◢ ' + fmtV(Math.round(sc.fade * 10) / 10) + ' s' : 'cut');
+  const tip = () => `Fade in: ${sc.fade > 0 ? fmtV(sc.fade) + ' s' : 'none, it cuts'}. Drag sideways to change it (Shift = ×10), click to type, or ↑ ↓.`;
+  const el = h('span', { class: 'fd' + (sc.fade > 0 ? '' : ' cut'), role: 'button', tabindex: 0, title: tip(), 'aria-label': sc.name + ' fade time' }, label());
+  const show = () => { el.textContent = label(); el.classList.toggle('cut', !(sc.fade > 0)); el.title = tip(); };
+  const set = v => { sc.fade = clamp(Math.round(v * 10) / 10, 0, 60); show(); };
+  const type = () => {
+    let done = false;
+    const inp = h('input', { type: 'number', class: 'fdin', min: 0, max: 60, step: 0.1, value: fmtV(sc.fade), 'aria-label': sc.name + ' fade time' });
+    const finish = ok => { if (done) return; done = true; const v = parseFloat(inp.value); if (ok && isFinite(v) && clamp(v, 0, 60) !== sc.fade) { set(v); commit(); } else renderDock(); };
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); });
+    inp.addEventListener('blur', () => finish(true));
+    inp.addEventListener('click', e => e.stopPropagation());
+    inp.addEventListener('pointerdown', e => e.stopPropagation());
+    el.replaceWith(inp);
+    inp.focus(); inp.select();
+  };
+  el.addEventListener('click', e => e.stopPropagation());
+  el.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.stopPropagation(); e.preventDefault();
+    tile.draggable = false;
+    el.setPointerCapture(e.pointerId);
+    const x0 = e.clientX, v0 = sc.fade;
+    let moved = false;
+    const mv = ev => {
+      if (!moved && Math.abs(ev.clientX - x0) < 3) return;
+      moved = true; el.classList.add('scrub');
+      set(v0 + (ev.clientX - x0) * 0.05 * (ev.shiftKey ? 10 : 1));
+    };
+    const up = () => {
+      el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+      tile.draggable = true; el.classList.remove('scrub');
+      if (!moved) type(); else if (sc.fade !== v0) commit();
+    };
+    el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  });
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); type(); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); set(sc.fade + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 1 : 0.1)); commitSoft(); }
+  });
+  return el;
+}
 function sceneTile(z, sc, i, keys, look) {
   const live = z.scene === sc.id;
   const edited = live && lookOf(sc.layers) !== look;
+  const inLists = z.playlists.filter(pl => pl.steps.some(st => st.scene === sc.id)).length;
   const tile = h('div', { class: 'scene' + (live ? ' live' : ''), role: 'button', tabindex: 0, draggable: true, 'data-zone': z.id, 'data-id': sc.id,
-    title: `${sc.name} · ${sc.layers.length} layer${sc.layers.length === 1 ? '' : 's'} · ${sc.fade > 0 ? 'fades in over ' + fmtV(sc.fade) + ' s' : 'cuts in'}\nDrag to reorder` },
+    title: `${sc.name} · ${sc.layers.length} layer${sc.layers.length === 1 ? '' : 's'} · ${sc.fade > 0 ? 'fades in over ' + fmtV(sc.fade) + ' s' : 'cuts in'}` +
+      (inLists ? ` · in ${inLists} playlist${inLists === 1 ? '' : 's'}` : '') + '\nDrag to reorder, or onto a playlist to add it' },
     h('div', { class: 't' }, keys && i < 9 ? h('span', { class: 'k' }, i + 1) : null, h('span', { class: 'nm' }, sc.name),
-      h('button', { class: 'x', type: 'button', title: 'Update, rename, delete…', 'aria-label': 'Options for ' + sc.name, onclick: e => { e.stopPropagation(); sceneMenu(e.currentTarget, z, sc); } }, '⋯')),
-    h('div', { class: 's' }, h('span', null, sc.fade > 0 ? fmtV(sc.fade) + ' s' : 'cut'), h('span', { class: 'fill' }),
+      h('button', { class: 'x', type: 'button', title: 'Add to playlist, update, rename, delete…', 'aria-label': 'Options for ' + sc.name, onclick: e => { e.stopPropagation(); sceneMenu(e.currentTarget, z, sc); } }, '⋯')),
+    h('div', { class: 's' }, null, h('span', { class: 'fill' }),
       edited ? h('span', { class: 'badge warn', title: 'The layers have changed since this scene was recalled. ⋯ → Update saves the changes into it.' }, 'edited') : null),
     h('i', { class: 'prog' }));
+  tile.querySelector('.s').prepend(fadeControl(sc, tile));
   tile.style.setProperty('--tag', sc.tag);
   tile.addEventListener('click', e => goScene(z, sc, e.shiftKey));
   onRightClick(tile, e => sceneMenu(at(e), z, sc));
-  tile.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); goScene(z, sc, e.shiftKey); } });
-  tile.addEventListener('dragstart', e => { e.dataTransfer.setData(dragType('scene'), z.id + ':' + sc.id); e.dataTransfer.effectAllowed = 'move'; tile.classList.add('dragging'); });
+  tile.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === tile) { e.preventDefault(); goScene(z, sc, e.shiftKey); } });
+  tile.addEventListener('dragstart', e => { e.dataTransfer.setData(dragType('scene'), z.id + ':' + sc.id); e.dataTransfer.effectAllowed = 'copyMove'; tile.classList.add('dragging'); });
   tile.addEventListener('dragend', () => tile.classList.remove('dragging'));
   tile.addEventListener('dragover', e => { if (!e.dataTransfer.types.includes(dragType('scene'))) return; e.preventDefault(); tile.classList.add('drop'); });
   tile.addEventListener('dragleave', () => tile.classList.remove('drop'));
@@ -107,13 +176,24 @@ function renderScenes(body) {
   const bar = h('div', { class: 'bar' },
     h('label', { class: 'checkrow', title: 'Fade time given to scenes you store from now on' }, 'New scenes fade in', fadeIn, 's'),
     h('span', { class: 'fill' }),
-    h('span', { class: 'muted' }, 'Click: fade · Shift-click: cut · Keys 1–9: scenes of the selected zone · Upper zones cover lower ones'));
+    h('span', { class: 'muted' }, 'Click: fade · Shift-click: cut · Drag a fade time to change it · Keys 1–9: scenes of the selected zone · Upper zones cover lower ones'));
   const rows = h('div', { class: 'zonerows' });
   const sel = selZone();
   for (const z of project.zones.slice().reverse()) {
     const look = lookOf(z.layers);
+    const p = z._play, cur = playingList(z), state = cur && p.on ? ' playing' : cur && !p.ended ? ' paused' : '';
+    const lists = h('button', { class: 'btn sm icon plbtn' + state + (ui.playlistOpen[z.id] ? ' on' : ''), type: 'button', html: ICONS.playlist,
+      title: !z.playlists.length ? `New playlist for ${z.name}…` : (cur ? `${cur.name} is ${p.on ? 'playing' : p.ended ? 'stopped' : 'paused'}. ` : '') + (ui.playlistOpen[z.id] ? 'Fold the playlist' : 'Open the playlist'),
+      'aria-label': z.name + ' playlists',
+      onclick: e => {
+        e.stopPropagation();
+        if (!z.playlists.length) { newPlaylistDialog(z); return; }
+        if (ui.playlistOpen[z.id]) delete ui.playlistOpen[z.id]; else ui.playlistOpen[z.id] = (cur || z.playlists[0]).id;
+        ui.playlistStep = null; ui.playlistAdd = null;
+        if (ui.zone !== z.id) selectZone(z); else renderDock();
+      } });
     const head = h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
-      h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'nm' }, z.name), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity))),
+      h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'nm' }, z.name), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists),
       h('div', { class: 'zc' }, zoneOpacityInput(z, 80),
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
     const r = h('div', { class: 'scenerow' + (z === sel ? ' sel' : '') }, head);
@@ -131,7 +211,7 @@ function renderScenes(body) {
     r.addEventListener('drop', e => { r.classList.remove('drop-in'); const d = e.dataTransfer.getData(dragType('scene')); if (!d || e.defaultPrevented) return; e.preventDefault(); moveScene(d, z); });
     z.scenes.forEach((sc, i) => r.append(sceneTile(z, sc, i, z === sel, look)));
     if (!z.scenes.length) r.append(h('span', { class: 'rowhint' }, `No scenes yet. Set up ${z.name}'s layers in the Content tab, then + Store.`));
-    rows.append(r);
+    rows.append(h('div', { class: 'zoneblock' + (z === sel ? ' sel' : ''), 'data-zone': z.id }, r, playlistArea(z)));
   }
   if (!project.zones.length) rows.append(h('div', { class: 'empty' }, 'No zones. Add one in the Content tab, or draw one with the Zone tool (Z).'));
   body.append(h('div', { class: 'scenepanel' }, bar, rows));
@@ -142,6 +222,7 @@ function drawSceneProgress() {
     const w = f && f.scene === el.dataset.id ? (clamp((clockT - f.start) / f.dur, 0, 1) * 100).toFixed(1) + '%' : '0px';
     if (el.lastChild.style.width !== w) el.lastChild.style.width = w;
   }
+  drawPlaylistProgress();
 }
 
 /* ---------- patch ---------- */

@@ -71,6 +71,27 @@ function fixController(c, i, ids) {
   ensureChains(c);
   return c;
 }
+// A playlist only plays its own zone's scenes: steps of scenes that are gone go, and an end that leads to a playlist
+// that is gone becomes a loop. One playlist per zone plays when the project opens.
+const fadeOrNull = v => (v == null || v === '' ? null : clamp(numOr(v, 0), 0, 60));
+function fixPlaylists(list, scenes) {
+  const ids = new Set(), sceneIds = new Set(scenes.map(sc => sc.id));
+  const out = (Array.isArray(list) ? list : []).filter(isObj).map((pl, i) => {
+    const stepIds = new Set();
+    return {
+      id: uniqueId(pl.id, ids), name: typeof pl.name === 'string' ? pl.name : 'Playlist ' + (i + 1),
+      steps: (Array.isArray(pl.steps) ? pl.steps : []).filter(st => isObj(st) && sceneIds.has(st.scene)).map(st => ({
+        id: uniqueId(st.id, stepIds), scene: st.scene, time: clamp(numOr(st.time, 30), 0.1, 86400), fade: fadeOrNull(st.fade) })),
+      fade: fadeOrNull(pl.fade), end: pl.end, autoplay: pl.autoplay === true,
+    };
+  });
+  let auto = false;
+  for (const pl of out) {
+    if (pl.end !== 'loop' && pl.end !== 'stop' && (pl.end === pl.id || !ids.has(pl.end))) pl.end = 'loop';
+    if (pl.autoplay) { if (auto) pl.autoplay = false; auto = true; }
+  }
+  return out;
+}
 function hydrate(p) {
   if (!isObj(p)) p = {};
   const base = blankProject(typeof p.name === 'string' && p.name ? p.name : 'Untitled');
@@ -136,6 +157,7 @@ function hydrate(p) {
     z.scenes = fixScenes(z.scenes);
     z.opacity = isFinite(z.opacity) ? clamp(+z.opacity, 0, 1) : 1;
     if (!z.scenes.some(sc => sc.id === z.scene)) z.scene = null;
+    z.playlists = fixPlaylists(z.playlists, z.scenes);
     clampZone(z, out.settings);
     return z;
   });
@@ -165,6 +187,17 @@ function restore(s) {
   const guide = project.guide;
   const p = hydrate(JSON.parse(s));
   if (p.guide && !p.guide.src && guide) p.guide.src = guide.src;
+  // Playlists carry on. While one plays, the zone's look is the playlist's: an older copy (an undo, a device a step
+  // behind) doesn't take it back to an earlier scene. Changes to the layers of the scene playing do come in.
+  const before = new Map(project.zones.map(z => [z.id, z]));
+  for (const z of p.zones) {
+    const o = before.get(z.id), q = o && o._play, pl = q && playlistOf(z, q.list);
+    if (!pl || !pl.steps.length) continue;
+    const was = playingList(o), st = was && was.steps[q.i], i = st ? pl.steps.findIndex(x => x.id === st.id) : -1;
+    if (i >= 0) q.i = i; else if (q.i >= pl.steps.length) q.i = pl.steps.length - 1;   // the step playing stays the one playing
+    z._play = q;
+    if (!REMOTE_CLIENT && q.on && z.scene !== o.scene) { z.layers = o.layers; z.scene = o.scene; }
+  }
   // zones that fade and that the undo does not change carry on fading
   const fading = new Map(project.zones.filter(z => z._fade).map(z => [z.id, z]));
   for (const z of p.zones) { const o = fading.get(z.id); if (o && JSON.stringify(o.layers) === JSON.stringify(z.layers)) z._fade = o._fade; }
@@ -209,6 +242,8 @@ function loadProject(p, { resetView = true } = {}) {
   markGeom(); markPatch(); rebuildGeometry(); computePatch();
   if (resetView) ui.fitted = false;
   hist.stack = []; hist.idx = -1; pushHistory();
+  // a playlist set to play when the project opens starts with the first frame (on the main window)
+  if (!REMOTE_CLIENT) for (const z of project.zones) { const pl = z.playlists.find(x => x.autoplay && x.steps.length); if (pl) z._play = { list: pl.id, on: true, i: -1, start: 0, done: 0, manual: null, ended: false }; }
   renderAll(); saveSoon(); startClock();
 }
 

@@ -1,6 +1,6 @@
 # Makes the example projects in examples/ with the app itself (so they are always in the current file format),
 # then opens each one again and checks it: no page errors, every fixture patched without conflicts, every scene
-# plays, and the output has light in it.   python3 make_examples.py [port] [--check]   (--check: don't rewrite them)
+# plays, the output has light in it, and every playlist plays its steps.   python3 make_examples.py [port] [--check]   (--check: don't rewrite them)
 import os, sys, json, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import CHROME_ARGS, start_bridge, app_error
@@ -14,7 +14,7 @@ def check(name, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + name + ("  " + str(detail)[:300] if detail != "" else ""), flush=True); ok or fails.append(name)
 
 # Each builder runs in the page and returns the project; helpers: F (add a fixture), C (add a controller), L (a layer),
-# S (a scene), Z (a zone, its first scene on).
+# S (a scene), Z (a zone, its first scene on), P (a playlist of a zone's scenes, by name: [scene, play time, own fade]).
 HELPERS = """
   const F = (t, p) => { const f = newFixture(t, p); project.fixtures.push(f); return f; };
   const C = p => { const c = newController(p); project.controllers.push(c); return c; };
@@ -22,6 +22,7 @@ HELPERS = """
   const L = (src, o = {}) => Object.assign(newLayer(src), o, { params: o.params ? { [src]: o.params } : {} });
   const S = (name, tag, fade, layers) => ({ id: uid(), name, tag, fade, layers });
   const Z = p => { const z = newZone(p); z.scene = z.scenes[0].id; z.layers = cloneLayers(z.scenes[0].layers); return z; };
+  const P = (z, name, steps, o = {}) => { const pl = newPlaylist(Object.assign({ name, steps: steps.map(([n, t, f]) => newStep(z.scenes.find(s => s.name === n).id, t, f ?? null)) }, o)); z.playlists.push(pl); return pl; };
 """
 EXAMPLES = {
   '01-led-bars.json': """
@@ -38,6 +39,8 @@ EXAMPLES = {
       S('Fire', TAGS[1], 3, [L('b-fire')]),
       S('Strobe hit', TAGS[6], 0, [L('b-strobe', { params: { rate: 6 } })]),
     ] })];
+    // a show that runs by itself when the project opens
+    P(project.zones[0], 'Show', [['Scanner', 30], ['Rain', 30], ['Equalizer', 20], ['Fire', 30], ['Strobe hit', 3, 0]], { autoplay: true });
   """,
   '02-matrix-wall.json': """
     project = blankProject('Matrix wall');
@@ -106,6 +109,11 @@ EXAMPLES = {
         S('Disco', TAGS[4], 0.5, [L('b-discodots', { params: { bpm: 124 } })]),
       ] }),
     ];
+    // two playlists on the whole stage, Party handing back to Evening; the truss alternates on its own
+    const [whole, trussZone] = project.zones;
+    const evening = P(whole, 'Evening', [['Warm wash', 90], ['Clouds', 60], ['Warm wash', 90, 8]]);
+    P(whole, 'Party', [['Confetti', 20], ['Clouds', 10], ['Confetti', 20]], { fade: 0.5, end: evening.id });
+    P(trussZone, 'Hits', [['Wipe', 8], ['Hits', 4, 0]]);
   """,
 }
 
@@ -136,6 +144,11 @@ try:
                     time.sleep(0.03); light = max(light, pg.evaluate("olm.universes().reduce((a, u) => a + u.data.reduce((x, v) => x + v, 0), 0)"))
                 lit.append((s['name'], light))
         check(f"{name}: every scene plays and lights the pixels", all(v > 0 for _, v in lit), [n for n, v in lit if not v])
+        lists = sum(len(z.get('playlists', [])) for z in data['zones'])
+        if lists:
+            r = pg.evaluate("""() => olm.project.zones.flatMap(z => z.playlists.map(pl => { playPlaylist(z, pl.id); const ok = [];
+              for (let i = 0; i < pl.steps.length; i++) { stepPlaylist(z, i ? 1 : 0); ok.push(z.scene === pl.steps[i].scene); } stopPlaylist(z); return [pl.name, ok.every(Boolean)]; }))""")
+            check(f"{name}: its {lists} playlist{'s' if lists > 1 else ''} play their steps", all(ok for _, ok in r), r)
     # the other example files: an SVG layout, a custom ISF shader, a short video
     pg.evaluate("olm.loadProject(JSON.parse(JSON.stringify(blankProject('Imports'))))")
     pg.set_input_files("#fileSvg", os.path.join(EX, "05-facade.svg")); pg.click(".modal button:has-text('Import')"); time.sleep(0.8)

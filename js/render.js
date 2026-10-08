@@ -199,6 +199,12 @@ function startFade(z, dur, scene = null) {
   const frozen = !!z._fade && mixer.freeze(z); // a fade is already running: continue from exactly what the zone shows now
   z._fade = { from: frozen ? null : cloneLayers(z.layers), start: clockT, dur, scene };
 }
+// Change a zone to one of its scenes, crossfading over fade seconds (0 cuts)
+function recallScene(z, sc, fade) {
+  startFade(z, fade, sc.id);
+  z.layers = cloneLayers(sc.layers).map(L => Object.assign(L, { src: srcById(L.src) ? L.src : null }));
+  z.scene = sc.id;
+}
 // Play a source in a layer of the selected zone (the selected layer by default), crossfading over the transition time
 function loadSource(id, L = selLayer()) {
   const z = selZone();

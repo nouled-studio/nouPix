@@ -82,6 +82,7 @@ function tick() {
   if (!project) return;
   if (geomDirty) rebuildGeometry();
   ensurePatch();
+  if (!REMOTE_CLIENT) try { playlistTick(); } catch (e) { report('playlists', e); }   // on a device the main computer plays them
   sizeContent();
   if (ui.outputMode === 'content' || ui.showContent) try { renderContent(); } catch (e) { report('content', e); }
   if (ui.outputMode !== 'content') testPattern(ui.outputMode);

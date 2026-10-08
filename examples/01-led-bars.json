@@ -18,7 +18,7 @@
  },
  "fixtures": [
   {
-   "id": "brlo8yk4",
+   "id": "jdfk7zyw",
    "type": "line",
    "name": "Bar 1",
    "enabled": true,
@@ -39,10 +39,10 @@
    "x2": 115,
    "y2": 80,
    "pixels": 60,
-   "group": "xawody82"
+   "group": "wjaj1and"
   },
   {
-   "id": "ox9uww1g",
+   "id": "lnwbmgou",
    "type": "line",
    "name": "Bar 2",
    "enabled": true,
@@ -63,10 +63,10 @@
    "x2": 185,
    "y2": 80,
    "pixels": 60,
-   "group": "xawody82"
+   "group": "wjaj1and"
   },
   {
-   "id": "7i6i3kp6",
+   "id": "2360wahz",
    "type": "line",
    "name": "Bar 3",
    "enabled": true,
@@ -87,10 +87,10 @@
    "x2": 255,
    "y2": 80,
    "pixels": 60,
-   "group": "xawody82"
+   "group": "wjaj1and"
   },
   {
-   "id": "aipxjpul",
+   "id": "mejs5y97",
    "type": "line",
    "name": "Bar 4",
    "enabled": true,
@@ -111,10 +111,10 @@
    "x2": 325,
    "y2": 80,
    "pixels": 60,
-   "group": "xawody82"
+   "group": "wjaj1and"
   },
   {
-   "id": "rbaj1yws",
+   "id": "fhql2875",
    "type": "line",
    "name": "Bar 5",
    "enabled": true,
@@ -135,10 +135,10 @@
    "x2": 395,
    "y2": 80,
    "pixels": 60,
-   "group": "xawody82"
+   "group": "wjaj1and"
   },
   {
-   "id": "56aoulpz",
+   "id": "k2tentlz",
    "type": "line",
    "name": "Bar 6",
    "enabled": true,
@@ -159,10 +159,10 @@
    "x2": 465,
    "y2": 80,
    "pixels": 60,
-   "group": "xawody82"
+   "group": "wjaj1and"
   },
   {
-   "id": "l91m6d6a",
+   "id": "zj4zdi15",
    "type": "line",
    "name": "Bar 7",
    "enabled": true,
@@ -183,10 +183,10 @@
    "x2": 535,
    "y2": 80,
    "pixels": 60,
-   "group": "ie3cp3am"
+   "group": "wjwzl7sf"
   },
   {
-   "id": "6buwzpaf",
+   "id": "mjtu1cd7",
    "type": "line",
    "name": "Bar 8",
    "enabled": true,
@@ -207,10 +207,10 @@
    "x2": 605,
    "y2": 80,
    "pixels": 60,
-   "group": "ie3cp3am"
+   "group": "wjwzl7sf"
   },
   {
-   "id": "pjbfekas",
+   "id": "atycmcys",
    "type": "line",
    "name": "Bar 9",
    "enabled": true,
@@ -231,10 +231,10 @@
    "x2": 675,
    "y2": 80,
    "pixels": 60,
-   "group": "ie3cp3am"
+   "group": "wjwzl7sf"
   },
   {
-   "id": "3e8xldza",
+   "id": "88t886ch",
    "type": "line",
    "name": "Bar 10",
    "enabled": true,
@@ -255,10 +255,10 @@
    "x2": 745,
    "y2": 80,
    "pixels": 60,
-   "group": "ie3cp3am"
+   "group": "wjwzl7sf"
   },
   {
-   "id": "gjayxxqv",
+   "id": "o90yp6wg",
    "type": "line",
    "name": "Bar 11",
    "enabled": true,
@@ -279,10 +279,10 @@
    "x2": 815,
    "y2": 80,
    "pixels": 60,
-   "group": "ie3cp3am"
+   "group": "wjwzl7sf"
   },
   {
-   "id": "31inkv8e",
+   "id": "tun4oqz2",
    "type": "line",
    "name": "Bar 12",
    "enabled": true,
@@ -303,18 +303,18 @@
    "x2": 885,
    "y2": 80,
    "pixels": 60,
-   "group": "ie3cp3am"
+   "group": "wjwzl7sf"
   }
  ],
  "groups": [
   {
-   "id": "xawody82",
+   "id": "wjaj1and",
    "name": "Left",
    "tag": "#3cc8ff",
    "open": true
   },
   {
-   "id": "ie3cp3am",
+   "id": "wjwzl7sf",
    "name": "Right",
    "tag": "#ffb341",
    "open": true
@@ -322,7 +322,7 @@
  ],
  "controllers": [
   {
-   "id": "0xgv7bss",
+   "id": "ymk94m6b",
    "name": "Bar controller",
    "ip": "10.0.0.50",
    "enabled": true,
@@ -332,24 +332,24 @@
    "split": false,
    "chains": [
     [
-     "brlo8yk4",
-     "ox9uww1g",
-     "7i6i3kp6"
+     "jdfk7zyw",
+     "lnwbmgou",
+     "2360wahz"
     ],
     [
-     "aipxjpul",
-     "rbaj1yws",
-     "56aoulpz"
+     "mejs5y97",
+     "fhql2875",
+     "k2tentlz"
     ],
     [
-     "l91m6d6a",
-     "6buwzpaf",
-     "pjbfekas"
+     "zj4zdi15",
+     "mjtu1cd7",
+     "atycmcys"
     ],
     [
-     "3e8xldza",
-     "gjayxxqv",
-     "31inkv8e"
+     "88t886ch",
+     "o90yp6wg",
+     "tun4oqz2"
     ]
    ]
   }
@@ -550,7 +550,7 @@
  ],
  "zones": [
   {
-   "id": "zz5zrduy",
+   "id": "aa2s162w",
    "name": "Bars",
    "tag": "#ffb341",
    "x": 0,
@@ -560,7 +560,7 @@
    "opacity": 1,
    "layers": [
     {
-     "id": "3u9o8hbl",
+     "id": "w0a1pima",
      "src": "b-scanner",
      "params": {
       "b-scanner": {
@@ -576,13 +576,13 @@
    ],
    "scenes": [
     {
-     "id": "cqr1fb2s",
+     "id": "57u2lolu",
      "name": "Scanner",
      "tag": "#3cc8ff",
      "fade": 1,
      "layers": [
       {
-       "id": "3u9o8hbl",
+       "id": "w0a1pima",
        "src": "b-scanner",
        "params": {
         "b-scanner": {
@@ -598,13 +598,13 @@
      ]
     },
     {
-     "id": "7f8co8xq",
+     "id": "5us4moq7",
      "name": "Rain",
      "tag": "#6fe3e3",
      "fade": 2,
      "layers": [
       {
-       "id": "6extnljp",
+       "id": "o9sojb4h",
        "src": "b-rain",
        "params": {
         "b-rain": {
@@ -624,13 +624,13 @@
      ]
     },
     {
-     "id": "qfk90lyh",
+     "id": "p3wenplo",
      "name": "Equalizer",
      "tag": "#ff6f86",
      "fade": 0.5,
      "layers": [
       {
-       "id": "zc2al6f6",
+       "id": "lledywlw",
        "src": "b-equalizer",
        "params": {
         "b-equalizer": {
@@ -645,13 +645,13 @@
      ]
     },
     {
-     "id": "a56zq89y",
+     "id": "h31t3lph",
      "name": "Fire",
      "tag": "#ffb341",
      "fade": 3,
      "layers": [
       {
-       "id": "du6cfbk8",
+       "id": "lpypk2zo",
        "src": "b-fire",
        "params": {},
        "opacity": 1,
@@ -661,13 +661,13 @@
      ]
     },
     {
-     "id": "cormj8q6",
+     "id": "u32r8cad",
      "name": "Strobe hit",
      "tag": "#e8d56a",
      "fade": 0,
      "layers": [
       {
-       "id": "94b7dv6x",
+       "id": "z84v37b3",
        "src": "b-strobe",
        "params": {
         "b-strobe": {
@@ -681,7 +681,48 @@
      ]
     }
    ],
-   "scene": "cqr1fb2s"
+   "scene": "57u2lolu",
+   "playlists": [
+    {
+     "id": "1kr26d1d",
+     "name": "Show",
+     "steps": [
+      {
+       "id": "3kemll4u",
+       "scene": "57u2lolu",
+       "time": 30,
+       "fade": null
+      },
+      {
+       "id": "bvp46ira",
+       "scene": "5us4moq7",
+       "time": 30,
+       "fade": null
+      },
+      {
+       "id": "6t5mulrv",
+       "scene": "p3wenplo",
+       "time": 20,
+       "fade": null
+      },
+      {
+       "id": "5ybgjb22",
+       "scene": "h31t3lph",
+       "time": 30,
+       "fade": null
+      },
+      {
+       "id": "883ugb1y",
+       "scene": "u32r8cad",
+       "time": 3,
+       "fade": 0
+      }
+     ],
+     "fade": null,
+     "end": "loop",
+     "autoplay": true
+    }
+   ]
   }
  ],
  "guide": null

@@ -18,7 +18,7 @@
  },
  "fixtures": [
   {
-   "id": "lz416h3z",
+   "id": "au46mw2o",
    "type": "circle",
    "name": "Ring 1",
    "enabled": true,
@@ -41,10 +41,10 @@
    "start": 0,
    "sweep": 360,
    "ccw": false,
-   "group": "wjx1yzmo"
+   "group": "vk1deklg"
   },
   {
-   "id": "8rq2d33t",
+   "id": "f9mas29u",
    "type": "circle",
    "name": "Ring 2",
    "enabled": true,
@@ -67,10 +67,10 @@
    "start": 0,
    "sweep": 360,
    "ccw": false,
-   "group": "wjx1yzmo"
+   "group": "vk1deklg"
   },
   {
-   "id": "cal3qdg7",
+   "id": "2tabw93r",
    "type": "circle",
    "name": "Ring 3",
    "enabled": true,
@@ -93,10 +93,10 @@
    "start": 0,
    "sweep": 360,
    "ccw": false,
-   "group": "wjx1yzmo"
+   "group": "vk1deklg"
   },
   {
-   "id": "xj69gs4r",
+   "id": "zfnrdcze",
    "type": "circle",
    "name": "Arc 1",
    "enabled": true,
@@ -119,10 +119,10 @@
    "start": 270,
    "sweep": 180,
    "ccw": false,
-   "group": "67cd9vtu"
+   "group": "ehcda0vy"
   },
   {
-   "id": "uwvthn8u",
+   "id": "hnqv7aul",
    "type": "circle",
    "name": "Arc 2",
    "enabled": true,
@@ -145,10 +145,10 @@
    "start": 270,
    "sweep": 180,
    "ccw": true,
-   "group": "67cd9vtu"
+   "group": "ehcda0vy"
   },
   {
-   "id": "m9ydre87",
+   "id": "bjktffe3",
    "type": "circle",
    "name": "Oval",
    "enabled": true,
@@ -174,7 +174,7 @@
    "ry": 50
   },
   {
-   "id": "rivdw1p3",
+   "id": "kmp4kjeu",
    "type": "circle",
    "name": "Ring CCW",
    "enabled": true,
@@ -201,13 +201,13 @@
  ],
  "groups": [
   {
-   "id": "wjx1yzmo",
+   "id": "vk1deklg",
    "name": "Rings",
    "tag": "#b58cff",
    "open": true
   },
   {
-   "id": "67cd9vtu",
+   "id": "ehcda0vy",
    "name": "Arcs",
    "tag": "#46e08c",
    "open": true
@@ -215,7 +215,7 @@
  ],
  "controllers": [
   {
-   "id": "z605sk4g",
+   "id": "iojuw0vh",
    "name": "Ring controller",
    "ip": "10.0.0.70",
    "enabled": true,
@@ -225,19 +225,19 @@
    "split": false,
    "chains": [
     [
-     "lz416h3z",
-     "8rq2d33t",
-     "cal3qdg7"
+     "au46mw2o",
+     "f9mas29u",
+     "2tabw93r"
     ],
     [
-     "xj69gs4r",
-     "uwvthn8u"
+     "zfnrdcze",
+     "hnqv7aul"
     ],
     [
-     "m9ydre87"
+     "bjktffe3"
     ],
     [
-     "rivdw1p3"
+     "kmp4kjeu"
     ]
    ]
   }
@@ -438,7 +438,7 @@
  ],
  "zones": [
   {
-   "id": "j5inrhtt",
+   "id": "d905411s",
    "name": "All",
    "tag": "#b58cff",
    "x": 0,
@@ -448,7 +448,7 @@
    "opacity": 1,
    "layers": [
     {
-     "id": "d62mviho",
+     "id": "5fhuprhd",
      "src": "b-pulse",
      "params": {
       "b-pulse": {
@@ -462,13 +462,13 @@
    ],
    "scenes": [
     {
-     "id": "lk6ktfg6",
+     "id": "ycwwp6uj",
      "name": "Pulse rings",
      "tag": "#3cc8ff",
      "fade": 1,
      "layers": [
       {
-       "id": "d62mviho",
+       "id": "5fhuprhd",
        "src": "b-pulse",
        "params": {
         "b-pulse": {
@@ -482,13 +482,13 @@
      ]
     },
     {
-     "id": "ql8tuv27",
+     "id": "hqvjffbm",
      "name": "Radar",
      "tag": "#b58cff",
      "fade": 1.5,
      "layers": [
       {
-       "id": "8f55b8cc",
+       "id": "cim1dqul",
        "src": "b-sweep",
        "params": {
         "b-sweep": {
@@ -502,13 +502,13 @@
      ]
     },
     {
-     "id": "jwvnqiqi",
+     "id": "2bv7epxl",
      "name": "Comets",
      "tag": "#ff6f86",
      "fade": 1,
      "layers": [
       {
-       "id": "gciemstg",
+       "id": "h1c3syp0",
        "src": "b-comet",
        "params": {
         "b-comet": {
@@ -523,13 +523,13 @@
      ]
     },
     {
-     "id": "co8qdrhw",
+     "id": "u7tvb859",
      "name": "Aurora",
      "tag": "#6fe3e3",
      "fade": 4,
      "layers": [
       {
-       "id": "p34zswbp",
+       "id": "rv4emo1e",
        "src": "b-aurora",
        "params": {},
        "opacity": 1,
@@ -539,7 +539,8 @@
      ]
     }
    ],
-   "scene": "lk6ktfg6"
+   "scene": "ycwwp6uj",
+   "playlists": []
   }
  ],
  "guide": null

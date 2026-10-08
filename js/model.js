@@ -30,6 +30,9 @@ const ui = {
   showContent: true, contentOp: 0.35, showGuide: true, guideOp: 0.5, showGrid: true, snap: true, showLabels: true, showWiring: false, showZones: true,
   dockTab: 'patch', rightTab: 'inspector', rightHidden: false, scanOff: [], selCtrl: null, monitorKey: null, dockH: 250, dockCollapsed: false,
   hoverFx: null, hoverGroup: null, hoverPx: null, cursor: null, colorMode: 'wheel',
+  // the Scenes panel's playlists: which one each zone shows open (zone id -> playlist id), the step being edited,
+  // the zone whose + Add list is open, the playlist being renamed
+  playlistOpen: {}, playlistStep: null, playlistAdd: null, playlistRename: null,
 };
 const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'rightHidden', 'scanOff', 'colorMode'];
 let geomDirty = true, patchDirty = true;
@@ -92,9 +95,13 @@ function builtinSources() {
 // A layer plays one source. Parameters are kept per source, so switching back restores them.
 function newLayer(src = null) { return { id: uid(), src, params: {}, opacity: 1, blend: 'alpha', on: true }; }
 const cloneLayers = layers => JSON.parse(JSON.stringify(layers));
-// A zone is a rectangle of the canvas with its own layers and scenes; content is drawn to fit it.
+// A zone is a rectangle of the canvas with its own layers, scenes and playlists; content is drawn to fit it.
 // Zones later in the list are higher up and cover the ones below, as far as their opacity goes.
-function newZone(props = {}) { return Object.assign({ id: uid(), name: 'Zone 1', tag: TAGS[1], x: 0, y: 0, w: 1000, h: 640, opacity: 1, layers: [], scenes: [], scene: null }, props); }
+function newZone(props = {}) { return Object.assign({ id: uid(), name: 'Zone 1', tag: TAGS[1], x: 0, y: 0, w: 1000, h: 640, opacity: 1, layers: [], scenes: [], scene: null, playlists: [] }, props); }
+// A playlist plays some of its zone's scenes in turn (playlists.js). A step's fade null follows the playlist's,
+// and the playlist's null follows each scene's own. end: 'loop', 'stop', or the id of the playlist to play next.
+function newPlaylist(props = {}) { return Object.assign({ id: uid(), name: 'Playlist 1', steps: [], fade: null, end: 'loop', autoplay: false }, props); }
+const newStep = (scene, time = 30, fade = null) => ({ id: uid(), scene, time, fade });
 function clampZone(z, s = project.settings) {
   z.w = clamp(Math.round(z.w) || 1, 1, s.compW); z.h = clamp(Math.round(z.h) || 1, 1, s.compH);
   z.x = clamp(Math.round(z.x) || 0, 0, s.compW - z.w); z.y = clamp(Math.round(z.y) || 0, 0, s.compH - z.h);

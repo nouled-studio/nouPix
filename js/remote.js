@@ -58,16 +58,21 @@ function remoteHostMessage(m) {
 }
 const remoteSend = (to, roles, m) => bridgeSend({ t: 'rout', to, roles, m });
 const FULL_ROLES = ['programmer', 'operator'];
+const PLAYLIST_DO = ['toggle', 'start', 'play', 'pause', 'resume', 'next', 'prev', 'stop'];   // every role may play the playlists
 const hasClients = roles => [...remote.clients.values()].some(c => roles.includes(c.role));
-// What every device shows besides the project: the master level and blackout, which live outside the project
-const remoteLive = () => ({ t: 'live', master: project.settings.master, blackout: ui.blackout, output: ui.outputOn });
-// What the phones show: each zone (top first) with its scenes, the scene playing, its level and its content
+// What every device shows besides the project: the master level, blackout, and where the playlists are, which live
+// outside the project
+const remoteLive = () => ({ t: 'live', master: project.settings.master, blackout: ui.blackout, output: ui.outputOn, play: playState() });
+// What the phones show: each zone (top first) with its scenes, the scene playing, its level, its content, its
+// playlists and the one playing
 function remoteState() {
   const name = id => { const s = srcById(id); return s ? s.name : null; };
   return { t: 'state', name: project.name, master: project.settings.master, blackout: ui.blackout,
     zones: project.zones.slice().reverse().map(z => ({ id: z.id, name: z.name, tag: z.tag, opacity: z.opacity, scene: z.scene,
       scenes: z.scenes.map(sc => ({ id: sc.id, name: sc.name, tag: sc.tag, fade: sc.fade })),
-      content: z.layers.filter(L => L.on && L.src && name(L.src)).map(L => name(L.src)) })) };
+      content: z.layers.filter(L => L.on && L.src && name(L.src)).map(L => name(L.src)),
+      playlists: z.playlists.map(pl => ({ id: pl.id, name: pl.name, length: playlistLength(pl), steps: pl.steps.length })),
+      play: playForPhone(z) })) };
 }
 function remoteWelcome(cid, role) {
   if (FULL_ROLES.includes(role)) remoteSend(cid, null, { t: 'project', data: serialize(false), live: remoteLive(), acks: remote.acks });
@@ -101,6 +106,9 @@ function remoteFromDevice(cid, role, m) {
   if (m.op === 'scene' && z) {
     const sc = z.scenes.find(s => s.id === m.scene);
     if (sc) goScene(z, sc, !!m.cut);
+  } else if (m.op === 'playlist' && z && PLAYLIST_DO.includes(m.do)) {
+    const pl = z.playlists.find(p => String(p.id) === String(m.list)) || null;
+    if (pl || !['toggle', 'start', 'play'].includes(m.do)) playlistDo(z, pl, m.do, clamp(Math.round(numOr(m.i, 0)), 0, 1e6));
   } else if (m.op === 'opacity' && z && isFinite(m.value)) {
     setZoneOpacity(z, clamp(+m.value, 0, 1));
     remoteChanged(); commitSoft();
@@ -126,8 +134,9 @@ function keepLocal(data) {
   if (isObj(d.settings)) d.settings.bridgeUrl = project.settings.bridgeUrl;
   return JSON.stringify(d);
 }
-// From an operator's project, only the content goes in: each zone's layers, scenes, scene playing and level, and the
-// shaders. Everything else (fixtures, groups, patch, controllers, zone areas and names, settings, files) stays.
+// From an operator's project, only the content goes in: each zone's layers, scenes, scene playing, level and
+// playlists, and the shaders. Everything else (fixtures, groups, patch, controllers, zone areas and names, settings,
+// files) stays.
 function contentOf(data) {
   const d = JSON.parse(data), p = JSON.parse(serialize(false));
   if (!isObj(d)) throw new Error('not a project');
@@ -135,7 +144,7 @@ function contentOf(data) {
   for (const z of p.zones) {
     const o = theirs.get(z.id);
     if (!o) continue;
-    for (const k of ['layers', 'scenes', 'scene', 'opacity']) if (k in o) z[k] = o[k];
+    for (const k of ['layers', 'scenes', 'scene', 'opacity', 'playlists']) if (k in o) z[k] = o[k];
   }
   const shaders = (Array.isArray(d.sources) ? d.sources : []).filter(s => isObj(s) && !s.builtin && s.kind === 'isf');
   p.sources = p.sources.filter(s => s.builtin || s.kind !== 'isf').concat(shaders);
@@ -196,6 +205,7 @@ if (REMOTE_CLIENT) {
   addEventListener('input', () => remoteClientChanged(), true);
 }
 function remoteApplyLive(m) {
+  if (isObj(m.play)) applyPlayState(m.play);
   if (isFinite(m.master)) { project.settings.master = m.master; $('#master').value = m.master; $('#masterVal').textContent = pct(m.master); }
   if (!!m.blackout !== ui.blackout) { ui.blackout = !!m.blackout; $('#btnBlackout').classList.toggle('on', ui.blackout); $('#btnBlackout').setAttribute('aria-pressed', ui.blackout); }
 }

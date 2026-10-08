@@ -18,7 +18,7 @@
  },
  "fixtures": [
   {
-   "id": "046lkjv6",
+   "id": "t55kalao",
    "type": "matrix",
    "name": "Panel A",
    "enabled": true,
@@ -44,10 +44,10 @@
    "start": "TL",
    "dir": "H",
    "snake": true,
-   "group": "0jegwnr9"
+   "group": "jmxu8qvj"
   },
   {
-   "id": "re11dju8",
+   "id": "5hv815qq",
    "type": "matrix",
    "name": "Panel B",
    "enabled": true,
@@ -73,10 +73,10 @@
    "start": "TR",
    "dir": "H",
    "snake": true,
-   "group": "0jegwnr9"
+   "group": "jmxu8qvj"
   },
   {
-   "id": "0d1v10wl",
+   "id": "j4ed514z",
    "type": "matrix",
    "name": "Panel C",
    "enabled": true,
@@ -102,10 +102,10 @@
    "start": "TL",
    "dir": "H",
    "snake": true,
-   "group": "0jegwnr9"
+   "group": "jmxu8qvj"
   },
   {
-   "id": "q9d6rj8g",
+   "id": "hp4ww5qt",
    "type": "matrix",
    "name": "Panel D",
    "enabled": true,
@@ -131,12 +131,12 @@
    "start": "TR",
    "dir": "H",
    "snake": true,
-   "group": "0jegwnr9"
+   "group": "jmxu8qvj"
   }
  ],
  "groups": [
   {
-   "id": "0jegwnr9",
+   "id": "jmxu8qvj",
    "name": "Wall",
    "tag": "#b58cff",
    "open": true
@@ -144,7 +144,7 @@
  ],
  "controllers": [
   {
-   "id": "rhq47ero",
+   "id": "3jsz7b4e",
    "name": "Left controller",
    "ip": "10.0.0.60",
    "enabled": true,
@@ -154,15 +154,15 @@
    "split": false,
    "chains": [
     [
-     "046lkjv6"
+     "t55kalao"
     ],
     [
-     "re11dju8"
+     "5hv815qq"
     ]
    ]
   },
   {
-   "id": "l10qfb5z",
+   "id": "sjzubj79",
    "name": "Right controller",
    "ip": "10.0.0.61",
    "enabled": true,
@@ -172,10 +172,10 @@
    "split": false,
    "chains": [
     [
-     "0d1v10wl"
+     "j4ed514z"
     ],
     [
-     "q9d6rj8g"
+     "hp4ww5qt"
     ]
    ]
   }
@@ -376,7 +376,7 @@
  ],
  "zones": [
   {
-   "id": "z43fyaj8",
+   "id": "mb21mtin",
    "name": "Whole wall",
    "tag": "#b58cff",
    "x": 0,
@@ -386,7 +386,7 @@
    "opacity": 1,
    "layers": [
     {
-     "id": "kqfc85jr",
+     "id": "x0jo6cu8",
      "src": "b-spiral",
      "params": {
       "b-spiral": {
@@ -401,13 +401,13 @@
    ],
    "scenes": [
     {
-     "id": "t2dp2wc4",
+     "id": "0he01m9d",
      "name": "Spiral",
      "tag": "#ff6f86",
      "fade": 2,
      "layers": [
       {
-       "id": "kqfc85jr",
+       "id": "x0jo6cu8",
        "src": "b-spiral",
        "params": {
         "b-spiral": {
@@ -422,13 +422,13 @@
      ]
     },
     {
-     "id": "5q1d8jo7",
+     "id": "yy9eimq2",
      "name": "Mirror ball",
      "tag": "#e8d56a",
      "fade": 2,
      "layers": [
       {
-       "id": "p2bwr03p",
+       "id": "ksgcj5we",
        "src": "b-mirrorball",
        "params": {},
        "opacity": 1,
@@ -438,13 +438,13 @@
      ]
     },
     {
-     "id": "09y0oj3j",
+     "id": "abn45qqq",
      "name": "Lava",
      "tag": "#ffb341",
      "fade": 3,
      "layers": [
       {
-       "id": "kainfdxt",
+       "id": "5qwhacqh",
        "src": "b-lava",
        "params": {},
        "opacity": 1,
@@ -454,13 +454,13 @@
      ]
     },
     {
-     "id": "736dwzfx",
+     "id": "v9nebhux",
      "name": "Plasma + stars",
      "tag": "#3cc8ff",
      "fade": 2,
      "layers": [
       {
-       "id": "m6i9eria",
+       "id": "x3gbhmmb",
        "src": "b-plasma",
        "params": {},
        "opacity": 1,
@@ -468,7 +468,7 @@
        "on": true
       },
       {
-       "id": "8cquqmcb",
+       "id": "o0rkuyol",
        "src": "b-stars",
        "params": {},
        "opacity": 0.8,
@@ -478,10 +478,11 @@
      ]
     }
    ],
-   "scene": "t2dp2wc4"
+   "scene": "0he01m9d",
+   "playlists": []
   },
   {
-   "id": "fcysf3uj",
+   "id": "f1hpgl2e",
    "name": "Panel B only",
    "tag": "#ffb341",
    "x": 330,
@@ -491,7 +492,7 @@
    "opacity": 0,
    "layers": [
     {
-     "id": "b2m86ab9",
+     "id": "ftkjsn9l",
      "src": "b-checker",
      "params": {
       "b-checker": {
@@ -505,13 +506,13 @@
    ],
    "scenes": [
     {
-     "id": "jdbojq7e",
+     "id": "mr4rm0l0",
      "name": "Checker",
      "tag": "#46e08c",
      "fade": 1,
      "layers": [
       {
-       "id": "b2m86ab9",
+       "id": "ftkjsn9l",
        "src": "b-checker",
        "params": {
         "b-checker": {
@@ -525,7 +526,8 @@
      ]
     }
    ],
-   "scene": "jdbojq7e"
+   "scene": "mr4rm0l0",
+   "playlists": []
   }
  ],
  "guide": null

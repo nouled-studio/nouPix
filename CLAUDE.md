@@ -5,7 +5,7 @@ serves it and turns its frames into Art-Net. The desktop apps are an Electron wi
 bridge packed inside.
 
 ```
-index.html, css/, js/  ── the interface (browser): fixtures, content, scenes, patch; renders and builds DMX
+index.html, css/, js/  ── the interface (browser): fixtures, content, scenes, playlists, patch; renders and builds DMX
         │  WebSocket /ws: JSON messages + binary frames of universes
 openledmapper.py       ── the bridge (Python 3.8+, standard library only): serves the page, sends Art-Net
         │  with remote control on: a second web server on the network (default port 8090)
@@ -23,21 +23,23 @@ order by `<script src>` tags at the end of `index.html`:
 | `vendor/isf.js` | ISF shader renderer by VIDVOX (third party, unchanged) | `interactiveShaderFormat` |
 | `builtins.js` | The 32 built-in effects, as ISF code and categories (data) | `BUILTINS` |
 | `util.js` | Helpers used everywhere: elements, numbers and text, local storage, toasts, error reports, icons | `$` `$$` `h` `clamp` `wrap180` `wrap360` `pct` `fmtN` `store` `toast` `debounce` `report` `replacer` `MOD` |
-| `model.js` | The project and its parts: constants, defaults, the `project` and `ui` state, factories, groups, selection, look-ups by id | `project` `ui` `blankProject` `newFixture` `newZone` `newLayer` `newController` `selected` `selUnits` `fxById` `markGeom` `markPatch` |
+| `model.js` | The project and its parts: constants, defaults, the `project` and `ui` state, factories, groups, selection, look-ups by id | `project` `ui` `blankProject` `newFixture` `newZone` `newLayer` `newPlaylist` `newStep` `newController` `selected` `selUnits` `fxById` `markGeom` `markPatch` |
 | `geometry.js` | Mapping math: each fixture's pixel positions, lengths, bounds, distances; moving, turning, scaling a fixture and the frame around several | `computePoints` `rebuildGeometry` `computeBB` `rotateFixture` `scaleFixture` `frameOf` `snap45` |
 | `patch.js` | Addressing: universe and channels of every pixel on its controller output, conflicts | `computePatch` `ensurePatch` `universes` `addrOf` `assign` `unassign` |
 | `sources.js` | Content sources: WebGL canvas, ISF runtimes, parameters and speeds, images and videos (trim, loop, sound), the media format check, source thumbnails | `runtimeOf` `renderSource` `applyParams` `probeMedia` `attachMedia` `syncMedia` `videoTick` |
-| `render.js` | The GPU mixer (zones, layers, blend modes), looks and fades, sampling the composition at every pixel, highlight and test patterns | `mixer` `renderContent` `loadSource` `startFade` `sampleMix` `testPattern` `setHighlight` |
+| `render.js` | The GPU mixer (zones, layers, blend modes), looks and fades, recalling a scene, sampling the composition at every pixel, highlight and test patterns | `mixer` `renderContent` `loadSource` `startFade` `recallScene` `sampleMix` `testPattern` `setHighlight` |
 | `output.js` | Gamma, sampled colours to DMX channels, the outgoing frame, the clock, the bridge connection | `buildOutput` `layoutFrame` `sendFrame` `tick` `startClock` `connectBridge` `bridge` |
 | `project-io.js` | Project files: repairing what is opened, undo history, autosave, open/save, CSV, SVG import, the demo | `hydrate` `serialize` `commit` `commitSoft` `undo` `redo` `loadProject` `importSvg` `demoProject` |
 | `remote.js` | Remote control: the host side (configure the bridge, send the project and the phones' state, apply devices' changes by role) and the client side (this page opened on a device at `/app`) | `remote` `REMOTE_CLIENT` `mappingLocked` `remoteChanged` `remoteFromDevice` `contentOf` `connectRemote` `remoteOp` |
-| `actions.js` | What the user can do, whichever button, key or menu asks: fixtures, selection, align/turn/resize, copy and paste, zones, layers, scenes, controllers, adding sources from files | `addFixture` `deleteSel` `duplicateSel` `groupSel` `alignSel` `rotateSel` `pasteFixtures` `addZone` `addLayer` `goScene` `storeScene` `deleteController` |
+| `playlists.js` | Playlists: a zone plays some of its scenes in turn on the frame clock; which fade a step uses; play, pause, next, the end; the state devices see | `playlistTick` `playPlaylist` `togglePlaylist` `pausePlaylist` `resumePlaylist` `stepPlaylist` `playlistManual` `stepFade` `playingList` `playElapsed` `playState` |
+| `actions.js` | What the user can do, whichever button, key or menu asks: fixtures, selection, align/turn/resize, copy and paste, zones, layers, scenes, playlists, controllers, adding sources from files | `addFixture` `deleteSel` `duplicateSel` `groupSel` `alignSel` `rotateSel` `pasteFixtures` `addZone` `addLayer` `goScene` `storeScene` `playlistDo` `addPlaylist` `addToPlaylist` `moveStep` `deleteController` |
 | `ui-forms.js` | Building blocks for the panels: rows, inputs, segmented buttons, lists that reorder by dragging and their move animation | `row` `numRow` `sliderRow` `seg` `checkRow` `reorderable` `flipRows` |
 | `ui-color.js` | The colour picker for shader colour controls: wheel and intensity, RGB, HSV, hex, lighting presets, recent colours | `colorRow` `openColorPicker` `hsvToRgb` `rgbToHsv` |
 | `ui-stage.js` | The stage canvas: view and zoom, drawing, zones on the stage, hit testing, handles, tools, pointer, pixel finder, guide image | `drawView` `fitView` `setTool` `hitFixture` `dragHandle` `endDrag` `defaultFixtureAt` |
 | `ui-lists.js` | The left column: fixture list (groups, badges, drag and drop) and source list (categories, search) | `renderFxList` `renderSrcList` |
 | `ui-inspector.js` | The right panel: fixture, multi-selection, group and zone inspectors, Content tab, video controls, Settings | `renderRight` `onSelection` `showRight` |
-| `ui-dock.js` | The bottom dock: scenes, patch and controller editor, Art-Net nodes, DMX monitor | `renderDock` `onPatchChanged` `refreshScenes` `autoPatch` |
+| `ui-dock.js` | The bottom dock: scenes (with the fade time on each scene's button), patch and controller editor, Art-Net nodes, DMX monitor | `renderDock` `onPatchChanged` `refreshScenes` `autoPatch` |
+| `ui-playlists.js` | The playlists in the Scenes panel: tabs folded to one line or open, steps, step editor, + Add, the New playlist window, the playlist menu | `playlistArea` `newPlaylistDialog` `playlistMenu` `drawPlaylistProgress` |
 | `ui-menus.js` | The menu system and every menu, the SVG import dialog, copy/cut/paste keys | `menu` `fixtureMenu` `canvasMenu` `projectMenu` … |
 | `ui-remote.js` | Remote control in the interface: the top-bar button and menu, the Settings section, the waiting screen on devices, `lockPanel` for operators | `updateRemoteUI` `remoteMenu` `remoteSection` `remoteOverlay` `lockPanel` |
 | `app.js` | Top bar and status bar, wiring buttons and keys, the frame loop, `boot()`, and `window.olm` | `initUI` `onKey` `renderAll` `boot` |
@@ -51,22 +53,26 @@ order by `<script src>` tags at the end of `index.html`:
   stage canvas and the document, the autosave timer) may only use what earlier files define. Everything else runs
   later, after `boot()` at the end of `app.js`, when all files are there. A function used at load time from an
   earlier file doesn't exist yet: functions are only hoisted within their own file.
-- **Layers.** The engine is `util → model → geometry → patch → sources → render → output → project-io → remote`; each
-  uses only the ones before it, with one exception: `computePatch` ends with `layoutFrame` (output.js) so the
-  outgoing frame matches the new patch. The UI is `actions → ui-forms → ui-color, ui-stage, ui-lists, ui-inspector,
+- **Layers.** The engine is `util → model → geometry → patch → sources → render → output → project-io → remote →
+  playlists`; each uses only the ones before it, with these exceptions: `computePatch` ends with `layoutFrame` (output.js)
+  so the outgoing frame matches the new patch; `tick` (output.js) calls `playlistTick`; `restore` (project-io.js) uses
+  `playlistOf`/`playingList` to carry playlists through an undo; remote.js reads the playlists' state (`playState`,
+  `playForPhone`) for the devices. The UI is `actions → ui-forms → ui-color, ui-stage, ui-lists, ui-inspector,
   ui-dock, ui-menus → app`; UI files use any engine file and each other.
 - **The engine calls the UI only to redraw**, through these: `renderAll`, `renderRight`, `renderDock`,
   `onPatchChanged`, `renderFxList`, `renderSrcList`, `refreshScenes`, `updateUndoButtons`, `updateBridgeUI`,
   `updateHighlightUI`, `showVersion`, `keepAwake`, `loadGuide`, and for remote control `updateRemoteUI`,
   `remoteOverlay`, `redrawStage`. Keep it to that list. (`remote.js` also calls the actions it carries out for
-  devices: `goScene`, `setZoneOpacity`, `toggleBlackout`.)
+  devices: `goScene`, `setZoneOpacity`, `toggleBlackout`, `playlistDo`.) `refreshScenes` waits while something in the
+  Scenes panel is dragged or typed in, so a playlist moving on doesn't break the user's drag.
 - **Not strict mode.** The scripts run without `'use strict'`, as the app always has. Don't add the directive to a
   file without testing everything: it changes what some code does.
 
 ### Each frame
 
 `startClock` runs `tick()` at the project's fps (in a worker timer, so it keeps going in the background):
-`rebuildGeometry` if `geomDirty` → `ensurePatch` if `patchDirty` → `renderContent` (or `testPattern` while
+`rebuildGeometry` if `geomDirty` → `ensurePatch` if `patchDirty` → `playlistTick` (main window only: steps whose play
+time is up move on, through `recallScene`) → `renderContent` (or `testPattern` while
 highlighting) → `updateThumbs`, `syncMedia`, `videoTick` → `buildOutput` → `sendFrame` when Art-Net is on.
 Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimationFrame` when something changed.
 
@@ -78,6 +84,9 @@ Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimatio
   (debounced) while dragging or typing. Redraw the panel you changed (`renderRight()`, …) yourself.
 - Keys starting with `_` (`f._pts`, `f._patch`, `f._out`, `f._col`…) are worked out at run time and never saved
   (`replacer` leaves them out of every file and copy).
+- Playlists live in each zone (`z.playlists`, steps pointing at the zone's scenes); where one plays is `z._play`, never
+  saved. Steps that play by themselves change `z.layers`/`z.scene` without an undo step; `restore` keeps a playing
+  zone's step over an older copy (an undo, a device a step behind).
 - Files: `{ format: 'openledmapper-project', version: 3, … }`. `hydrate` (project-io.js) repairs anything opened
   (older versions, Weft files, hand edits) so the rest of the code can trust the project. A new field gets its
   default there.
@@ -91,16 +100,17 @@ Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimatio
 - **Roles:** `POST /login` gives a token for a role: `programmer` (password, compared in constant time, wrong ones
   slowed and locked out per address), `operator` or `remote`. The bridge passes every device message to the main
   window as `{t: 'rmsg', cid, role, m}`. The role comes from the token, never from the device.
-- **The main window decides** (`remoteFromDevice`): `remote` may only play scenes and set zone levels; `operator` and
-  `programmer` also the master and blackout, and send their whole project. An operator's project goes through
-  `contentOf`, which keeps everything but the zones' layers, scenes and levels and the shaders. A programmer's
+- **The main window decides** (`remoteFromDevice`): `remote` may only play scenes and playlists and set zone levels;
+  `operator` and `programmer` also the master and blackout, and send their whole project. An operator's project goes
+  through `contentOf`, which keeps everything but the zones' layers, scenes, levels and playlists and the shaders. A programmer's
   replaces the project. The main window then sends the result to every device (`remoteChanged`, after every
   `pushHistory` and `restore`).
 - **A device** (`REMOTE_CLIENT`, the page at `/app`) loads nothing from local storage and saves nothing. It sends its
   project after changes, with a sequence number. It applies the main window's copy only when that copy has its last
   change (`acks`), and not while the user drags or types. Scene changes and zone levels also go as small operations
-  (`remoteOp`), so the main window fades and dims live. A device never sends Art-Net (`setOutput` does nothing),
-  and can't add files or screen capture.
+  (`remoteOp`), so the main window fades and dims live; so do play, pause and next of playlists (`playlistDo`), which
+  only the main window plays: devices show where they are from the `live` message (`play`). A device never sends
+  Art-Net (`setOutput` does nothing), and can't add files or screen capture.
 - **The remote as an app:** `remote.html` links `remote.webmanifest` (start `/remote`, standalone, icons
   `icons/remote-*.png` made from `icons/openledmapper.svg`) and registers `remote-sw.js` (network first, a cached copy
   of the page and its files when the computer can't be reached). The network server serves them (`REMOTE_FILES`).
@@ -143,4 +153,6 @@ fuzzer. Tests drive the page with Playwright through the bridge, and use the glo
 `examples/` with the app itself and checks every example file. `test_remote.py` checks remote control end to end
 (roles, permissions, phone page, disconnects); `test_remote_app.py` the remote as an installable app and over the
 computer's network address; `test_remote_soak.py` (full run only) runs 400 mixed changes from
-several devices and checks they all end equal.
+several devices while every zone plays a playlist, and checks they all end equal. `test_playlist.py` checks playlists
+(files, the panel folding and opening, timing and fades, the end, pause and resume, undo, editing while playing, the
+fade on a scene's button, play on open, the phone).
