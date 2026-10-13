@@ -13,8 +13,49 @@ function numInput(obj, key, o = {}) {
   inp.addEventListener('input', () => set(parseFloat(inp.value)));
   inp.addEventListener('change', () => { inp.value = fmtV(obj[key]); if (o.onCommit) o.onCommit(); });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+  let before = null;
+  shiftWheel(inp, n => { if (before === null) before = obj[key]; set(notchFrom(obj[key], n, o.step ?? 1)); inp.value = fmtV(obj[key]); syncInspector(); },
+    () => { const was = before; before = null; if (was !== null && obj[key] !== was && o.onCommit) o.onCommit(); });
   binders.push(() => { if (document.activeElement !== inp) inp.value = fmtV(obj[key]); });
   return o.prefix ? h('div', { class: 'inp' }, h('b', null, o.prefix), inp) : inp;
+}
+// Shift + scroll over a slider or a number changes it a notch at a time; without Shift the panel scrolls as usual.
+// A click of a mouse wheel is a notch (120 in wheelDelta). Anything finer (a trackpad, a Mac's mouse) adds up, a
+// notch every WHEEL_PX, and the first move after a pause is always a notch. nudge(n) moves n notches (up is
+// more); done() runs once the scrolling stops, to make it one step of undo.
+const WHEEL_PX = 40;
+function shiftWheel(el, nudge, done) {
+  let acc = 0, last = 0, timer = 0;
+  el.addEventListener('wheel', e => {
+    if (!e.shiftKey || el.disabled) return;
+    e.preventDefault();
+    const now = performance.now(), fresh = now - last > 150;
+    last = now;
+    let n;
+    const wd = e.wheelDeltaY || e.wheelDeltaX;   // with Shift, some systems scroll sideways
+    if (wd && wd % 120 === 0) n = wd / 120;
+    else {
+      if (fresh) acc = 0;
+      acc -= (e.deltaY || e.deltaX) * (e.deltaMode === 1 ? WHEEL_PX / 3 : e.deltaMode === 2 ? WHEEL_PX * 3 : 1);
+      n = Math.trunc(acc / WHEEL_PX);
+      if (!n && fresh && acc) { n = Math.sign(acc); acc = 0; } else acc -= n * WHEEL_PX;
+    }
+    if (!n) return;
+    nudge(clamp(n, -10, 10));
+    clearTimeout(timer);
+    timer = setTimeout(done, 400);
+  }, { passive: false });
+}
+// A round step for a range: about a hundredth of it, as 1, 2 or 5 times a power of ten
+function niceStep(x) {
+  if (!(x > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(x))), m = x / p;
+  return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+}
+// n notches on from v, landing on whole notches (0.37 up by 0.05 is 0.4, then 0.45)
+function notchFrom(v, n, notch) {
+  const q = v / notch;
+  return Math.round((n > 0 ? Math.floor(q + 1e-6) + n : Math.ceil(q - 1e-6) + n) * notch * 1e6) / 1e6;
 }
 function scrub(text, obj, key, o = {}) {
   const lab = h('label', { class: 'scrub', title: 'Drag sideways to adjust (Shift = ×10)' }, text);
@@ -55,14 +96,75 @@ function checkRow(text, obj, key, onChange) {
   binders.push(() => { c.checked = !!obj[key]; });
   return h('label', { class: 'checkrow', for: id }, c, text);
 }
+// A slider and its value. Double-click the value (or Enter on it, or start typing a number on it) to type one; the
+// arrow keys on it, and Shift + scroll over the slider, move it a notch at a time (o.notch, or about a hundredth of
+// the range). A value shown as a percentage is typed as one. o.wrap: the value goes round (angles), so 370 is 10 and
+// a notch past the top starts again at the bottom. o.int: whole numbers only.
 function sliderRow(text, obj, key, o = {}) {
   const fmt = o.fmt || (v => fmtV(v));
-  const val = h('span', { class: 'mono' }, fmt(obj[key]));
-  const r = h('input', { type: 'range', min: o.min ?? 0, max: o.max ?? 1, step: o.step ?? 0.01, value: obj[key], 'aria-label': text });
+  const min = o.min ?? 0, max = o.max ?? 1, step = o.step ?? 0.01, k = o.fmt === pct ? 100 : 1;
+  const notch = o.notch ?? Math.max(step, niceStep((max - min) / 100));
+  const val = h('span', { class: 'mono sval', tabindex: 0, title: 'Double-click to type a value. Shift + scroll to change it.', 'aria-label': text + ': type a value' }, fmt(obj[key]));
+  const r = h('input', { type: 'range', min, max, step, value: obj[key], 'aria-label': text });
+  const show = () => { r.value = obj[key]; val.textContent = fmt(obj[key]); };
+  // a typed or stepped value: kept in the range (or taken round it), whole on whole-number sliders, applied live
+  const put = v => {
+    if (!isFinite(v)) return;
+    if (o.wrap && (v < min || v > max)) { const span = max - min; v = min + (((v - min) % span) + span) % span; }
+    v = clamp(Math.round(v * 1e6) / 1e6, min, max);
+    if (o.int) v = Math.round(v);
+    obj[key] = v; show();
+    if (o.onInput) o.onInput(v);
+  };
   r.addEventListener('input', () => { obj[key] = parseFloat(r.value); val.textContent = fmt(obj[key]); if (o.onInput) o.onInput(obj[key]); });
   r.addEventListener('change', () => { if (o.onCommit) o.onCommit(); });
-  binders.push(() => { if (document.activeElement !== r) { r.value = obj[key]; val.textContent = fmt(obj[key]); } });
-  return row(text, h('div', { class: 'slider' }, r, val));
+  // notches from the wheel or the arrow keys: one step of undo once they stop
+  let before = null, timer = 0;
+  const settle = () => { clearTimeout(timer); const was = before; before = null; if (was !== null && obj[key] !== was && o.onCommit) o.onCommit(); };
+  const nudge = n => {
+    if (r.disabled) return;
+    if (before === null) before = obj[key];
+    put(notchFrom(obj[key], n, notch));
+    clearTimeout(timer); timer = setTimeout(settle, 400);
+  };
+  // typing a value; first: what the box starts with (a key typed on the value), else the value itself
+  const edit = first => {
+    if (r.disabled || !val.isConnected) return;
+    settle();
+    const was = obj[key], start = String(Math.round(was * k * 1e4) / 1e4);
+    const inp = h('input', { type: 'text', class: 'mono sedit', inputmode: 'decimal', spellcheck: 'false', 'aria-label': text, value: first ?? start });
+    let over = false;
+    const finish = ok => {
+      if (over) return;
+      over = true;
+      if (ok && inp.value.trim() !== start) put(parseFloat(inp.value.replace(',', '.')) / k);
+      if (inp.isConnected) inp.replaceWith(val);
+      show();
+      if (obj[key] !== was && o.onCommit) o.onCommit();
+    };
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(e.key === 'Enter'); val.focus(); }
+    });
+    inp.addEventListener('blur', () => finish(true));
+    val.replaceWith(inp);
+    inp.focus();
+    if (first == null) inp.select();
+  };
+  val.addEventListener('dblclick', () => edit());
+  // keys on the value are for it: they don't reach the stage (digits would play scenes, arrows move fixtures)
+  val.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const dir = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 }[e.key];
+    if (e.key === 'Enter' || e.key === 'F2') edit();
+    else if (/^[0-9.,-]$/.test(e.key)) edit(e.key);
+    else if (dir) nudge(dir * (e.shiftKey ? 10 : 1));
+    else return;
+    e.preventDefault(); e.stopPropagation();
+  });
+  const wrap = h('div', { class: 'slider' }, r, val);
+  shiftWheel(wrap, nudge, settle);
+  binders.push(() => { if (document.activeElement !== r) show(); });
+  return row(text, wrap);
 }
 function seg(options, value, onChange) {
   const el = h('div', { class: 'seg', role: 'group' });

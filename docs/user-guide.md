@@ -1,6 +1,6 @@
 # openLedMapper: detailed reference
 
-Everything openLedMapper 0.8.0 does, in detail (the version shows next to the app name, top left). This is the source text for the PDF guide; the [README](../README.md) has the essentials.
+Everything openLedMapper 0.8.1 does, in detail (the version shows next to the app name, top left). This is the source text for the PDF guide; the [README](../README.md) has the essentials.
 
 A basic pixel-mapping tool: draw or import LED fixtures (lines, matrices, circles, free paths), split the canvas into zones, layer generators, ISF shaders, images, video or a screen capture in each zone, store looks as scenes to play live or in playlists, patch the fixtures to Art-Net controller outputs, and send it out.
 
@@ -106,6 +106,10 @@ A zone is a rectangle of the canvas with its own layers, its own scenes and one 
 The Content tab lists the zones, then the layers of the selected zone (top layer first, each with an opacity slider and an eye to hide it). Change their order as in the Patch panel: drag a layer by its grip, or use its **↑ ↓** buttons; a moved layer slides into its new place, then the selected layer's settings with a live preview above its parameters. Clicking a source plays it in the selected layer, crossfading over the Crossfade time. Each layer has its own parameters, so two layers can run the same generator with different settings.
 
 **Speed** goes from 0 to 100 % of a generator's full speed, with **Reverse** next to it. Each layer keeps its own clock for it, so dragging the slider speeds the animation up or down smoothly instead of making it jump. (Custom ISF shaders get this too when they have a float input named `speed` used as `TIME * speed`.)
+
+**Exact values.** Double-click the number next to any slider (or select it with Tab and press Enter) to type a value: Enter or a click elsewhere keeps it, Escape leaves it as it was. Percentages are typed as percentages (40 is 40 %), and a decimal comma works too. Hold **Shift** and scroll over a slider, a number box or a slider of the colour picker to change it a notch at a time, about a hundredth of its range; without Shift the panel scrolls as usual. All the notches of one scroll are one undo step. This works in every panel: parameters, opacity, dimmer, trims, gamma, settings.
+
+**Angles.** A generator's **Angle** (Bars, Rainbow, Rain, Waves, Comet, Wipe, Scanner and others) has buttons for 0°, 45°, 90°, 135°, 180°, 225°, 270° and 315° under its slider; the one it is at is lit. Its slider moves in whole degrees, Shift + scroll in steps of 5°, and it goes round: past 360° it starts again at 5°, and a typed 450° is 90°, −45° is 315°. Any angle can be typed, 22.5° too. A custom ISF shader gets this for a float input named or labelled angle or rotation, in degrees (a range of 45° to 360°); one in radians stays a plain slider.
 
 **Finding a source.** Every source is sorted along four facets, each with a dropdown under the search box:
 
@@ -305,7 +309,7 @@ Art-Net only (no sACN/E1.31 yet). No Syphon, Spout or NDI: use window capture in
 The apps are an [Electron](https://www.electronjs.org/) window (`desktop/`) around the interface, with the Art-Net bridge (`openledmapper.py`, packed with PyInstaller by `openledmapper.spec`) running inside: the app starts it with `--embedded` and it stops when the app quits. GitHub builds them (`.github/workflows/release.yml`) on Windows, an Apple silicon Mac and an Intel Mac. To publish a version:
 
 1. Set `VERSION` in `openledmapper.py` (and the README title), and commit.
-2. Tag it with the same version and push the tag: `git tag v0.8.0 && git push origin v0.8.0`.
+2. Tag it with the same version and push the tag: `git tag v0.8.1 && git push origin v0.8.1`.
 
 The three apps are built, started once to check that they start the bridge and stop it again, and attached to a new release on the Releases page, in about 10 minutes. The app's version comes from `VERSION`; a tag that doesn't match it fails the build. To build without releasing, run **Build apps** from the Actions tab: the apps are kept as downloads of that run.
 

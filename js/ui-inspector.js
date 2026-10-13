@@ -35,7 +35,8 @@ function renderInspector(body) {
         'Right-click anything for its options: patch to an output, paste here, delete a zone or a scene…<br>' +
         '<code>H</code> hides this panel · <code>Ctrl G</code> group · <code>Ctrl Shift G</code> ungroup · <code>Ctrl L</code> lock or unlock · double-click a fixture of a group to select just it<br>' +
         '<code>Ctrl Z</code> undo · <code>Ctrl S</code> save · <code>B</code> blackout · <code>I</code> highlight on/off (💡 in the top bar picks the mode)<br>' +
-        '<code>Z</code> zones · <code>1</code>–<code>9</code> scenes of the selected zone (<code>Shift</code> cuts)' })));
+        '<code>Z</code> zones · <code>1</code>–<code>9</code> scenes of the selected zone (<code>Shift</code> cuts)<br>' +
+        'Double-click a slider\'s value to type one · <code>Shift</code> + scroll over a slider or a number to step it' })));
     return;
   }
   if (sel.length > 1) return renderMulti(body, sel);
@@ -419,9 +420,13 @@ function renderContentTab(body) {
         } }, 'Reverse');
         const r = sliderRow('Speed', sp, 'pct', { min: 0, max: 100, step: 0.5, fmt: v => Math.round(v) + '%', onInput: v => set(dir * v / 100 * M), onCommit: commit });
         ctl.push(r, h('div', { class: 'row' }, h('span', { class: 'lbl' }), h('div', null, rev)));   // Reverse under the slider
+      } else if (isAngle(inp)) {   // in degrees: whole degrees, notches of 5°, round the circle, and buttons every 45°
+        const min = inp.MIN, max = inp.MAX;
+        const pre = anglePresets(label, holder, min, max, v => { holder.v = v; set(v); syncInspector(); commit(); });
+        ctl.push(sliderRow(label, holder, 'v', { min, max, step: 1, notch: 5, wrap: max - min === 360, fmt: v => fmtV(Math.round(v * 10) / 10) + '°', onInput: v => { set(v); pre._sync(); }, onCommit: commit }), pre);
       } else if (inp.TYPE === 'float' || inp.TYPE === 'int') {
         const min = inp.MIN ?? 0, max = inp.MAX ?? 1;
-        ctl.push(sliderRow(label, holder, 'v', { min, max, step: inp.TYPE === 'int' ? 1 : (max - min) / 500, fmt: v => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)), onInput: set, onCommit: commit }));
+        ctl.push(sliderRow(label, holder, 'v', { min, max, step: inp.TYPE === 'int' ? 1 : (max - min) / 500, int: inp.TYPE === 'int', fmt: v => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)), onInput: set, onCommit: commit }));
       } else if (inp.TYPE === 'long') {
         const vals = inp.VALUES || [], labs = inp.LABELS || vals;
         ctl.push(row(label, selectEl(vals.map((v, i) => [v, labs[i]]), holder.v, v => { set(parseInt(v, 10)); commit(); }, { aria: label })));
@@ -458,6 +463,22 @@ function renderContentTab(body) {
   }
   body.append(sec('Transition', sliderRow('Crossfade', project.settings, 'transition', { min: 0, max: 5, step: 0.1, fmt: v => v.toFixed(1) + ' s', onCommit: commit }),
     h('p', { class: 'note' }, 'Fade time when you click a source to play it in a layer. Scenes have their own fade time.')));
+}
+// A shader control that is an angle in degrees: a float named or labelled angle or rotation, with a range of 45° to 360°
+// (one in radians, 0 to 6.28, stays a plain slider)
+const isAngle = inp => inp.TYPE === 'float' && /angle|rotat/i.test(inp.NAME + ' ' + (inp.LABEL || '')) && isFinite(inp.MIN) && isFinite(inp.MAX) && inp.MAX - inp.MIN >= 45 && inp.MAX - inp.MIN <= 360;
+// Buttons for the angles every 45° in the control's range, under its slider; the one it is at is lit
+function anglePresets(label, holder, min, max, pick) {
+  const vals = [];
+  for (let a = Math.ceil(min / 45) * 45; a <= max && a < min + 360; a += 45) vals.push(a);
+  const same = (v, a) => Math.abs(v - a) < 1e-6 || (max - min === 360 && Math.abs(Math.abs(v - a) - 360) < 1e-6);
+  const btns = vals.map(a => h('button', { type: 'button', title: `Set ${label.toLowerCase()} to ${a}°`, onclick: () => pick(a) }, a + '°'));
+  const sync = () => btns.forEach((b, i) => { const on = same(holder.v, vals[i]); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  sync();
+  binders.push(sync);
+  const el = h('div', { class: 'seg angles', role: 'group', 'aria-label': label + ': quick angles' }, btns);
+  el._sync = sync;
+  return el;
 }
 // The video options in the Content tab: a timeline with the trim, how it plays, speed and sound
 function videoControls(src, el) {
@@ -543,7 +564,7 @@ function renderSettings(body) {
     row('Size', numInput(s, 'compW', { prefix: 'W', int: true, min: 16, max: 8192, onCommit: onSize }), numInput(s, 'compH', { prefix: 'H', int: true, min: 16, max: 8192, onCommit: onSize })),
     h('p', { class: 'note' }, 'The canvas content is rendered at this size and sampled at each pixel position. Fixture coordinates are in these units.')));
   body.append(sec('Output',
-    sliderRow('Frame rate', s, 'fps', { min: 1, max: 100, step: 1, fmt: v => v + ' fps', onCommit: () => { startClock(); commit(); } }),
+    sliderRow('Frame rate', s, 'fps', { min: 1, max: 100, step: 1, int: true, fmt: v => v + ' fps', onCommit: () => { startClock(); commit(); } }),
     h('p', { class: 'note' }, 'Up to 100 frames a second; 40 is the default. Above 44, frames come faster than a DMX line can refresh: pixel controllers take them, but some DMX nodes skip frames.'),
     sliderRow('Gamma for new fixtures', s, 'gamma', { min: 1, max: 3, step: 0.05, fmt: v => v.toFixed(2), onCommit: commit }),
     h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', disabled: !project.fixtures.length, onclick: () => {
