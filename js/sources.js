@@ -25,6 +25,18 @@ function parseISFHeader(code) {
   try { return JSON.parse(code.slice(a + 2, b)); } catch (e) { return null; }
 }
 function sourceCode(src) { return src.builtin ? (BUILTINS.find(b => b.id === src.builtin) || {}).code || '' : src.code || ''; }
+// A shader's header (categories, description, inputs), read without compiling the shader: the source list sorts and
+// searches every source by it, and compiling them all at once would hold up the page as it opens
+const isfHeaders = new Map();
+function headerOf(src) {
+  const rt = runtimes.get(src.id);
+  if (rt) return rt.hdr;
+  const code = sourceCode(src), c = isfHeaders.get(src.id);
+  if (c && c.code === code) return c.hdr;
+  const hdr = parseISFHeader(code);
+  isfHeaders.set(src.id, { code, hdr });
+  return hdr;
+}
 function sizeContent() {
   const W = Math.max(project.settings.compW, THUMB), H = Math.max(project.settings.compH, THUMB);
   if (glCanvas.width !== W || glCanvas.height !== H) { glCanvas.width = W; glCanvas.height = H; }
@@ -292,7 +304,9 @@ function drawThumb(src, still) {
   const c = thumbs.get(src.id);
   let img = null;
   if (src.kind === 'isf') {
-    const rt = runtimeOf(src);
+    // the shader compiles here, a few a frame, rather than as the list is drawn; one that fails shows ERROR in the list
+    const fresh = !runtimes.has(src.id), rt = runtimeOf(src);
+    if (fresh && rt.error) renderSrcList();
     if (rt.R) {
       isfTime = still ? THUMB_TIME : null;
       applyParams(rt, { params: {} }, src);

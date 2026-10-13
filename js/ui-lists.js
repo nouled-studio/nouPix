@@ -233,7 +233,7 @@ const SRC_SEARCH = { smooth: 'calm', soft: 'calm', slow: 'calm', relaxing: 'calm
 const SRC_FACET_OF = new Map(SRC_FACETS.flatMap(f => f.values.map(([v]) => [v, f.key])));
 function srcTags(s) {
   if (s.kind !== 'isf') return [s.kind === 'screen' ? 'capture' : s.kind];
-  const rt = runtimeOf(s), c = rt.hdr && rt.hdr.CATEGORIES;
+  const hdr = headerOf(s), c = hdr && hdr.CATEGORIES;
   return Array.isArray(c) ? c.map(t => String(t).toLowerCase()) : [];
 }
 // The source's value in each facet; tags listed first win
@@ -251,8 +251,8 @@ function srcMatches(s, q, skip) {
   const fs = srcFacets(s), want = ui.srcFacets || {};
   for (const k in want) if (k !== skip && want[k] && fs[k] !== want[k]) return false;
   if (!q) return true;
-  const rt = s.kind === 'isf' ? runtimeOf(s) : null;
-  const hay = [s.name, rt && rt.hdr && rt.hdr.DESCRIPTION, ...srcTags(s), ...Object.entries(fs).flatMap(([k, v]) => [v, srcLabel(k, v)])].join(' ').toLowerCase();
+  const hdr = s.kind === 'isf' ? headerOf(s) : null;
+  const hay = [s.name, hdr && hdr.DESCRIPTION, ...srcTags(s), ...Object.entries(fs).flatMap(([k, v]) => [v, srcLabel(k, v)])].join(' ').toLowerCase();
   const vals = Object.values(fs);
   return q.split(/\s+/).every(w => hay.includes(w) || vals.includes(SRC_SEARCH[w]));
 }

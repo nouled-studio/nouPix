@@ -112,6 +112,15 @@ with sync_playwright() as pw:
     fs = ev("""(() => { const s = { id: 'u1', kind: 'isf', name: 'Mine', code: '/*{"CATEGORIES":["Generator","Disco","Dots"],"INPUTS":[]}*/\\nvoid main(){gl_FragColor=vec4(1.0);}' };
       olm.project.sources.push(s); const f = srcFacets(s); olm.project.sources.pop(); return f; })()""")
     check("a custom shader is placed from its categories", fs == {"type": "shader", "mood": "party", "use": "show", "look": "particles"}, fs)
+    # the list reads headers only: compiling every shader as it is drawn held the page up as it opened
+    r = ev("""(() => { const s = { id: 'u2', kind: 'isf', name: 'Broken one', code: '/*{"DESCRIPTION":"Never compiles","CATEGORIES":["calm","architectural","organic","drift"],"INPUTS":[]}*/\\nvoid main(){ nope; }' };
+      olm.project.sources.push(s); renderSrcList(); return [runtimes.has('u2'), srcFacets(s).mood, srcMatches(s, 'never compiles')]; })()""")
+    check("the source list sorts and searches a shader by its header, without compiling it", r == [False, "calm", True], r)
+    try:
+        pg.wait_for_function("runtimes.has('u2') && [...document.querySelectorAll('#srcList .tile')].some(t => t.textContent.includes('Broken one') && t.querySelector('.tag.err'))", timeout=20000); ok = True
+    except Exception: ok = False
+    check("its thumbnail compiles it a few frames later, and a broken one then shows ERROR in the list", ok)
+    ev("(() => { removeSource(srcById('u2')); renderSrcList(); })()")
 
     # ---------- rate clocks: hidden inputs, running totals
     clk = ev("(() => { const s = olm.project.sources.find(s => s.builtin === 'breathe'); const rt = runtimeOf(s); return { clocks: Object.keys(rt.clocks || {}), shown: isfInputs(rt).map(i => i.NAME) }; })()")
