@@ -23,12 +23,12 @@ order by `<script src>` tags at the end of `index.html`:
 | `vendor/isf.js` | ISF shader renderer by VIDVOX (third party, unchanged) | `interactiveShaderFormat` |
 | `builtins.js` | The 32 built-in effects, as ISF code and categories (data) | `BUILTINS` |
 | `util.js` | Helpers used everywhere: elements, numbers and text, local storage, toasts, error reports, icons | `$` `$$` `h` `clamp` `wrap180` `wrap360` `pct` `fmtN` `store` `toast` `debounce` `report` `replacer` `MOD` |
-| `model.js` | The project and its parts: constants, defaults, the `project` and `ui` state, factories, groups, selection, look-ups by id | `project` `ui` `blankProject` `newFixture` `newZone` `newLayer` `newPlaylist` `newStep` `newController` `selected` `selUnits` `fxById` `markGeom` `markPatch` |
+| `model.js` | The project and its parts: constants (`CURVES`), defaults, the `project` and `ui` state, factories, groups, selection, look-ups by id | `project` `ui` `blankProject` `newFixture` `fxBits` `fxCurve` `newZone` `newLayer` `newPlaylist` `newStep` `newController` `selected` `selUnits` `fxById` `markGeom` `markPatch` |
 | `geometry.js` | Mapping math: each fixture's pixel positions, lengths, bounds, distances; moving, turning, scaling a fixture and the frame around several | `computePoints` `rebuildGeometry` `computeBB` `rotateFixture` `scaleFixture` `frameOf` `snap45` |
-| `patch.js` | Addressing: universe and channels of every pixel on its controller output, conflicts | `computePatch` `ensurePatch` `universes` `addrOf` `assign` `unassign` |
+| `patch.js` | Addressing: universe and channels of every pixel on its controller output (`BPP`: channels per pixel, doubled on 16-bit fixtures), conflicts | `computePatch` `ensurePatch` `universes` `addrOf` `BPP` `assign` `unassign` |
 | `sources.js` | Content sources: WebGL canvas, ISF runtimes, parameters and speeds, images and videos (trim, loop, sound), the media format check, source thumbnails | `runtimeOf` `renderSource` `applyParams` `probeMedia` `attachMedia` `syncMedia` `videoTick` |
 | `render.js` | The GPU mixer (zones, layers, blend modes), looks and fades, recalling a scene, sampling the composition at every pixel, highlight and test patterns | `mixer` `renderContent` `loadSource` `startFade` `recallScene` `sampleMix` `testPattern` `setHighlight` |
-| `output.js` | Gamma, sampled colours to DMX channels, the outgoing frame, the clock, the bridge connection | `buildOutput` `layoutFrame` `sendFrame` `tick` `startClock` `connectBridge` `bridge` |
+| `output.js` | Gamma, sampled colours to DMX channels (8-bit; 16-bit through `output16`: dimming curves, tungsten warm shift and filament lag, coarse then fine), the outgoing frame, the clock, the bridge connection | `buildOutput` `output16` `curveValue` `layoutFrame` `sendFrame` `tick` `startClock` `connectBridge` `bridge` |
 | `project-io.js` | Project files: repairing what is opened, undo history, autosave, open/save, CSV, SVG import, the demo | `hydrate` `serialize` `commit` `commitSoft` `undo` `redo` `loadProject` `importSvg` `demoProject` |
 | `remote.js` | Remote control: the host side (configure the bridge, send the project and the phones' state, apply devices' changes by role) and the client side (this page opened on a device at `/app`) | `remote` `REMOTE_CLIENT` `mappingLocked` `remoteChanged` `remoteFromDevice` `contentOf` `connectRemote` `remoteOp` |
 | `playlists.js` | Playlists: a zone plays some of its scenes in turn on the frame clock; which fade a step uses; play, pause, next, the end; the state devices see | `playlistTick` `playPlaylist` `togglePlaylist` `pausePlaylist` `resumePlaylist` `stepPlaylist` `playlistManual` `stepFade` `playingList` `playElapsed` `playState` |
@@ -37,7 +37,7 @@ order by `<script src>` tags at the end of `index.html`:
 | `ui-color.js` | The colour picker for shader colour controls: wheel and intensity, RGB, HSV, hex, lighting presets, recent colours | `colorRow` `openColorPicker` `hsvToRgb` `rgbToHsv` |
 | `ui-stage.js` | The stage canvas: view and zoom, drawing, zones on the stage, hit testing, handles, tools, pointer, pixel finder, guide image | `drawView` `fitView` `setTool` `hitFixture` `dragHandle` `endDrag` `defaultFixtureAt` |
 | `ui-lists.js` | The left column: fixture list (groups, badges, drag and drop) and source list (categories, search) | `renderFxList` `renderSrcList` |
-| `ui-inspector.js` | The right panel: fixture, multi-selection, group and zone inspectors, Content tab, video controls, Settings | `renderRight` `onSelection` `showRight` |
+| `ui-inspector.js` | The right panel: fixture (with resolution, dimming curve and its graph), multi-selection, group and zone inspectors, Content tab, video controls, Settings | `renderRight` `onSelection` `showRight` `dimmingRows` `curveGraph` |
 | `ui-dock.js` | The bottom dock: scenes (with the fade time on each scene's button), patch and controller editor, Art-Net nodes, DMX monitor | `renderDock` `onPatchChanged` `refreshScenes` `fadeControl` `autoPatch` |
 | `ui-playlists.js` | The playlists in the Scenes panel: tabs folded to one line or open, steps (with their own fades, moved by dragging or Alt ← →), step editor, + Add, the New playlist window (order with ↑ ↓, a fade per step), the playlist menu | `playlistArea` `newPlaylistDialog` `playlistMenu` `shiftStep` `drawPlaylistProgress` |
 | `ui-menus.js` | The menu system and every menu, the SVG import dialog, copy/cut/paste keys | `menu` `fixtureMenu` `canvasMenu` `projectMenu` … |
@@ -153,6 +153,7 @@ fuzzer. Tests drive the page with Playwright through the bridge, and use the glo
 `examples/` with the app itself and checks every example file. `test_remote.py` checks remote control end to end
 (roles, permissions, phone page, disconnects); `test_remote_app.py` the remote as an installable app and over the
 computer's network address; `test_remote_soak.py` (full run only) runs 400 mixed changes from
-several devices while every zone plays a playlist, and checks they all end equal. `test_playlist.py` checks playlists
+several devices while every zone plays a playlist, and checks they all end equal. `test_16bit.py` checks 16-bit fixtures down to the Art-Net bytes on the wire (coarse before fine, packing, curves,
+tungsten, mixed with 8-bit). `test_playlist.py` checks playlists
 (files, the panel folding and opening, timing and fades, the end, pause and resume, undo, editing while playing, the
 fade on a scene's button, play on open, the phone).

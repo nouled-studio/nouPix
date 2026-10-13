@@ -15,6 +15,89 @@ function gammaLUT(g) {
   }
   return t;
 }
+// The dimming curves of 16-bit fixtures, level 0–1 in, 0–1 out. A table of 4096 steps with interpolation between
+// them keeps every frame quick and still gives each 16-bit value its own place.
+const TUNGSTEN_POWER = 2.4;
+function curveValue(curve, gamma, x) {
+  x = x <= 0 ? 0 : x >= 1 ? 1 : x;
+  switch (curve) {
+    case 'linear': return x;
+    case 'square': return x * x;
+    case 'invsquare': return 1 - (1 - x) * (1 - x);
+    case 'scurve': return x * x * (3 - 2 * x);
+    case 'tungsten': return Math.pow(x, TUNGSTEN_POWER);
+    default: return Math.pow(x, gamma);
+  }
+}
+const curveLUTs = new Map();
+function curveLUT(curve, gamma) {
+  const key = curve === 'gamma' ? 'g' + gamma : curve;
+  let t = curveLUTs.get(key);
+  if (!t) {
+    if (curveLUTs.size > 64) curveLUTs.clear();
+    t = new Float32Array(4097);
+    for (let i = 0; i <= 4096; i++) t[i] = curveValue(curve, gamma, i / 4096);
+    curveLUTs.set(key, t);
+  }
+  return t;
+}
+const curveAt = (t, x) => { if (!(x > 0)) return 0; if (x >= 1) return t[4096]; const p = x * 4096, i = p | 0; return t[i] + (t[i + 1] - t[i]) * (p - i); };
+// Tungsten gets warmer as it dims: about 3200 K at full, 1900 K near off. The green and blue of each level, as a part
+// of what they are at full (red stays), from the colour of a glowing filament at that temperature.
+function kelvinRGB(k) {
+  const t = k / 100;
+  const g = t <= 66 ? 99.4708025861 * Math.log(t) - 161.1195681661 : 288.1221695283 * Math.pow(t - 60, -0.0755148492);
+  const b = t >= 66 ? 255 : t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+  return [1, clamp(g, 0, 255) / 255, clamp(b, 0, 255) / 255];
+}
+const WARM = (() => {
+  const full = kelvinRGB(3200), out = new Float32Array(257 * 2);
+  for (let i = 0; i <= 256; i++) { const c = kelvinRGB(1900 + 1300 * Math.sqrt(i / 256)); out[2 * i] = Math.min(1, c[1] / full[1]); out[2 * i + 1] = Math.min(1, c[2] / full[2]); }
+  return out;
+})();
+// The green and blue of a tungsten fixture at a level, as parts of red: [1, g, b]
+const warmFactors = x => { const i = Math.round(clamp(x, 0, 1) * 256); return [1, WARM[2 * i], WARM[2 * i + 1]]; };
+// The filament takes a moment to heat (fast) and to cool (slower), in seconds. heat() moves a colour's level part of
+// the way to where it is going; the last tiny bit is taken at once, so full and off are reached exactly.
+const LAG_UP = 0.12, LAG_DOWN = 0.3;
+function heat(st, j, to, up, down) {
+  const d = to - st[j];
+  st[j] = Math.abs(d) < 1e-4 ? to : st[j] + d * (d > 0 ? up : down);
+  return st[j];
+}
+// A 16-bit fixture: each colour is worked out as a fraction (nothing rounded to 256 steps), put through the fixture's
+// dimming curve, and sent as two channels: the coarse one (the high byte) first, then the fine one (the low byte).
+// live: the content is playing (not blackout or a highlight pattern), so a tungsten filament keeps its heat.
+function output16(f, o, kr, kg, kb, kw, wm, live) {
+  const col = f._col, disp = f._disp, n = f._n, curve = fxCurve(f), lut = curveLUT(curve, f.gamma);
+  const lins = o.lin, oi = o.oi, nc = oi.length, unis = o.unis;
+  const white = nc === 4 && wm !== 'off', sub = wm === 'sub';
+  const warm = curve === 'tungsten' && f.warm, lag = curve === 'tungsten' && f.lag && live;
+  let st = f._lag;
+  if (!lag) st = f._lag = null;
+  else if (!st || st.length !== n * 3) st = f._lag = new Float32Array(n * 3);
+  const up = lag ? 1 - Math.exp(-clockDT / LAG_UP) : 1, down = lag ? 1 - Math.exp(-clockDT / LAG_DOWN) : 1;
+  for (let i = 0, j = 0; i < n; i++, j += 3) {
+    let r = col[j] * kr, g = col[j + 1] * kg, b = col[j + 2] * kb;
+    disp[j] = r; disp[j + 1] = g; disp[j + 2] = b;
+    const lin = lins[i];
+    if (lin < 0) continue;
+    r = r >= 255 ? 1 : r / 255; g = g >= 255 ? 1 : g / 255; b = b >= 255 ? 1 : b / 255;
+    if (lag) { r = heat(st, j, r, up, down); g = heat(st, j + 1, g, up, down); b = heat(st, j + 2, b, up, down); }
+    let R = curveAt(lut, r), G = curveAt(lut, g), B = curveAt(lut, b);
+    if (warm) { const q = Math.round((r > g ? (r > b ? r : b) : (g > b ? g : b)) * 256) * 2; G *= WARM[q]; B *= WARM[q + 1]; }
+    let W = 0;
+    if (white) { W = R < G ? (R < B ? R : B) : (G < B ? G : B); if (sub) { R -= W; G -= W; B -= W; } }
+    for (let k = 0; k < nc; k++) {
+      const c = oi[k];
+      let v = c === 0 ? R : c === 1 ? G : c === 2 ? B : c === 3 ? W * kw : (0.2126 * R + 0.7152 * G + 0.0722 * B) * kw;
+      v = v <= 0 ? 0 : v >= 1 ? 65535 : Math.round(v * 65535);
+      const L = lin + 2 * k, M = L + 1;
+      unis[L >> 9].data[L & 511] = v >> 8;
+      unis[M >> 9].data[M & 511] = v & 255;
+    }
+  }
+}
 function buildOutput() {
   const s = project.settings;
   for (const U of universes) U.data.fill(0);
@@ -26,6 +109,7 @@ function buildOutput() {
     const kr = dim * tr[0], kg = dim * tr[1], kb = dim * tr[2], kw = tr[3];
     const o = f._out;
     if (!o) { for (let j = 0; j < 3 * n; j += 3) { disp[j] = col[j] * kr; disp[j + 1] = col[j + 1] * kg; disp[j + 2] = col[j + 2] * kb; } continue; }
+    if (f.bits === 16) { output16(f, o, kr, kg, kb, kw, wm, m > 0 && ui.outputMode === 'content'); continue; }
     const lins = o.lin, oi = o.oi, nc = oi.length, unis = o.unis, lut = gammaLUT(f.gamma);
     const white = nc === 4 && wm !== 'off', sub = wm === 'sub';
     for (let i = 0, j = 0; i < n; i++, j += 3) {

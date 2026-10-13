@@ -634,3 +634,18 @@ body.ro-map #rail button:not([data-tool=select]), body.ro-map #rail hr { display
 .rwbox { max-width: 360px; display: grid; justify-items: center; gap: 14px; text-align: center; color: var(--text2); font-size: 14px; }
 .rwspin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line2); border-top-color: var(--accent); animation: rwspin 0.9s linear infinite; }
 @keyframes rwspin { to { transform: rotate(360deg); } }
+
+/* the dimming curve of a fixture, in the inspector */
+.cgwrap { display: grid; gap: 6px; margin-top: 4px; }
+.cghead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cghead .seg button { white-space: nowrap; padding: 0 8px; }
+.cgbox { position: relative; padding: 8px 8px 16px 8px; border: 1px solid var(--line2); border-radius: 6px; background: var(--bg0); }
+.cgraph { display: block; width: 100%; height: auto; overflow: visible; }
+.cgraph .gl { stroke: var(--line); stroke-width: 1; fill: none; }
+.cgraph .ax { stroke: var(--line2); stroke-width: 1; fill: none; }
+.cgraph .cv { stroke: var(--accent); stroke-width: 1.8; fill: none; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.cgraph .cv.c0 { stroke: #ff5a5f; }
+.cgraph .cv.c1 { stroke: var(--live); }
+.cgraph .cv.c2 { stroke: #6ea8ff; }
+.cgbox .cgy { position: absolute; left: 10px; top: 6px; font-family: var(--mono); font-size: 9.5px; color: var(--muted); }
+.cgbox .cgx { position: absolute; right: 8px; bottom: 2px; font-family: var(--mono); font-size: 9.5px; color: var(--muted); }

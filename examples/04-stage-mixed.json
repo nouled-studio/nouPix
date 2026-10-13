@@ -18,7 +18,7 @@
  },
  "fixtures": [
   {
-   "id": "lcds77mx",
+   "id": "8mbqe3wn",
    "type": "line",
    "name": "Truss 1",
    "enabled": true,
@@ -34,15 +34,19 @@
     1
    ],
    "gamma": 2.2,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "x1": 60,
    "y1": 60,
    "x2": 270,
    "y2": 60,
    "pixels": 72,
-   "group": "pkjg7bde"
+   "group": "y9fcwkk3"
   },
   {
-   "id": "zjp0u4l1",
+   "id": "t8s0prvd",
    "type": "line",
    "name": "Truss 2",
    "enabled": true,
@@ -58,15 +62,19 @@
     1
    ],
    "gamma": 2.2,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "x1": 290,
    "y1": 60,
    "x2": 500,
    "y2": 60,
    "pixels": 72,
-   "group": "pkjg7bde"
+   "group": "y9fcwkk3"
   },
   {
-   "id": "aqle4jz1",
+   "id": "v5sosrue",
    "type": "line",
    "name": "Truss 3",
    "enabled": true,
@@ -82,15 +90,19 @@
     1
    ],
    "gamma": 2.2,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "x1": 520,
    "y1": 60,
    "x2": 730,
    "y2": 60,
    "pixels": 72,
-   "group": "pkjg7bde"
+   "group": "y9fcwkk3"
   },
   {
-   "id": "xk9dtlz3",
+   "id": "gzoqej5l",
    "type": "line",
    "name": "Truss 4",
    "enabled": true,
@@ -106,15 +118,19 @@
     1
    ],
    "gamma": 2.2,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "x1": 750,
    "y1": 60,
    "x2": 960,
    "y2": 60,
    "pixels": 72,
-   "group": "pkjg7bde"
+   "group": "y9fcwkk3"
   },
   {
-   "id": "yvlw11kk",
+   "id": "crhtuujg",
    "type": "path",
    "name": "Floor curve",
    "enabled": true,
@@ -130,6 +146,10 @@
     1
    ],
    "gamma": 2.2,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "pts": [
     80,
     590,
@@ -198,7 +218,7 @@
    "pixels": 150
   },
   {
-   "id": "c256gb82",
+   "id": "x90p2tmg",
    "type": "matrix",
    "name": "Centre panel",
    "enabled": true,
@@ -214,6 +234,10 @@
     1
    ],
    "gamma": 2.2,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "cx": 500,
    "cy": 300,
    "w": 240,
@@ -226,7 +250,7 @@
    "snake": true
   },
   {
-   "id": "ubkl2rxr",
+   "id": "3aixz9jd",
    "type": "circle",
    "name": "Left ring",
    "enabled": true,
@@ -242,6 +266,10 @@
     1
    ],
    "gamma": 2.2,
+   "bits": 16,
+   "curve": "tungsten",
+   "warm": true,
+   "lag": true,
    "cx": 170,
    "cy": 320,
    "r": 90,
@@ -249,10 +277,10 @@
    "start": 0,
    "sweep": 360,
    "ccw": false,
-   "group": "6a9dxuc9"
+   "group": "ean7vnsm"
   },
   {
-   "id": "8figsqy1",
+   "id": "potuicis",
    "type": "circle",
    "name": "Right ring",
    "enabled": true,
@@ -268,6 +296,10 @@
     1
    ],
    "gamma": 2.2,
+   "bits": 16,
+   "curve": "scurve",
+   "warm": true,
+   "lag": true,
    "cx": 830,
    "cy": 320,
    "r": 90,
@@ -275,14 +307,14 @@
    "start": 0,
    "sweep": 360,
    "ccw": false,
-   "group": "6a9dxuc9",
+   "group": "ean7vnsm",
    "addr": {
     "u": 13,
     "ch": 1
    }
   },
   {
-   "id": "ks3jteik",
+   "id": "m13ixwjw",
    "type": "line",
    "name": "Spare strip (locked, off)",
    "enabled": false,
@@ -298,6 +330,10 @@
     1
    ],
    "gamma": 2.2,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "x1": 400,
    "y1": 470,
    "x2": 600,
@@ -307,13 +343,13 @@
  ],
  "groups": [
   {
-   "id": "pkjg7bde",
+   "id": "y9fcwkk3",
    "name": "Truss",
    "tag": "#3cc8ff",
    "open": true
   },
   {
-   "id": "6a9dxuc9",
+   "id": "ean7vnsm",
    "name": "Rings",
    "tag": "#ffb341",
    "open": true
@@ -321,7 +357,7 @@
  ],
  "controllers": [
   {
-   "id": "lfcswvrr",
+   "id": "vd3f3530",
    "name": "Main controller",
    "ip": "10.0.0.80",
    "enabled": true,
@@ -331,21 +367,21 @@
    "split": true,
    "chains": [
     [
-     "lcds77mx",
-     "zjp0u4l1",
-     "aqle4jz1",
-     "xk9dtlz3"
+     "8mbqe3wn",
+     "t8s0prvd",
+     "v5sosrue",
+     "gzoqej5l"
     ],
     [
-     "yvlw11kk"
+     "crhtuujg"
     ],
     [
-     "c256gb82"
+     "x90p2tmg"
     ],
     [
-     "ubkl2rxr",
-     "8figsqy1",
-     "ks3jteik"
+     "3aixz9jd",
+     "potuicis",
+     "m13ixwjw"
     ]
    ]
   }
@@ -546,7 +582,7 @@
  ],
  "zones": [
   {
-   "id": "3ex1z96o",
+   "id": "9ufvdvmx",
    "name": "Everything",
    "tag": "#ffb341",
    "x": 0,
@@ -556,7 +592,7 @@
    "opacity": 1,
    "layers": [
     {
-     "id": "mz1rc7ry",
+     "id": "wl13bojr",
      "src": "b-breathe",
      "params": {
       "b-breathe": {
@@ -581,13 +617,13 @@
    ],
    "scenes": [
     {
-     "id": "0i1l0pfi",
+     "id": "biw6jlo0",
      "name": "Warm wash",
      "tag": "#ffb341",
      "fade": 3,
      "layers": [
       {
-       "id": "mz1rc7ry",
+       "id": "wl13bojr",
        "src": "b-breathe",
        "params": {
         "b-breathe": {
@@ -612,13 +648,13 @@
      ]
     },
     {
-     "id": "6q9v763r",
+     "id": "o4ru0s3s",
      "name": "Clouds",
      "tag": "#6fe3e3",
      "fade": 4,
      "layers": [
       {
-       "id": "dp5j7hnw",
+       "id": "gbqkgqva",
        "src": "b-clouds",
        "params": {},
        "opacity": 1,
@@ -628,13 +664,13 @@
      ]
     },
     {
-     "id": "zb6tolw0",
+     "id": "w5xmb57u",
      "name": "Confetti",
      "tag": "#ff6f86",
      "fade": 0.5,
      "layers": [
       {
-       "id": "f39z5ijk",
+       "id": "tbrn9a1l",
        "src": "b-confetti",
        "params": {},
        "opacity": 1,
@@ -644,27 +680,27 @@
      ]
     }
    ],
-   "scene": "0i1l0pfi",
+   "scene": "biw6jlo0",
    "playlists": [
     {
-     "id": "uc8s213k",
+     "id": "2djv9oe0",
      "name": "Evening",
      "steps": [
       {
-       "id": "a2ng7o9t",
-       "scene": "0i1l0pfi",
+       "id": "qdglwi87",
+       "scene": "biw6jlo0",
        "time": 90,
        "fade": null
       },
       {
-       "id": "zo30gh1b",
-       "scene": "6q9v763r",
+       "id": "fxl75v4v",
+       "scene": "o4ru0s3s",
        "time": 60,
        "fade": null
       },
       {
-       "id": "cxz4wrhb",
-       "scene": "0i1l0pfi",
+       "id": "g4ykjsp4",
+       "scene": "biw6jlo0",
        "time": 90,
        "fade": 8
       }
@@ -674,36 +710,36 @@
      "autoplay": false
     },
     {
-     "id": "zel4tpou",
+     "id": "molgppjr",
      "name": "Party",
      "steps": [
       {
-       "id": "c0d5z3vo",
-       "scene": "zb6tolw0",
+       "id": "zqfkxqxa",
+       "scene": "w5xmb57u",
        "time": 20,
        "fade": null
       },
       {
-       "id": "dix9q7bj",
-       "scene": "6q9v763r",
+       "id": "9foyvirx",
+       "scene": "o4ru0s3s",
        "time": 10,
        "fade": null
       },
       {
-       "id": "8eac2n1z",
-       "scene": "zb6tolw0",
+       "id": "qqpzful0",
+       "scene": "w5xmb57u",
        "time": 20,
        "fade": null
       }
      ],
      "fade": 0.5,
-     "end": "uc8s213k",
+     "end": "2djv9oe0",
      "autoplay": false
     }
    ]
   },
   {
-   "id": "snx3cyhx",
+   "id": "dd3jik23",
    "name": "Truss",
    "tag": "#3cc8ff",
    "x": 40,
@@ -713,7 +749,7 @@
    "opacity": 1,
    "layers": [
     {
-     "id": "clhl0tn7",
+     "id": "cbob4gyo",
      "src": "b-wipe",
      "params": {
       "b-wipe": {
@@ -727,13 +763,13 @@
    ],
    "scenes": [
     {
-     "id": "5f0ycu17",
+     "id": "dhc3agjv",
      "name": "Wipe",
      "tag": "#3cc8ff",
      "fade": 1,
      "layers": [
       {
-       "id": "clhl0tn7",
+       "id": "cbob4gyo",
        "src": "b-wipe",
        "params": {
         "b-wipe": {
@@ -747,13 +783,13 @@
      ]
     },
     {
-     "id": "a12ufsml",
+     "id": "ug33gjva",
      "name": "Hits",
      "tag": "#e8d56a",
      "fade": 0,
      "layers": [
       {
-       "id": "br5okrb2",
+       "id": "vol80ihj",
        "src": "b-hits",
        "params": {
         "b-hits": {
@@ -767,21 +803,21 @@
      ]
     }
    ],
-   "scene": "5f0ycu17",
+   "scene": "dhc3agjv",
    "playlists": [
     {
-     "id": "3k0tdxh7",
+     "id": "kny31rsx",
      "name": "Hits",
      "steps": [
       {
-       "id": "zcofr8zx",
-       "scene": "5f0ycu17",
+       "id": "4dut54r5",
+       "scene": "dhc3agjv",
        "time": 8,
        "fade": null
       },
       {
-       "id": "mp2cnjj5",
-       "scene": "a12ufsml",
+       "id": "jrbst2ve",
+       "scene": "ug33gjva",
        "time": 4,
        "fade": 0
       }
@@ -793,7 +829,7 @@
    ]
   },
   {
-   "id": "uu97gflx",
+   "id": "dudbuusc",
    "name": "Centre",
    "tag": "#b58cff",
    "x": 330,
@@ -803,7 +839,7 @@
    "opacity": 0.85,
    "layers": [
     {
-     "id": "6aakwle4",
+     "id": "v7f7lxkp",
      "src": "b-noise",
      "params": {},
      "opacity": 1,
@@ -811,7 +847,7 @@
      "on": true
     },
     {
-     "id": "crie8802",
+     "id": "31f4nsq4",
      "src": "b-shape",
      "params": {
       "b-shape": {
@@ -825,13 +861,13 @@
    ],
    "scenes": [
     {
-     "id": "aiy6d9hz",
+     "id": "hlow0y5p",
      "name": "Shape over noise",
      "tag": "#b58cff",
      "fade": 2,
      "layers": [
       {
-       "id": "6aakwle4",
+       "id": "v7f7lxkp",
        "src": "b-noise",
        "params": {},
        "opacity": 1,
@@ -839,7 +875,7 @@
        "on": true
       },
       {
-       "id": "crie8802",
+       "id": "31f4nsq4",
        "src": "b-shape",
        "params": {
         "b-shape": {
@@ -853,13 +889,13 @@
      ]
     },
     {
-     "id": "265owcnh",
+     "id": "w2vgwtvb",
      "name": "Disco",
      "tag": "#ff6f86",
      "fade": 0.5,
      "layers": [
       {
-       "id": "0v7pfz89",
+       "id": "edq5scky",
        "src": "b-discodots",
        "params": {
         "b-discodots": {
@@ -873,7 +909,7 @@
      ]
     }
    ],
-   "scene": "aiy6d9hz",
+   "scene": "hlow0y5p",
    "playlists": []
   }
  ],

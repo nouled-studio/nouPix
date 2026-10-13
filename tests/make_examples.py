@@ -88,7 +88,8 @@ EXAMPLES = {
     const pts = []; for (let i = 0; i <= 30; i++) pts.push(80 + i * 28, 590 - Math.sin(i / 30 * Math.PI) * 60);
     const floor = F('path', { name: 'Floor curve', pts, pixels: 150, tag: TAGS[3], gamma: 2.2 });
     const centre = F('matrix', { name: 'Centre panel', cx: 500, cy: 300, w: 240, h: 240, rot: 45, cols: 16, rows: 16, start: 'BL', dir: 'V', snake: true, tag: TAGS[2], gamma: 2.2 });
-    const sides = [0, 1].map(i => F('circle', { name: (i ? 'Right' : 'Left') + ' ring', cx: 170 + i * 660, cy: 320, r: 90, pixels: 60, dimmer: 0.8, trim: [1, 0.85, 0.7, 1], tag: TAGS[1], gamma: 2.2 }));
+    // the rings are 16-bit: the left one dims like tungsten, the right one on an S curve
+    const sides = [0, 1].map(i => F('circle', { name: (i ? 'Right' : 'Left') + ' ring', cx: 170 + i * 660, cy: 320, r: 90, pixels: 60, dimmer: 0.8, trim: [1, 0.85, 0.7, 1], tag: TAGS[1], gamma: 2.2, bits: 16, curve: i ? 'scurve' : 'tungsten' }));
     const spare = F('line', { name: 'Spare strip (locked, off)', x1: 400, y1: 470, x2: 600, y2: 470, pixels: 30, enabled: false, locked: true, tag: TAGS[6] });
     G('Truss', TAGS[0], truss); G('Rings', TAGS[1], sides);
     const c = C({ name: 'Main controller', ip: '10.0.0.80', outputs: 4, upo: 4, startUniverse: 0, split: true });

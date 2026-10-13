@@ -51,6 +51,10 @@ function fixFixture(f, i, ids) {
   if (isObj(f.addr)) f.addr = { u: clamp(Math.round(numOr(f.addr.u, 0)), 0, 32767), ch: clamp(Math.round(numOr(f.addr.ch, 1)), 1, 512) }; else delete f.addr;
   f.trim = [0, 1, 2, 3].map(i => clamp(numOr(Array.isArray(f.trim) ? f.trim[i] : undefined, legacyTrim[i]), 0, 1));
   f.gamma = clampGamma(numOr(f.gamma, legacyGamma));
+  // 8 or 16 bits per colour, the dimming curve (16-bit only) and, for the tungsten curve, its warm shift and filament lag
+  f.bits = f.bits === 16 || f.bits === '16' ? 16 : 8;
+  if (!CURVE_IDS.has(f.curve)) f.curve = 'gamma';
+  f.warm = f.warm !== false; f.lag = f.lag !== false;
   if (!('enabled' in f)) f.enabled = true;
   if (!('locked' in f)) f.locked = false;
   if (!('reverse' in f)) f.reverse = false;
@@ -263,14 +267,14 @@ async function openProjectFile(file) {
 }
 function exportCSV() {
   ensurePatch();
-  const rows = [['Fixture', 'Type', 'Pixels', 'Color order', 'Controller', 'IP', 'Output', 'Position', 'Start universe', 'Start channel', 'End universe', 'End channel', 'Overflow pixels']];
+  const rows = [['Fixture', 'Type', 'Pixels', 'Color order', 'Bits', 'Controller', 'IP', 'Output', 'Position', 'Start universe', 'Start channel', 'End universe', 'End channel', 'Overflow pixels']];
   const order = [];
   for (const c of project.controllers) c.chains.forEach(ch => ch.forEach(id => { const f = fxById(id); if (f) order.push(f); }));
   for (const f of project.fixtures) if (!f._patch) order.push(f);
   for (const f of order) {
     const p = f._patch;
     const a = p && p.first >= 0 ? addrOf(p.base, p.first) : null, b = p && p.first >= 0 ? addrOf(p.base, p.last) : null;
-    rows.push([f.name, TYPE_LABEL[f.type], pixelCount(f), f.order, p ? p.ctrl.name : '', p ? p.ctrl.ip : '', p ? p.out + 1 : '', p ? p.pos + 1 : '', a ? a.u : '', a ? a.ch : '', b ? b.u : '', b ? b.ch : '', p ? p.overflow : '']);
+    rows.push([f.name, TYPE_LABEL[f.type], pixelCount(f), f.order, fxBits(f), p ? p.ctrl.name : '', p ? p.ctrl.ip : '', p ? p.out + 1 : '', p ? p.pos + 1 : '', a ? a.u : '', a ? a.ch : '', b ? b.u : '', b ? b.ch : '', p ? p.overflow : '']);
   }
   const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v).join(',')).join('\n');
   download((project.name || 'openledmapper').replace(/\s+/g, '-') + '-patch.csv', csv, 'text/csv');

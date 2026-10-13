@@ -18,7 +18,7 @@
  },
  "fixtures": [
   {
-   "id": "au46mw2o",
+   "id": "tww1x5p0",
    "type": "circle",
    "name": "Ring 1",
    "enabled": true,
@@ -34,6 +34,10 @@
     1
    ],
    "gamma": 1,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "cx": 200,
    "cy": 220,
    "r": 120,
@@ -41,10 +45,10 @@
    "start": 0,
    "sweep": 360,
    "ccw": false,
-   "group": "vk1deklg"
+   "group": "kbihnm4p"
   },
   {
-   "id": "f9mas29u",
+   "id": "kapttn9d",
    "type": "circle",
    "name": "Ring 2",
    "enabled": true,
@@ -60,6 +64,10 @@
     1
    ],
    "gamma": 1,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "cx": 500,
    "cy": 220,
    "r": 120,
@@ -67,10 +75,10 @@
    "start": 0,
    "sweep": 360,
    "ccw": false,
-   "group": "vk1deklg"
+   "group": "kbihnm4p"
   },
   {
-   "id": "2tabw93r",
+   "id": "dkykcsnb",
    "type": "circle",
    "name": "Ring 3",
    "enabled": true,
@@ -86,6 +94,10 @@
     1
    ],
    "gamma": 1,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "cx": 800,
    "cy": 220,
    "r": 120,
@@ -93,10 +105,10 @@
    "start": 0,
    "sweep": 360,
    "ccw": false,
-   "group": "vk1deklg"
+   "group": "kbihnm4p"
   },
   {
-   "id": "zfnrdcze",
+   "id": "f7xnnkg0",
    "type": "circle",
    "name": "Arc 1",
    "enabled": true,
@@ -112,6 +124,10 @@
     1
    ],
    "gamma": 1,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "cx": 350,
    "cy": 460,
    "r": 110,
@@ -119,10 +135,10 @@
    "start": 270,
    "sweep": 180,
    "ccw": false,
-   "group": "ehcda0vy"
+   "group": "movcrwry"
   },
   {
-   "id": "hnqv7aul",
+   "id": "y6sup3ky",
    "type": "circle",
    "name": "Arc 2",
    "enabled": true,
@@ -138,6 +154,10 @@
     1
    ],
    "gamma": 1,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "cx": 650,
    "cy": 460,
    "r": 110,
@@ -145,10 +165,10 @@
    "start": 270,
    "sweep": 180,
    "ccw": true,
-   "group": "ehcda0vy"
+   "group": "movcrwry"
   },
   {
-   "id": "bjktffe3",
+   "id": "vpbx7qie",
    "type": "circle",
    "name": "Oval",
    "enabled": true,
@@ -164,6 +184,10 @@
     1
    ],
    "gamma": 1,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "cx": 500,
    "cy": 560,
    "r": 200,
@@ -174,7 +198,7 @@
    "ry": 50
   },
   {
-   "id": "kmp4kjeu",
+   "id": "llffhyj0",
    "type": "circle",
    "name": "Ring CCW",
    "enabled": true,
@@ -190,6 +214,10 @@
     1
    ],
    "gamma": 1,
+   "bits": 8,
+   "curve": "gamma",
+   "warm": true,
+   "lag": true,
    "cx": 900,
    "cy": 520,
    "r": 70,
@@ -201,13 +229,13 @@
  ],
  "groups": [
   {
-   "id": "vk1deklg",
+   "id": "kbihnm4p",
    "name": "Rings",
    "tag": "#b58cff",
    "open": true
   },
   {
-   "id": "ehcda0vy",
+   "id": "movcrwry",
    "name": "Arcs",
    "tag": "#46e08c",
    "open": true
@@ -215,7 +243,7 @@
  ],
  "controllers": [
   {
-   "id": "iojuw0vh",
+   "id": "sflhezy3",
    "name": "Ring controller",
    "ip": "10.0.0.70",
    "enabled": true,
@@ -225,19 +253,19 @@
    "split": false,
    "chains": [
     [
-     "au46mw2o",
-     "f9mas29u",
-     "2tabw93r"
+     "tww1x5p0",
+     "kapttn9d",
+     "dkykcsnb"
     ],
     [
-     "zfnrdcze",
-     "hnqv7aul"
+     "f7xnnkg0",
+     "y6sup3ky"
     ],
     [
-     "bjktffe3"
+     "vpbx7qie"
     ],
     [
-     "kmp4kjeu"
+     "llffhyj0"
     ]
    ]
   }
@@ -438,7 +466,7 @@
  ],
  "zones": [
   {
-   "id": "d905411s",
+   "id": "xbi60w3d",
    "name": "All",
    "tag": "#b58cff",
    "x": 0,
@@ -448,7 +476,7 @@
    "opacity": 1,
    "layers": [
     {
-     "id": "5fhuprhd",
+     "id": "mhsrwbhd",
      "src": "b-pulse",
      "params": {
       "b-pulse": {
@@ -462,13 +490,13 @@
    ],
    "scenes": [
     {
-     "id": "ycwwp6uj",
+     "id": "gfs61u7p",
      "name": "Pulse rings",
      "tag": "#3cc8ff",
      "fade": 1,
      "layers": [
       {
-       "id": "5fhuprhd",
+       "id": "mhsrwbhd",
        "src": "b-pulse",
        "params": {
         "b-pulse": {
@@ -482,13 +510,13 @@
      ]
     },
     {
-     "id": "hqvjffbm",
+     "id": "9huypujx",
      "name": "Radar",
      "tag": "#b58cff",
      "fade": 1.5,
      "layers": [
       {
-       "id": "cim1dqul",
+       "id": "858qelzy",
        "src": "b-sweep",
        "params": {
         "b-sweep": {
@@ -502,13 +530,13 @@
      ]
     },
     {
-     "id": "2bv7epxl",
+     "id": "vwmg7yzd",
      "name": "Comets",
      "tag": "#ff6f86",
      "fade": 1,
      "layers": [
       {
-       "id": "h1c3syp0",
+       "id": "lt5k9bfe",
        "src": "b-comet",
        "params": {
         "b-comet": {
@@ -523,13 +551,13 @@
      ]
     },
     {
-     "id": "u7tvb859",
+     "id": "e2330ujo",
      "name": "Aurora",
      "tag": "#6fe3e3",
      "fade": 4,
      "layers": [
       {
-       "id": "rv4emo1e",
+       "id": "tcmku14f",
        "src": "b-aurora",
        "params": {},
        "opacity": 1,
@@ -539,7 +567,7 @@
      ]
     }
    ],
-   "scene": "ycwwp6uj",
+   "scene": "gfs61u7p",
    "playlists": []
   }
  ],

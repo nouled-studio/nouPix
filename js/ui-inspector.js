@@ -90,7 +90,7 @@ function renderInspector(body) {
   if (f.type !== 'matrix') P.push(numRow('Pixels', f, 'pixels', geo({ int: true, min: 1, max: 20000 })));
   P.push(row('Color order', selectEl(ORDERS.map(o => [o, o + (o.length === 4 ? '  (RGBW)' : o === 'W' ? '  (mono)' : '')]), f.order, v => { f.order = v; markPatch(); commit(); renderRight(); }, { aria: 'Color order' })));
   P.push(...trimRows([f]));
-  P.push(gammaRow([f]));
+  P.push(...dimmingRows([f]));
   if (f.type !== 'matrix') P.push(checkRow('Reverse direction', f, 'reverse', () => { markGeom(); commit(); }));
   P.push(sliderRow('Dimmer', f, 'dimmer', { min: 0, max: 1, step: 0.01, fmt: pct, onCommit: commit }));
   body.append(sec('Pixels', P));
@@ -106,6 +106,68 @@ function gammaRow(list) {
   const one = list.length === 1, tmp = { gamma: list[0].gamma }, mixed = !one && list.some(f => f.gamma !== list[0].gamma);
   return sliderRow('Gamma', one ? list[0] : tmp, 'gamma', { min: 1, max: 3, step: 0.05, fmt: v => v.toFixed(2) + (mixed && v === list[0].gamma ? ' (mixed)' : ''),
     onInput: v => { if (!one) list.forEach(f => { f.gamma = v; }); }, onCommit: commit });
+}
+// Resolution and dimming curve. An 8-bit fixture has one channel per colour and uses gamma; a 16-bit one has two
+// (coarse, then fine) and can use the other curves too. With one fixture, a graph shows its curve.
+function dimmingRows(list) {
+  const one = list.length === 1, f = list[0], all16 = list.every(x => x.bits === 16);
+  const bitsMixed = list.some(x => fxBits(x) !== fxBits(f)), curveMixed = list.some(x => fxCurve(x) !== fxCurve(f));
+  const out = [row('Resolution', seg([[8, '8-bit'], [16, '16-bit']], bitsMixed ? '' : fxBits(f), v => { list.forEach(x => { x.bits = +v; }); markPatch(); commit(); renderRight(); }))];
+  const per = BPP(f);
+  out.push(h('p', { class: 'note' }, bitsMixed ? 'Mixed: some are 8-bit, some 16-bit.'
+    : fxBits(f) === 16 ? `${per} channels per pixel: each colour has a coarse channel and then its fine one. Only for fixtures and controllers that take 16-bit colour.`
+      : `${per} channel${per === 1 ? '' : 's'} per pixel, one per colour.`));
+  const curve = selectEl([...(curveMixed ? [['', 'Mixed / keep']] : []), ...CURVES], curveMixed ? '' : fxCurve(f),
+    v => { if (!v) return; list.forEach(x => { x.curve = v; }); commit(); renderRight(); }, { aria: 'Dimming curve' });
+  if (!all16) { curve.disabled = true; curve.title = 'Gamma only: the other curves need 16-bit'; }
+  out.push(row('Curve', curve));
+  out.push(h('p', { class: 'note' }, !all16 ? (one ? 'The other curves (linear, square law, S curve, tungsten…) need 16-bit: switch Resolution to 16-bit.' : 'The other curves need all of them to be 16-bit.')
+    : curveMixed ? '' : CURVE_NOTES[fxCurve(f)]));
+  if (list.some(x => fxCurve(x) === 'gamma')) out.push(gammaRow(list.filter(x => fxCurve(x) === 'gamma')));
+  if (one && fxCurve(f) === 'tungsten') {
+    out.push(checkRow('Warmer when dimmed', f, 'warm', () => { commit(); renderRight(); }));
+    out.push(checkRow('Filament lag (takes a moment to heat and cool)', f, 'lag', () => { commit(); }));
+  }
+  if (one) out.push(curveGraph(f));
+  return out;
+}
+// The dimming curve as a graph: the level coming in (left to right) against the output (bottom to top). Low end
+// shows the first 10 %, where 8 bits have only a few steps and 16 bits hundreds. Tungsten draws its red, green and
+// blue: green and blue drop as it dims, which is how it gets warmer.
+function curveGraph(f) {
+  const W = 240, H = 132, low = ui.curveZoom === 'low', xmax = low ? 0.1 : 1, curve = fxCurve(f), bits = fxBits(f);
+  const out = (x, c) => {   // the output of colour c (0 red, 1 green, 2 blue) at level x, 0–1, as the fixture sends it
+    if (bits === 8) return gammaLUT(f.gamma)[Math.round(x * 255)] / 255;
+    let y = curveValue(curve, f.gamma, x);
+    if (curve === 'tungsten' && f.warm) y *= warmFactors(x)[c];
+    return Math.round(y * 65535) / 65535;
+  };
+  const ymax = low ? Math.max(1e-4, out(xmax, 0)) * 1.08 : 1;
+  const X = x => (x / xmax * W).toFixed(2), Y = y => (H - Math.min(1, y / ymax) * H).toFixed(2);
+  const line = c => {
+    let d = '';
+    if (bits === 8) {   // 256 steps in, 256 out: a staircase
+      for (let i = 0; i <= Math.round(xmax * 255); i++) { const x0 = i / 255, x1 = Math.min(xmax, (i + 1) / 255), y = out(x0, c); d += (i ? 'L' : 'M') + X(x0) + ' ' + Y(y) + 'L' + X(x1) + ' ' + Y(y); }
+    } else for (let i = 0; i <= 240; i++) { const x = i / 240 * xmax; d += (i ? 'L' : 'M') + X(x) + ' ' + Y(out(x, c)); }
+    return d;
+  };
+  const tung = curve === 'tungsten' && f.warm;
+  const grid = [0.25, 0.5, 0.75].map(t => `<path class="gl" d="M${(t * W).toFixed(1)} 0V${H}M0 ${(H - t * H).toFixed(1)}H${W}"/>`).join('');
+  const paths = tung ? [2, 1, 0].map(c => `<path class="cv c${c}" d="${line(c)}"/>`).join('') : `<path class="cv" d="${line(0)}"/>`;
+  const svg = svgEl(`<svg class="cgraph" viewBox="-1 -1 ${W + 2} ${H + 2}" role="img" aria-label="Dimming curve">${grid}<path class="ax" d="M0 0V${H}H${W}"/>${paths}</svg>`);
+  // how many different output values the bottom 10 % of the level has, with this curve at 8 and at 16 bits: what
+  // 16-bit is for
+  const steps8 = new Set();
+  for (let i = 0; i <= 25; i++) steps8.add(Math.round(curveValue(curve, f.gamma, i / 255) * 255));
+  const steps16 = fmtN(Math.round(curveValue(curve, f.gamma, 0.1) * 65535) + 1), n8 = `${steps8.size} step${steps8.size === 1 ? '' : 's'}`;
+  const cap = bits === 16 ? `Bottom 10 % of the level: ${steps16} output steps. At 8-bit this curve would have ${n8} there.`
+    : `Bottom 10 % of the level: ${n8} at 8-bit. At 16-bit the same curve has ${steps16}.`;
+  const zoom = seg([['full', 'Full range'], ['low', 'Low end (0–10 %)']], low ? 'low' : 'full', v => { ui.curveZoom = v; renderRight(); });
+  return h('div', { class: 'cgwrap' },
+    h('div', { class: 'cghead' }, h('span', { class: 'lbl' }, 'Graph'), zoom),
+    h('div', { class: 'cgbox' }, svg, h('span', { class: 'cgy' }, low ? fmtV(Math.round(ymax / 1.08 * 1000) / 10) + ' %' : '100 %'), h('span', { class: 'cgx' }, low ? 'level 10 %' : 'level 100 %')),
+    tung ? h('p', { class: 'note' }, h('b', { style: { color: 'var(--danger)' } }, 'red'), ', ', h('b', { style: { color: 'var(--live)' } }, 'green'), ' and ', h('b', { style: { color: '#6ea8ff' } }, 'blue'), ': green and blue drop as it dims, so it gets warmer.') : null,
+    h('p', { class: 'note' }, cap));
 }
 function trimRows(list) {
   const hasW = list.some(f => f.order.includes('W')), one = list.length === 1, tmp = list[0].trim.slice();
@@ -209,7 +271,7 @@ function renderMulti(body, sel) {
       sel.some(f => f.type !== 'matrix') ? row('Pixels each', pxIn) : null,
       row('Color order', selectEl([['', 'Mixed / keep'], ...ORDERS.map(o => [o, o])], sel.every(f => f.order === sel[0].order) ? sel[0].order : '', v => { if (!v) return; sel.forEach(f => { f.order = v; }); markPatch(); commit(); renderRight(); }, { aria: 'Color order for all' })),
       ...trimRows(sel),
-      gammaRow(sel),
+      ...dimmingRows(sel),
       h('div', { class: 'actions' },
         h('button', { class: 'btn', type: 'button', onclick: () => { sel.forEach(f => { f.enabled = true; }); commit(); } }, 'Enable all'),
         h('button', { class: 'btn', type: 'button', onclick: () => { sel.forEach(f => { f.enabled = false; }); commit(); } }, 'Disable all'),

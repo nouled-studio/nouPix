@@ -1,4 +1,4 @@
-# openLedMapper 0.7.1
+# openLedMapper 0.8.0
 
 <img src="icons/openledmapper-256.png" alt="" width="96" align="right">
 
@@ -49,6 +49,7 @@ To see it working before you build anything, open one of the [examples](examples
 
 - Fixtures: lines, matrices, circles and ovals, straight or curved paths. Fixtures can be grouped, locked, aligned, rotated and resized together, copied and pasted.
 - Content: 32 built-in generators, from very smooth ones for architecture (Color drift, Soft clouds, Horizon, Slow waves) to disco ones (Disco dots, Scanner, Confetti, Color hits, Mirror ball, Equalizer), plus your own ISF shaders, images, video (play, pause, trim with the mouse, loop or once, with or without its sound) and window capture (for example Resolume's output), in zones with layers and blend modes. Colours are picked on a colour wheel, with RGB or HSV sliders, lighting presets and recent colours. Sources are sorted by **mood, use, look and motion** (Calm · Architectural · Organic · Drift, Party · Show · Particles · Beat…), with a search box.
+- **16-bit fixtures** (a coarse and a fine channel per colour) and **dimming curves**: gamma, linear, square law, inverse square, S curve, and tungsten (warmer as it dims, with filament lag), with a graph of the curve in the Inspector. 8-bit and 16-bit fixtures mix freely.
 - Scenes per zone, with crossfades; the fade time is on each scene's button.
 - **Playlists:** several per zone, each a list of scenes with play times, played by itself in a loop, once, or followed by another playlist. Fades come from each scene, one for the whole playlist, or a step's own.
 - Art-Net output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
@@ -83,7 +84,7 @@ To see it working before you build anything, open one of the [examples](examples
   - Run it from source with `cd desktop && npm install && npm start`.
 - **Tests:** `python tests/run_tests.py --quick` (about 10 minutes), or without `--quick` for everything, including the byte-for-byte Art-Net comparison, a soak test and the UI fuzzer.
 - **Examples:** `examples/`; `python tests/make_examples.py` rebuilds the example projects.
-- **Release:** set `VERSION` in `openledmapper.py`, then push a matching tag (`git tag v0.7.1 && git push origin v0.7.1`). GitHub builds the Windows and Mac apps and attaches them to a release (`.github/workflows/release.yml`).
+- **Release:** set `VERSION` in `openledmapper.py`, then push a matching tag (`git tag v0.8.0 && git push origin v0.8.0`). GitHub builds the Windows and Mac apps and attaches them to a release (`.github/workflows/release.yml`).
 
 ## Licence and credits
 

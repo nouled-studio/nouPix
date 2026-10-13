@@ -6,6 +6,22 @@
 const TAGS = ['#3cc8ff', '#ffb341', '#b58cff', '#46e08c', '#ff6f86', '#6fe3e3', '#e8d56a', '#ff9657'];
 const ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR', 'RGBW', 'GRBW', 'WRGB', 'W'];
 const TYPE_LABEL = { line: 'Line', circle: 'Circle', matrix: 'Matrix', path: 'Path' };
+// Dimming curves: how a pixel's level (its content after the fixture's dimmer and trims and the master) becomes its
+// DMX value. Gamma works on every fixture; the others need 16-bit fixtures, whose fine channel keeps the low end
+// smooth where 8 bits would jump between the first few levels.
+const CURVES = [['gamma', 'Gamma'], ['linear', 'Linear'], ['square', 'Square law'], ['invsquare', 'Inverse square'], ['scurve', 'S curve'], ['tungsten', 'Tungsten']];
+const CURVE_IDS = new Set(CURVES.map(c => c[0]));
+const CURVE_NOTES = {
+  gamma: 'Corrects the LEDs: about 2.2 to 2.8 for most pixels, 1 for none.',
+  linear: 'Output follows the level exactly.',
+  square: 'Slow start, like a square-law dimmer: fine control at the low end.',
+  invsquare: 'Fast start: low levels come up quickly, the top end changes little.',
+  scurve: 'Slow at both ends and quicker in the middle: smooth starts and finishes.',
+  tungsten: 'Dims like a halogen lamp: a slow start, warmer as it dims, and a filament that takes a moment to heat and cool.',
+};
+const fxBits = f => (f.bits === 16 ? 16 : 8);
+// The curve a fixture uses: an 8-bit fixture always uses gamma
+const fxCurve = f => (f.bits === 16 && CURVE_IDS.has(f.curve) ? f.curve : 'gamma');
 const DEFAULT_SETTINGS = {
   compW: 1000, compH: 640, fps: 40, gamma: 1, master: 1, whiteMode: 'off',
   artSync: false, grid: 10, broadcast: '', bridgeUrl: '', transition: 0.5, fade: 2,
@@ -33,6 +49,7 @@ const ui = {
   // the Scenes panel's playlists: which one each zone shows open (zone id -> playlist id), the step being edited,
   // the zone whose + Add list is open, the playlist being renamed
   playlistOpen: {}, playlistStep: null, playlistAdd: null, playlistRename: null,
+  curveZoom: 'full',   // the fixture's dimming curve graph: 'full', or 'low' (the first 10 %)
 };
 const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'rightHidden', 'scanOff', 'colorMode'];
 let geomDirty = true, patchDirty = true;
@@ -124,6 +141,7 @@ function newFixture(type, props = {}) {
   const f = {
     id: uid(), type, name: nextName(type), enabled: true, locked: false,
     tag: TAGS[project.fixtures.length % TAGS.length], order: 'RGB', reverse: false, dimmer: 1, trim: [1, 1, 1, 1], gamma: clampGamma(project.settings.gamma),
+    bits: 8, curve: 'gamma', warm: true, lag: true,
   };
   if (FIXTURE_FIELDS[type]) Object.assign(f, JSON.parse(JSON.stringify(FIXTURE_FIELDS[type])));
   return Object.assign(f, props);

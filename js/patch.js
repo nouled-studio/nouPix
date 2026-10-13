@@ -3,7 +3,8 @@
 // assigning fixtures to outputs. Uses util, model and geometry; computePatch ends with layoutFrame (output.js).
 
 /* ---------- patch / addressing ---------- */
-const BPP = o => o.length;
+// Channels per pixel: one per colour, two (coarse, then fine) on a 16-bit fixture
+const BPP = f => f.order.length * (f.bits === 16 ? 2 : 1);
 let universes = [];
 let patchConflicts = [];
 let patchVersion = 0;
@@ -39,7 +40,7 @@ function computePatch() {
       for (const fid of chain) {
         const f = map.get(fid);
         if (!f) continue;
-        const bpp = BPP(f.order), n = f._n;
+        const bpp = BPP(f), n = f._n;
         const L = new Int32Array(n).fill(-1);
         let first = -1, last = -1, ovf = 0, manual = false, overlap = false, outside = false;
         // advanced patch: this fixture starts at a set universe and channel of its output; the ones after it follow on
@@ -87,7 +88,7 @@ function pixelAddrText(f, i) {
   const p = f._patch;
   if (!(p && f._out && f._out.lin[i] >= 0)) return '';
   const a = addrOf(p.base, f._out.lin[i]);
-  return `U ${a.u} ch ${a.ch}–${a.ch + f.order.length - 1}`;
+  return `U ${a.u} ch ${a.ch}–${a.ch + BPP(f) - 1}`;
 }
 // The output a patch is on, as shown on the badges: 1, 2… or A1, B2… with more than one controller
 function outLabel(p) { return (project.controllers.length > 1 ? ctrlLetter(p.ctrl) : '') + (p.out + 1); }
@@ -109,7 +110,7 @@ function simulateChannels(c, chain, extra) {
   let lin = 0;
   for (const f of [...chain.map(fxById).filter(Boolean), extra]) {
     if (!f) continue;
-    const bpp = BPP(f.order);
+    const bpp = BPP(f);
     for (let i = 0; i < f._n; i++) { if (!c.split) { const w = lin % 512; if (w + bpp > 512) lin += 512 - w; } lin += bpp; }
   }
   return lin;

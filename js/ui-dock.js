@@ -292,7 +292,8 @@ function renderCtrlEditor(edit, c) {
     + 'On (standard): channels 511 and 512 stay empty and the 171st pixel starts at channel 1 of the next universe, so no pixel is split between two universes. This is what nearly every pixel controller expects (PixLite, Falcon, Advatek, WLED…): keep it on.\n\n'
     + 'Off: all 512 channels are used, and the 171st pixel gets red and green on 511–512 and blue on channel 1 of the next universe. Only for controllers set to continuous addressing, or for plain DMX channels.\n\n'
     + 'If colours look shifted from the second universe on, this setting does not match the controller.\n'
-    + 'RGBW pixels take 4 channels: 128 fill a universe exactly, so nothing is skipped either way.';
+    + 'RGBW pixels take 4 channels: 128 fill a universe exactly, so nothing is skipped either way.\n'
+    + '16-bit fixtures take two channels per colour (coarse, then fine): 6 for RGB, so 85 pixels fill channels 1 to 510; 8 for RGBW, so 64 fill a universe.';
   edit.append(h('div', { class: 'ctrl-fields' },
     f('Output', en),
     f('Name', small(textInput(c, 'name', { aria: 'Controller name', onInput: () => {}, onCommit: () => { commit(); renderRight(); } }), 150)),
@@ -558,7 +559,7 @@ function renderMonitor(body) {
     const U = universes.find(u => u.key === ui.monitorKey);
     if (!U) return;
     const m = monitorMap(U)[ch];
-    read.textContent = `ch ${ch + 1} = ${U.data[ch]}` + (m ? ` · ${m.f.name} · pixel ${m.i + 1} · ${m.c}` : ' · unused');
+    read.textContent = `ch ${ch + 1} = ${U.data[ch]}` + (m ? ` · ${m.f.name} · pixel ${m.i + 1} · ${m.c}${m.coarse ? ' coarse' : m.fine ? ' fine' : ''}` : ' · unused');
   });
   const U = universes.find(u => u.key === ui.monitorKey);
   const bar = h('div', { class: 'bar' }, U ? h('span', { class: 'mono' }, `${U.ip} · universe ${U.uni} (net ${U.uni >> 8}, subnet ${(U.uni >> 4) & 15}, universe ${U.uni & 15}) · ${U.ctrl.name} OUT ${U.out + 1}`) : h('span', null, 'DMX values being sent'),
@@ -574,7 +575,9 @@ function monitorMap(U) {
     const o = f._out; if (!o) continue;
     for (let i = 0; i < f._n; i++) {
       const lin = o.lin[i]; if (lin < 0) continue;
-      for (let k = 0; k < f.order.length; k++) { const L = lin + k; if (o.unis[L >> 9] === U) monMap[L & 511] = { f, i, c: f.order[k] }; }
+      // a 16-bit fixture has two channels per colour: the coarse one, then the fine one
+      const per = f.bits === 16 ? 2 : 1;
+      for (let k = 0; k < f.order.length * per; k++) { const L = lin + k; if (o.unis[L >> 9] === U) monMap[L & 511] = { f, i, c: f.order[(k / per) | 0], fine: per === 2 && k % 2 === 1, coarse: per === 2 && k % 2 === 0 }; }
     }
   }
   monMapKey = key;

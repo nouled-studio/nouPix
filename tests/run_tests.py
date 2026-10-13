@@ -103,6 +103,7 @@ SUITES = [   # name, function, part of --quick
     ("rapp", simple("test_remote_app.py", 8164, 400), True),
     ("rsoak", simple("test_remote_soak.py", 8162, 2400), False),
     ("playlist", simple("test_playlist.py", 8170, 600), True),
+    ("16bit", simple("test_16bit.py", 8174, 600), True),
     ("profile", last_line("test_profile_move.py", [], 60, lambda l: "ALL PASS" in l), True),
 ]
 
