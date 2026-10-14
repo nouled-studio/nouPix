@@ -1,16 +1,17 @@
 // openLedMapper · docs/mockups/midi-main.js
 // The main window of the mockup: the app's top bar with the new MIDI button next to remote control; a stage that
 // draws three zones as the app would, with the macros and MIDI applied as the frame is drawn; the Scenes dock; and
-// the Content tab. A slider a MIDI control drives has a yellow mark, and a thin yellow line where the MIDI fader is,
-// so pickup can be seen. While learning, touching a slider picks it. The control engine runs here, as planned for
-// the app; the MIDI button opens the mapping window (a window of its own, or a floating one in the page).
+// the Content tab. A slider a MIDI control drives shows a thin yellow line where the MIDI fader is, so pickup can be
+// seen; while the mapping window is open, a yellow tag names the control on every slider and button it drives. While
+// learning, touching a slider, a scene or a playlist picks it. The control engine runs here, as planned for the app;
+// the MIDI button opens the mapping window (a window of its own, or a floating one in the page).
 
 const eng = new Engine();
 serveEngine(eng);
 startWebMidi(eng);
 let S = eng.snapshot();
 const view = { zone: 'z2', layer: null };
-const marks = [];   // the sliders with a MIDI mark (mappedSlider), brought up to date with each state
+const marks = [];   // the sliders and buttons with a MIDI mark (mappedSlider, midiTag), brought up to date with each state
 
 /* ---------- the mapping window ---------- */
 let popup = null, floatWin = null;
@@ -45,7 +46,7 @@ function openFloating() {
 /* ---------- sliders MIDI can drive ---------- */
 // A slider for target t. While learning, touching it picks it as what the next MIDI control moves.
 function midiSlider(t, attrs, onInput) {
-  const r = h('input', Object.assign({ type: 'range' }, attrs, { oninput: e => onInput(+e.target.value) }));
+  const r = h('input', Object.assign({ type: 'range' }, attrs, { oninput: e => { if (!S.learn.on) onInput(+e.target.value); } }));
   r.addEventListener('pointerdown', e => { if (S.learn.on) { e.preventDefault(); eng.learnTarget(t); } });
   const s = mappedSlider(r, t);
   s.input = r;
@@ -63,6 +64,7 @@ function syncTop() {
   $('#masterVal').textContent = pct(S.master);
   $('#btnBlackout').classList.toggle('on', !!S.blackout);
   document.body.classList.toggle('learning-main', S.learn.on);
+  document.body.classList.toggle('midi-open', !!mapOpen());
   const wm = { checking: 'checking…', none: 'not in this browser', blocked: 'refused', empty: 'no ports', ok: 'on' }[S.devices.webmidi];
   $('#status').replaceChildren(h('span', null, S.learn.on ? 'Learning: move a MIDI control, then touch a slider (or the other way round)' : 'Mockup of the MIDI mapping: nothing here changes the app'), h('span', { class: 'fill' }),
     h('span', null, 'Wires ', h('b', null, S.wires.length)), h('span', null, 'Web MIDI ', h('b', null, wm)));
@@ -78,6 +80,8 @@ function initTop() {
   masterS = midiSlider('master', { min: 0, max: 1, step: 0.01, id: 'master', 'aria-label': 'Master' }, v => eng.set('master', v));
   $('#master').replaceWith(masterS);
   $('#btnBlackout').addEventListener('click', () => { if (S.learn.on) eng.learnTarget('blackout'); else eng.set('blackout', S.blackout ? 0 : 1); });
+  const bo = midiTag('blackout');
+  $('#btnBlackout').append(bo); marks.push(bo);
   const r = $('#btnMidi').getBoundingClientRect(), left = clamp(r.left - 20, 8, innerWidth - 270);
   const tip = h('div', { class: 'newtip', role: 'note', style: { left: left + 'px', top: r.bottom + 10 + 'px', '--arrow': clamp(r.left - left + 8, 10, 240) + 'px' } },
     h('b', null, 'New: MIDI. '), 'It opens the mapping in a window of its own: move it aside to watch this one while you map.',
@@ -128,6 +132,9 @@ function pattern(fam, x, y, ph, P, seed) {
 let lastT = performance.now();
 function drawStage(now) {
   const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  eng.tick(dt);
+  // how far the step of a playing playlist is, on its scene
+  for (const z of eng.zones) { const bar = $(`[data-prog="${z.id}"]`); if (bar) bar.style.width = z.play ? Math.min(100, z.play.t / z.playlists[z.play.pl].steps[z.play.step][1] * 100) + '%' : '0'; }
   const cv = $('#view'), box = cv.parentElement.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
   if (cv.width !== Math.round(box.width * dpr) || cv.height !== Math.round(box.height * dpr)) { cv.width = Math.round(box.width * dpr); cv.height = Math.round(box.height * dpr); }
   const g = cv.getContext('2d'), W = cv.width, H = cv.height;
@@ -153,9 +160,18 @@ function drawStage(now) {
 }
 
 /* ---------- the Scenes dock ---------- */
+// A button a MIDI control can play: a click plays it, or picks it while learning
+function playable(el, t, play) {
+  el.addEventListener('pointerdown', e => { if (S.learn.on) { e.preventDefault(); e.stopPropagation(); eng.learnTarget(t); } }, true);
+  el.addEventListener('click', e => { e.stopPropagation(); if (!S.learn.on) play(); });
+  const tag = midiTag(t);
+  tag.dock = true; tag.isTag = true;
+  marks.push(tag);
+  return tag;
+}
 let dockSig = '';
 function renderDock() {
-  const sig = JSON.stringify([view.zone, S.zones.map(z => z.scene)]);
+  const sig = JSON.stringify([view.zone, S.zones.map(z => [z.scene, z.play && [z.play.pl, z.play.step]])]);
   if (sig !== dockSig) {
     dockSig = sig;
     for (let i = marks.length - 1; i >= 0; i--) if (marks[i].dock) marks.splice(i, 1);
@@ -163,15 +179,27 @@ function renderDock() {
     for (const z of S.zones) {
       const lvl = midiSlider('z:' + z.id, { min: 0, max: 1, step: 0.01, value: z.opacity, 'aria-label': z.name + ' level', onclick: e => e.stopPropagation() }, v => eng.set('z:' + z.id, v));
       lvl.dock = z.id;
+      // the zone's playlist: play or stop it (a pad can, too)
+      const pl = z.playlists[0], plOn = !!(z.play && z.play.pl === 0), pt = 'pl:' + z.id + ':1';
+      const plbtn = h('button', { class: 'btn plbtn' + (plOn ? ' playing' : ''), type: 'button', title: (plOn ? 'Stop ' : 'Play ') + `the playlist ${pl.name} (${pl.steps} steps)`, 'aria-label': (plOn ? 'Stop ' : 'Play ') + pl.name }, icon(plOn ? 'pause' : 'playlist'));
+      const plTag = playable(plbtn, pt, () => eng.set(pt, plOn ? 0 : 1));
       const head = h('div', { class: 'zhead' + (z.id === view.zone ? ' sel' : ''), onclick: () => { view.zone = z.id; view.layer = null; renderDock(); renderRight(true); } },
-        h('div', { class: 'zt' }, h('span', { class: 'ztag', style: { borderColor: z.tag } }), h('span', { class: 'nm' }, z.name), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity))),
-        h('div', { class: 'zc' }, lvl));
+        h('div', { class: 'zt' }, h('span', { class: 'ztag', style: { borderColor: z.tag } }), h('span', { class: 'nm' }, z.name),
+          plOn ? h('span', { class: 'plname on', title: `${pl.name}: step ${z.play.step + 1} of ${pl.steps}` }, `${z.play.step + 1}/${pl.steps}`) : null, plTag, plbtn),
+        h('div', { class: 'zc' }, lvl, h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity))));
       const r = h('div', { class: 'scenerow' + (z.id === view.zone ? ' sel' : '') }, head);
-      z.scenes.forEach((name, i) => r.append(h('div', { class: 'scene' + (z.scene === i ? ' live' : ''), role: 'button', tabindex: 0, style: { '--tag': z.tag }, onclick: () => eng.recall(z.id, i) },
-        h('div', { class: 't' }, h('span', { class: 'nm' }, name), h('span', { class: 'k' }, String(i + 1))), h('div', { class: 's' }, h('span', { class: 'fill' }), '◢ 2 s'))));
+      z.scenes.forEach((sc, i) => {
+        const t = `sc:${z.id}:${i + 1}`, tile = h('div', { class: 'scene' + (z.scene === i ? ' live' : ''), role: 'button', tabindex: 0, style: { '--tag': z.tag }, title: `Play ${sc.name}` + (z.play ? ': it stops the playlist' : '') },
+          h('div', { class: 't' }, h('span', { class: 'nm' }, sc.name), h('span', { class: 'k' }, String(i + 1))), h('div', { class: 's' }, h('span', { class: 'fill' }), '◢ 2 s'),
+          z.scene === i ? h('div', { class: 'prog', 'data-prog': z.id }) : null);
+        tile.append(playable(tile, t, () => eng.set(t, 1)));
+        tile.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tile.click(); } });
+        r.append(tile);
+      });
       rows.append(h('div', { class: 'zoneblock' + (z.id === view.zone ? ' sel' : '') }, r));
     }
-    $('#dockBody').replaceChildren(h('div', { class: 'scenepanel' }, h('div', { class: 'bar' }, h('span', null, 'Click a scene to play it. MIDI wires and macros carry on through every scene: they apply as the frame is drawn.')), rows));
+    $('#dockBody').replaceChildren(h('div', { class: 'scenepanel' }, h('div', { class: 'bar' }, h('span', null, 'Click a scene, or a zone\'s playlist button, to play it; a MIDI pad can, too. Wires and macros carry on through every scene.')), rows));
+    for (const m of marks) if (m.isTag) m.mark(S);
   }
   for (const z of S.zones) { const p = $(`[data-zone-pct="${z.id}"]`); if (p) p.textContent = pct(z.opacity); }
 }
@@ -217,13 +245,13 @@ function renderRight(force = false) {
   $('#rightBody').replaceChildren(
     h('div', { class: 'sec' }, h('h3', null, 'Layers · ', h('span', { style: { color: z.tag } }, z.name), h('span', { class: 'fill' }), h('span', { class: 'mono' }, z.scenes[z.scene].name)), list),
     h('div', { class: 'sec' }, h('h3', null, 'Parameters · ', L ? SHADERS.get(L.src).name : ''), ...rows,
-      h('p', { class: 'note' }, 'A yellow slider is driven by a MIDI control: the thin line is where its fader is. With pickup, the slider follows once the fader reaches it. On the right, the value the effect gets.')));
+      h('p', { class: 'note' }, 'A thin yellow line on a slider is where its MIDI fader is: with pickup, the slider follows once the fader reaches it. While the MIDI window is open, the control shows above the slider. On the right, the value the effect gets.')));
   syncRight();
 }
 const syncRight = () => { for (const r of $$('#rightBody .prow')) r.sync(); };
 
 /* ---------- start ---------- */
-function refresh() { renderDock(); renderRight(); syncTop(); syncRight(); for (const m of marks) if (m.isConnected) { m.mark(S); if (m.dock && document.activeElement !== m.input) m.input.value = S.zones.find(z => z.id === m.dock).opacity; } }
+function refresh() { renderDock(); renderRight(); syncTop(); syncRight(); for (const m of marks) if (m.isConnected) { m.mark(S); if (m.dock && m.input && document.activeElement !== m.input) m.input.value = S.zones.find(z => z.id === m.dock).opacity; } }
 eng.on(ev => {
   if (ev.t === 'state') { S = ev.s; refresh(); }
   else if (ev.t === 'led') blinkMidi();

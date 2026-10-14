@@ -23,11 +23,11 @@
   <div class="mwbody">
     <aside class="mwdev" id="devices" aria-label="MIDI in"></aside>
     <main class="patch" id="patch" aria-label="Wires from MIDI controls to macros and effects">
-      <div class="pcol" id="colCtl"></div>
-      <div class="pcol" id="colMac"></div>
-      <div class="pcol" id="colFx"></div>
+      <section class="pcol"><h3 class="colh">MIDI controls</h3><div class="pscroll" id="colCtl"></div></section>
+      <section class="pcol"><h3 class="colh">Macros</h3><div class="pscroll" id="colMac"></div></section>
+      <section class="pcol"><h3 class="colh">Effects</h3><div class="pscroll" id="colFx"></div></section>
       <svg class="wires" id="wires" aria-hidden="true"></svg>
-      <button class="wx" id="wx" type="button" hidden title="Remove this wire (Delete)" aria-label="Remove this wire"></button>
+      <div class="wpop" id="wpop" role="dialog" aria-label="Wire" hidden></div>
     </main>
     <aside class="mwmon" aria-label="Monitor">
       <div class="phead"><h2>Monitor</h2><span class="meta" id="monMeta"></span><button class="btn sm" id="monClear" type="button">Clear</button></div>

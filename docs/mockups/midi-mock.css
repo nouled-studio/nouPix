@@ -5,16 +5,14 @@
 :root { --midi: #ffd23f; --midi-soft: rgba(255, 210, 63, 0.16); --wire: var(--accent); --wire-mac: #b58cff; }
 
 /* ---------- a slider a MIDI control drives ---------- */
-/* a yellow mark under it and a tag with its control; a thin yellow line where the MIDI fader is */
+/* a thin yellow line where the MIDI fader is (faint until the slider has picked it up); the slider keeps its colour.
+   While the mapping window is open, a tag names the control. */
 .mslider { position: relative; display: block; min-width: 0; }
 .mslider input[type=range] { display: block; }
-.mslider.mapped::before { content: ''; position: absolute; left: 0; right: 0; bottom: -3px; height: 2px; border-radius: 1px; background: var(--midi); opacity: .55; }
-.mslider.mapped input[type=range] { accent-color: var(--midi); }
-.fline { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--midi); border-radius: 1px; box-shadow: 0 0 4px rgba(255,210,63,.7); pointer-events: none; }
-.fline.away { animation: away 1.2s ease-in-out infinite; }
-@keyframes away { 50% { opacity: .35; } }
-.ftag { position: absolute; right: 0; top: -13px; font-family: var(--mono); font-size: 9px; line-height: 1; color: var(--midi); pointer-events: none; }
-@media (prefers-reduced-motion: reduce) { .fline.away { animation: none; } }
+.fline { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--midi); border-radius: 1px; pointer-events: none; }
+.fline.away { opacity: .45; }
+.ftag { display: none; position: absolute; right: 0; top: -12px; font-family: var(--mono); font-size: 9px; line-height: 1; color: var(--midi); pointer-events: none; white-space: nowrap; }
+.midi-open .ftag:not([hidden]) { display: block; }
 
 /* ---------- main window ---------- */
 .topbar #btnMidi { position: relative; }
@@ -29,18 +27,27 @@
 .stagewrap { position: relative; min-height: 0; background: #06070a; overflow: hidden; }
 .stagewrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .stagewrap .stagenote { position: absolute; left: 12px; bottom: 10px; font-family: var(--mono); font-size: 10.5px; color: var(--muted); pointer-events: none; }
-.dock.mk { --bottom-h: 214px; }
+.dock.mk { --bottom-h: 292px; }
 .right .layerlist li { grid-template-columns: 16px minmax(0,1fr) auto; }
 .prow { display: grid; grid-template-columns: 78px minmax(0,1fr) 44px; align-items: center; gap: 8px; min-height: 30px; }
 .prow .lbl { color: var(--text2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .prow .val { font-family: var(--mono); font-size: 11px; text-align: right; color: var(--text2); white-space: nowrap; }
 .prow .csw { width: 100%; height: 16px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
-.prow .via { grid-column: 2 / -1; margin-top: -4px; font-size: 10.5px; color: var(--midi); }
-.learning-main .prow .mslider, .learning-main .zhead input[type=range], .learning-main .master input[type=range] { outline: 1px dashed var(--midi); outline-offset: 3px; border-radius: 3px; }
+.prow .via { grid-column: 2 / -1; margin-top: -5px; font-size: 10.5px; color: var(--muted); }
+/* learning: what a MIDI control can move is outlined */
+.learning-main .prow .mslider, .learning-main .zhead .mslider, .learning-main .master .mslider, .learning-main .scene, .learning-main .plbtn, .learning-main #btnBlackout { outline: 1px dashed var(--midi); outline-offset: 2px; border-radius: 3px; }
+.learning-main .scene, .learning-main .plbtn, .learning-main #btnBlackout { cursor: crosshair; }
 .zhead .zc .mslider { flex: 1; }
 .master .mslider { width: 110px; flex: 0 1 110px; }
 .master .mslider input[type=range] { width: 100%; }
 .master .ftag { top: auto; bottom: -12px; }
+/* the tag on a button a MIDI control plays */
+#btnBlackout { position: relative; }
+#btnBlackout .ftag { top: auto; bottom: -12px; right: 0; }
+.scene .ftag { top: auto; bottom: 6px; left: 9px; right: auto; }
+.zhead .zt .ftag { position: static; font-weight: 400; }
+.zhead .zt .plname { font-family: var(--mono); font-size: 10px; font-weight: 400; color: var(--muted); white-space: nowrap; }
+.zhead .zt .plname.on { color: var(--live); }
 
 /* the floating mapping window, when the page can't open a real one */
 .fwin { position: fixed; z-index: 45; display: flex; flex-direction: column; background: var(--bg1); border: 1px solid var(--line2); border-radius: 8px; box-shadow: 0 24px 70px rgba(0,0,0,.6); overflow: hidden; resize: both; min-width: 360px; min-height: 120px; }
@@ -61,7 +68,7 @@
 .btn.learn.on { background: var(--midi); border-color: var(--midi); color: #241a00; box-shadow: 0 0 14px rgba(255,210,63,.35); }
 .learnhint { font-size: 12px; color: var(--midi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .learnhint b { font-family: var(--mono); font-weight: 500; }
-.mwbody { display: grid; grid-template-columns: 200px minmax(0, 1fr) 230px; min-height: 0; }
+.mwbody { display: grid; grid-template-columns: 184px minmax(0, 1fr) 210px; min-height: 0; }
 .mwbody > * { min-height: 0; min-width: 0; }
 .mwdev, .mwmon { background: var(--bg1); display: flex; flex-direction: column; }
 .mwdev { border-right: 1px solid var(--line); overflow: auto; }
@@ -82,87 +89,129 @@
 .switch input:checked::after { transform: translateX(11px); background: var(--accent-ink); }
 .switch input:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 
-/* the patch bay: three columns that scroll on their own, and the wires drawn over them */
-.patch { position: relative; display: grid; grid-template-columns: minmax(150px, 0.9fr) minmax(200px, 1.15fr) minmax(210px, 1.25fr); column-gap: 70px; padding: 0 18px; background: var(--bg0); overflow: hidden; }
-.pcol { overflow-y: auto; overflow-x: hidden; padding: 0 2px 14px; display: flex; flex-direction: column; gap: 6px; min-height: 0; scrollbar-width: thin; }
-.colh { position: sticky; top: 0; z-index: 1; margin: 0; padding: 10px 0 8px; background: var(--bg0); font-size: 10.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.colh.sub { margin-top: 8px; position: static; }
-.colnote { margin: 4px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+/* the patch bay: three columns, each with its heading and a list that scrolls on its own; the wires over them */
+.patch { position: relative; display: grid; grid-template-columns: minmax(140px, .7fr) minmax(290px, 1.35fr) minmax(200px, 1fr); column-gap: 46px; padding: 0 8px; background: var(--bg0); overflow: hidden; }
+.pcol { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.colh { flex: none; margin: 0; padding: 12px 10px 8px; font-size: 10.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+/* the lists: padded so the dots on their sides show whole; a thin scroll bar that shows on hover only */
+.pscroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 2px 10px 16px; display: flex; flex-direction: column; gap: 4px;
+  scrollbar-width: thin; scrollbar-color: transparent transparent; scrollbar-gutter: stable; }
+.pscroll:hover { scrollbar-color: var(--line2) transparent; }
+.pscroll::-webkit-scrollbar { width: 6px; }
+.pscroll::-webkit-scrollbar-track { background: transparent; }
+.pscroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+.pscroll:hover::-webkit-scrollbar-thumb { background: var(--line2); }
+.pscroll::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+.colsub { margin: 12px 0 2px; font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.colnote { margin: 6px 2px 0; font-size: 11.5px; color: var(--muted); line-height: 1.45; }
 .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.wires .wire { fill: none; stroke-width: 2; stroke-linecap: round; pointer-events: none; }
-.wires .wire.ctl { stroke: var(--wire); }
-.wires .wire.mac { stroke: var(--wire-mac); stroke-opacity: .45; stroke-width: 1.4; }
-.wires .wire.mac.lit { stroke-opacity: 1; stroke-width: 2; }
-.wires .wire.faint { stroke-opacity: .1; }
-.wires .wire.hot { stroke: var(--midi); stroke-width: 3; }
-.wires .wire.edge { stroke-dasharray: 4 4; }
-.wires .wire.sel { stroke: #fff; stroke-width: 3; stroke-opacity: 1; }
+.wires .wire { fill: none; stroke-width: 1.8; stroke-linecap: round; pointer-events: none; }
+.wires .wire.ctl { stroke: var(--wire); stroke-opacity: .85; }
+.wires .wire.mac { stroke: var(--wire-mac); stroke-width: 1.6; }
+.wires .wire.hot { stroke: var(--midi); stroke-opacity: 1; stroke-width: 2.6; }
+.wires .wire.edge { stroke-opacity: .6; stroke-linejoin: round; }
+.wires .wire.folded { stroke-dasharray: 3 4; stroke-opacity: .6; }
+.wires .wire.sel { stroke: #fff; stroke-width: 2.6; stroke-opacity: 1; stroke-dasharray: none; }
 .wires .wire.drag { stroke: var(--midi); stroke-dasharray: 6 4; stroke-width: 2; }
 .wires .hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
 .patch.dragging .wires .hit { pointer-events: none; }
-.wx { position: absolute; z-index: 3; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--danger); background: var(--bg1); color: var(--danger); cursor: pointer; display: grid; place-items: center; padding: 0; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
-.wx::before { content: '×'; font-size: 15px; line-height: 1; }
-.wx:hover { background: var(--danger); color: #fff; }
-.wx[hidden] { display: none; }
-.patch .ftag { display: none; }   /* in the patch bay the wire shows the control */
+.mwpage .ftag { display: none; }   /* in the mapping window the wires show the controls */
+
+/* a picked wire: what it is, how it follows, and Remove */
+.wpop { position: absolute; z-index: 4; min-width: 220px; max-width: 320px; display: grid; gap: 8px; padding: 9px 10px; border-radius: 8px; background: var(--bg2); border: 1px solid var(--line2); box-shadow: 0 12px 34px rgba(0,0,0,.55); font-size: 12px; }
+.wpop[hidden] { display: none; }
+.wph { color: var(--text2); line-height: 1.35; }
+.wph b { color: var(--text); font-weight: 600; }
+.wph b.mono { font-family: var(--mono); font-weight: 500; font-size: 11px; color: var(--midi); }
+.wpr { display: flex; align-items: center; gap: 8px; }
+.wpr .fill { flex: 1; }
+.wpr .muted { font-size: 11.5px; }
+.wpr .btn svg { width: 12px; height: 12px; margin-right: 4px; }
 
 /* the dots a wire goes from (out, on the right) and to (in, on the left) */
-.port { position: absolute; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--bg0); border: 2px solid var(--line2); cursor: crosshair; z-index: 2; touch-action: none; }
-.port.out { right: -7px; border-color: var(--wire); }
-.port.in { left: -7px; }
+.port { position: absolute; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--bg0); border: 1.5px solid var(--line2); cursor: crosshair; z-index: 2; touch-action: none; box-sizing: border-box; transition: border-color .12s, box-shadow .12s; }
+.port.out { right: -6px; border-color: var(--wire); }
+.port.in { left: -6px; }
+.port.alias { cursor: default; border-style: dashed; }
 .port:hover, .patch.to-in .port.in, .patch.to-out .port.out { border-color: var(--midi); box-shadow: 0 0 0 3px var(--midi-soft); }
+.patch.to-in .port.alias { border-color: var(--line2); box-shadow: none; }
 .mac .port.out { border-color: var(--wire-mac); }
 
-.ctl, .mac, .par, .fxh { position: relative; border-radius: 6px; }
-.ctl { display: grid; grid-template-columns: auto minmax(0, 1fr) 18px; grid-template-areas: "k s x" "b b b"; align-items: center; gap: 4px 6px; padding: 6px 12px 7px 8px; background: var(--bg2); border: 1px solid var(--line2); }
-.ctl .pillk { grid-area: k; font-family: var(--mono); font-size: 11px; color: var(--text); }
-.ctl small { grid-area: s; font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ctl .cval { grid-area: b; height: 3px; border-radius: 2px; background: var(--bg4); overflow: hidden; }
+.ctl, .mac, .par { position: relative; border-radius: 6px; }
+
+/* a MIDI control: its name, its port, how far it is, and where it goes */
+.ctl { display: grid; gap: 5px; padding: 6px 10px 7px; background: var(--bg2); border: 1px solid var(--line2); }
+.ctop { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ctl .pillk { font-family: var(--mono); font-size: 11px; color: var(--text); white-space: nowrap; }
+.ctl small { flex: 1; font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctl .cval { height: 2px; border-radius: 1px; background: var(--bg4); overflow: hidden; }
 .ctl .cbar { display: block; height: 100%; background: var(--midi); }
-.ctl.loose { border-style: dashed; }
+.ctl .tgts { display: flex; flex-wrap: wrap; gap: 2px 6px; }
+.ctl .tgts button { border: 0; background: none; padding: 0; font-size: 10.5px; color: var(--text2); cursor: pointer; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctl .tgts button:hover { color: var(--accent); }
+.ctl.loose { border-style: dashed; background: transparent; }
 .ctl.off { opacity: .5; }
 .ctl.hit { border-color: var(--midi); background: var(--midi-soft); }
-.ctl .x, .par .x { grid-area: x; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; opacity: 0; }
-.ctl:hover .x { opacity: 1; }
+.ctl .x { flex: none; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; opacity: 0; }
+.ctl:hover .x, .ctl .x:focus-visible { opacity: 1; }
 .ctl .x:hover { color: var(--danger); background: var(--danger-soft); }
 .ctl .x svg { width: 9px; height: 9px; }
 
-.mac { display: grid; gap: 4px; padding: 6px 12px 8px; background: var(--bg1); border: 1px solid var(--line); }
+/* a macro on one line: name, slider, value, on/off, how many controls it moves */
+.mac { display: grid; grid-template-columns: 66px minmax(0, 1fr) 36px 26px 30px; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; background: var(--bg1); border: 1px solid var(--line); }
+.mac .nm { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 5px; }
+.mac .nm svg { width: 12px; height: 12px; flex: none; color: var(--muted); }
 .mac.hov { border-color: var(--wire-mac); }
-.mac.dim .mrow1 b, .mac.dim .vv { color: var(--muted); }
-.mac.color { padding-bottom: 6px; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-.mac.sub { grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; margin-top: -7px; border-top: 0; border-radius: 0; padding: 4px 12px 6px; }
-.mac.sub + .mac:not(.sub) { margin-top: 0; }
-.mac.sub .nm { font-size: 11.5px; color: var(--text2); }
-.mrow1 { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.mrow1 b { font-weight: 600; font-size: 12.5px; white-space: nowrap; }
-.mrow1 .fill { flex: 1; }
-.vv { font-family: var(--mono); font-size: 11px; color: var(--text2); }
-.fan { font-family: var(--mono); font-size: 10px; color: var(--wire-mac); min-width: 26px; text-align: right; }
-.csw { width: 18px; height: 14px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); flex: none; display: inline-block; }
+.mac.dim .nm, .mac.dim .vv { color: var(--muted); }
+.mac .mslider input[type=range] { width: 100%; height: 16px; margin: 0; }
+.vv { font-family: var(--mono); font-size: 10.5px; color: var(--text2); text-align: right; white-space: nowrap; }
+.k { font-family: var(--mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
+.fan { font-family: var(--mono); font-size: 10px; color: var(--wire-mac); text-align: right; white-space: nowrap; }
+.csw { width: 16px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); flex: none; display: inline-block; }
 .seg.mini button { height: 18px; padding: 0 5px; font-size: 10px; }
-.tko { height: 18px; padding: 0 6px; border-radius: 9px; border: 1px solid rgba(255,210,63,.5); background: var(--midi-soft); color: var(--midi); font-size: 10px; cursor: pointer; white-space: nowrap; }
-.tko:hover { border-color: var(--midi); }
 .btn.bo-on { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.live { background: var(--live-soft); border-color: var(--live); color: var(--live); }
 
-.fxc { display: grid; gap: 2px; padding: 0 0 6px; border-bottom: 1px solid var(--line); }
-.fxh { display: flex; align-items: baseline; gap: 8px; padding: 4px 4px 2px; }
-.fxh b { font-size: 12.5px; }
+/* a group: a colour or a zone, folded to one line; open, its parts below it */
+.group { display: grid; border-radius: 6px; }
+.group.open { border: 1px solid var(--line); background: var(--bg1); }
+.group.open > .mac { border: 0; background: none; border-radius: 0; }
+.group.open > .mac + .mac { border-top: 1px solid var(--line); }
+.mac.grp { grid-template-columns: 16px 16px minmax(0, 1fr) auto 26px 30px; padding-left: 6px; }
+.mac.grp.zone { grid-template-columns: 16px 10px 44px minmax(0, 1fr) 36px; padding-right: 78px; }
+.fold { width: 16px; height: 16px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.fold svg { width: 10px; height: 10px; transform: rotate(-90deg); transition: transform .15s; }
+.fold.open svg { transform: none; }
+.fold:hover { color: var(--text); background: var(--bg3); }
+.mac.sub { grid-template-columns: 44px minmax(0, 1fr) 36px; padding-left: 28px; padding-right: 78px; min-height: 26px; }
+.mac.sub .nm { font-size: 11.5px; font-weight: 400; color: var(--text2); }
+.mac.btnrow { grid-template-columns: minmax(0, 1fr) auto 64px; }
+.mac.sub.btnrow { padding-right: 10px; }
+.mac.btnrow .btn { width: 100%; justify-content: center; }
+.mac.sub.cur .nm { color: var(--text); }
+
+/* effects: a card each, with the controls that are linked (the others behind "N more") */
+.fxc { display: grid; gap: 3px; padding: 2px 0 8px; }
+.fxc + .fxc { border-top: 1px solid var(--line); padding-top: 6px; }
+.fxh { display: flex; align-items: baseline; gap: 8px; padding: 2px 2px 1px; min-width: 0; }
+.fxh b { font-size: 12px; font-weight: 600; white-space: nowrap; }
 .fxh small { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.par { display: flex; align-items: center; gap: 6px; min-height: 24px; padding: 2px 6px 2px 12px; background: var(--bg1); border: 1px solid var(--line); }
+.par { display: flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 10px; background: var(--bg1); border: 1px solid var(--line); }
 .par .nm { font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .par .fill { flex: 1; }
-.par .mk { font-size: 9.5px; padding: 0 4px; border-radius: 3px; border: 1px solid rgba(181,140,255,.4); color: #c8adff; white-space: nowrap; }
+.par .mk { font-size: 9.5px; padding: 0 4px; border-radius: 3px; border: 1px solid rgba(181,140,255,.35); color: #c8adff; white-space: nowrap; }
 .par.loose { border-style: dashed; background: transparent; }
-.more { align-self: start; border: 0; background: none; color: var(--accent); font-size: 11px; cursor: pointer; padding: 2px 4px; }
+.more { align-self: start; border: 0; background: none; color: var(--accent); font-size: 11px; cursor: pointer; padding: 1px 2px; }
 .more:hover { text-decoration: underline; }
+.flash { animation: flash 1s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 2px var(--midi); } 100% { box-shadow: 0 0 0 2px transparent; } }
 
 /* learning: everything that can be moved is outlined, the one picked pulses */
-.learning .mac:not(.color), .learning .par { outline: 1px dashed rgba(255,210,63,.5); outline-offset: 1px; cursor: crosshair; }
-.learning .mac:not(.color):hover, .learning .par:hover { outline-style: solid; outline-color: var(--midi); }
+.learning .mac:not(.grp:not(.zone)), .learning .par { outline: 1px dashed rgba(255,210,63,.45); outline-offset: -1px; cursor: crosshair; }
+.learning .mac:not(.grp:not(.zone)):hover, .learning .par:hover { outline-style: solid; outline-color: var(--midi); }
 .pick { outline: 2px solid var(--midi) !important; animation: pick 1s ease-in-out infinite; }
 @keyframes pick { 50% { box-shadow: 0 0 0 4px rgba(255,210,63,.22); } }
-@media (prefers-reduced-motion: reduce) { .pick { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .pick, .flash { animation: none; } }
 
 /* monitor */
 .mon { flex: 1; overflow: auto; font-family: var(--mono); font-size: 10.5px; }
