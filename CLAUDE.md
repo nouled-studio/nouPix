@@ -43,7 +43,7 @@ order by `<script src>` tags at the end of `index.html`:
 | `ui-playlists.js` | The playlists in the Scenes panel: tabs folded to one line or open, steps (with their own fades, moved by dragging or Alt ← →), step editor, + Add, the New playlist window (order with ↑ ↓, a fade per step), the playlist menu | `playlistArea` `newPlaylistDialog` `playlistMenu` `shiftStep` `drawPlaylistProgress` |
 | `ui-menus.js` | The menu system and every menu, the SVG import dialog, copy/cut/paste keys | `menu` `fixtureMenu` `canvasMenu` `projectMenu` … |
 | `ui-remote.js` | Remote control in the interface: the top-bar button and menu, the Settings section, the waiting screen on devices, `lockPanel` for operators | `updateRemoteUI` `remoteMenu` `remoteSection` `remoteOverlay` `lockPanel` |
-| `ui-midi.js` | MIDI in the interface: the top-bar button, the MIDI tab of the dock (Learn, controllers, mappings, monitor), the learn bar, learning by touching anything marked `data-midi`, the yellow line and tags on what a control drives | `updateMidiUI` `renderMidiTab` `midiSlot` `midiButton` `markMidi` `initMidiUI` |
+| `ui-midi.js` | MIDI in the interface: the top-bar button, the MIDI window (a popup this page draws into: Learn, controllers, mappings, monitor), the learn bar, learning by touching anything marked `data-midi`, the yellow line and tags on what a control drives | `updateMidiUI` `openMidiWindow` `renderMidiWindow` `midiSlot` `midiButton` `markMidi` `initMidiUI` |
 | `app.js` | Top bar and status bar, wiring buttons and keys, the frame loop, `boot()`, and `window.olm` | `initUI` `onKey` `renderAll` `boot` |
 
 ### How the files fit together
@@ -122,7 +122,9 @@ Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimatio
   of the page and its files when the computer can't be reached). The network server serves them (`REMOTE_FILES`).
   Chrome installs only from a secure address: plain http on the network needs its "insecure origins treated as
   secure" setting; the page's full screen button covers the rest.
-- **MIDI** is read by the main window only: a device (`REMOTE_CLIENT`) has no MIDI button or tab and ignores MIDI.
+- **MIDI** is read by the main window only: a device (`REMOTE_CLIENT`) has no MIDI button and ignores MIDI. The MIDI window
+  is a popup (`window.open('', 'olm-midi')`) that the main window draws into with its own code, so the engine stays in
+  one place; it closes with the main window. The desktop app lets that one popup open (`setWindowOpenHandler`).
 - **The operator's lock** is in the interface (`mappingLocked()`: stage, keys, menus, lists, `lockPanel`) for
   convenience, and in `contentOf` for real.
 
@@ -162,7 +164,7 @@ fuzzer. Tests drive the page with Playwright through the bridge, and use the glo
 computer's network address; `test_remote_soak.py` (full run only) runs 400 mixed changes from
 several devices while every zone plays a playlist, and checks they all end equal. `test_16bit.py` checks 16-bit fixtures down to the Art-Net bytes on the wire (coarse before fine, packing, curves,
 strengths, the graph following the sliders, mixed with 8-bit). `test_values.py` checks typed values, Shift + scroll and the angle buttons. `test_midi.py` checks MIDI with a controller
-simulated in the page (Web MIDI replaced): turning it on, ports, learn in either order, pickup and jump, toggle and
+simulated in the page (Web MIDI replaced): turning it on, the MIDI window, ports, learn in either order, pickup and jump, toggle and
 hold, scenes, next scene, playlists, ignored ports, another port name, saving, undo, missing targets, the line and tags. `test_playlist.py` checks playlists
 (files, the panel folding and opening, timing and fades, the end, pause and resume, undo, editing while playing, the
 fade on a scene's button, play on open, the phone).

@@ -19,7 +19,6 @@ function renderDock() {
     if (mappingLocked()) { const ce = body.querySelector('.ctrl-edit'); if (ce) lockPanel(ce, 'Operator: you can see the patch but not change it.'); body.querySelectorAll('.ctrl-list .foot button').forEach(b => { b.disabled = true; }); }
   }
   else if (ui.dockTab === 'nodes') renderNodes(body);
-  else if (ui.dockTab === 'midi' && !REMOTE_CLIENT) renderMidiTab(body);
   else renderMonitor(body);
   replayFlip();
   const ce = body.querySelector('.ctrl-edit'); if (ce) ce.scrollTop = keep;

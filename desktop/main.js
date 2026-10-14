@@ -115,8 +115,15 @@ async function start() {
   win.on('closed', () => { win = null; });
 
   const wc = win.webContents;
-  // Links leave the app for the default browser; the interface itself stays on the bridge's address.
-  wc.setWindowOpenHandler(({ url: target }) => { openOutside(target); return { action: 'deny' }; });
+  // Links leave the app for the default browser; the interface itself stays on the bridge's address. The MIDI
+  // window, which the page draws itself, is a window of the app.
+  wc.setWindowOpenHandler(({ url: target, frameName }) => {
+    if (frameName === 'olm-midi' && (target === '' || target === 'about:blank')) {
+      return { action: 'allow', overrideBrowserWindowOptions: { width: 1180, height: 760, minWidth: 720, minHeight: 420, title: 'MIDI', backgroundColor: '#0d1420', autoHideMenuBar: true } };
+    }
+    openOutside(target);
+    return { action: 'deny' };
+  });
   wc.on('will-navigate', (e, target) => { if (!target.startsWith(url)) { e.preventDefault(); openOutside(target); } });
   // The page asks before closing while Art-Net is on. In Chrome the browser shows that question; here the app does.
   wc.on('will-prevent-unload', e => {

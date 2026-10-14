@@ -1,5 +1,6 @@
 # MIDI in (midi.js, ui-midi.js), with a MIDI controller simulated in the page (Web MIDI replaced by a fake one):
-# MIDI asked for only once it is turned on; controllers plugged in and out; learn in either order, from the stage's
+# MIDI asked for only once it is turned on; the MIDI window (its own, big; it closes with the page); controllers
+# plugged in and out; learn in either order, from the MIDI window and the main window's
 # top bar and the Scenes panel, without moving or playing what is touched; master and zone levels with pickup and
 # jump; blackout and playlists as toggles or held; scenes and the next scene on a press; ports switched off; the same
 # controller under another port name; mappings saved, undone, removed, missing; the line and the tags; refused and
@@ -50,30 +51,36 @@ try:
     maps = lambda: ev("project.midi.maps.map(w => w.key.split(':').slice(-2).join(' ') + ' > ' + w.to.split(':')[0])")
     def settle(t=0.25): time.sleep(t)
     def dock(tab): ev(f"ui.dockTab = '{tab}'; ui.dockCollapsed = false; renderDock()"); settle(0.2)
+    # the MIDI window: opened by the MIDI button (or brought to the front)
+    def window():
+        with pg.expect_popup() as pi: pg.click("#btnMidi")
+        w = pi.value; w.on("pageerror", lambda e: errs.append("MIDI window: " + str(e))); w.set_viewport_size({"width": 1180, "height": 760}); settle(0.5)
+        return w
 
     # ---------- MIDI off until asked for
     boot("{ ports: ['nanoKONTROL2'] }")
     check("MIDI is not asked for until it is turned on", ev("__midi.asked") == 0 and ev("midi.status") == "off" and not ev("ui.midiOn"))
-    dock("midi")
-    check("the MIDI tab offers to turn it on", pg.locator("#dockBody .midipanel.off button", has_text="Turn MIDI on").count() == 1)
-    pg.click("#btnMidi"); settle(0.4)
-    check("the MIDI button turns it on and opens the MIDI tab", ev("__midi.asked") == 1 and ev("midi.status") == "ok" and ev("ui.midiOn") and ev("ui.dockTab") == "midi"
-          and pg.locator("#btnMidi.on").count() == 1)
-    check("the controller plugged in is listed", pg.locator("#dockBody .mport .nm").all_inner_texts() == [K], pg.locator("#dockBody .mport .nm").all_inner_texts())
+    W = window()
+    check("the MIDI button opens the MIDI window, big, and turns MIDI on", ev("__midi.asked") == 1 and ev("midi.status") == "ok" and ev("ui.midiOn")
+          and pg.locator("#btnMidi.on").count() == 1 and W.title() == "MIDI · openLedMapper" and W.locator(".midipanel .mmaps").count() == 1
+          and W.locator(".mwhead .btn.learn").is_visible(), W.title())
+    check("it has the app's look", W.evaluate("getComputedStyle(document.body).backgroundColor") == ev("getComputedStyle(document.body).backgroundColor"))
+    check("the bottom panel keeps its tabs", "MIDI" not in pg.inner_text("#dockTabs"))
+    check("the controller plugged in is listed", W.locator(".mport .nm").all_inner_texts() == [K], W.locator(".mport .nm").all_inner_texts())
     ev("__midi.plug('Launchpad')"); settle()
-    check("a controller plugged in later shows", "Launchpad" in " ".join(pg.locator("#dockBody .mport .nm").all_inner_texts()))
+    check("a controller plugged in later shows", "Launchpad" in " ".join(W.locator(".mport .nm").all_inner_texts()))
     ev("__midi.unplug('Launchpad')"); settle()
-    check("and goes when unplugged", "Launchpad" not in " ".join(pg.locator("#dockBody .mport .nm").all_inner_texts()))
+    check("and goes when unplugged", "Launchpad" not in " ".join(W.locator(".mport .nm").all_inner_texts()))
     cc(1, 64); settle()
     check("a message blinks the button's light and shows unmapped in the monitor", ev("midi.log[0].text") == "CC 1 · ch1" and ev("midi.log[0].note") == "not mapped")
 
     # ---------- learn: control first, then what it drives
     ev("project.settings.master = 1; $('#master').value = 1")
-    pg.click("#dockBody .btn.learn"); settle()
+    W.click(".btn.learn"); settle()
     check("Learn shows the bar that says what to do, and outlines what MIDI can drive", pg.locator("#midiLearnBar").is_visible() and ev("document.body.classList.contains('midi-learning')")
           and pg.locator("#btnMidi.learning").count() == 1)
     cc(7, 10); settle()
-    check("a control moved while learning waits for its target", ev("midi.learn.pending").endswith("cc:7") and "CC 7" in pg.inner_text("#midiLearnBar"))
+    check("a control moved while learning waits for its target", ev("midi.learn.pending").endswith("cc:7") and "CC 7" in pg.inner_text("#midiLearnBar") and "CC 7" in W.inner_text(".mwhint"))
     pg.locator(".master .mslot").click(); settle()
     check("clicking the master wires it, and doesn't move the master", maps() == ["cc 7 > master"] and ev("project.settings.master") == 1, (maps(), ev("project.settings.master")))
     check("learning goes on for the next one", ev("midi.learn.on") and ev("midi.learn.pending") is None)
@@ -96,9 +103,12 @@ try:
     check("a pad and a playlist, which doesn't start", "note 38 > pl" in maps() and not ev(f"!!zoneById('{z['id']}')._play"), maps())
     check("while learning, the tags show on what is wired", pg.locator(".master .ftag").is_visible() and pg.locator(".master .ftag").inner_text() == "CC 7"
           and tiles.nth(2).locator(".ftag").inner_text() == "Note 37")
-    pg.keyboard.press("Escape"); settle()
-    check("Esc stops learning", not ev("midi.learn.on") and pg.locator("#midiLearnBar").is_hidden() and not ev("document.body.classList.contains('midi-learning')"))
-    check("not learning, with the MIDI tab closed, the tags hide", pg.locator(".ftag:visible").count() == 0)
+    W.keyboard.press("Escape"); settle()
+    check("Esc stops learning, in the MIDI window too", not ev("midi.learn.on") and pg.locator("#midiLearnBar").is_hidden() and not ev("document.body.classList.contains('midi-learning')"))
+    check("with the MIDI window open the tags show", pg.locator(".master .ftag").is_visible())
+    W.close(); settle(1.3)
+    check("closed, and not learning, the tags hide", pg.locator(".ftag:visible").count() == 0 and not ev("document.body.classList.contains('midi-open')"))
+    W = window()
     look = ev("(() => { const m = document.querySelector('#master'), z = document.querySelector('.zhead input[type=range]'); return [getComputedStyle(m).accentColor, getComputedStyle(z).accentColor, !!m.closest('.midi-mapped')]; })()")
     check("a slider MIDI drives keeps its colour", look[0] == look[1] and look[2], look)
 
@@ -139,13 +149,10 @@ try:
     ev(f"goScene(zoneById('{z['id']}'), zoneById('{z['id']}').scenes[0], true)"); settle()
     on(37); settle(0.2)
     check("a note on plays it, a note off doesn't matter", ev(f"zoneById('{z['id']}').scene") == z["scenes"][2]); off(37)
-    dock("midi")
-    row = pg.locator("#dockBody .mmap", has=pg.locator(".mk", has_text="Note 37"))
-    row.locator(".mtarget").click(); settle(0.2)
+    row = W.locator(".mmap", has=W.locator(".mk", has_text="Note 37"))
     zname = ev(f"zoneById('{z['id']}').name")
-    pg.locator(".menu button", has_text=zname).first.hover(); settle(0.2)
-    pg.locator(".menu button", has_text="Next scene").click(); settle()
-    check("the menu of a mapping changes what it drives: the next scene", ev("project.midi.maps.some(w => w.key.endsWith('note:37') && w.to.startsWith('nx:'))"), maps())
+    row.locator("select.mtarget").select_option(label=f"{zname} · next scene"); settle()
+    check("the list of a mapping changes what it drives: the next scene", ev("project.midi.maps.some(w => w.key.endsWith('note:37') && w.to.startsWith('nx:'))"), maps())
     ids = ev(f"zoneById('{z['id']}').scenes.map(s => s.id)"); i0 = ids.index(ev(f"zoneById('{z['id']}').scene"))
     tap(37); settle(0.3); s1 = ev(f"zoneById('{z['id']}').scene"); tap(37); settle(0.3); s2 = ev(f"zoneById('{z['id']}').scene")
     check("a pad plays the next scene each time, back to the first after the last", s1 == ids[(i0 + 1) % len(ids)] and s2 == ids[(i0 + 2) % len(ids)], (i0, s1, s2, ids))
@@ -161,11 +168,14 @@ try:
     check("a button sending CC 127 and 0 works like a pad", a and not b, (a, b))
 
     # ---------- the MIDI tab
-    check("the MIDI tab lists the mappings", pg.locator("#dockBody .mmap").count() == len(maps()) and "Master" in pg.inner_text("#dockBody .mmaps"))
-    pg.locator("#dockBody .mfold").click(); settle()
+    check("the MIDI window lists the mappings", W.locator(".mmap").count() == len(maps()) and W.locator(".mmap select.mtarget").first.evaluate("s => s.selectedOptions[0].textContent") == "Master")
+    W.locator(".mfold").click(); settle()
     cc(7, 127); settle()
-    check("the monitor shows each message and what it moves", "CC 7 · ch1" in pg.inner_text("#midiMon") and "→ Master" in pg.inner_text("#midiMon"))
-    check("with the MIDI tab open the tags show", pg.locator(".master .ftag").is_visible())
+    check("the monitor shows each message and what it moves", "CC 7 · ch1" in W.inner_text("#midiMon") and "→ Master" in W.inner_text("#midiMon"))
+    ev("Object.defineProperty(document, 'hidden', { configurable: true, get: () => true })")
+    cc(7, 100); settle(0.4)
+    check("with the main window in the background, the MIDI window still follows", "100" in W.inner_text("#midiMon .mrow .v"))
+    ev("delete document.hidden")
 
     # ---------- ports
     ev(f"ui.midiOff = ['{K}']; updateMidiUI()"); m0 = ev("project.settings.master"); cc(7, 127); cc(7, 5); settle()
@@ -174,7 +184,7 @@ try:
     ev(f"__midi.unplug('{K}'); __midi.plug('nanoKONTROL2 (Windows)')"); settle()
     cc(7, 127, port="nanoKONTROL2 (Windows)"); cc(7, 40, port="nanoKONTROL2 (Windows)"); settle()
     check("the same controller under another name works while the one it was learnt on is unplugged", abs(ev("project.settings.master") - 40 / 127) < 1e-6)
-    check("the controller it was learnt on shows as not plugged in", "not plugged in" in pg.inner_text("#dockBody .mports"))
+    check("the controller it was learnt on shows as not plugged in", "not plugged in" in W.inner_text(".mports"))
     ev(f"__midi.plug('{K}')"); settle(); cc(7, 90, port="nanoKONTROL2 (Windows)"); settle()
     check("but not while it is plugged in", abs(ev("project.settings.master") - 40 / 127) < 1e-6)
     ev("__midi.unplug('nanoKONTROL2 (Windows)')"); cc(7, 127); settle()
@@ -182,12 +192,12 @@ try:
     # ---------- saved, undone, removed, missing
     saved = ev("JSON.parse(serialize()).midi.maps")
     check("the mappings are saved in the project, without their working state", len(saved) == len(maps()) and all(set(w) == {"id", "key", "to", "takeover", "mode"} for w in saved), saved[:1])
-    n0 = len(maps()); pg.locator("#dockBody .mmap .x").first.click(); settle()
+    n0 = len(maps()); W.locator(".mmap .x").first.click(); settle()
     check("× removes a mapping", len(maps()) == n0 - 1)
     ev("undo()"); settle()
     check("undo brings it back", len(maps()) == n0)
     ev(f"(() => {{ const z = zoneById('{z['id']}'); z.scenes.splice(2, 1); commit(); }})()"); ev("midiSetMap(project.midi.maps.find(w => w.key.endsWith('note:37')).id, { to: 'sc:" + z["id"] + ":" + z["scenes"][2] + "' })"); settle()
-    check("a mapping to a deleted scene shows as missing", pg.locator("#dockBody .mmap.missing").count() == 1 and "Missing" in pg.inner_text("#dockBody .mmap.missing"))
+    check("a mapping to a deleted scene shows as missing", W.locator(".mmap.missing").count() == 1 and "Missing" in W.locator(".mmap.missing select").evaluate("s => s.selectedOptions[0].textContent"))
     tap(37); settle()
     check("and does nothing", not errs, errs[:2])
     kept = ev("serialize()")
@@ -196,24 +206,26 @@ try:
     pg.evaluate("s => { loadProject(JSON.parse(s)); saveSoon(); }", kept); settle(1.2)
 
     # ---------- after a reload
-    boot("{ ports: ['nanoKONTROL2'] }")
+    boot("{ ports: ['nanoKONTROL2'] }"); settle(0.5)
+    check("the MIDI window closes with the page", W.is_closed())
     check("after a reload MIDI is on again and the mappings are there", ev("__midi.asked") == 1 and ev("midi.status") == "ok" and len(maps()) >= 4, maps())
     m = ev("project.settings.master"); cc(7, int(m * 127)); cc(7, 50); settle()
     check("and they work", abs(ev("project.settings.master") - 50 / 127) < 1e-6)
     t0 = time.time()
     ev("(() => { for (let i = 0; i < 2000; i++) __midi.send('nanoKONTROL2', [0xB0, 7, i % 128]); })()"); settle(0.5)
     check("2000 messages in a burst: the last one wins, no errors", abs(ev("project.settings.master") - (1999 % 128) / 127) < 1e-6 and not errs and time.time() - t0 < 5, time.time() - t0)
-    pg.click("#dockBody .midipanel button:text('Turn off')"); settle()
+    W = window(); W.click(".mwhead button:text('Turn off')"); settle()
+    check("turned off, the MIDI window offers to turn it on again", W.locator(".midipanel.off button", has_text="Turn MIDI on").count() == 1)
     m = ev("project.settings.master"); cc(7, 0); cc(7, 127); settle()
     check("turned off, MIDI is ignored and stays off after a reload", ev("project.settings.master") == m and not ev("ui.midiOn"))
     boot()
     check("(it isn't asked for)", ev("__midi.asked") == 0 and ev("midi.status") == "off")
 
     # ---------- refused, missing
-    boot("{ ports: ['nanoKONTROL2'], refuse: true }"); pg.click("#btnMidi"); settle(0.4)
-    check("MIDI refused by the browser says how to allow it", ev("midi.status") == "blocked" and "refused" in pg.inner_text("#dockBody .mports") and pg.locator("#btnMidi.warn").count() == 1)
-    ev("setMidiOn(false)"); boot("{ none: true }"); pg.click("#btnMidi"); settle(0.4)
-    check("a browser without MIDI says so", ev("midi.status") == "none" and "no MIDI" in pg.inner_text("#dockBody .mports"))
+    boot("{ ports: ['nanoKONTROL2'], refuse: true }"); W = window(); settle(0.3)
+    check("MIDI refused by the browser says how to allow it", ev("midi.status") == "blocked" and "refused" in W.inner_text(".mports") and pg.locator("#btnMidi.warn").count() == 1)
+    ev("setMidiOn(false)"); boot("{ none: true }"); W = window(); settle(0.3)
+    check("a browser without MIDI says so", ev("midi.status") == "none" and "no MIDI" in W.inner_text(".mports"))
     ev("setMidiOn(false)")
     check("no errors on the page", not errs, errs[:3])
     br.close()

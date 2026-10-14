@@ -73,7 +73,7 @@ function startMidi() {
     };
     access.onstatechange = list;
     list();
-  }, () => { midi.status = 'blocked'; updateMidiUI(); });
+  }, e => { midi.status = 'blocked'; midi.error = (e && e.message) || ''; updateMidiUI(); });
 }
 function stopMidi() {
   if (midi.access) { for (const p of midi.access.inputs.values()) p.onmidimessage = null; midi.access.onstatechange = null; }
@@ -110,7 +110,7 @@ function midiIn(m) {
   if (midi.learn.on) {
     if (m.type !== 'off') {
       if (midi.learn.target) { midiConnect(key, midi.learn.target); entry.note = 'learnt'; }
-      else { midi.learn.pending = key; entry.note = 'now touch what it should move'; }
+      else { midi.learn.pending = key; entry.note = 'learning: click what it should move'; }
     }
   } else {
     const ws = midiMapsFor(key);
