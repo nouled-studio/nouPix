@@ -53,8 +53,10 @@ const ui = {
   // the zone whose + Add list is open, the playlist being renamed
   playlistOpen: {}, playlistStep: null, playlistAdd: null, playlistRename: null,
   curveZoom: 'full',   // the fixture's dimming curve graph: 'full', or 'low' (the first 10 %)
+  // MIDI on this computer: whether it is on, the ports switched off (by name), whether the MIDI tab shows its monitor
+  midiOn: false, midiOff: [], midiMon: false,
 };
-const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'rightHidden', 'scanOff', 'colorMode'];
+const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'rightHidden', 'scanOff', 'colorMode', 'midiOn', 'midiOff', 'midiMon'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
 const markPatch = () => { patchDirty = true; };
@@ -63,8 +65,14 @@ function blankProject(name = 'Untitled') {
   return {
     format: 'openledmapper-project', version: 3, name, settings,
     fixtures: [], groups: [], controllers: [], sources: builtinSources(), zones: [newZone({ w: settings.compW, h: settings.compH, layers: [newLayer('b-rainbow')] })], guide: null,
+    midi: { maps: [] },
   };
 }
+// A MIDI mapping (midi.js): a control (key: midi:<port>:<channel>:cc|note:<number>) drives a target (to: master,
+// blackout, z:<zone>, sc:<zone>:<scene>, nx:<zone>, pl:<zone>:<playlist>). takeover: pickup or jump, for a fader;
+// mode: toggle or hold, for something that is on or off.
+const MIDI_KEY = /^midi:(.*):(\d{1,2}):(cc|note):(\d{1,3})$/;
+const newMidiMap = (key, to) => ({ id: uid(), key, to, takeover: 'pickup', mode: 'toggle' });
 // A group is a named set of fixtures. Its fixtures stay next to each other in the list (and so in drawing and
 // Auto-patch order), where its first one is. One level only: no groups inside groups.
 const groupById = id => project.groups.find(g => g.id === id);

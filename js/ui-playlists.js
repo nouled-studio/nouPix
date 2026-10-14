@@ -88,6 +88,7 @@ function playlistTab(z, pl, open) {
     ui.playlistStep = null; ui.playlistAdd = null;
     if (ui.zone !== z.id) selectZone(z); else renderDock();
   };
+  midiButton(t, `pl:${z.id}:${pl.id}`);   // a MIDI pad can play and pause it
   t.addEventListener('click', toggleOpen);
   t.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === t) { e.preventDefault(); toggleOpen(); } });
   t.addEventListener('dblclick', () => { ui.playlistRename = pl.id; ui.playlistOpen[z.id] = pl.id; renderDock(); });

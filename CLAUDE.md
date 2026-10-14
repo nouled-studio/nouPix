@@ -32,6 +32,7 @@ order by `<script src>` tags at the end of `index.html`:
 | `project-io.js` | Project files: repairing what is opened, undo history, autosave, open/save, CSV, SVG import, the demo | `hydrate` `serialize` `commit` `commitSoft` `undo` `redo` `loadProject` `importSvg` `demoProject` |
 | `remote.js` | Remote control: the host side (configure the bridge, send the project and the phones' state, apply devices' changes by role) and the client side (this page opened on a device at `/app`) | `remote` `REMOTE_CLIENT` `mappingLocked` `remoteChanged` `remoteFromDevice` `contentOf` `connectRemote` `remoteOp` |
 | `playlists.js` | Playlists: a zone plays some of its scenes in turn on the frame clock; which fade a step uses; play, pause, next, the end; the state devices see | `playlistTick` `playPlaylist` `togglePlaylist` `pausePlaylist` `resumePlaylist` `stepPlaylist` `playlistManual` `stepFade` `playingList` `playElapsed` `playState` |
+| `midi.js` | MIDI in: Web MIDI and its ports, messages, the mappings' targets (master, blackout, zone level, scene, next scene, playlist), pickup and jump, toggle and hold, learn | `midi` `startMidi` `setMidiOn` `midiMessage` `midiIn` `midiTarget` `midiApply` `midiSetLearn` `midiLearnTarget` `midiConnect` `midiSetMap` `midiDisconnect` |
 | `actions.js` | What the user can do, whichever button, key or menu asks: fixtures, selection, align/turn/resize, copy and paste, zones, layers, scenes, playlists, controllers, adding sources from files | `addFixture` `deleteSel` `duplicateSel` `groupSel` `alignSel` `rotateSel` `pasteFixtures` `addZone` `addLayer` `goScene` `storeScene` `playlistDo` `addPlaylist` `addToPlaylist` `moveStep` `deleteController` |
 | `ui-forms.js` | Building blocks for the panels: rows, inputs, sliders (a value typed on double-click, Shift + scroll in notches), segmented buttons, lists that reorder by dragging and their move animation | `row` `numRow` `sliderRow` `shiftWheel` `notchFrom` `seg` `checkRow` `reorderable` `flipRows` |
 | `ui-color.js` | The colour picker for shader colour controls: wheel and intensity, RGB, HSV, hex, lighting presets, recent colours | `colorRow` `openColorPicker` `hsvToRgb` `rgbToHsv` |
@@ -42,6 +43,7 @@ order by `<script src>` tags at the end of `index.html`:
 | `ui-playlists.js` | The playlists in the Scenes panel: tabs folded to one line or open, steps (with their own fades, moved by dragging or Alt ← →), step editor, + Add, the New playlist window (order with ↑ ↓, a fade per step), the playlist menu | `playlistArea` `newPlaylistDialog` `playlistMenu` `shiftStep` `drawPlaylistProgress` |
 | `ui-menus.js` | The menu system and every menu, the SVG import dialog, copy/cut/paste keys | `menu` `fixtureMenu` `canvasMenu` `projectMenu` … |
 | `ui-remote.js` | Remote control in the interface: the top-bar button and menu, the Settings section, the waiting screen on devices, `lockPanel` for operators | `updateRemoteUI` `remoteMenu` `remoteSection` `remoteOverlay` `lockPanel` |
+| `ui-midi.js` | MIDI in the interface: the top-bar button, the MIDI tab of the dock (Learn, controllers, mappings, monitor), the learn bar, learning by touching anything marked `data-midi`, the yellow line and tags on what a control drives | `updateMidiUI` `renderMidiTab` `midiSlot` `midiButton` `markMidi` `initMidiUI` |
 | `app.js` | Top bar and status bar, wiring buttons and keys, the frame loop, `boot()`, and `window.olm` | `initUI` `onKey` `renderAll` `boot` |
 
 ### How the files fit together
@@ -54,16 +56,16 @@ order by `<script src>` tags at the end of `index.html`:
   later, after `boot()` at the end of `app.js`, when all files are there. A function used at load time from an
   earlier file doesn't exist yet: functions are only hoisted within their own file.
 - **Layers.** The engine is `util → model → geometry → patch → sources → render → output → project-io → remote →
-  playlists`; each uses only the ones before it, with these exceptions: `computePatch` ends with `layoutFrame` (output.js)
+  playlists → midi`; each uses only the ones before it, with these exceptions: `computePatch` ends with `layoutFrame` (output.js)
   so the outgoing frame matches the new patch; `tick` (output.js) calls `playlistTick`; `restore` (project-io.js) uses
   `playlistOf`/`playingList` to carry playlists through an undo; remote.js reads the playlists' state (`playState`,
-  `playForPhone`) for the devices. The UI is `actions → ui-forms → ui-color, ui-stage, ui-lists, ui-inspector,
+  `playForPhone`) for the devices; `hydrate` repairs the MIDI mappings with `MIDI_KEY` (model.js). The UI is `actions → ui-forms → ui-color, ui-stage, ui-lists, ui-inspector,
   ui-dock, ui-menus → app`; UI files use any engine file and each other.
 - **The engine calls the UI only to redraw**, through these: `renderAll`, `renderRight`, `renderDock`,
   `onPatchChanged`, `renderFxList`, `renderSrcList`, `refreshScenes`, `updateUndoButtons`, `updateBridgeUI`,
   `updateHighlightUI`, `showVersion`, `keepAwake`, `loadGuide`, and for remote control `updateRemoteUI`,
-  `remoteOverlay`, `redrawStage`. Keep it to that list. (`remote.js` also calls the actions it carries out for
-  devices: `goScene`, `setZoneOpacity`, `toggleBlackout`, `playlistDo`.) `refreshScenes` waits while something in the
+  `remoteOverlay`, `redrawStage`, and for MIDI `updateMidiUI`. Keep it to that list. (`remote.js` and `midi.js` also call
+  the actions they carry out for devices and controllers: `goScene`, `setZoneOpacity`, `toggleBlackout`, `playlistDo`.) `refreshScenes` waits while something in the
   Scenes panel is dragged or typed in, so a playlist moving on doesn't break the user's drag.
 - **Not strict mode.** The scripts run without `'use strict'`, as the app always has. Don't add the directive to a
   file without testing everything: it changes what some code does.
@@ -87,6 +89,10 @@ Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimatio
 - Playlists live in each zone (`z.playlists`, steps pointing at the zone's scenes); where one plays is `z._play`, never
   saved. Steps that play by themselves change `z.layers`/`z.scene` without an undo step; `restore` keeps a playing
   zone's step over an older copy (an undo, a device a step behind).
+- MIDI mappings live in `project.midi.maps` (`newMidiMap`: a control's key, what it drives, pickup or jump, toggle or
+  hold); their working state (`w._picked`, `w._last`…) is never saved. Whether MIDI is on and which ports are ignored
+  are this computer's (`ui.midiOn`, `ui.midiOff`). Anything MIDI can drive in the interface is marked `data-midi`
+  (`midiSlot` for a slider, `midiButton` for a button or tile): learning picks it, `markMidi` gives it its line and tag.
 - Files: `{ format: 'openledmapper-project', version: 3, … }`. `hydrate` (project-io.js) repairs anything opened
   (older versions, Weft files, hand edits) so the rest of the code can trust the project. A new field gets its
   default there.
@@ -116,6 +122,7 @@ Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimatio
   of the page and its files when the computer can't be reached). The network server serves them (`REMOTE_FILES`).
   Chrome installs only from a secure address: plain http on the network needs its "insecure origins treated as
   secure" setting; the page's full screen button covers the rest.
+- **MIDI** is read by the main window only: a device (`REMOTE_CLIENT`) has no MIDI button or tab and ignores MIDI.
 - **The operator's lock** is in the interface (`mappingLocked()`: stage, keys, menus, lists, `lockPanel`) for
   convenience, and in `contentOf` for real.
 
@@ -154,6 +161,8 @@ fuzzer. Tests drive the page with Playwright through the bridge, and use the glo
 (roles, permissions, phone page, disconnects); `test_remote_app.py` the remote as an installable app and over the
 computer's network address; `test_remote_soak.py` (full run only) runs 400 mixed changes from
 several devices while every zone plays a playlist, and checks they all end equal. `test_16bit.py` checks 16-bit fixtures down to the Art-Net bytes on the wire (coarse before fine, packing, curves,
-strengths, the graph following the sliders, mixed with 8-bit). `test_values.py` checks typed values, Shift + scroll and the angle buttons. `test_playlist.py` checks playlists
+strengths, the graph following the sliders, mixed with 8-bit). `test_values.py` checks typed values, Shift + scroll and the angle buttons. `test_midi.py` checks MIDI with a controller
+simulated in the page (Web MIDI replaced): turning it on, ports, learn in either order, pickup and jump, toggle and
+hold, scenes, next scene, playlists, ignored ports, another port name, saving, undo, missing targets, the line and tags. `test_playlist.py` checks playlists
 (files, the panel folding and opening, timing and fades, the end, pause and resume, undo, editing while playing, the
 fade on a scene's button, play on open, the phone).

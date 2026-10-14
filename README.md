@@ -1,4 +1,4 @@
-# openLedMapper 0.8.3
+# openLedMapper 0.9.0
 
 <img src="icons/openledmapper-256.png" alt="" width="96" align="right">
 
@@ -54,6 +54,7 @@ To see it working before you build anything, open one of the [examples](examples
 - **Playlists:** several per zone, each a list of scenes with play times, played by itself in a loop, once, or followed by another playlist. Fades come from each scene, one for the whole playlist, or a step's own.
 - Art-Net output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
 - The output keeps running when the window is minimised or covered.
+- **MIDI:** the faders, knobs and pads of a MIDI controller move the master, blackout and the zones' levels, and play scenes and playlists. Press Learn, move a control, click what it should move. Faders pick up where the slider is, and a thin yellow line on the slider shows where the fader is.
 - **Remote control:** phones, tablets and other computers on the network log in as Programmer (everything, with a password), Operator (content, scenes and playlists; the mapping is locked) or Remote, a simple page that plays the playlists and scenes of each zone and dims the zones.
 - Projects save to a file. You can also export a CSV patch list for the install crew.
 
@@ -84,7 +85,7 @@ To see it working before you build anything, open one of the [examples](examples
   - Run it from source with `cd desktop && npm install && npm start`.
 - **Tests:** `python tests/run_tests.py --quick` (about 10 minutes), or without `--quick` for everything, including the byte-for-byte Art-Net comparison, a soak test and the UI fuzzer.
 - **Examples:** `examples/`; `python tests/make_examples.py` rebuilds the example projects.
-- **Release:** set `VERSION` in `openledmapper.py`, then push a matching tag (`git tag v0.8.3 && git push origin v0.8.3`). GitHub builds the Windows and Mac apps and attaches them to a release (`.github/workflows/release.yml`).
+- **Release:** set `VERSION` in `openledmapper.py`, then push a matching tag (`git tag v0.9.0 && git push origin v0.9.0`). GitHub builds the Windows and Mac apps and attaches them to a release (`.github/workflows/release.yml`).
 
 ## Licence and credits
 

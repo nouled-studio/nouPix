@@ -95,6 +95,7 @@ function initUI() {
   document.body.classList.toggle('remote-client', REMOTE_CLIENT);
   if (REMOTE_CLIENT && ui.dockTab === 'nodes') ui.dockTab = 'patch';
   $('#btnRemote').addEventListener('click', e => remoteMenu(e.currentTarget));
+  initMidiUI();
   $('#projName').addEventListener('change', e => { project.name = e.target.value.trim() || 'Untitled'; commit(); });
   $('#btnFile').addEventListener('click', e => projectMenu(e.currentTarget));
   $('#btnUndo').addEventListener('click', undo);
@@ -261,6 +262,7 @@ function boot() {
   setTool('select');
   connectBridge();
   remoteOverlay(); updateRemoteUI();
+  if (ui.midiOn && !REMOTE_CLIENT) startMidi();
   new ResizeObserver(() => { resizeView(); redrawStage(); }).observe(stageEl);
   for (const t of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'keyup', 'input', 'change', 'click', 'drop']) window.addEventListener(t, redrawStage, { capture: true, passive: true });
   requestAnimationFrame(frameLoop);

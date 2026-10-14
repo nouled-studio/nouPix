@@ -24,14 +24,15 @@
     </div>
     <div class="spacer"></div>
     <button class="btn ghost icon rbtn" id="btnRemote" type="button" aria-label="Remote control" aria-haspopup="menu"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="2" y="4.2" width="6.6" height="10.3" rx="1.4"/><path d="M4.6 12.4h1.4"/><path d="M10.6 5.4a2.4 2.4 0 0 1 0 3.4"/><path d="M12.4 3.6a5 5 0 0 1 0 7"/></svg><span class="rcount" id="remoteCount" hidden></span></button>
+    <button class="btn ghost icon rbtn" id="btnMidi" type="button" aria-label="MIDI"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 2.5v11M8 2.5v11M12 2.5v11"/><rect x="2.3" y="8.6" width="3.4" height="2.6" rx=".7" fill="currentColor" stroke="none"/><rect x="6.3" y="4" width="3.4" height="2.6" rx=".7" fill="currentColor" stroke="none"/><rect x="10.3" y="6.6" width="3.4" height="2.6" rx=".7" fill="currentColor" stroke="none"/></svg><span class="mled" id="midiLed"></span></button>
     <span class="pill" id="bridgePill" title=""><span class="dot"></span><span id="bridgeText"></span></span>
     <div class="tb-sep"></div>
     <div class="hl" id="hl">
       <button class="btn" id="btnHl" type="button" aria-pressed="false"></button>
       <button class="btn" id="btnHlMode" type="button" title="Highlight mode" aria-label="Highlight mode" aria-haspopup="menu">▾</button>
     </div>
-    <div class="master"><label for="master">Master</label><input id="master" type="range" min="0" max="1" step="0.01"><span class="mono" id="masterVal">100%</span></div>
-    <button class="btn btn-bo" id="btnBlackout" type="button" title="Blackout (B)">Blackout</button>
+    <div class="master"><label for="master">Master</label><span class="mslot" data-midi="master"><input id="master" type="range" min="0" max="1" step="0.01"><i class="fline" hidden></i><span class="ftag" hidden></span></span><span class="mono" id="masterVal">100%</span></div>
+    <button class="btn btn-bo" id="btnBlackout" type="button" title="Blackout (B)" data-midi="blackout"><span class="ftag" hidden></span>Blackout</button>
     <button class="btn btn-out" id="btnOutput" type="button" title="Send Art-Net">Art-Net OFF</button>
   </header>
 
@@ -93,6 +94,7 @@
           <button type="button" data-tab="patch">Patch</button>
           <button type="button" data-tab="nodes">Nodes</button>
           <button type="button" data-tab="monitor">DMX Monitor</button>
+          <button type="button" data-tab="midi">MIDI</button>
           <span class="fill"></span>
           <span class="tabtools"><button class="btn ghost sm" id="btnDock" type="button" title="Collapse panel">▾</button></span>
         </div>
@@ -132,6 +134,7 @@
 <script src="js/project-io.js"></script>
 <script src="js/remote.js"></script>
 <script src="js/playlists.js"></script>
+<script src="js/midi.js"></script>
 <script src="js/actions.js"></script>
 <script src="js/ui-forms.js"></script>
 <script src="js/ui-color.js"></script>
@@ -142,6 +145,7 @@
 <script src="js/ui-playlists.js"></script>
 <script src="js/ui-menus.js"></script>
 <script src="js/ui-remote.js"></script>
+<script src="js/ui-midi.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

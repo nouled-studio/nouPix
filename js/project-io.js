@@ -167,7 +167,15 @@ function hydrate(p) {
     clampZone(z, out.settings);
     return z;
   });
+  out.midi = fixMidi(p.midi);
   return out;
+}
+// The MIDI mappings: well-formed ones only, each with its own id. A mapping to a zone, scene or playlist that is gone
+// stays (it shows as missing, and does nothing).
+function fixMidi(m) {
+  const ids = new Set();
+  const maps = (isObj(m) && Array.isArray(m.maps) ? m.maps : []).filter(w => isObj(w) && typeof w.key === 'string' && MIDI_KEY.test(w.key) && typeof w.to === 'string' && w.to && w.to.length < 300);
+  return { maps: maps.map(w => ({ id: uniqueId(isId(w.id) ? String(w.id) : null, ids), key: w.key, to: w.to, takeover: w.takeover === 'jump' ? 'jump' : 'pickup', mode: w.mode === 'hold' ? 'hold' : 'toggle' })) };
 }
 
 /* ---------- history + persistence ---------- */

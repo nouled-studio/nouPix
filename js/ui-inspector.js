@@ -15,6 +15,7 @@ function renderRight() {
   if (mappingLocked() && ui.rightTab !== 'content') lockPanel(body);
   body.scrollTop = keep;
   replayFlip();
+  updateMidiUI();
 }
 const geoIn = () => markGeom();
 const geo = (extra = {}) => Object.assign({ onInput: geoIn, onCommit: commit }, extra);
@@ -291,11 +292,10 @@ function renderMulti(body, sel) {
 /* ---------- zones ---------- */
 function zoneOpacityInput(z, width) {
   const r = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: z.opacity, 'data-zone-op': z.id, title: z.name + ' opacity (its master)', 'aria-label': z.name + ' opacity' });
-  r.style.width = width + 'px';
   r.addEventListener('input', () => setZoneOpacity(z, parseFloat(r.value), r));
   r.addEventListener('change', commitSoft);
   r.addEventListener('click', e => e.stopPropagation());
-  return r;
+  return midiSlot(r, 'z:' + z.id, width);   // a MIDI fader can drive it
 }
 const zoneTag = z => h('span', { class: 'ztag', style: { borderColor: z.tag } });
 function renderZoneInspector(body) {
@@ -605,6 +605,7 @@ function showRight(on) {
   $('#btnRight').classList.toggle('on', !ui.rightHidden);
   $('#btnRight').setAttribute('aria-pressed', String(!ui.rightHidden));
   savePrefs();
+  updateMidiUI();
 }
 // Rename: open the Inspector (showing the panel if it is hidden) with the name selected
 function focusName(id) { if (ui.rightHidden) showRight(true); ui.rightTab = 'inspector'; renderRight(); const i = $('#' + id); if (i) { i.focus(); i.select(); } }
