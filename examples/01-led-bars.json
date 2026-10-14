@@ -18,7 +18,7 @@
  },
  "fixtures": [
   {
-   "id": "cxs8b9xf",
+   "id": "daxqe7h0",
    "type": "line",
    "name": "Bar 1",
    "enabled": true,
@@ -36,17 +36,15 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 115,
    "y1": 560,
    "x2": 115,
    "y2": 80,
    "pixels": 60,
-   "group": "xr60pfhz"
+   "group": "asfo6dva"
   },
   {
-   "id": "cuqtprbv",
+   "id": "tytbj0qn",
    "type": "line",
    "name": "Bar 2",
    "enabled": true,
@@ -64,17 +62,15 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 185,
    "y1": 560,
    "x2": 185,
    "y2": 80,
    "pixels": 60,
-   "group": "xr60pfhz"
+   "group": "asfo6dva"
   },
   {
-   "id": "hizbf3t5",
+   "id": "4c5cypab",
    "type": "line",
    "name": "Bar 3",
    "enabled": true,
@@ -92,17 +88,15 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 255,
    "y1": 560,
    "x2": 255,
    "y2": 80,
    "pixels": 60,
-   "group": "xr60pfhz"
+   "group": "asfo6dva"
   },
   {
-   "id": "sk3g6jr7",
+   "id": "mtj752pb",
    "type": "line",
    "name": "Bar 4",
    "enabled": true,
@@ -120,17 +114,15 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 325,
    "y1": 560,
    "x2": 325,
    "y2": 80,
    "pixels": 60,
-   "group": "xr60pfhz"
+   "group": "asfo6dva"
   },
   {
-   "id": "zpmr3pat",
+   "id": "7edgh09z",
    "type": "line",
    "name": "Bar 5",
    "enabled": true,
@@ -148,17 +140,15 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 395,
    "y1": 560,
    "x2": 395,
    "y2": 80,
    "pixels": 60,
-   "group": "xr60pfhz"
+   "group": "asfo6dva"
   },
   {
-   "id": "ob52xt5o",
+   "id": "exgw8cdb",
    "type": "line",
    "name": "Bar 6",
    "enabled": true,
@@ -176,17 +166,15 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 465,
    "y1": 560,
    "x2": 465,
    "y2": 80,
    "pixels": 60,
-   "group": "xr60pfhz"
+   "group": "asfo6dva"
   },
   {
-   "id": "4f0hhuf8",
+   "id": "e33kabo2",
    "type": "line",
    "name": "Bar 7",
    "enabled": true,
@@ -204,17 +192,15 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 535,
    "y1": 560,
    "x2": 535,
    "y2": 80,
    "pixels": 60,
-   "group": "bf80t1jx"
+   "group": "63pgt2o9"
   },
   {
-   "id": "yft3io6x",
+   "id": "dgahysrn",
    "type": "line",
    "name": "Bar 8",
    "enabled": true,
@@ -232,17 +218,15 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 605,
    "y1": 560,
    "x2": 605,
    "y2": 80,
    "pixels": 60,
-   "group": "bf80t1jx"
+   "group": "63pgt2o9"
   },
   {
-   "id": "no93m565",
+   "id": "idg0eask",
    "type": "line",
    "name": "Bar 9",
    "enabled": true,
@@ -260,17 +244,15 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 675,
    "y1": 560,
    "x2": 675,
    "y2": 80,
    "pixels": 60,
-   "group": "bf80t1jx"
+   "group": "63pgt2o9"
   },
   {
-   "id": "0jkzhzax",
+   "id": "ekpxce3l",
    "type": "line",
    "name": "Bar 10",
    "enabled": true,
@@ -288,17 +270,15 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 745,
    "y1": 560,
    "x2": 745,
    "y2": 80,
    "pixels": 60,
-   "group": "bf80t1jx"
+   "group": "63pgt2o9"
   },
   {
-   "id": "ks94zkad",
+   "id": "mb2rkrje",
    "type": "line",
    "name": "Bar 11",
    "enabled": true,
@@ -316,17 +296,15 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 815,
    "y1": 560,
    "x2": 815,
    "y2": 80,
    "pixels": 60,
-   "group": "bf80t1jx"
+   "group": "63pgt2o9"
   },
   {
-   "id": "69nmzusb",
+   "id": "4qbc4fwc",
    "type": "line",
    "name": "Bar 12",
    "enabled": true,
@@ -344,25 +322,23 @@
    "gamma": 1,
    "bits": 8,
    "curve": "gamma",
-   "warm": true,
-   "lag": true,
    "x1": 885,
    "y1": 560,
    "x2": 885,
    "y2": 80,
    "pixels": 60,
-   "group": "bf80t1jx"
+   "group": "63pgt2o9"
   }
  ],
  "groups": [
   {
-   "id": "xr60pfhz",
+   "id": "asfo6dva",
    "name": "Left",
    "tag": "#3cc8ff",
    "open": true
   },
   {
-   "id": "bf80t1jx",
+   "id": "63pgt2o9",
    "name": "Right",
    "tag": "#ffb341",
    "open": true
@@ -370,7 +346,7 @@
  ],
  "controllers": [
   {
-   "id": "psy9aix5",
+   "id": "6s1y7jmw",
    "name": "Bar controller",
    "ip": "10.0.0.50",
    "enabled": true,
@@ -380,24 +356,24 @@
    "split": false,
    "chains": [
     [
-     "cxs8b9xf",
-     "cuqtprbv",
-     "hizbf3t5"
+     "daxqe7h0",
+     "tytbj0qn",
+     "4c5cypab"
     ],
     [
-     "sk3g6jr7",
-     "zpmr3pat",
-     "ob52xt5o"
+     "mtj752pb",
+     "7edgh09z",
+     "exgw8cdb"
     ],
     [
-     "4f0hhuf8",
-     "yft3io6x",
-     "no93m565"
+     "e33kabo2",
+     "dgahysrn",
+     "idg0eask"
     ],
     [
-     "0jkzhzax",
-     "ks94zkad",
-     "69nmzusb"
+     "ekpxce3l",
+     "mb2rkrje",
+     "4qbc4fwc"
     ]
    ]
   }
@@ -598,7 +574,7 @@
  ],
  "zones": [
   {
-   "id": "ym6432h6",
+   "id": "bg37iq9d",
    "name": "Bars",
    "tag": "#ffb341",
    "x": 0,
@@ -608,7 +584,7 @@
    "opacity": 1,
    "layers": [
     {
-     "id": "2pi8bhuo",
+     "id": "tkwmk6u7",
      "src": "b-scanner",
      "params": {
       "b-scanner": {
@@ -624,13 +600,13 @@
    ],
    "scenes": [
     {
-     "id": "qbvay9wq",
+     "id": "0vgd5msh",
      "name": "Scanner",
      "tag": "#3cc8ff",
      "fade": 1,
      "layers": [
       {
-       "id": "2pi8bhuo",
+       "id": "tkwmk6u7",
        "src": "b-scanner",
        "params": {
         "b-scanner": {
@@ -646,13 +622,13 @@
      ]
     },
     {
-     "id": "pxqa951z",
+     "id": "wzg3cup8",
      "name": "Rain",
      "tag": "#6fe3e3",
      "fade": 2,
      "layers": [
       {
-       "id": "zbi7glns",
+       "id": "rlxsvqdl",
        "src": "b-rain",
        "params": {
         "b-rain": {
@@ -672,13 +648,13 @@
      ]
     },
     {
-     "id": "0ghv61eq",
+     "id": "hlo6t9jq",
      "name": "Equalizer",
      "tag": "#ff6f86",
      "fade": 0.5,
      "layers": [
       {
-       "id": "ztxww5d1",
+       "id": "ddr3hauz",
        "src": "b-equalizer",
        "params": {
         "b-equalizer": {
@@ -693,13 +669,13 @@
      ]
     },
     {
-     "id": "mdmxj3y9",
+     "id": "3muxexae",
      "name": "Fire",
      "tag": "#ffb341",
      "fade": 3,
      "layers": [
       {
-       "id": "37m0rypt",
+       "id": "t5iv3rcr",
        "src": "b-fire",
        "params": {},
        "opacity": 1,
@@ -709,13 +685,13 @@
      ]
     },
     {
-     "id": "zxku1vl6",
+     "id": "t3mx28q0",
      "name": "Strobe hit",
      "tag": "#e8d56a",
      "fade": 0,
      "layers": [
       {
-       "id": "kuvxm6gb",
+       "id": "c0yg61h5",
        "src": "b-strobe",
        "params": {
         "b-strobe": {
@@ -729,39 +705,39 @@
      ]
     }
    ],
-   "scene": "qbvay9wq",
+   "scene": "0vgd5msh",
    "playlists": [
     {
-     "id": "1t9su452",
+     "id": "lu8qnjt4",
      "name": "Show",
      "steps": [
       {
-       "id": "4335tgut",
-       "scene": "qbvay9wq",
+       "id": "y39pmcsy",
+       "scene": "0vgd5msh",
        "time": 30,
        "fade": null
       },
       {
-       "id": "3l8mpb15",
-       "scene": "pxqa951z",
+       "id": "m0jh4nl0",
+       "scene": "wzg3cup8",
        "time": 30,
        "fade": null
       },
       {
-       "id": "i0l35r4s",
-       "scene": "0ghv61eq",
+       "id": "bs80jnpu",
+       "scene": "hlo6t9jq",
        "time": 20,
        "fade": null
       },
       {
-       "id": "qlaxqvps",
-       "scene": "mdmxj3y9",
+       "id": "fs3u60mb",
+       "scene": "3muxexae",
        "time": 30,
        "fade": null
       },
       {
-       "id": "kb5yp8m1",
-       "scene": "zxku1vl6",
+       "id": "1p9bs4wj",
+       "scene": "t3mx28q0",
        "time": 3,
        "fade": 0
       }

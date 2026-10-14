@@ -103,10 +103,11 @@ function renderInspector(body) {
 // match fixtures that look different. With several fixtures, moving a slider sets it for all of them.
 // Gamma suits the LED type: about 2.2 to 2.8 for most addressable pixels, 1 for none. With several fixtures the
 // slider sets it for all of them.
-function gammaRow(list) {
+// onChange runs as it moves (the curve graph follows it).
+function gammaRow(list, onChange) {
   const one = list.length === 1, tmp = { gamma: list[0].gamma }, mixed = !one && list.some(f => f.gamma !== list[0].gamma);
   return sliderRow('Gamma', one ? list[0] : tmp, 'gamma', { min: 1, max: 3, step: 0.05, fmt: v => v.toFixed(2) + (mixed && v === list[0].gamma ? ' (mixed)' : ''),
-    onInput: v => { if (!one) list.forEach(f => { f.gamma = v; }); }, onCommit: commit });
+    onInput: v => { if (!one) list.forEach(f => { f.gamma = v; }); if (onChange) onChange(v); }, onCommit: commit });
 }
 // Resolution and dimming curve. An 8-bit fixture has one channel per colour and uses gamma; a 16-bit one has two
 // (coarse, then fine) and can use the other curves too. With one fixture, a graph shows its curve.
@@ -122,53 +123,49 @@ function dimmingRows(list) {
     v => { if (!v) return; list.forEach(x => { x.curve = v; }); commit(); renderRight(); }, { aria: 'Dimming curve' });
   if (!all16) { curve.disabled = true; curve.title = 'Gamma only: the other curves need 16-bit'; }
   out.push(row('Curve', curve));
-  out.push(h('p', { class: 'note' }, !all16 ? (one ? 'The other curves (linear, square law, S curve, tungsten…) need 16-bit: switch Resolution to 16-bit.' : 'The other curves need all of them to be 16-bit.')
+  out.push(h('p', { class: 'note' }, !all16 ? (one ? 'The other curves (linear, square law, inverse square, S curve) need 16-bit: switch Resolution to 16-bit.' : 'The other curves need all of them to be 16-bit.')
     : curveMixed ? '' : CURVE_NOTES[fxCurve(f)]));
-  if (list.some(x => fxCurve(x) === 'gamma')) out.push(gammaRow(list.filter(x => fxCurve(x) === 'gamma')));
-  if (one && fxCurve(f) === 'tungsten') {
-    out.push(checkRow('Warmer when dimmed', f, 'warm', () => { commit(); renderRight(); }));
-    out.push(checkRow('Filament lag (takes a moment to heat and cool)', f, 'lag', () => { commit(); }));
-  }
-  if (one) out.push(curveGraph(f));
+  const graph = one ? curveGraph(f) : null;
+  if (list.some(x => fxCurve(x) === 'gamma')) out.push(gammaRow(list.filter(x => fxCurve(x) === 'gamma'), () => graph && graph._draw()));
+  if (graph) out.push(graph);
   return out;
 }
 // The dimming curve as a graph: the level coming in (left to right) against the output (bottom to top). Low end
-// shows the first 10 %, where 8 bits have only a few steps and 16 bits hundreds. Tungsten draws its red, green and
-// blue: green and blue drop as it dims, which is how it gets warmer.
+// shows the first 10 %, where 8 bits have only a few steps and 16 bits hundreds. draw() draws it from the fixture as
+// it is now, so it follows the gamma slider while it moves.
 function curveGraph(f) {
-  const W = 240, H = 132, low = ui.curveZoom === 'low', xmax = low ? 0.1 : 1, curve = fxCurve(f), bits = fxBits(f);
-  const out = (x, c) => {   // the output of colour c (0 red, 1 green, 2 blue) at level x, 0–1, as the fixture sends it
-    if (bits === 8) return gammaLUT(f.gamma)[Math.round(x * 255)] / 255;
-    let y = curveValue(curve, f.gamma, x);
-    if (curve === 'tungsten' && f.warm) y *= warmFactors(x)[c];
-    return Math.round(y * 65535) / 65535;
-  };
-  const ymax = low ? Math.max(1e-4, out(xmax, 0)) * 1.08 : 1;
-  const X = x => (x / xmax * W).toFixed(2), Y = y => (H - Math.min(1, y / ymax) * H).toFixed(2);
-  const line = c => {
+  const W = 240, H = 132, low = ui.curveZoom === 'low', xmax = low ? 0.1 : 1;
+  const grid = [0.25, 0.5, 0.75].map(t => `<path class="gl" d="M${(t * W).toFixed(1)} 0V${H}M0 ${(H - t * H).toFixed(1)}H${W}"/>`).join('');
+  const svg = svgEl(`<svg class="cgraph" viewBox="-1 -1 ${W + 2} ${H + 2}" role="img" aria-label="Dimming curve">${grid}<path class="ax" d="M0 0V${H}H${W}"/><path class="cv"/></svg>`);
+  const cv = svg.querySelector('.cv'), ylab = h('span', { class: 'cgy' }), cap = h('p', { class: 'note' });
+  const draw = () => {
+    const curve = fxCurve(f), bits = fxBits(f), lut = gammaLUT(f.gamma);
+    // the output at level x, 0–1, as the fixture sends it
+    const out = x => (bits === 8 ? lut[Math.round(x * 255)] / 255 : Math.round(curveValue(curve, f.gamma, x) * 65535) / 65535);
+    const ymax = low ? Math.max(1e-4, out(xmax)) * 1.08 : 1;
+    const X = x => (x / xmax * W).toFixed(2), Y = y => (H - Math.min(1, y / ymax) * H).toFixed(2);
     let d = '';
     if (bits === 8) {   // 256 steps in, 256 out: a staircase
-      for (let i = 0; i <= Math.round(xmax * 255); i++) { const x0 = i / 255, x1 = Math.min(xmax, (i + 1) / 255), y = out(x0, c); d += (i ? 'L' : 'M') + X(x0) + ' ' + Y(y) + 'L' + X(x1) + ' ' + Y(y); }
-    } else for (let i = 0; i <= 240; i++) { const x = i / 240 * xmax; d += (i ? 'L' : 'M') + X(x) + ' ' + Y(out(x, c)); }
-    return d;
+      for (let i = 0; i <= Math.round(xmax * 255); i++) { const x0 = i / 255, x1 = Math.min(xmax, (i + 1) / 255), y = out(x0); d += (i ? 'L' : 'M') + X(x0) + ' ' + Y(y) + 'L' + X(x1) + ' ' + Y(y); }
+    } else for (let i = 0; i <= 240; i++) { const x = i / 240 * xmax; d += (i ? 'L' : 'M') + X(x) + ' ' + Y(out(x)); }
+    cv.setAttribute('d', d);
+    ylab.textContent = low ? fmtV(Math.round(ymax / 1.08 * 1000) / 10) + ' %' : '100 %';
+    // how many different output values the bottom 10 % of the level has, with this curve at 8 and at 16 bits: what
+    // 16-bit is for
+    const steps8 = new Set();
+    for (let i = 0; i <= 25; i++) steps8.add(Math.round(curveValue(curve, f.gamma, i / 255) * 255));
+    const steps16 = fmtN(Math.round(curveValue(curve, f.gamma, 0.1) * 65535) + 1), n8 = `${steps8.size} step${steps8.size === 1 ? '' : 's'}`;
+    cap.textContent = bits === 16 ? `Bottom 10 % of the level: ${steps16} output steps. At 8-bit this curve would have ${n8} there.`
+      : `Bottom 10 % of the level: ${n8} at 8-bit. At 16-bit the same curve has ${steps16}.`;
   };
-  const tung = curve === 'tungsten' && f.warm;
-  const grid = [0.25, 0.5, 0.75].map(t => `<path class="gl" d="M${(t * W).toFixed(1)} 0V${H}M0 ${(H - t * H).toFixed(1)}H${W}"/>`).join('');
-  const paths = tung ? [2, 1, 0].map(c => `<path class="cv c${c}" d="${line(c)}"/>`).join('') : `<path class="cv" d="${line(0)}"/>`;
-  const svg = svgEl(`<svg class="cgraph" viewBox="-1 -1 ${W + 2} ${H + 2}" role="img" aria-label="Dimming curve">${grid}<path class="ax" d="M0 0V${H}H${W}"/>${paths}</svg>`);
-  // how many different output values the bottom 10 % of the level has, with this curve at 8 and at 16 bits: what
-  // 16-bit is for
-  const steps8 = new Set();
-  for (let i = 0; i <= 25; i++) steps8.add(Math.round(curveValue(curve, f.gamma, i / 255) * 255));
-  const steps16 = fmtN(Math.round(curveValue(curve, f.gamma, 0.1) * 65535) + 1), n8 = `${steps8.size} step${steps8.size === 1 ? '' : 's'}`;
-  const cap = bits === 16 ? `Bottom 10 % of the level: ${steps16} output steps. At 8-bit this curve would have ${n8} there.`
-    : `Bottom 10 % of the level: ${n8} at 8-bit. At 16-bit the same curve has ${steps16}.`;
+  draw();
   const zoom = seg([['full', 'Full range'], ['low', 'Low end (0–10 %)']], low ? 'low' : 'full', v => { ui.curveZoom = v; renderRight(); });
-  return h('div', { class: 'cgwrap' },
+  const el = h('div', { class: 'cgwrap' },
     h('div', { class: 'cghead' }, h('span', { class: 'lbl' }, 'Graph'), zoom),
-    h('div', { class: 'cgbox' }, svg, h('span', { class: 'cgy' }, low ? fmtV(Math.round(ymax / 1.08 * 1000) / 10) + ' %' : '100 %'), h('span', { class: 'cgx' }, low ? 'level 10 %' : 'level 100 %')),
-    tung ? h('p', { class: 'note' }, h('b', { style: { color: 'var(--danger)' } }, 'red'), ', ', h('b', { style: { color: 'var(--live)' } }, 'green'), ' and ', h('b', { style: { color: '#6ea8ff' } }, 'blue'), ': green and blue drop as it dims, so it gets warmer.') : null,
-    h('p', { class: 'note' }, cap));
+    h('div', { class: 'cgbox' }, svg, ylab, h('span', { class: 'cgx' }, low ? 'level 10 %' : 'level 100 %')),
+    cap);
+  el._draw = draw;
+  return el;
 }
 function trimRows(list) {
   const hasW = list.some(f => f.order.includes('W')), one = list.length === 1, tmp = list[0].trim.slice();

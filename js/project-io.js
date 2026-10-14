@@ -51,10 +51,11 @@ function fixFixture(f, i, ids) {
   if (isObj(f.addr)) f.addr = { u: clamp(Math.round(numOr(f.addr.u, 0)), 0, 32767), ch: clamp(Math.round(numOr(f.addr.ch, 1)), 1, 512) }; else delete f.addr;
   f.trim = [0, 1, 2, 3].map(i => clamp(numOr(Array.isArray(f.trim) ? f.trim[i] : undefined, legacyTrim[i]), 0, 1));
   f.gamma = clampGamma(numOr(f.gamma, legacyGamma));
-  // 8 or 16 bits per colour, the dimming curve (16-bit only) and, for the tungsten curve, its warm shift and filament lag
+  // 8 or 16 bits per colour, and the dimming curve (16-bit only). A curve this version doesn't have (tungsten, from
+  // 0.8) is gamma.
   f.bits = f.bits === 16 || f.bits === '16' ? 16 : 8;
   if (!CURVE_IDS.has(f.curve)) f.curve = 'gamma';
-  f.warm = f.warm !== false; f.lag = f.lag !== false;
+  delete f.warm; delete f.lag;
   if (!('enabled' in f)) f.enabled = true;
   if (!('locked' in f)) f.locked = false;
   if (!('reverse' in f)) f.reverse = false;

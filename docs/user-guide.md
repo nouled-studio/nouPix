@@ -1,6 +1,6 @@
 # openLedMapper: detailed reference
 
-Everything openLedMapper 0.8.1 does, in detail (the version shows next to the app name, top left). This is the source text for the PDF guide; the [README](../README.md) has the essentials.
+Everything openLedMapper 0.8.2 does, in detail (the version shows next to the app name, top left). This is the source text for the PDF guide; the [README](../README.md) has the essentials.
 
 A basic pixel-mapping tool: draw or import LED fixtures (lines, matrices, circles, free paths), split the canvas into zones, layer generators, ISF shaders, images, video or a screen capture in each zone, store looks as scenes to play live or in playlists, patch the fixtures to Art-Net controller outputs, and send it out.
 
@@ -222,9 +222,8 @@ A playlist plays some of a zone's scenes one after another, by itself: Evening, 
 - **Square law**: a slow start, fine control at the low end.
 - **Inverse square**: a fast start; low levels come up quickly.
 - **S curve**: slow at both ends, quicker in the middle: smooth starts and finishes.
-- **Tungsten**: dims like a halogen lamp: a slow start, **warmer when dimmed** (green and blue drop as it dims, from about 3200 K at full to 1900 K near off), and a **filament lag**: it takes a moment to heat up and a little longer to cool down. Both can be switched off. Blackout is still black at once.
 
-The **graph** under the curve shows it: level in (left to right), output (bottom to top). **Low end** shows the first 10 %, where an 8-bit fixture draws its few steps and a 16-bit one a smooth line; under it, how many output steps that part has. Tungsten draws its red, green and blue. Changing a fixture back to 8-bit keeps its curve for later and uses gamma meanwhile. The DMX Monitor names each channel (R coarse, R fine…), and the patch CSV has a Bits column.
+The **graph** under the curve shows it: level in (left to right), output (bottom to top). It moves with the gamma slider as you drag it (or type a value, or Shift + scroll), so you see the curve before you let go. **Low end** shows the first 10 %, where an 8-bit fixture draws its few steps and a 16-bit one a smooth line; under it, how many output steps that part has. A fixture saved with the tungsten curve of 0.8.0 opens with gamma. Changing a fixture back to 8-bit keeps its curve for later and uses gamma meanwhile. The DMX Monitor names each channel (R coarse, R fine…), and the patch CSV has a Bits column.
 
 ## SVG import
 
@@ -293,7 +292,7 @@ Phones, tablets and other computers on the same network can use openLedMapper to
 
 The `examples/` folder has files to try without building a layout (each is described in its [README](../examples/README.md)):
 
-- **Projects** (Project ▾ → Open project…): `01-led-bars.json` (twelve vertical bars), `02-matrix-wall.json` (four 32 × 32 panels on two controllers), `03-rings-and-arcs.json` (rings, arcs, an oval), `04-stage-mixed.json` (most options together: RGBW, a turned matrix, trims, gamma, 16-bit rings with the tungsten and S curves, a locked spare, an advanced patch start address, blend modes).
+- **Projects** (Project ▾ → Open project…): `01-led-bars.json` (twelve vertical bars), `02-matrix-wall.json` (four 32 × 32 panels on two controllers), `03-rings-and-arcs.json` (rings, arcs, an oval), `04-stage-mixed.json` (most options together: RGBW, a turned matrix, trims, gamma, 16-bit rings with the square-law and S curves, a locked spare, an advanced patch start address, blend modes).
 - **An SVG layout** to import: `05-facade.svg`.
 - **An ISF shader** to add as a source: `06-GradientBounce.fs` (small and commented, a starting point for your own).
 - **A test video** with sound, for trim, loop or once and sound: `07-test-clip.webm`.
@@ -309,7 +308,7 @@ Art-Net only (no sACN/E1.31 yet). No Syphon, Spout or NDI: use window capture in
 The apps are an [Electron](https://www.electronjs.org/) window (`desktop/`) around the interface, with the Art-Net bridge (`openledmapper.py`, packed with PyInstaller by `openledmapper.spec`) running inside: the app starts it with `--embedded` and it stops when the app quits. GitHub builds them (`.github/workflows/release.yml`) on Windows, an Apple silicon Mac and an Intel Mac. To publish a version:
 
 1. Set `VERSION` in `openledmapper.py` (and the README title), and commit.
-2. Tag it with the same version and push the tag: `git tag v0.8.1 && git push origin v0.8.1`.
+2. Tag it with the same version and push the tag: `git tag v0.8.2 && git push origin v0.8.2`.
 
 The three apps are built, started once to check that they start the bridge and stop it again, and attached to a new release on the Releases page, in about 10 minutes. The app's version comes from `VERSION`; a tag that doesn't match it fails the build. To build without releasing, run **Build apps** from the Actions tab: the apps are kept as downloads of that run.
 

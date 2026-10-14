@@ -1,8 +1,8 @@
 # 16-bit fixtures: two channels per colour, the coarse one first, then the fine one, checked in the Art-Net packets
 # that leave the bridge. 8-bit and 16-bit fixtures on one output; universe packing (85 RGB pixels per universe, and a
-# pixel split across two when Skip ch 511–512 is off); colour orders and RGBW; the dimming curves (16-bit only), the
-# tungsten curve's warm shift and filament lag; old files; the inspector (resolution, curve, graph); the DMX monitor,
-# CSV, copy and paste, undo.
+# pixel split across two when Skip ch 511–512 is off); colour orders and RGBW; the dimming curves (16-bit only); old
+# files; the inspector (resolution, curve, the graph following the gamma slider); the DMX monitor, CSV, copy and
+# paste, undo.
 import os, sys, time, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import FakeNode, start_bridge, CHROME_ARGS, app_error
@@ -43,9 +43,11 @@ try:
 
     # ---------- files
     r = E("""(() => { const p = hydrate({ fixtures: [
-        { id: 'a', type: 'line', pixels: 2 }, { id: 'b', type: 'line', pixels: 2, bits: '16', curve: 'bogus' }, { id: 'c', type: 'line', pixels: 2, bits: 12, curve: 'scurve', warm: false }] });
-      return p.fixtures.map(f => [f.bits, f.curve, f.warm, f.lag]); })()""")
-    check("old files are 8-bit with gamma; 16 (also as text) is kept; anything else is 8; an unknown curve is gamma", r == [[8, "gamma", True, True], [16, "gamma", True, True], [8, "scurve", False, True]], r)
+        { id: 'a', type: 'line', pixels: 2 }, { id: 'b', type: 'line', pixels: 2, bits: '16', curve: 'bogus' }, { id: 'c', type: 'line', pixels: 2, bits: 12, curve: 'scurve' },
+        { id: 'd', type: 'line', pixels: 2, bits: 16, curve: 'tungsten', warm: false, lag: true }] });
+      return p.fixtures.map(f => [f.bits, f.curve, 'warm' in f || 'lag' in f]); })()""")
+    check("old files are 8-bit with gamma; 16 (also as text) is kept; anything else is 8; an unknown curve is gamma", r[:3] == [[8, "gamma", False], [16, "gamma", False], [8, "scurve", False]], r)
+    check("a tungsten fixture from 0.8.0 opens as gamma, without its tungsten options", r[3] == [16, "gamma", False], r)
     check("new fixtures are 8-bit, gamma", E("(() => { const f = newFixture('line'); return [f.bits, f.curve]; })()") == [8, "gamma"])
 
     # ---------- an 8-bit and a 16-bit fixture on one output
@@ -102,26 +104,11 @@ try:
     c, d = col(0, 0), uni(3, 3)
     check("an 8-bit fixture keeps gamma, whatever curve it has stored", d == [round(255 * (v / 255) ** 2.2) for v in c] and E("fxCurve(olm.project.fixtures[0])") == "gamma", (c, d))
 
-    # ---------- tungsten
-    load(project([fx("t", 2, 50, 50, bits=16, curve="tungsten", lag=False, dimmer=0.15)], [["t"]], [1, 1, 1]), 0.4)
-    d = uni(3, 6); rgb = [d[0] << 8 | d[1], d[2] << 8 | d[3], d[4] << 8 | d[5]]
-    check("tungsten at 15 %: white comes out warm (red over green over blue)", rgb[0] > rgb[1] > rgb[2] > 0 and abs(rgb[0] - q16(0.15 ** 2.4)) <= 1, rgb)
-    E("(() => { olm.project.fixtures[0].dimmer = 1; })()"); time.sleep(0.3)
-    check("…and white at full", uni(3, 6) == [255] * 6, uni(3, 6))
-    E("(() => { const f = olm.project.fixtures[0]; f.warm = false; f.dimmer = 0.15; })()"); time.sleep(0.3)
-    d = uni(3, 6)
-    check("without Warmer when dimmed, the three colours stay equal", d[0:2] == d[2:4] == d[4:6] and d[0:2] != [0, 0], d)
-    E("(() => { const f = olm.project.fixtures[0]; f.warm = true; f.lag = true; f.dimmer = 1; })()"); time.sleep(1.2)
-    check("filament lag: settled at full", uni(3, 2) == [255, 255])
-    E("(() => { olm.project.fixtures[0].dimmer = 0; })()"); time.sleep(0.12)
-    a = uni(3, 2); time.sleep(0.4); b = uni(3, 2); time.sleep(2.0); c2 = uni(3, 2)
-    check("filament lag: cut to black, it glows down over a moment", (a[0] << 8 | a[1]) > (b[0] << 8 | b[1]) > 0 and c2 == [0, 0], (a, b, c2))
-    E("(() => { olm.project.fixtures[0].dimmer = 1; })()"); time.sleep(0.07)
-    a = uni(3, 2)
-    check("…and comes up a little slower than a cut", (a[0] << 8 | a[1]) < 65535, a)
-    time.sleep(1.0)
-    E("toggleBlackout()"); time.sleep(0.1)
-    check("blackout is black at once, filament or not", uni(3, 6) == [0] * 6, uni(3, 6))
+    # ---------- blackout
+    load(project([fx("b", 2, 50, 50, bits=16)], [["b"]], [1, 1, 1]), 0.4)
+    check("white at full: every channel 255", uni(3, 6) == [255] * 6, uni(3, 6))
+    E("toggleBlackout()"); time.sleep(0.15)
+    check("blackout: coarse and fine channels all 0", uni(3, 6) == [0] * 6, uni(3, 6))
     E("toggleBlackout()"); time.sleep(0.3)
 
     # ---------- the inspector
@@ -129,15 +116,30 @@ try:
     E("(() => { ui.sel = new Set(['i16']); ui.rightTab = 'inspector'; ui.rightHidden = false; onSelection(); })()"); time.sleep(0.3)
     sel = "#rightBody select[aria-label='Dimming curve']"
     check("a 16-bit fixture: Resolution shows 16-bit, the curve can be chosen, and a graph shows it", pg.locator("#rightBody .seg button.on:has-text('16-bit')").count() == 1 and not pg.locator(sel).is_disabled() and pg.locator("#rightBody svg.cgraph path.cv").count() == 1)
-    d0 = pg.get_attribute("#rightBody svg.cgraph path.cv", "d")
+    check("the curve list has no tungsten any more", "tungsten" not in E("[...document.querySelectorAll(\"#rightBody select[aria-label='Dimming curve'] option\")].map(o => o.value)"))
+    # the graph follows the gamma slider while it moves: drawn again in place, before the change is committed
+    gpath = "#rightBody svg.cgraph path.cv"
+    E("document.querySelector('#rightBody .cgwrap')._mark = 1")
+    d0 = pg.get_attribute(gpath, "d"); h0 = E("hist.idx")
+    E("(() => { const r = document.querySelector(\"#rightBody input[type=range][aria-label='Gamma']\"); r.value = 1.5; r.dispatchEvent(new Event('input', { bubbles: true })); })()")
+    d1 = pg.get_attribute(gpath, "d")
+    check("moving the gamma slider moves the curve at once, in the same graph, before it is committed", d1 != d0 and E("document.querySelector('#rightBody .cgwrap')._mark") == 1 and E("hist.idx") == h0, (d0[:60], d1[:60]))
+    E("(() => { const r = document.querySelector(\"#rightBody input[type=range][aria-label='Gamma']\"); r.value = 2.6; r.dispatchEvent(new Event('input', { bubbles: true })); })()")
+    d2 = pg.get_attribute(gpath, "d")
+    midy = lambda d: float(d.split("L")[120].split()[1])   # the curve at half the level (lower on the graph is a bigger y)
+    check("…and on as it moves (gamma 2.6 bends it further down)", midy(d2) > midy(d1) > midy(d0) - 1e-9, (midy(d0), midy(d1), midy(d2)))
+    E("(() => { const r = document.querySelector(\"#rightBody input[type=range][aria-label='Gamma']\"); r.dispatchEvent(new Event('change', { bubbles: true })); })()")
+    check("letting go of the slider is one undo step", E("hist.idx") == h0 + 1 and E("olm.project.fixtures[0].gamma") == 2.6)
+    v = pg.locator("#rightBody .row:has(> .lbl:text-is('Gamma')) .sval"); v.dblclick(); pg.keyboard.type("1"); pg.keyboard.press("Enter"); time.sleep(0.1)
+    mid = pg.get_attribute(gpath, "d").split("L")[120]
+    check("a typed gamma moves it too: at 1 the curve is a straight line (half the level, half the output)", mid.strip() == "120.00 66.00", mid)
+    d3 = pg.get_attribute(gpath, "d")
     pg.select_option(sel, "scurve"); time.sleep(0.3)
-    check("choosing S curve: stored, one undo step, and the graph changes", E("olm.project.fixtures[0].curve") == "scurve" and pg.get_attribute("#rightBody svg.cgraph path.cv", "d") != d0)
-    pg.select_option(sel, "tungsten"); time.sleep(0.3)
-    check("tungsten: its options, and red, green and blue in the graph", pg.locator("#rightBody label:has-text('Warmer when dimmed')").count() == 1 and pg.locator("#rightBody label:has-text('Filament lag')").count() == 1 and pg.locator("#rightBody svg.cgraph path.cv").count() == 3)
+    check("choosing S curve: stored, the graph changes, and the gamma slider goes", E("olm.project.fixtures[0].curve") == "scurve" and pg.get_attribute(gpath, "d") != d3 and pg.locator("#rightBody input[type=range][aria-label='Gamma']").count() == 0)
     pg.click("#rightBody .seg button:has-text('Low end')"); time.sleep(0.2)
     check("Low end shows the first 10 %, with how many steps it has", "Bottom 10 %" in pg.inner_text("#rightBody .cgwrap") and "level 10 %" in pg.inner_text("#rightBody .cgwrap"))
     pg.click("#rightBody .seg button:has-text('8-bit')"); time.sleep(0.3)
-    check("switching to 8-bit: 3 channels again, gamma only (the curve is kept for 16-bit)", E("[olm.project.fixtures[0].bits, BPP(olm.project.fixtures[0]), fxCurve(olm.project.fixtures[0]), olm.project.fixtures[0].curve]") == [8, 3, "gamma", "tungsten"] and pg.locator(sel).is_disabled())
+    check("switching to 8-bit: 3 channels again, gamma only (the curve is kept for 16-bit)", E("[olm.project.fixtures[0].bits, BPP(olm.project.fixtures[0]), fxCurve(olm.project.fixtures[0]), olm.project.fixtures[0].curve]") == [8, 3, "gamma", "scurve"] and pg.locator(sel).is_disabled())
     check("…the graph shows 8-bit steps, and says the other curves need 16-bit", "need 16-bit" in pg.inner_text("#rightBody") and "at 8-bit" in pg.inner_text("#rightBody .cgwrap"))
     check("…and the patch follows: the next fixture moves up to channel 13", E("addrText(olm.project.fixtures[1]._patch)") == "U 3 · ch 13  →  U 3 · ch 24", E("addrText(olm.project.fixtures[1]._patch)"))
     E("undo()"); time.sleep(0.3)
@@ -154,9 +156,9 @@ try:
     csv = E("(() => { let out = ''; const d = window.download; window.download = (n, t) => { out = t; }; exportCSV(); window.download = d; return out; })()")
     check("the patch CSV has a Bits column", csv.split("\n")[0].split(",")[4] == "Bits" and csv.split("\n")[1].split(",")[4] == "16", csv.split("\n")[:2])
     r = E("(() => { ui.sel = new Set(['i16']); const d = clipOfSel(); pasteFixtures(d); const f = olm.project.fixtures.at(-1); return [f.bits, f.curve, olm.project.fixtures.length]; })()")
-    check("a pasted 16-bit fixture stays 16-bit with its curve", r[0] == 16 and r[1] == "tungsten" and r[2] == 3, r)
-    r = E("(() => { const s = serialize(false); const p = JSON.parse(s); return [p.fixtures[0].bits, p.fixtures[0].curve, s.includes('_lag')]; })()")
-    check("saved with the project (and the filament's heat is not)", r == [16, "tungsten", False], r)
+    check("a pasted 16-bit fixture stays 16-bit with its curve", r[0] == 16 and r[1] == "scurve" and r[2] == 3, r)
+    r = E("(() => { const s = serialize(false); const p = JSON.parse(s); return [p.fixtures[0].bits, p.fixtures[0].curve, 'warm' in p.fixtures[0] || 'lag' in p.fixtures[0]]; })()")
+    check("saved with the project", r == [16, "scurve", False], r)
     br.close()
 finally:
     bridge.terminate(); node.close()

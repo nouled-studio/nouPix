@@ -9,7 +9,7 @@ const TYPE_LABEL = { line: 'Line', circle: 'Circle', matrix: 'Matrix', path: 'Pa
 // Dimming curves: how a pixel's level (its content after the fixture's dimmer and trims and the master) becomes its
 // DMX value. Gamma works on every fixture; the others need 16-bit fixtures, whose fine channel keeps the low end
 // smooth where 8 bits would jump between the first few levels.
-const CURVES = [['gamma', 'Gamma'], ['linear', 'Linear'], ['square', 'Square law'], ['invsquare', 'Inverse square'], ['scurve', 'S curve'], ['tungsten', 'Tungsten']];
+const CURVES = [['gamma', 'Gamma'], ['linear', 'Linear'], ['square', 'Square law'], ['invsquare', 'Inverse square'], ['scurve', 'S curve']];
 const CURVE_IDS = new Set(CURVES.map(c => c[0]));
 const CURVE_NOTES = {
   gamma: 'Corrects the LEDs: about 2.2 to 2.8 for most pixels, 1 for none.',
@@ -17,7 +17,6 @@ const CURVE_NOTES = {
   square: 'Slow start, like a square-law dimmer: fine control at the low end.',
   invsquare: 'Fast start: low levels come up quickly, the top end changes little.',
   scurve: 'Slow at both ends and quicker in the middle: smooth starts and finishes.',
-  tungsten: 'Dims like a halogen lamp: a slow start, warmer as it dims, and a filament that takes a moment to heat and cool.',
 };
 const fxBits = f => (f.bits === 16 ? 16 : 8);
 // The curve a fixture uses: an 8-bit fixture always uses gamma
@@ -141,7 +140,7 @@ function newFixture(type, props = {}) {
   const f = {
     id: uid(), type, name: nextName(type), enabled: true, locked: false,
     tag: TAGS[project.fixtures.length % TAGS.length], order: 'RGB', reverse: false, dimmer: 1, trim: [1, 1, 1, 1], gamma: clampGamma(project.settings.gamma),
-    bits: 8, curve: 'gamma', warm: true, lag: true,
+    bits: 8, curve: 'gamma',
   };
   if (FIXTURE_FIELDS[type]) Object.assign(f, JSON.parse(JSON.stringify(FIXTURE_FIELDS[type])));
   return Object.assign(f, props);
