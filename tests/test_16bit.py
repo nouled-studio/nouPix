@@ -48,7 +48,9 @@ try:
       return p.fixtures.map(f => [f.bits, f.curve, 'warm' in f || 'lag' in f]); })()""")
     check("old files are 8-bit with gamma; 16 (also as text) is kept; anything else is 8; an unknown curve is gamma", r[:3] == [[8, "gamma", False], [16, "gamma", False], [8, "scurve", False]], r)
     check("a tungsten fixture from 0.8.0 opens as gamma, without its tungsten options", r[3] == [16, "gamma", False], r)
-    check("new fixtures are 8-bit, gamma", E("(() => { const f = newFixture('line'); return [f.bits, f.curve]; })()") == [8, "gamma"])
+    check("new fixtures are 8-bit, gamma, strength 100 %", E("(() => { const f = newFixture('line'); return [f.bits, f.curve, f.strength]; })()") == [8, "gamma", 1])
+    r = E("(() => hydrate({ fixtures: [{ id: 'a', type: 'line', pixels: 2 }, { id: 'b', type: 'line', pixels: 2, strength: 5 }, { id: 'c', type: 'line', pixels: 2, strength: 'x' }, { id: 'd', type: 'line', pixels: 2, strength: 0.4 }] }).fixtures.map(f => f.strength))()")
+    check("strength: 100 % when missing or not a number, kept between 0 and 200 %", r == [1, 2, 1, 0.4], r)
 
     # ---------- an 8-bit and a 16-bit fixture on one output
     load(project([fx("f16", 5, 50, 50, bits=16, dimmer=D), fx("f8", 5, 50, 120)], [["f16", "f8"]], [1, 0.5, 0]))
@@ -100,6 +102,19 @@ try:
         got = [d[0] << 8 | d[1], d[2] << 8 | d[3], d[4] << 8 | d[5]]
         exp = [q16(fn(v / 255)) for v in c]
         check(f"curve {curve}: the 16-bit output follows it", all(abs(g - e) <= 1 for g, e in zip(got, exp)), (c, got, exp))
+    ss = lambda x: x * x * (3 - 2 * x)
+    forms = {"square": (lambda x: x * x, lambda x: x ** 3), "invsquare": (lambda x: 1 - (1 - x) ** 2, lambda x: 1 - (1 - x) ** 3), "scurve": (ss, lambda x: ss(ss(x)))}
+    for curve, (a, b) in forms.items():
+        for k in (0, 0.5, 1.5, 2):
+            fn = (lambda x, a=a, k=k: x + (a(x) - x) * k) if k <= 1 else (lambda x, a=a, b=b, k=k: a(x) + (b(x) - a(x)) * (k - 1))
+            c, d = curve_out(curve, [0.3, 0.5, 0.8], strength=k)
+            got = [d[0] << 8 | d[1], d[2] << 8 | d[3], d[4] << 8 | d[5]]
+            exp = [q16(fn(v / 255)) for v in c]
+            check(f"curve {curve} at strength {int(k * 100)} %: the output follows it", all(abs(g - e) <= 1 for g, e in zip(got, exp)), (c, got, exp))
+    r = E("(() => { const out = {}; for (const c of ['square', 'invsquare', 'scurve']) for (const k of [0, 0.37, 1, 1.63, 2]) { let last = -1; for (let i = 0; i <= 1000; i++) { const y = curveValue(c, k, i / 1000); if (y < last - 1e-12 || y < 0 || y > 1) out[c + k] = i; last = y; } } return out; })()")
+    check("at every strength each curve rises from 0 to 1 and never turns back", r == {}, r)
+    c, d = curve_out("linear", [0.3, 0.5, 0.8], strength=2)
+    check("linear has no strength: it stays a straight line", [d[0] << 8 | d[1], d[2] << 8 | d[3], d[4] << 8 | d[5]] == [q16(v / 255) for v in c], d)
     load(project([fx("c8", 2, 50, 50, curve="scurve", gamma=2.2)], [["c8"]], [0.3, 0.5, 0.8]), 0.4)
     c, d = col(0, 0), uni(3, 3)
     check("an 8-bit fixture keeps gamma, whatever curve it has stored", d == [round(255 * (v / 255) ** 2.2) for v in c] and E("fxCurve(olm.project.fixtures[0])") == "gamma", (c, d))
@@ -136,6 +151,27 @@ try:
     d3 = pg.get_attribute(gpath, "d")
     pg.select_option(sel, "scurve"); time.sleep(0.3)
     check("choosing S curve: stored, the graph changes, and the gamma slider goes", E("olm.project.fixtures[0].curve") == "scurve" and pg.get_attribute(gpath, "d") != d3 and pg.locator("#rightBody input[type=range][aria-label='Gamma']").count() == 0)
+    srange = "#rightBody input[type=range][aria-label='Strength']"
+    check("…and a Strength slider takes its place, at 100 %", pg.locator(srange).count() == 1 and pg.locator("#rightBody .row:has(> .lbl:text-is('Strength')) .sval").inner_text() == "100%")
+    E("document.querySelector('#rightBody .cgwrap')._mark = 2")
+    s0 = pg.get_attribute(gpath, "d"); h0 = E("hist.idx")
+    slope = lambda d: float(d.split("L")[60].split()[1]) - float(d.split("L")[180].split()[1])   # how far it climbs between a quarter and three quarters
+    E(f"(() => {{ const r = document.querySelector(\"{srange}\"); r.value = 1.8; r.dispatchEvent(new Event('input', {{ bubbles: true }})); }})()")
+    s1 = pg.get_attribute(gpath, "d")
+    check("moving Strength up makes the S steeper, at once, in the same graph, before it is committed", slope(s1) > slope(s0) and E("document.querySelector('#rightBody .cgwrap')._mark") == 2 and E("hist.idx") == h0, (slope(s0), slope(s1)))
+    E(f"(() => {{ const r = document.querySelector(\"{srange}\"); r.value = 0.3; r.dispatchEvent(new Event('input', {{ bubbles: true }})); r.dispatchEvent(new Event('change', {{ bubbles: true }})); }})()")
+    s2 = pg.get_attribute(gpath, "d")
+    check("…and down makes it gentler; letting go is one undo step", slope(s2) < slope(s0) and E("hist.idx") == h0 + 1 and E("olm.project.fixtures[0].strength") == 0.3, (slope(s0), slope(s2)))
+    v = pg.locator("#rightBody .row:has(> .lbl:text-is('Strength')) .sval"); v.dblclick(); pg.keyboard.type("0"); pg.keyboard.press("Enter"); time.sleep(0.1)
+    mid = pg.get_attribute(gpath, "d").split("L")[120]
+    check("a typed strength of 0 % makes it a straight line", mid.strip() == "120.00 66.00" and E("olm.project.fixtures[0].strength") == 0, mid)
+    for c in ("square", "invsquare"):
+        pg.select_option(sel, c); time.sleep(0.25)
+        check(f"{c}: has the Strength slider too", pg.locator(srange).count() == 1)
+    pg.select_option(sel, "linear"); time.sleep(0.25)
+    check("linear: no slider (neither Gamma nor Strength)", pg.locator(srange).count() == 0 and pg.locator("#rightBody input[type=range][aria-label='Gamma']").count() == 0)
+    E("(() => { olm.project.fixtures[0].strength = 1; })()")
+    pg.select_option(sel, "scurve"); time.sleep(0.25)
     pg.click("#rightBody .seg button:has-text('Low end')"); time.sleep(0.2)
     check("Low end shows the first 10 %, with how many steps it has", "Bottom 10 %" in pg.inner_text("#rightBody .cgwrap") and "level 10 %" in pg.inner_text("#rightBody .cgwrap"))
     pg.click("#rightBody .seg button:has-text('8-bit')"); time.sleep(0.3)
@@ -148,6 +184,11 @@ try:
     check("8-bit and 16-bit selected together: Resolution shows neither, the curve is gamma only", pg.locator("#rightBody .seg button.on:has-text('bit')").count() == 0 and pg.locator(sel).is_disabled() and "Mixed" in pg.inner_text("#rightBody"))
     pg.click("#rightBody .seg button:has-text('16-bit')"); time.sleep(0.3)
     check("…setting 16-bit sets both", E("olm.project.fixtures.map(f => f.bits)") == [16, 16] and not pg.locator(sel).is_disabled())
+    E("(() => { const [a, b] = olm.project.fixtures; a.curve = 'scurve'; a.strength = 1; b.curve = 'square'; b.strength = 0.5; renderRight(); })()"); time.sleep(0.2)
+    check("two fixtures with strengths: one Strength slider, marked mixed", pg.locator(srange).count() == 1 and "(mixed)" in pg.locator("#rightBody .row:has(> .lbl:text-is('Strength')) .sval").inner_text())
+    E(f"(() => {{ const r = document.querySelector(\"{srange}\"); r.value = 1.4; r.dispatchEvent(new Event('input', {{ bubbles: true }})); r.dispatchEvent(new Event('change', {{ bubbles: true }})); }})()")
+    check("…moving it sets both", E("olm.project.fixtures.map(f => f.strength)") == [1.4, 1.4], E("olm.project.fixtures.map(f => f.strength)"))
+    E("(() => { ui.sel = new Set(['i16']); onSelection(); })()"); time.sleep(0.2)
 
     # ---------- the DMX monitor, CSV, copy and paste
     E("(() => { ui.dockTab = 'monitor'; ui.dockCollapsed = false; ui.monitorKey = olm.universes()[0].key; renderDock(); })()"); time.sleep(0.3)

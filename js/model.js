@@ -18,9 +18,13 @@ const CURVE_NOTES = {
   invsquare: 'Fast start: low levels come up quickly, the top end changes little.',
   scurve: 'Slow at both ends and quicker in the middle: smooth starts and finishes.',
 };
+// The curves with a Strength slider: 100 % is the classic curve, 0 % a straight line, 200 % a stronger one
+const CURVE_STRENGTH = new Set(['square', 'invsquare', 'scurve']);
 const fxBits = f => (f.bits === 16 ? 16 : 8);
 // The curve a fixture uses: an 8-bit fixture always uses gamma
 const fxCurve = f => (f.bits === 16 && CURVE_IDS.has(f.curve) ? f.curve : 'gamma');
+// The setting that shapes it: the gamma for gamma, the strength (0–2) for the others
+const curveParam = f => (fxCurve(f) === 'gamma' ? f.gamma : f.strength);
 const DEFAULT_SETTINGS = {
   compW: 1000, compH: 640, fps: 40, gamma: 1, master: 1, whiteMode: 'off',
   artSync: false, grid: 10, broadcast: '', bridgeUrl: '', transition: 0.5, fade: 2,
@@ -140,7 +144,7 @@ function newFixture(type, props = {}) {
   const f = {
     id: uid(), type, name: nextName(type), enabled: true, locked: false,
     tag: TAGS[project.fixtures.length % TAGS.length], order: 'RGB', reverse: false, dimmer: 1, trim: [1, 1, 1, 1], gamma: clampGamma(project.settings.gamma),
-    bits: 8, curve: 'gamma',
+    bits: 8, curve: 'gamma', strength: 1,
   };
   if (FIXTURE_FIELDS[type]) Object.assign(f, JSON.parse(JSON.stringify(FIXTURE_FIELDS[type])));
   return Object.assign(f, props);

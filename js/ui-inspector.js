@@ -109,6 +109,13 @@ function gammaRow(list, onChange) {
   return sliderRow('Gamma', one ? list[0] : tmp, 'gamma', { min: 1, max: 3, step: 0.05, fmt: v => v.toFixed(2) + (mixed && v === list[0].gamma ? ' (mixed)' : ''),
     onInput: v => { if (!one) list.forEach(f => { f.gamma = v; }); if (onChange) onChange(v); }, onCommit: commit });
 }
+// The strength of a square law, inverse square or S curve: 100 % the classic curve, 0 % a straight line, up to 200 %
+// stronger. Like gamma, it sets all the fixtures in the list, and onChange runs as it moves.
+function strengthRow(list, onChange) {
+  const one = list.length === 1, tmp = { strength: list[0].strength }, mixed = !one && list.some(f => f.strength !== list[0].strength);
+  return sliderRow('Strength', one ? list[0] : tmp, 'strength', { min: 0, max: 2, step: 0.01, fmt: v => pct(v) + (mixed && v === list[0].strength ? ' (mixed)' : ''),
+    onInput: v => { if (!one) list.forEach(f => { f.strength = v; }); if (onChange) onChange(v); }, onCommit: commit });
+}
 // Resolution and dimming curve. An 8-bit fixture has one channel per colour and uses gamma; a 16-bit one has two
 // (coarse, then fine) and can use the other curves too. With one fixture, a graph shows its curve.
 function dimmingRows(list) {
@@ -124,24 +131,25 @@ function dimmingRows(list) {
   if (!all16) { curve.disabled = true; curve.title = 'Gamma only: the other curves need 16-bit'; }
   out.push(row('Curve', curve));
   out.push(h('p', { class: 'note' }, !all16 ? (one ? 'The other curves (linear, square law, inverse square, S curve) need 16-bit: switch Resolution to 16-bit.' : 'The other curves need all of them to be 16-bit.')
-    : curveMixed ? '' : CURVE_NOTES[fxCurve(f)]));
-  const graph = one ? curveGraph(f) : null;
-  if (list.some(x => fxCurve(x) === 'gamma')) out.push(gammaRow(list.filter(x => fxCurve(x) === 'gamma'), () => graph && graph._draw()));
+    : curveMixed ? '' : CURVE_NOTES[fxCurve(f)] + (CURVE_STRENGTH.has(fxCurve(f)) ? ' Strength: 100\u00a0% is the classic curve, 0\u00a0% a straight line, 200\u00a0% stronger.' : '')));
+  const graph = one ? curveGraph(f) : null, redraw = () => graph && graph._draw();
+  if (list.some(x => fxCurve(x) === 'gamma')) out.push(gammaRow(list.filter(x => fxCurve(x) === 'gamma'), redraw));
+  if (list.some(x => CURVE_STRENGTH.has(fxCurve(x)))) out.push(strengthRow(list.filter(x => CURVE_STRENGTH.has(fxCurve(x))), redraw));
   if (graph) out.push(graph);
   return out;
 }
 // The dimming curve as a graph: the level coming in (left to right) against the output (bottom to top). Low end
 // shows the first 10 %, where 8 bits have only a few steps and 16 bits hundreds. draw() draws it from the fixture as
-// it is now, so it follows the gamma slider while it moves.
+// it is now, so it follows the gamma or strength slider while it moves.
 function curveGraph(f) {
   const W = 240, H = 132, low = ui.curveZoom === 'low', xmax = low ? 0.1 : 1;
   const grid = [0.25, 0.5, 0.75].map(t => `<path class="gl" d="M${(t * W).toFixed(1)} 0V${H}M0 ${(H - t * H).toFixed(1)}H${W}"/>`).join('');
   const svg = svgEl(`<svg class="cgraph" viewBox="-1 -1 ${W + 2} ${H + 2}" role="img" aria-label="Dimming curve">${grid}<path class="ax" d="M0 0V${H}H${W}"/><path class="cv"/></svg>`);
   const cv = svg.querySelector('.cv'), ylab = h('span', { class: 'cgy' }), cap = h('p', { class: 'note' });
   const draw = () => {
-    const curve = fxCurve(f), bits = fxBits(f), lut = gammaLUT(f.gamma);
+    const curve = fxCurve(f), k = curveParam(f), bits = fxBits(f), lut = gammaLUT(f.gamma);
     // the output at level x, 0–1, as the fixture sends it
-    const out = x => (bits === 8 ? lut[Math.round(x * 255)] / 255 : Math.round(curveValue(curve, f.gamma, x) * 65535) / 65535);
+    const out = x => (bits === 8 ? lut[Math.round(x * 255)] / 255 : Math.round(curveValue(curve, k, x) * 65535) / 65535);
     const ymax = low ? Math.max(1e-4, out(xmax)) * 1.08 : 1;
     const X = x => (x / xmax * W).toFixed(2), Y = y => (H - Math.min(1, y / ymax) * H).toFixed(2);
     let d = '';
@@ -153,8 +161,8 @@ function curveGraph(f) {
     // how many different output values the bottom 10 % of the level has, with this curve at 8 and at 16 bits: what
     // 16-bit is for
     const steps8 = new Set();
-    for (let i = 0; i <= 25; i++) steps8.add(Math.round(curveValue(curve, f.gamma, i / 255) * 255));
-    const steps16 = fmtN(Math.round(curveValue(curve, f.gamma, 0.1) * 65535) + 1), n8 = `${steps8.size} step${steps8.size === 1 ? '' : 's'}`;
+    for (let i = 0; i <= 25; i++) steps8.add(Math.round(curveValue(curve, k, i / 255) * 255));
+    const steps16 = fmtN(Math.round(curveValue(curve, k, 0.1) * 65535) + 1), n8 = `${steps8.size} step${steps8.size === 1 ? '' : 's'}`;
     cap.textContent = bits === 16 ? `Bottom 10 % of the level: ${steps16} output steps. At 8-bit this curve would have ${n8} there.`
       : `Bottom 10 % of the level: ${n8} at 8-bit. At 16-bit the same curve has ${steps16}.`;
   };

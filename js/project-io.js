@@ -55,6 +55,7 @@ function fixFixture(f, i, ids) {
   // 0.8) is gamma.
   f.bits = f.bits === 16 || f.bits === '16' ? 16 : 8;
   if (!CURVE_IDS.has(f.curve)) f.curve = 'gamma';
+  f.strength = clamp(numOr(f.strength, 1), 0, 2);
   delete f.warm; delete f.lag;
   if (!('enabled' in f)) f.enabled = true;
   if (!('locked' in f)) f.locked = false;

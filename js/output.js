@@ -17,24 +17,32 @@ function gammaLUT(g) {
 }
 // The dimming curves of 16-bit fixtures, level 0–1 in, 0–1 out. A table of 4096 steps with interpolation between
 // them keeps every frame quick and still gives each 16-bit value its own place.
-function curveValue(curve, gamma, x) {
+// Each curve with a strength has its classic form (strength 1) and a stronger one (strength 2): a cube for the square
+// law, the S curve applied twice. Strength 0–1 goes from a straight line to the classic form, 1–2 on to the stronger;
+// every step between is a mix of two rising curves, so the output always rises with the level.
+const smoothStep = x => x * x * (3 - 2 * x);
+const CURVE_FORMS = {
+  square: [x => x * x, x => x * x * x],
+  invsquare: [x => 1 - (1 - x) * (1 - x), x => 1 - (1 - x) * (1 - x) * (1 - x)],
+  scurve: [smoothStep, x => smoothStep(smoothStep(x))],
+};
+// k: the curve's setting, the gamma for gamma and the strength for the others
+function curveValue(curve, k, x) {
   x = x <= 0 ? 0 : x >= 1 ? 1 : x;
-  switch (curve) {
-    case 'linear': return x;
-    case 'square': return x * x;
-    case 'invsquare': return 1 - (1 - x) * (1 - x);
-    case 'scurve': return x * x * (3 - 2 * x);
-    default: return Math.pow(x, gamma);
-  }
+  if (curve === 'linear') return x;
+  const forms = CURVE_FORMS[curve];
+  if (!forms) return Math.pow(x, k);
+  const a = forms[0](x);
+  return k <= 1 ? x + (a - x) * k : a + (forms[1](x) - a) * (k - 1);
 }
 const curveLUTs = new Map();
-function curveLUT(curve, gamma) {
-  const key = curve === 'gamma' ? 'g' + gamma : curve;
+function curveLUT(curve, k) {
+  const key = curve + k;
   let t = curveLUTs.get(key);
   if (!t) {
-    if (curveLUTs.size > 64) curveLUTs.clear();
+    if (curveLUTs.size > 64) curveLUTs.clear();   // dragging a slider makes many values
     t = new Float32Array(4097);
-    for (let i = 0; i <= 4096; i++) t[i] = curveValue(curve, gamma, i / 4096);
+    for (let i = 0; i <= 4096; i++) t[i] = curveValue(curve, k, i / 4096);
     curveLUTs.set(key, t);
   }
   return t;
@@ -43,7 +51,7 @@ const curveAt = (t, x) => { if (!(x > 0)) return 0; if (x >= 1) return t[4096]; 
 // A 16-bit fixture: each colour is worked out as a fraction (nothing rounded to 256 steps), put through the fixture's
 // dimming curve, and sent as two channels: the coarse one (the high byte) first, then the fine one (the low byte).
 function output16(f, o, kr, kg, kb, kw, wm) {
-  const col = f._col, disp = f._disp, n = f._n, lut = curveLUT(fxCurve(f), f.gamma);
+  const col = f._col, disp = f._disp, n = f._n, lut = curveLUT(fxCurve(f), curveParam(f));
   const lins = o.lin, oi = o.oi, nc = oi.length, unis = o.unis;
   const white = nc === 4 && wm !== 'off', sub = wm === 'sub';
   for (let i = 0, j = 0; i < n; i++, j += 3) {
