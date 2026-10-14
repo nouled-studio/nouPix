@@ -284,7 +284,9 @@ A MIDI controller (faders, knobs, buttons, pads: a nanoKONTROL, an APC, a Launch
 1. Move a fader or a knob, or press a pad, on your controller.
 2. Click what it should move, in the main window: the **Master** slider, **Blackout**, a zone's level slider (in the Scenes panel, the Content tab or the Inspector), a **scene**, or a **playlist's tab**.
 
-Or the other way round: click something first, then move the control. Clicking while learning only picks: the scene doesn't play and the slider doesn't move. Learn stays on for the next one; **Esc** or **Stop learning** ends it. A control can drive several things, and several controls can drive the same thing.
+Or the other way round: click something first, then move the control. Clicking while learning only picks: the scene doesn't play and the slider doesn't move. Once a control is learnt it is done: letting go of a button, or the rest of a fader's move, doesn't start it again, so the next click waits for a new control. Learn stays on for the next one; **Esc** or **Stop learning** ends it.
+
+A control can drive several things: to learn the same control onto a second thing, click that thing first, then move the control. Learning a control onto something another control already drives replaces that control; to have two controls on the same thing, choose it in the second one's list in the MIDI window.
 
 **What each does.**
 

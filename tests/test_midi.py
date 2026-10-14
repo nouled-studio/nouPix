@@ -117,10 +117,15 @@ try:
     tiles.nth(1).click(); settle()
     for v in range(0, 128, 8): cc(13, 127 - v)
     settle(); tiles.nth(2).click(); settle()
-    check("a fader learnt while it moves: the rest of its move doesn't learn it again", len(maps()) == n0 + 4 and ev("midi.learn.pending") is None
+    check("a fader learnt while it moves: the rest of its move doesn't learn it again", ev("midi.learn.pending") is None
           and ev("midi.learn.target") == f"sc:{z['id']}:{z['scenes'][2]}", ev("midi.learn"))
-    tiles.nth(2).click(); time.sleep(1); cc(10, 127); cc(10, 0); settle()
-    check("still for a moment, the same button can be learnt again", ev("midi.learn.pending", ) and ev("midi.learn.pending").endswith("cc:10"), ev("midi.learn"))
+    check("learnt onto a scene another control played, it replaces that control", len(maps()) == n0 + 3
+          and ev("project.midi.maps.filter(w => w.to === 'sc:" + z['id'] + ":" + z['scenes'][1] + "').map(w => w.key.split(':').pop())") == ["13"], maps())
+    tiles.nth(2).click(); time.sleep(1.2); cc(13, 30); settle()
+    check("the control just learnt stays done, even after a while", ev("midi.learn.pending") is None and ev("midi.learn.target") is None, ev("midi.learn"))
+    other = ev(f"project.zones.find(x => x.id !== '{z['id']}').id")
+    pg.locator(f'.zhead .mslot[data-midi="z:{other}"]').click(); cc(13, 40); settle()
+    check("clicked first, something else takes the same control", ev(f"project.midi.maps.some(w => w.key.endsWith('cc:13') && w.to === 'z:{other}')") and ev("midi.learn.target") is None, maps())
     ev("project.midi.maps = project.midi.maps.filter(w => !/cc:1[0-3]$/.test(w.key)); commit(); midiSetLearn(true)"); settle()
     check("while learning, the tags show on what is wired", pg.locator(".master .ftag").is_visible() and pg.locator(".master .ftag").inner_text() == "CC 7"
           and tiles.nth(2).locator(".ftag").inner_text() == "Note 37")

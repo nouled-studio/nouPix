@@ -13,12 +13,9 @@ const midi = {
   controls: new Map(),     // every control moved: key -> { last: 0–1, t }
   learn: { on: false, target: null, pending: null },
   log: [],                 // the monitor: the latest messages first
-  learnt: { key: null, t: 0 },   // the control learnt last, and when it last sent something
+  learnt: null,            // the control learnt last
   t0: performance.now(),
 };
-// A control just learnt is done: its release (a button sending CC 0) or the rest of a fader's move doesn't start
-// learning it again. It can be learnt again once it has been still for a moment.
-const MIDI_LEARNT_QUIET = 800;
 function midiKeyParts(key) { const m = MIDI_KEY.exec(key); return m ? { port: m[1], ch: +m[2], type: m[3], num: +m[4] } : null; }
 const midiKeyLabel = key => { const k = midiKeyParts(key); return k ? `${k.type === 'cc' ? 'CC' : 'Note'} ${k.num}` : '?'; };
 const midiKeyFull = key => { const k = midiKeyParts(key); return k ? `${midiKeyLabel(key)} · ch${k.ch}` : '?'; };
@@ -112,13 +109,13 @@ function midiIn(m) {
   if (!midiPortOn(m.port)) { entry.note = 'port off'; midiLog(entry); return; }
   if (m.type !== 'off') midi.controls.set(key, { last: m.type === 'on' ? 1 : c, t: performance.now() });
   if (midi.learn.on) {
-    const L = midi.learnt, done = L.key === key && performance.now() - L.t < MIDI_LEARNT_QUIET;
-    if (L.key === key) L.t = performance.now();
-    if (done) entry.note = 'just learnt';
-    else if (m.type !== 'off') {
-      if (midi.learn.target) { midiConnect(key, midi.learn.target); entry.note = 'learnt'; }
-      else { midi.learn.pending = key; entry.note = 'learning: click what it should move'; }
-    }
+    // A note off or a CC at 0 (a button let go, a fader at its bottom) never starts learning. The control learnt last
+    // is done: its release or the rest of its move doesn't start it again, so the next click waits for a new control.
+    // It goes to something clicked first, though.
+    const start = m.type !== 'off' && !(m.type === 'cc' && m.val === 0);
+    if (start && midi.learn.target) { midiConnect(key, midi.learn.target); entry.note = 'learnt'; }
+    else if (start && midi.learnt !== key) { midi.learn.pending = key; entry.note = 'learning: click what it should move'; }
+    else if (midi.learnt === key) entry.note = 'just learnt';
   } else {
     const ws = midiMapsFor(key);
     for (const w of ws) midiApply(w, c, m.type);
@@ -169,6 +166,7 @@ function midiPicked(w) {
 /* ---------- learn and mappings ---------- */
 function midiSetLearn(on) {
   midi.learn = { on: !!on && !REMOTE_CLIENT, target: null, pending: null };
+  midi.learnt = null;
   updateMidiUI();
 }
 // Something touched while learning: the control moved last goes to it, or it waits for a control
@@ -177,14 +175,17 @@ function midiLearnTarget(t) {
   if (midi.learn.pending) midiConnect(midi.learn.pending, t);
   else { midi.learn.target = midi.learn.target === t ? null : t; updateMidiUI(); }
 }
+// Learning a control onto something another control drives replaces that control (two on the same thing are set in
+// the MIDI window, from a mapping's list)
 function midiConnect(key, to) {
-  const maps = project.midi.maps;
   midi.learn.pending = null; midi.learn.target = null;
-  midi.learnt = { key, t: performance.now() };
-  if (maps.some(w => w.key === key && w.to === to)) { toast(`${midiKeyLabel(key)} already does that.`); updateMidiUI(); return; }
-  maps.push(newMidiMap(key, to));
+  midi.learnt = key;
+  if (project.midi.maps.some(w => w.key === key && w.to === to)) { toast(`${midiKeyLabel(key)} already does that.`); updateMidiUI(); return; }
+  const old = project.midi.maps.filter(w => w.to === to);
+  project.midi.maps = project.midi.maps.filter(w => w.to !== to);
+  project.midi.maps.push(newMidiMap(key, to));
   commit();
-  toast(`${midiKeyFull(key)} → ${midiTargetLabel(to)}`);
+  toast(`${midiKeyFull(key)} → ${midiTargetLabel(to)}` + (old.length ? ` (instead of ${[...new Set(old.map(w => midiKeyLabel(w.key)))].join(', ')})` : ''));
   updateMidiUI();
 }
 function midiSetMap(id, patch) {
