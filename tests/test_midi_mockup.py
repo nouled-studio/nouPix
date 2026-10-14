@@ -1,4 +1,5 @@
-# The MIDI mapping mockup (docs/mockups/midi-mapping.html), opened from disk: no OSC left; sliders a MIDI control
+# The MIDI mapping mockup (docs/mockups/midi-mapping.html), opened from disk: no OSC or sample controller left; a
+# macro clicked keeps its wires drawn; the monitor folds; controls reorder by dragging; sliders a MIDI control
 # drives keep their colour and show only a thin yellow line, with the control's tag only while the MIDI window is
 # open; thin scroll bars that show on hover; colour macros and zones that fold; scenes and playlists played by pads
 # (trigger, toggle, hold), learnt from either window; the wire popover (pickup, jump, remove); dragging wires; pickup
@@ -15,6 +16,7 @@ def check(name, ok, detail=""):
 # ---------- the files
 text = "".join(open(os.path.join(MOCK, f), encoding="utf-8").read() for f in sorted(os.listdir(MOCK)))
 check("nothing about OSC is left in the mockup", "OSC" not in text and "osc:" not in text.lower())
+check("nor the sample nanoKONTROL", "nano" not in text.lower() and "simulated" not in text.lower())
 
 def centre(loc):
     b = loc.bounding_box(); return b["x"] + b["width"] / 2, b["y"] + b["height"] / 2
@@ -152,6 +154,59 @@ with sync_playwright() as pw:
     pad(6)
     check("the learnt pad plays the playlist", zone("z3")["play"] == 0); pad(6)
     check("while the window is open, the learnt scene shows its tag", pg.locator(".zoneblock", has_text="Façade").locator(".scene", has_text="Night").locator(".ftag").inner_text() == "Note 40")
+
+    # ---------- a macro picked keeps its wires drawn while the effects scroll
+    links = lambda m: w.locator(f'#wires path.hit[data-wid^="l:{m}|"]').count()
+    fan = ev("eng.effects().reduce((n, s) => n + eng.params(s).filter(p => eng.macrosOf(p).includes('speed')).length, 0)")
+    w.locator("#colMac").evaluate("e => e.scrollTop = 0"); w.mouse.move(5, 5); time.sleep(0.2)
+    check("a macro's wires to the effects don't show until it is pointed at", links("speed") == 0)
+    w.locator('.mac[data-mac="speed"] .nm').click(); w.mouse.move(5, 5); time.sleep(0.2)
+    check("clicked, a macro is picked and all its wires show", w.locator('.mac[data-mac="speed"].picked').count() == 1 and links("speed") == fan and fan > 5
+          and w.locator(".par.lit").count() == fan, (links("speed"), fan))
+    w.locator("#colFx").evaluate("e => { e.scrollTop = e.scrollHeight; e.dispatchEvent(new Event('scroll')); }"); time.sleep(0.2)
+    check("scrolling the effects, its wires stay drawn", links("speed") == fan and w.evaluate("document.querySelector('#colFx').scrollTop") > 200)
+    x, y = centre(w.locator("#colFx")); w.mouse.move(x, y); w.mouse.wheel(0, -400); time.sleep(0.3); w.mouse.move(5, 5); time.sleep(0.1)
+    check("and with the wheel too", links("speed") == fan)
+    w.locator('.mac[data-mac="angle"] .nm').click(); w.mouse.move(5, 5); time.sleep(0.2)
+    check("clicking another macro picks that one", links("angle") > 0 and links("speed") == 0 and w.locator(".mac.picked").count() == 1)
+    w.locator('.mac[data-mac="angle"] .nm').click(); w.mouse.move(5, 5); time.sleep(0.2)
+    check("clicked again, it lets go", links("angle") == 0 and w.locator(".mac.picked").count() == 0)
+    w.locator('.mac[data-mac="speed"] .nm').click(); w.keyboard.press("Escape"); w.mouse.move(5, 5); time.sleep(0.2)
+    check("Esc lets go too", links("speed") == 0)
+    s0 = ev("eng.macros.speed.v"); x, y = centre(w.locator('.mac[data-mac="speed"] input[type=range]')); w.mouse.click(x + 20, y); time.sleep(0.2)
+    check("moving its slider doesn't pick it", w.locator(".mac.picked").count() == 0 and ev("eng.macros.speed.v") != s0)
+
+    # ---------- the monitor folds
+    pw0 = w.locator("#patch").bounding_box()["width"]
+    w.click("#monFold"); time.sleep(0.3)
+    check("the monitor folds to a thin strip and the patch bay takes the room", w.locator("#monitor").bounding_box()["width"] < 40 and w.locator("#mon").is_hidden()
+          and w.locator("#patch").bounding_box()["width"] > pw0 + 150, (w.locator("#monitor").bounding_box()["width"], pw0, w.locator("#patch").bounding_box()["width"]))
+    m0 = w.inner_text("#monMeta"); pad(7); pad(7)
+    check("folded, it still counts the messages", int(w.inner_text("#monMeta") or 0) == int(m0 or 0) + 4, (m0, w.inner_text("#monMeta")))
+    w.locator("#monitor").click(); time.sleep(0.3)
+    check("clicking the strip opens it again", w.locator("#mon").is_visible() and w.locator("#monitor").bounding_box()["width"] > 150 and "Note on 43" in w.inner_text("#mon"))
+
+    # ---------- the order of the controls
+    def order(): return ev("[...eng.controls.keys()].map(k => k.split(':').slice(-2).join(' '))")
+    def drag_ctl(key, y_to):
+        w.locator(f'.ctl[data-key$="{key}"]').scroll_into_view_if_needed()
+        x, y = centre(w.locator(f'.ctl[data-key$="{key}"] .pillk'))
+        w.mouse.move(x, y); w.mouse.down(); w.mouse.move(x, y + (8 if y_to() > y else -8), steps=2); w.mouse.move(x, y_to(), steps=8); time.sleep(0.15)
+        line = w.locator(".dropline").is_visible(); w.mouse.up(); time.sleep(0.35); return line
+    w.locator("#colCtl").evaluate("e => e.scrollTop = 0")
+    o0, n0 = order(), ev("eng.wires.length")
+    line = drag_ctl("cc:28", lambda: w.locator('.ctl[data-key$="cc:21"]').bounding_box()["y"] + 4)
+    o1 = order()
+    check("dragging a control up puts it there, with a line showing where", line and o1[0] == "cc 28" and o1[1:] == [k for k in o0 if k != "cc 28"], (o0, o1))
+    check("the list follows, and its wires stay", w.locator("div.ctl").first.get_attribute("data-key").endswith("cc:28") and ev("eng.wires.length") == n0
+          and w.locator('#wires path.hit[data-wid^="w:"]').count() >= 1)
+    line = drag_ctl("cc:28", lambda: w.locator('.ctl[data-key$="note:36"]').bounding_box()["y"] + w.locator('.ctl[data-key$="note:36"]').bounding_box()["height"] - 4)
+    o2 = order()
+    check("dragging it down puts it below", o2.index("cc 28") == o2.index("note 36") + 1, o2)
+    x, y = centre(w.locator('.ctl[data-key$="cc:22"] .pillk')); w.mouse.move(x, y); w.mouse.down(); w.mouse.up(); time.sleep(0.2)
+    check("a click on a control doesn't move it", order() == o2)
+    x, y = centre(w.locator('.ctl[data-key$="cc:22"] .port.out')); w.mouse.move(x, y); w.mouse.down(); w.mouse.move(x, y + 120, steps=5); w.mouse.up(); time.sleep(0.2)
+    check("dragging from its dot draws a wire instead of moving it", order() == o2)
 
     # ---------- dragging wires
     x, y = centre(w.locator(".vf").nth(4).locator(".vtrack")); w.mouse.click(x, y); time.sleep(0.3)

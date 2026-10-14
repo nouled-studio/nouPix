@@ -75,7 +75,7 @@ const fmtX = v => v.toFixed(2) + '×';
 // Keys: midi:<port>:<ch>:cc:<n>, midi:<port>:<ch>:note:<n>. Read from the end: port names can have colons in them.
 function keyParts(key) { const p = key.split(':'), num = +p.pop(), type = p.pop(), ch = +p.pop(); return { port: p.slice(1).join(':'), ch, type, num }; }
 const keyLabel = key => { const k = keyParts(key); return `${k.type === 'cc' ? 'CC' : 'Note'} ${k.num} · ch${k.ch}`; };
-const VIRTUAL = 'Virtual controller', SIMULATED = 'nanoKONTROL2';
+const VIRTUAL = 'Virtual controller';
 
 /* ---------- targets ---------- */
 // What a wire from a control can drive: m:<macro> (m:color1.0 to .2: its components), p:<effect>:<control> (an
@@ -118,9 +118,9 @@ class Engine {
     this.wires = [];          // from a control: {id, key, to, takeover: pickup | jump, mode: toggle | hold}
     this.cut = new Set();     // macro links taken away: 'speed|p:strobe:rate'
     this.added = new Set();   // macro links drawn by hand
-    this.controls = new Map();   // every control moved: key → {key, last 0–1, t}
+    this.controls = new Map();   // every control moved, in the order of the list: key → {key, last 0–1, t}
     this.learn = { on: false, target: null, pending: null };
-    this.devices = { inputs: [{ name: VIRTUAL, on: true, virtual: true, state: 'connected' }, { name: SIMULATED, on: true, sim: true, state: 'disconnected' }], webmidi: 'checking' };
+    this.devices = { inputs: [{ name: VIRTUAL, on: true, virtual: true, state: 'connected' }], webmidi: 'checking' };
     const V = (n, type = 'cc') => `midi:${VIRTUAL}:1:${type}:${n}`;
     for (const [key, to] of [[V(21), 'm:speed'], [V(22), 'm:color1.0'], [V(23), 'p:bars:width'], [V(28), 'master'], [V(36, 'note'), 'blackout'],
       [V(37, 'note'), 'sc:z2:1'], [V(38, 'note'), 'sc:z2:3'], [V(39, 'note'), 'pl:z1:1']]) this.connect(key, to, true);
@@ -285,6 +285,15 @@ class Engine {
   // A wire's own settings: takeover (pickup, jump) for a fader, mode (toggle, hold) for a button
   setWire(id, patch) { const w = this.wires.find(x => x.id === id); if (!w) return; Object.assign(w, patch); w._picked = false; this.changed(); }
   forget(key) { this.wires = this.wires.filter(w => w.key !== key); this.controls.delete(key); this.changed(); }
+  // The order of the controls in the list: key goes just before the control `before` (null: at the end)
+  moveControl(key, before) {
+    const c = this.controls.get(key);
+    if (!c || key === before) return;
+    const rest = [...this.controls].filter(([k]) => k !== key), i = before == null ? -1 : rest.findIndex(([k]) => k === before);
+    rest.splice(i < 0 ? rest.length : i, 0, [key, c]);
+    this.controls = new Map(rest);
+    this.changed();
+  }
   setLearn(on) { this.learn = { on: !!on, target: null, pending: null }; this.changed(); }
   // Something touched in the app while learning: wire the control moved last to it, or wait for one
   learnTarget(t) {
@@ -295,16 +304,10 @@ class Engine {
 
   /* --- devices */
   setPort(name, on) { const d = this.devices.inputs.find(x => x.name === name); if (d) d.on = !!on; this.changed(); }
-  plugSimulated() {
-    const d = this.devices.inputs.find(x => x.sim);
-    d.state = d.state === 'connected' ? 'disconnected' : 'connected';
-    this.emit({ t: 'toast', text: d.state === 'connected' ? `${SIMULATED} plugged in.` : `${SIMULATED} unplugged: its wires stay, for when it comes back.` });
-    this.changed();
-  }
   setWebMidi(status, ports = []) {
     this.devices.webmidi = status;
-    const keep = this.devices.inputs.filter(d => d.virtual || d.sim || ports.some(p => p.name === d.name) || this.wires.some(w => keyParts(w.key).port === d.name));
-    for (const d of keep) if (!d.virtual && !d.sim) d.state = ports.some(p => p.name === d.name && p.state === 'connected') ? 'connected' : 'disconnected';
+    const keep = this.devices.inputs.filter(d => d.virtual || ports.some(p => p.name === d.name) || this.wires.some(w => keyParts(w.key).port === d.name));
+    for (const d of keep) if (!d.virtual) d.state = ports.some(p => p.name === d.name && p.state === 'connected') ? 'connected' : 'disconnected';
     for (const p of ports) if (!keep.some(d => d.name === p.name)) keep.push({ name: p.name, on: true, state: p.state });
     this.devices.inputs = keep;
     this.changed();
@@ -324,7 +327,7 @@ class Engine {
   }
 }
 // The calls the mapping window may make
-const ENGINE_OPS = ['set', 'setMacroOn', 'setMode', 'connect', 'disconnect', 'setWire', 'forget', 'setLearn', 'learnTarget', 'linkMacro', 'input', 'setPort', 'plugSimulated', 'recall'];
+const ENGINE_OPS = ['set', 'setMacroOn', 'setMode', 'connect', 'disconnect', 'setWire', 'forget', 'setLearn', 'learnTarget', 'linkMacro', 'input', 'setPort', 'moveControl', 'recall'];
 
 /* ---------- the two windows ---------- */
 // In the main window: answer the mapping window (a popup, or the floating one in the page) and pass it the news

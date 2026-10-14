@@ -7,8 +7,11 @@
 // and sends it what the user does.
 
 let S = null;
-// open: the groups unfolded ('color1', 'color2', 'zone:z1'…); everything else starts folded, to keep it short
-const ui = { sel: null, hoverMac: null, hoverPar: null, showAll: new Set(), open: new Set(), drag: null, vcShut: false };
+// open: the groups unfolded ('color1', 'color2', 'zone:z1'…); everything else starts folded, to keep it short.
+// pickMac: the macro clicked, whose wires stay drawn. move: a control dragged to another place in the list.
+const ui = { sel: null, hoverMac: null, hoverPar: null, pickMac: null, showAll: new Set(), open: new Set(), drag: null, move: null, vcShut: false, monShut: false };
+const saved = k => { try { return localStorage.getItem('olm-midi-' + k); } catch (e) { return null; } };
+const save = (k, v) => { try { localStorage.setItem('olm-midi-' + k, v); } catch (e) { /* not kept */ } };
 const E = connectEngine(onEvent);
 if (E.local) startWebMidi(E.engine);
 const op = (name, ...a) => E.op(name, ...a);
@@ -60,28 +63,35 @@ const onSwitch = (id, label) => {
 
 /* ---------- MIDI controls ---------- */
 function renderControls() {
-  const cs = S.controls.slice().sort((a, b) => keyParts(a.key).type.localeCompare(keyParts(b.key).type) || keyParts(a.key).num - keyParts(b.key).num);
-  $('#colCtl').replaceChildren(...cs.map(c => {
+  $('#colCtl').replaceChildren(...S.controls.map(c => {
     const ws = S.wires.filter(w => w.key === c.key), k = keyParts(c.key);
     const bar = h('i', { class: 'cbar' });
     bar.style.width = c.last == null ? '0' : c.last * 100 + '%';
-    return h('div', { class: 'ctl' + (ws.length ? '' : ' loose') + (c.offline ? ' off' : ''), 'data-key': c.key, title: `${k.port}: ${keyLabel(c.key)}` },
+    return h('div', { class: 'ctl' + (ws.length ? '' : ' loose') + (c.offline ? ' off' : ''), 'data-key': c.key, title: `${k.port}: ${keyLabel(c.key)}. Drag it up or down to put it in another place.` },
       h('div', { class: 'ctop' }, h('span', { class: 'pillk' }, keyLabel(c.key).split(' · ')[0]), h('small', null, `ch${k.ch}` + (k.port === VIRTUAL ? '' : ` · ${k.port}${c.offline ? ' · unplugged' : ''}`)),
         h('button', { class: 'x', type: 'button', title: 'Forget this control and its wires', 'aria-label': 'Forget ' + keyLabel(c.key), onclick: () => op('forget', c.key) }, icon('x'))),
       h('span', { class: 'cval' }, bar),
       ws.length ? h('div', { class: 'tgts' }, ws.map(w => h('button', { type: 'button', title: 'Show it', onclick: () => reveal(w.to) }, '→ ' + w.label))) : null,
       dot('out', 'k:' + c.key));
   }),
-  h('p', { class: 'colnote' }, S.controls.length ? 'Move a control on your controller and it shows here. Drag from its dot to what it should move.' : 'Move a fader, knob or pad on your controller: it shows here.'));
+  h('p', { class: 'colnote' }, S.controls.length ? 'Move a control on your controller and it shows here. Drag from its dot to what it should move; drag the control itself to put it in another place.' : 'Move a fader, knob or pad on your controller: it shows here.'));
 }
 
 /* ---------- macros, output, zones ---------- */
+// Clicking a macro picks it: its wires to the effects stay drawn while the effects scroll. Again (or Esc) lets it go.
+const pickMac = id => e => {
+  if (S.learn.on || e.target.closest('input, label, button, .port')) return;
+  ui.pickMac = ui.pickMac === id ? null : id;
+  render(true);
+};
+const macClass = (d, m) => (m.on ? '' : ' dim') + (ui.hoverMac === d.id ? ' hov' : '') + (ui.pickMac === d.id ? ' picked' : '');
+const PICK_TIP = ' Click it to keep its wires to the effects drawn.';
 function macroRow(d) {
   const m = S.macros[d.id], t = 'm:' + d.id, n = fanOf(d.id), fmt = d.kind === 'mult' ? fmtX : pct;
   const val = h('span', { class: 'vv' }, fmt(m.v));
-  const el = target(t, h('div', { class: 'mac' + (m.on ? '' : ' dim') + (ui.hoverMac === d.id ? ' hov' : ''), 'data-mac': d.id, onmouseenter: () => hoverMac(d.id), onmouseleave: () => hoverMac(null),
-    title: d.kind === 'abs' ? `Sets the ${d.label.toLowerCase()} of every effect it is wired to, each in its own range. Shared by ${d.shared} effects.`
-      : d.kind === 'mult' ? 'Multiplies the speed of every effect it is wired to: 1× in the middle.' : d.id === 'intensity' ? 'Scales the level of every effect it is wired to.' : 'Scales every effect control it is wired to.' },
+  const el = target(t, h('div', { class: 'mac' + macClass(d, m), 'data-mac': d.id, onmouseenter: () => hoverMac(d.id), onmouseleave: () => hoverMac(null), onclick: pickMac(d.id),
+    title: (d.kind === 'abs' ? `Sets the ${d.label.toLowerCase()} of every effect it is wired to, each in its own range. Shared by ${d.shared} effects.`
+      : d.kind === 'mult' ? 'Multiplies the speed of every effect it is wired to: 1× in the middle.' : d.id === 'intensity' ? 'Scales the level of every effect it is wired to.' : 'Scales every effect control it is wired to.') + PICK_TIP },
   dot('in', t), h('span', { class: 'nm' }, d.label), slider(t, 0, d.kind === 'mult' ? 2 : 1, 0.01), val,
   d.kind === 'abs' ? onSwitch(d.id, d.label) : h('span'), h('span', { class: 'fan', title: `Moves ${n} effect control${n === 1 ? '' : 's'}` }, n ? '→ ' + n : ''), dot('out', t)));
   el.upd = () => { val.textContent = fmt(S.macros[d.id].v); };
@@ -94,7 +104,7 @@ function colorGroup(d) {
   const sw = h('i', { class: 'csw' }); sw.style.background = cssRgb(hsvRgb(m.h, m.s, m.v));
   const mode = open ? h('span', { class: 'seg mini' }, ['hsv', 'rgb'].map(x => h('button', { type: 'button', class: m.mode === x ? 'on' : '', title: x === 'hsv' ? 'Hue, saturation and value' : 'Red, green and blue', onclick: () => op('setMode', d.id, x) }, x.toUpperCase())))
     : h('span', { class: 'k' }, m.mode.toUpperCase());
-  const head = h('div', { class: 'mac grp' + (m.on ? '' : ' dim') + (ui.hoverMac === d.id ? ' hov' : ''), 'data-mac': d.id, 'data-fold': t, onmouseenter: () => hoverMac(d.id), onmouseleave: () => hoverMac(null) },
+  const head = h('div', { class: 'mac grp' + macClass(d, m), 'data-mac': d.id, 'data-fold': t, onmouseenter: () => hoverMac(d.id), onmouseleave: () => hoverMac(null), onclick: pickMac(d.id), title: d.label + '.' + PICK_TIP },
     h('span', { class: 'port in alias', 'data-alias': t, title: 'Open it to wire a control to a part of the colour' }),
     chev(d.id, d.label), sw, h('span', { class: 'nm' }, d.label), mode, onSwitch(d.id, d.label), h('span', { class: 'fan' }, n ? '→ ' + n : ''), dot('out', t));
   head.upd = () => { const c = S.macros[d.id]; sw.style.background = cssRgb(hsvRgb(c.h, c.s, c.v)); };
@@ -151,7 +161,7 @@ function renderEffects() {
       h('div', { class: 'fxh' }, h('b', null, f.name), h('small', null, f.where.join(', '))),
       ...shown.map(p => {
         const val = p.type === 'color' ? h('i', { class: 'csw' }) : h('span', { class: 'vv' });
-        const row = target(p.key, h('div', { class: 'par' + (linked(p) ? '' : ' loose'), onmouseenter: () => hoverPar(p.key), onmouseleave: () => hoverPar(null) },
+        const row = target(p.key, h('div', { class: 'par' + (linked(p) ? '' : ' loose') + (p.macros.includes(ui.pickMac) ? ' lit' : ''), onmouseenter: () => hoverPar(p.key), onmouseleave: () => hoverPar(null) },
           dot('in', p.key), h('span', { class: 'nm', title: p.label }, p.label), ...p.macros.map(id => h('span', { class: 'mk', title: `Follows ${macroDef(id).label}` }, macroDef(id).label)), h('span', { class: 'fill' }), val));
         row.upd = q => { if (q.type === 'color') val.style.background = cssRgb(q.value); else val.textContent = q.type === 'level' ? pct(q.value) : TI(q.key).fmt(q.value); };
         row.upd(p);
@@ -212,7 +222,7 @@ function drawWires() {
   let mid = null;
   for (const w of allWires()) {
     const sel = ui.sel === w.id;
-    if (w.kind === 'mac' && ui.hoverMac !== w.m && ui.hoverPar !== w.p && !sel) continue;
+    if (w.kind === 'mac' && ui.hoverMac !== w.m && ui.pickMac !== w.m && ui.hoverPar !== w.p && !sel) continue;
     const ao = $(`#patch [data-out="${CSS.escape(w.from)}"]`), a = ao && portXY(ao, box), b = inXY(w.to, box);
     if (!a || !b || (a.edge && b.edge)) continue;
     const st = (a.edge || b.edge) && stub(a, b), d = st ? st.d : curve(a, b), hot = w.kind === 'ctl' && performance.now() - (w.w._hit || 0) < 250;
@@ -315,14 +325,13 @@ function initWires() {
 
 /* ---------- devices, monitor ---------- */
 function renderDevices() {
-  const d = S.devices, sim = d.inputs.find(x => x.sim);
+  const d = S.devices;
   const note = { checking: 'Looking for MIDI ports…', none: 'This browser has no Web MIDI: try the virtual controller below. Chrome, Edge and the app have it.',
     blocked: 'MIDI access was refused: try the virtual controller below.', empty: 'No MIDI ports yet: plug one in and it shows here.', ok: 'Plug a controller in or out at any time: it is found again by its name.' }[d.webmidi];
   $('#devices').replaceChildren(h('div', { class: 'devsec' }, h('h3', null, 'MIDI in'),
     ...d.inputs.map(x => h('div', { class: 'dev' + (x.state === 'connected' ? '' : ' gone') },
-      h('span', { class: 'led', 'data-led': x.name }), h('span', { class: 'nm', title: x.name }, x.name, x.virtual ? h('small', null, 'on screen, below') : x.state !== 'connected' ? h('small', null, 'unplugged') : x.sim ? h('small', null, 'simulated') : null),
+      h('span', { class: 'led', 'data-led': x.name }), h('span', { class: 'nm', title: x.name }, x.name, x.virtual ? h('small', null, 'on screen, below') : x.state !== 'connected' ? h('small', null, 'unplugged') : null),
       h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: x.on, 'aria-label': x.name + ' on', onchange: e => op('setPort', x.name, e.target.checked) })))),
-    h('button', { class: 'btn sm', type: 'button', onclick: () => op('plugSimulated') }, sim.state === 'connected' ? `Unplug the ${SIMULATED}` : `Plug in a ${SIMULATED}`),
     h('p', { class: 'note' }, note),
     h('p', { class: 'note' }, 'On Windows a MIDI port works in one program at a time: close it in Resolume or MadMapper first.')));
   const live = d.inputs.filter(x => x.on && x.state === 'connected').length;
@@ -341,6 +350,60 @@ function addMonitor(e) {
   $('#monMeta').textContent = `${++monCount}`;
 }
 const monEmpty = () => $('#mon').replaceChildren(h('div', { class: 'empty' }, 'Every message from your controllers shows here, with what it moves.'));
+// The monitor folds to a thin strip on the right (kept for next time); the patch bay takes the room
+function foldMonitor(shut) {
+  ui.monShut = shut;
+  $('#mw').classList.toggle('monshut', shut);
+  const b = $('#monFold');
+  b.setAttribute('aria-expanded', String(!shut)); b.title = shut ? 'Show the monitor' : 'Fold the monitor'; b.setAttribute('aria-label', b.title);
+  $('#monitor').title = shut ? 'Show the monitor' : '';
+  save('monitor', shut ? 'shut' : 'open');
+  requestAnimationFrame(drawWires);
+}
+
+/* ---------- the order of the controls ---------- */
+// Drag a control up or down its list (anywhere but its dot and its buttons): a line shows where it goes. The list
+// scrolls when the pointer nears its top or bottom.
+function initReorder() {
+  const col = $('#colCtl'), line = h('i', { class: 'dropline', hidden: true });
+  const place = y => {
+    const m = ui.move, rows = $$('.ctl', col).filter(r => r !== m.row);
+    m.before = rows.find(r => { const b = r.getBoundingClientRect(); return y < b.top + b.height / 2; }) || null;
+    const last = rows[rows.length - 1], at = m.before ? m.before.offsetTop - 3 : last ? last.offsetTop + last.offsetHeight + 1 : 0;
+    line.style.top = at + 'px'; line.hidden = false;
+  };
+  col.addEventListener('pointerdown', e => {
+    const row = e.target.closest('.ctl');
+    if (!row || e.button !== 0 || e.target.closest('.port, button')) return;
+    ui.move = { row, key: row.dataset.key, y0: e.clientY, s0: col.scrollTop, on: false, id: e.pointerId, before: null };
+  });
+  col.addEventListener('pointermove', e => {
+    const m = ui.move;
+    if (!m) return;
+    if (!m.on) {
+      if (Math.abs(e.clientY - m.y0) < 5) return;
+      m.on = true; col.setPointerCapture(m.id); m.row.classList.add('lifted'); col.classList.add('sorting');
+      if (!line.isConnected) col.append(line);
+    }
+    const r = col.getBoundingClientRect();
+    if (e.clientY < r.top + 28) col.scrollTop -= 8; else if (e.clientY > r.bottom - 28) col.scrollTop += 8;
+    m.row.style.transform = `translateY(${e.clientY - m.y0 + col.scrollTop - m.s0}px)`;
+    place(e.clientY);
+    drawWires();
+  });
+  const end = () => {
+    const m = ui.move;
+    ui.move = null;
+    if (!m || !m.on) return;
+    m.row.classList.remove('lifted'); m.row.style.transform = ''; col.classList.remove('sorting'); line.hidden = true;
+    const next = m.row.nextElementSibling, before = m.before ? m.before.dataset.key : null;
+    // dropped where it was: nothing to do
+    if ((m.before || null) === (next && next.classList.contains('ctl') ? next : null)) { drawWires(); return; }
+    op('moveControl', m.key, before);
+  };
+  col.addEventListener('pointerup', end);
+  col.addEventListener('pointercancel', end);
+}
 
 /* ---------- the virtual controller ---------- */
 // A MIDI port on screen, for trying this without hardware: 8 faders (CC 21 to 28) and 8 pads (notes 36 to 43). Keys
@@ -390,7 +453,7 @@ function render(force = false) {
   if (!S) return;
   const n = JSON.stringify([S.controls.map(c => [c.key, c.offline]), S.wires.map(w => [w.id, w.key, w.to, w.takeover, w.mode]), S.effects.map(f => f.params.map(p => p.macros)),
     MACROS.map(d => [S.macros[d.id].on, S.macros[d.id].mode]), [...ui.showAll], [...ui.open], S.devices, S.zones.map(z => [z.name, z.scene, z.play && [z.play.pl, z.play.step]]), S.blackout]);
-  if ((n !== sig || force) && !ui.drag) {
+  if ((n !== sig || force) && !ui.drag && !(ui.move && ui.move.on)) {
     sig = n;
     const keep = $$('.pscroll').map(c => c.scrollTop);
     sliders.length = 0;
@@ -426,16 +489,21 @@ function onEvent(ev) {
 /* ---------- start ---------- */
 $('#learn').addEventListener('click', () => op('setLearn', !S.learn.on));
 $('#monClear').addEventListener('click', () => { monCount = 0; $('#monMeta').textContent = ''; monEmpty(); });
+$('#monFold').append(icon('chev'));
+$('#monFold').addEventListener('click', e => { e.stopPropagation(); foldMonitor(!ui.monShut); });
+$('#monitor').addEventListener('click', () => { if (ui.monShut) foldMonitor(false); });
+foldMonitor(saved('monitor') === 'shut');
 addEventListener('keydown', e => {
   if (typingIn(e.target)) return;
   const pad = /^[1-8]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey && vpads[+e.key - 1];
   if (pad) { e.preventDefault(); if (!e.repeat) pad.press(true); }
   else if ((e.key === 'Delete' || e.key === 'Backspace') && ui.sel) { e.preventDefault(); removeWire(ui.sel); }
-  else if (e.key === 'Escape') { if (ui.sel) select(null); else if (S && S.learn.on) op('setLearn', false); }
+  else if (e.key === 'Escape') { if (ui.sel) select(null); else if (ui.pickMac) { ui.pickMac = null; render(true); } else if (S && S.learn.on) op('setLearn', false); }
   else if (e.key.toLowerCase() === 'l' && !e.ctrlKey && !e.metaKey && !e.altKey && S) op('setLearn', !S.learn.on);
 });
 addEventListener('keyup', e => { const pad = /^[1-8]$/.test(e.key) && vpads[+e.key - 1]; if (pad) pad.press(false); });
 monEmpty();
 initWires();
+initReorder();
 renderVC();
 if (!E.local) setTimeout(() => { if (!S) toast('The main window does not answer: open this from its MIDI button.', 'warn'); }, 1500);
