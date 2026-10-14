@@ -13,8 +13,12 @@ const midi = {
   controls: new Map(),     // every control moved: key -> { last: 0–1, t }
   learn: { on: false, target: null, pending: null },
   log: [],                 // the monitor: the latest messages first
+  learnt: { key: null, t: 0 },   // the control learnt last, and when it last sent something
   t0: performance.now(),
 };
+// A control just learnt is done: its release (a button sending CC 0) or the rest of a fader's move doesn't start
+// learning it again. It can be learnt again once it has been still for a moment.
+const MIDI_LEARNT_QUIET = 800;
 function midiKeyParts(key) { const m = MIDI_KEY.exec(key); return m ? { port: m[1], ch: +m[2], type: m[3], num: +m[4] } : null; }
 const midiKeyLabel = key => { const k = midiKeyParts(key); return k ? `${k.type === 'cc' ? 'CC' : 'Note'} ${k.num}` : '?'; };
 const midiKeyFull = key => { const k = midiKeyParts(key); return k ? `${midiKeyLabel(key)} · ch${k.ch}` : '?'; };
@@ -108,7 +112,10 @@ function midiIn(m) {
   if (!midiPortOn(m.port)) { entry.note = 'port off'; midiLog(entry); return; }
   if (m.type !== 'off') midi.controls.set(key, { last: m.type === 'on' ? 1 : c, t: performance.now() });
   if (midi.learn.on) {
-    if (m.type !== 'off') {
+    const L = midi.learnt, done = L.key === key && performance.now() - L.t < MIDI_LEARNT_QUIET;
+    if (L.key === key) L.t = performance.now();
+    if (done) entry.note = 'just learnt';
+    else if (m.type !== 'off') {
       if (midi.learn.target) { midiConnect(key, midi.learn.target); entry.note = 'learnt'; }
       else { midi.learn.pending = key; entry.note = 'learning: click what it should move'; }
     }
@@ -173,6 +180,7 @@ function midiLearnTarget(t) {
 function midiConnect(key, to) {
   const maps = project.midi.maps;
   midi.learn.pending = null; midi.learn.target = null;
+  midi.learnt = { key, t: performance.now() };
   if (maps.some(w => w.key === key && w.to === to)) { toast(`${midiKeyLabel(key)} already does that.`); updateMidiUI(); return; }
   maps.push(newMidiMap(key, to));
   commit();

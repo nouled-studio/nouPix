@@ -101,6 +101,27 @@ try:
         ev(f"(() => {{ const z = zoneById('{z['id']}'); addPlaylist(z, {{ name: 'Show', steps: z.scenes.slice(0, 2).map(s => newStep(s.id, 5)) }}); }})()"); dock("scenes")
     on(38); off(38); pg.locator(f'.zoneblock[data-zone="{z["id"]}"] .ptab[data-midi]').first.click(); settle()
     check("a pad and a playlist, which doesn't start", "note 38 > pl" in maps() and not ev(f"!!zoneById('{z['id']}')._play"), maps())
+    # a button that sends CC 127 when pressed and CC 0 when released: once learnt, its release doesn't start it again
+    n0 = len(maps())
+    cc(10, 127); tiles.nth(0).click(); cc(10, 0); settle()
+    tiles.nth(1).click(); settle()
+    check("a CC button learnt, then released: the next scene clicked waits for a new control", len(maps()) == n0 + 1 and ev("midi.learn.pending") is None
+          and ev("midi.learn.target") == f"sc:{z['id']}:{z['scenes'][1]}", (maps(), ev("midi.learn")))
+    cc(11, 127); cc(11, 0); settle()
+    check("the next button goes to it, and is released too", len(maps()) == n0 + 2 and ev("project.midi.maps.some(w => w.key.endsWith('cc:11') && w.to.endsWith(':" + z['scenes'][1] + "'))")
+          and ev("midi.learn.pending") is None and ev("midi.learn.target") is None, (maps(), ev("midi.learn")))
+    tiles.nth(3).click(); cc(12, 127); settle(0.1); cc(12, 0); settle(); tiles.nth(0).click(); settle()
+    check("the other way round too: scene, button, release, and the next scene waits", len(maps()) == n0 + 3 and ev("midi.learn.target") == f"sc:{z['id']}:{z['scenes'][0]}", ev("midi.learn"))
+    tiles.nth(0).click(); settle()
+    for v in range(0, 128, 8): cc(13, v)
+    tiles.nth(1).click(); settle()
+    for v in range(0, 128, 8): cc(13, 127 - v)
+    settle(); tiles.nth(2).click(); settle()
+    check("a fader learnt while it moves: the rest of its move doesn't learn it again", len(maps()) == n0 + 4 and ev("midi.learn.pending") is None
+          and ev("midi.learn.target") == f"sc:{z['id']}:{z['scenes'][2]}", ev("midi.learn"))
+    tiles.nth(2).click(); time.sleep(1); cc(10, 127); cc(10, 0); settle()
+    check("still for a moment, the same button can be learnt again", ev("midi.learn.pending", ) and ev("midi.learn.pending").endswith("cc:10"), ev("midi.learn"))
+    ev("project.midi.maps = project.midi.maps.filter(w => !/cc:1[0-3]$/.test(w.key)); commit(); midiSetLearn(true)"); settle()
     check("while learning, the tags show on what is wired", pg.locator(".master .ftag").is_visible() and pg.locator(".master .ftag").inner_text() == "CC 7"
           and tiles.nth(2).locator(".ftag").inner_text() == "Note 37")
     W.keyboard.press("Escape"); settle()
