@@ -72,7 +72,8 @@ function menu(anchor, items) {
     }
   };
   show(items, 0, anchor);
-  setTimeout(() => { document.addEventListener('pointerdown', off, true); addEventListener('keydown', esc, true); addEventListener('blur', close); addEventListener('resize', close); }, 0);
+  // At once, as the colour picker: what opened it (a click, a right-click, a key) is past its pointerdown and keydown
+  document.addEventListener('pointerdown', off, true); addEventListener('keydown', esc, true); addEventListener('blur', close); addEventListener('resize', close);
 }
 // Right-click on el opens the menu fn(e) builds
 function onRightClick(el, fn) {

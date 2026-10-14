@@ -162,7 +162,9 @@ function openColorPicker(anchor, o) {
 
   const off = e => { if (!pop.contains(e.target) && !e.target.closest('.cswatch')) closeColorPicker(); };
   const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); closeColorPicker(); } };
-  setTimeout(() => { document.addEventListener('pointerdown', off, true); addEventListener('keydown', esc, true); }, 0);
+  // Listening at once (not after a timeout) is safe: the click that opened it is past its pointerdown. A timeout could
+  // let a quick click elsewhere on a busy page go by before it is listened for, and the picker would stay open.
+  document.addEventListener('pointerdown', off, true); addEventListener('keydown', esc, true);
   anchor.classList.add('open');
   colorPop = { key: o.key, pop, close: () => {
     pop.remove(); anchor.classList.remove('open');

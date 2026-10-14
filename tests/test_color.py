@@ -104,6 +104,14 @@ try:
     pg.locator("#rightBody .cswatch").click(); time.sleep(0.1)
     check("the picker opens on the tab used last, after a reload", pg.locator(".cpop .seg button.on").inner_text() == "HSV")
     check("and the recent colours are still there", pg.locator(".cpop .cpchips.grid").nth(1).locator(".cpchip").count() >= 6)
+    # a click elsewhere at once after opening still closes it: here in the same task, as on a busy page where the click
+    # comes before anything waiting on a timer (the picker and menus used to start listening only after one)
+    r = ev("""(() => { closeColorPicker(); document.querySelector('#rightBody .cswatch').click(); const opened = !!document.querySelector('.cpop');
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return [opened, !!document.querySelector('.cpop')]; })()""")
+    check("a click elsewhere straight after opening the picker closes it", r == [True, False], r)
+    r = ev("""(() => { menu({ x: 200, y: 200 }, [['Item', () => {}]]); const opened = !!document.querySelector('.menu');
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return [opened, !!document.querySelector('.menu')]; })()""")
+    check("and so does one straight after opening a menu", r == [True, False], r)
     # every built-in effect with colour controls gets swatches
     n = ev("""(() => { let n = 0; for (const s of olm.project.sources.filter(s => s.builtin)) { const z = olm.project.zones[0]; z.layers = [newLayer(s.id)]; ui.layer = z.layers[0].id; renderRight();
       const want = isfInputs(s).filter(i => i.TYPE === 'color').length; if (document.querySelectorAll('#rightBody .cswatch').length !== want) return s.id; n += want; } return n; })()""")
