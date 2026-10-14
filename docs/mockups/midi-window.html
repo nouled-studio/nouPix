@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MIDI &amp; OSC</title>
+<!-- The mapping window of the MIDI and OSC mockup. midi-mapping.html opens it; opened on its own, it runs its own copy
+     of the engine. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../../css/app.css">
+<link rel="stylesheet" href="midi-mock.css">
+</head>
+<body class="mwpage">
+<div class="mw" id="mw">
+  <header class="mwhead">
+    <span class="ttl"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 2.5v11M8 2.5v11M12 2.5v11"/><rect x="2.3" y="8.6" width="3.4" height="2.6" rx=".7" fill="currentColor" stroke="none"/><rect x="6.3" y="4" width="3.4" height="2.6" rx=".7" fill="currentColor" stroke="none"/><rect x="10.3" y="6.6" width="3.4" height="2.6" rx=".7" fill="currentColor" stroke="none"/></svg>MIDI &amp; OSC</span>
+    <button class="btn learn" id="learn" type="button" aria-pressed="false" title="Learn (L): click a target, then move a control. Esc stops.">Learn</button>
+    <span class="learnhint" id="hint" aria-live="polite"></span>
+    <span class="fill"></span>
+    <span class="pill" id="pillMidi"><span class="dot"></span><span></span></span>
+    <span class="pill" id="pillOsc"><span class="dot"></span><span></span></span>
+  </header>
+  <div class="mwbody">
+    <aside class="mwdev" id="devices" aria-label="Devices"></aside>
+    <main class="mwmain">
+      <section class="bank" aria-label="Macros and other targets">
+        <div class="tabs" id="bankTabs" role="tablist"></div>
+        <div class="bankbody" id="bank"></div>
+      </section>
+      <section class="binds" aria-label="Bindings">
+        <div class="phead"><h2>Bindings</h2><span class="meta" id="bindMeta"></span><button class="btn sm" id="btnExport" type="button">Export…</button><button class="btn sm" id="btnImport" type="button">Import…</button></div>
+        <div class="btable" id="btable"></div>
+      </section>
+    </main>
+    <aside class="mwmon" aria-label="Monitor">
+      <div class="phead"><h2>Monitor</h2><span class="meta" id="monMeta"></span></div>
+      <div class="monbar">
+        <button class="btn sm" id="monPause" type="button" aria-pressed="false">Pause</button>
+        <button class="btn sm" id="monClear" type="button">Clear</button>
+        <span class="fill"></span>
+        <label class="switch"><input type="checkbox" id="monSent"> Sent too</label>
+      </div>
+      <div class="mon" id="mon" aria-live="off"></div>
+    </aside>
+  </div>
+  <section class="vc" id="vc" aria-label="Virtual controller"></section>
+</div>
+<div class="toasts" id="toasts"></div>
+<script src="../../js/util.js"></script>
+<script src="../../js/builtins.js"></script>
+<script src="midi-mock.js"></script>
+<script src="midi-window.js"></script>
+</body>
+</html>

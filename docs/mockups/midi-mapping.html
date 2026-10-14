@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MIDI &amp; OSC Mapping</title>
+<!-- Mockup of the MIDI and OSC mapping (not part of the app). Open this file in Chrome or Edge, straight from disk:
+     it uses the app's own css/app.css and js/util.js, the built-in shaders, and Web MIDI where there is any. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../../css/app.css">
+<link rel="stylesheet" href="midi-mock.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 256 256" aria-hidden="true"><defs><linearGradient id="logoBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16202f"/><stop offset="1" stop-color="#0d1420"/></linearGradient><filter id="logoGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><rect width="256" height="256" rx="56" fill="url(#logoBg)"/><g filter="url(#logoGlow)"><circle cx="128.0" cy="32.0" r="8.0" fill="#26ffff" opacity="0.45"/><circle cx="155.0" cy="35.9" r="8.0" fill="#26e1ff" opacity="0.48"/><circle cx="179.9" cy="47.2" r="8.0" fill="#26c3ff" opacity="0.50"/><circle cx="200.6" cy="65.1" r="8.0" fill="#26a6ff" opacity="0.53"/><circle cx="215.3" cy="88.1" r="8.0" fill="#2688ff" opacity="0.55"/><circle cx="223.0" cy="114.3" r="8.0" fill="#266bff" opacity="0.58"/><circle cx="223.0" cy="141.7" r="8.0" fill="#264dff" opacity="0.61"/><circle cx="215.3" cy="167.9" r="8.0" fill="#2630ff" opacity="0.63"/><circle cx="200.6" cy="190.9" r="8.0" fill="#3926ff" opacity="0.66"/><circle cx="179.9" cy="208.8" r="8.0" fill="#5726ff" opacity="0.69"/><circle cx="155.0" cy="220.1" r="8.0" fill="#7526ff" opacity="0.71"/><circle cx="128.0" cy="224.0" r="8.0" fill="#9226ff" opacity="0.74"/><circle cx="101.0" cy="220.1" r="8.0" fill="#b026ff" opacity="0.76"/><circle cx="76.1" cy="208.8" r="8.0" fill="#cd26ff" opacity="0.79"/><circle cx="55.4" cy="190.9" r="8.0" fill="#eb26ff" opacity="0.82"/><circle cx="40.7" cy="167.9" r="8.0" fill="#ff26f5" opacity="0.84"/><circle cx="33.0" cy="141.7" r="8.0" fill="#ff26d7" opacity="0.87"/><circle cx="33.0" cy="114.3" r="8.0" fill="#ff26ba" opacity="0.90"/><circle cx="40.7" cy="88.1" r="8.0" fill="#ff269c" opacity="0.92"/><circle cx="55.4" cy="65.1" r="8.0" fill="#ff267e" opacity="0.95"/><circle cx="76.1" cy="47.2" r="8.0" fill="#ff2661" opacity="0.97"/><circle cx="101.0" cy="35.9" r="8.0" fill="#ff2643" opacity="1.00"/><circle cx="128.0" cy="32.0" r="11.0" fill="#ffffff" opacity="1.00"/><circle cx="72.0" cy="100.0" r="5.6" fill="#26e4ff" opacity="1.00"/><circle cx="72.0" cy="114.0" r="5.6" fill="#26e4ff" opacity="1.00"/><circle cx="72.0" cy="128.0" r="5.6" fill="#26e4ff" opacity="1.00"/><circle cx="72.0" cy="142.0" r="5.6" fill="#26e4ff" opacity="1.00"/><circle cx="72.0" cy="156.0" r="5.6" fill="#26e4ff" opacity="1.00"/><circle cx="86.0" cy="156.0" r="5.6" fill="#26a3ff" opacity="1.00"/><circle cx="100.0" cy="156.0" r="5.6" fill="#2662ff" opacity="1.00"/><circle cx="128.0" cy="100.0" r="5.6" fill="#6b26ff" opacity="1.00"/><circle cx="184.0" cy="100.0" r="5.6" fill="#ff268e" opacity="1.00"/><circle cx="128.0" cy="114.0" r="5.6" fill="#6b26ff" opacity="1.00"/><circle cx="142.0" cy="114.0" r="5.6" fill="#ac26ff" opacity="1.00"/><circle cx="170.0" cy="114.0" r="5.6" fill="#ff26cf" opacity="1.00"/><circle cx="184.0" cy="114.0" r="5.6" fill="#ff268e" opacity="1.00"/><circle cx="128.0" cy="128.0" r="5.6" fill="#6b26ff" opacity="1.00"/><circle cx="156.0" cy="128.0" r="5.6" fill="#ed26ff" opacity="1.00"/><circle cx="184.0" cy="128.0" r="5.6" fill="#ff268e" opacity="1.00"/><circle cx="128.0" cy="142.0" r="5.6" fill="#6b26ff" opacity="1.00"/><circle cx="184.0" cy="142.0" r="5.6" fill="#ff268e" opacity="1.00"/><circle cx="128.0" cy="156.0" r="5.6" fill="#6b26ff" opacity="1.00"/><circle cx="184.0" cy="156.0" r="5.6" fill="#ff268e" opacity="1.00"/></g></svg>
+      <span class="brand-name">openLedMapper<small class="brand-ver" id="appVer"></small></span>
+    </div>
+    <input id="projName" class="projname" type="text" aria-label="Project name">
+    <div class="tb-group">
+      <button class="btn ghost" id="btnFile" type="button">Project ▾</button>
+      <button class="btn ghost icon" id="btnUndo" type="button" title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 16 16"><path d="M6 4L2.5 7.5 6 11M3 7.5h6.5a4 4 0 010 8H8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="btn ghost icon" id="btnRedo" type="button" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg viewBox="0 0 16 16"><path d="M10 4l3.5 3.5L10 11M13 7.5H6.5a4 4 0 000 8H8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn ghost icon rbtn" id="btnRemote" type="button" aria-label="Remote control" aria-haspopup="menu"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="2" y="4.2" width="6.6" height="10.3" rx="1.4"/><path d="M4.6 12.4h1.4"/><path d="M10.6 5.4a2.4 2.4 0 0 1 0 3.4"/><path d="M12.4 3.6a5 5 0 0 1 0 7"/></svg><span class="rcount" id="remoteCount" hidden></span></button>
+    <button class="btn ghost icon rbtn" id="btnMidi" type="button" aria-label="MIDI and OSC" title="MIDI and OSC: map faders, knobs and pads to the macros, levels and scenes"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 2.5v11M8 2.5v11M12 2.5v11"/><rect x="2.3" y="8.6" width="3.4" height="2.6" rx=".7" fill="currentColor" stroke="none"/><rect x="6.3" y="4" width="3.4" height="2.6" rx=".7" fill="currentColor" stroke="none"/><rect x="10.3" y="6.6" width="3.4" height="2.6" rx=".7" fill="currentColor" stroke="none"/></svg><span class="mled" id="midiLed"></span></button>
+    <span class="pill" id="bridgePill" title=""><span class="dot"></span><span id="bridgeText"></span></span>
+    <div class="tb-sep"></div>
+    <div class="hl" id="hl">
+      <button class="btn" id="btnHl" type="button" aria-pressed="false"></button>
+      <button class="btn" id="btnHlMode" type="button" title="Highlight mode" aria-label="Highlight mode" aria-haspopup="menu">▾</button>
+    </div>
+    <div class="master"><label for="master">Master</label><input id="master" type="range" min="0" max="1" step="0.01"><span class="mono" id="masterVal">100%</span></div>
+    <button class="btn btn-bo" id="btnBlackout" type="button" title="Blackout (B)">Blackout</button>
+    <button class="btn btn-out" id="btnOutput" type="button" title="Send Art-Net">Art-Net OFF</button>
+  </header>
+
+  <div class="workspace mk">
+    <main class="center">
+      <div class="stagewrap"><canvas id="view" aria-label="Stage: three zones drawn from the macros"></canvas><div class="stagenote" id="stageNote"></div></div>
+      <section class="dock mk" id="dock">
+        <div class="tabs" id="dockTabs">
+          <button type="button" class="on">Scenes</button>
+          <button type="button" disabled>Patch</button>
+          <button type="button" disabled>Nodes</button>
+          <button type="button" disabled>DMX Monitor</button>
+          <span class="fill"></span>
+        </div>
+        <div class="dockbody" id="dockBody"></div>
+      </section>
+    </main>
+
+    <aside class="right">
+      <div class="tabs" id="rightTabs">
+        <button type="button" disabled>Inspector</button>
+        <button type="button" class="on">Content</button>
+        <button type="button" disabled>Settings</button>
+        <span class="fill"></span>
+      </div>
+      <div class="pbody" id="rightBody"></div>
+    </aside>
+  </div>
+
+  <footer class="statusbar" id="status"></footer>
+</div>
+<div class="toasts" id="toasts"></div>
+<script src="../../js/util.js"></script>
+<script src="../../js/builtins.js"></script>
+<script src="midi-mock.js"></script>
+<script src="midi-main.js"></script>
+</body>
+</html>
