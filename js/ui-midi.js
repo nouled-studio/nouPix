@@ -189,9 +189,11 @@ function midiTabUpdate() {
 const midiPickEl = e => midi.learn.on && e.target.closest && e.target.closest('[data-midi]');
 function initMidiUI() {
   if (REMOTE_CLIENT) { if (ui.dockTab === 'midi') ui.dockTab = 'patch'; return; }
+  // The MIDI tab opens first, whatever the browser then says about MIDI
   $('#btnMidi').addEventListener('click', () => {
-    if (!ui.midiOn) setMidiOn(true);
+    const first = !ui.midiOn;
     ui.dockTab = 'midi'; ui.dockCollapsed = false; savePrefs(); renderDock();
+    if (first) { setMidiOn(true); toast('MIDI is on. Its tab is in the bottom panel, next to DMX Monitor.'); }
   });
   document.body.append(h('div', { class: 'midibar', id: 'midiLearnBar', hidden: true, role: 'status' }, h('span'),
     h('button', { class: 'btn sm', type: 'button', onclick: () => midiSetLearn(false) }, 'Stop learning')));

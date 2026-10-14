@@ -60,7 +60,9 @@ function startMidi() {
   if (REMOTE_CLIENT || midi.status === 'asking' || midi.status === 'ok') return;
   if (!navigator.requestMIDIAccess) { midi.status = 'none'; updateMidiUI(); return; }
   midi.status = 'asking'; updateMidiUI();
-  navigator.requestMIDIAccess({ sysex: false }).then(access => {
+  let asked;
+  try { asked = navigator.requestMIDIAccess({ sysex: false }); } catch (e) { asked = Promise.reject(e); }
+  asked.then(access => {
     if (!ui.midiOn) return;   // switched off while the browser asked
     midi.access = access; midi.status = 'ok';
     const list = () => {
