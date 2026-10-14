@@ -154,6 +154,6 @@ fuzzer. Tests drive the page with Playwright through the bridge, and use the glo
 (roles, permissions, phone page, disconnects); `test_remote_app.py` the remote as an installable app and over the
 computer's network address; `test_remote_soak.py` (full run only) runs 400 mixed changes from
 several devices while every zone plays a playlist, and checks they all end equal. `test_16bit.py` checks 16-bit fixtures down to the Art-Net bytes on the wire (coarse before fine, packing, curves,
-strengths, the graph following the sliders, mixed with 8-bit). `test_values.py` checks typed values, Shift + scroll and the angle buttons. `test_midi_mockup.py` checks the MIDI mapping mockup in `docs/mockups` (opened from disk, no bridge: folds, pads playing scenes and playlists, learn, wires, a picked macro's wires, the monitor folding, reordering the controls, the sliders' line and tags). `test_playlist.py` checks playlists
+strengths, the graph following the sliders, mixed with 8-bit). `test_values.py` checks typed values, Shift + scroll and the angle buttons. `test_playlist.py` checks playlists
 (files, the panel folding and opening, timing and fades, the end, pause and resume, undo, editing while playing, the
 fade on a scene's button, play on open, the phone).
