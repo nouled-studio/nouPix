@@ -396,6 +396,8 @@ function render(force = false) {
     sliders.length = 0;
     renderControls(); renderMacros(); renderEffects(); renderDevices();
     $$('.pscroll').forEach((c, i) => { c.scrollTop = keep[i]; });
+    // the popover is built again only when the wires change, so a click on it isn't lost while a fader moves
+    renderPop();
   } else update();
   for (const s of sliders) s.sync();
   const L = S.learn;
@@ -405,7 +407,6 @@ function render(force = false) {
     : L.target ? ['Now move a MIDI control for ', h('b', null, TI(L.target).label), '…'] : ['Move a MIDI control, then touch what it should move. Or the other way round. Esc stops.']));
   for (const el of $$('#patch [data-target]')) el.classList.toggle('pick', el.dataset.target === L.target);
   for (const f of vupd) f();
-  renderPop();
   drawWires();
 }
 // Values only: the bars of the controls, the values of the macros, zones and effects
