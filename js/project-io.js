@@ -175,7 +175,8 @@ function hydrate(p) {
   out.macros = fixMacros(p.macros);
   out.macroLinks = fixMacroLinks(p.macroLinks, known);
   const X = isObj(p.xfade) ? p.xfade : {};
-  out.xfade = { on: X.on === true, a: isId(X.a) ? String(X.a) : '', b: isId(X.b) ? String(X.b) : '', x: clamp(numOr(X.x, 0), 0, 1), phone: X.phone === true };
+  out.xfade = { on: X.on === true, a: isId(X.a) ? String(X.a) : '', b: isId(X.b) ? String(X.b) : '', x: clamp(numOr(X.x, 0), 0, 1),
+    mode: XF_MODES.some(m => m[0] === X.mode) ? X.mode : 'mix', phone: X.phone === true };
   return out;
 }
 // The MIDI mappings: well-formed ones only, each with its own id. A mapping to a zone, scene or playlist that is gone

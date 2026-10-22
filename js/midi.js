@@ -40,7 +40,7 @@ function midiTarget(t) {
   if (t === 'master') return { kind: 'fader', label: 'Master', get: () => project.settings.master, set: midiSetMaster };
   if (t === 'blackout') return { kind: 'toggle', label: 'Blackout', get: () => (ui.blackout ? 1 : 0), set: v => { if (!!v !== ui.blackout) toggleBlackout(); } };
   // there whether the crossfader is on or off: a fader mapped to it stays mapped
-  if (t === 'xf') return { kind: 'fader', label: 'Crossfader', get: () => project.xfade.x, set: v => { setXfade(v); remoteChanged(); commitSoft(); } };
+  if (t === 'xf') return { kind: 'fader', label: 'X-Fader', get: () => project.xfade.x, set: v => { setXfade(v); remoteChanged(); commitSoft(); } };
   if (t.startsWith('gr:')) {   // a group's dimmer
     const g = groupById(t.slice(3));
     return g ? { kind: 'fader', label: groupName(g) + ' dimmer', get: () => groupLevel(g), set: v => { setGroupLevel(g, v); remoteChanged(); commitSoft(); } } : null;
@@ -48,7 +48,7 @@ function midiTarget(t) {
   const [k, zid, id] = t.split(':'), z = zid ? zoneById(zid) : null;
   if (!z) return null;
   // while the crossfader drives the zone, a control mapped to its level does nothing
-  if (k === 'z') return { kind: 'fader', label: z.name + ' level' + (xfDriven(z) ? ' (on the crossfader)' : ''), get: () => z.opacity,
+  if (k === 'z') return { kind: 'fader', label: z.name + ' level' + (xfDriven(z) ? ' (on the X-Fader)' : ''), get: () => z.opacity,
     set: v => { if (xfDriven(z)) return; setZoneOpacity(z, v); remoteChanged(); commitSoft(); } };
   if (k === 'sc') {
     const sc = z.scenes.find(s => s.id === id);

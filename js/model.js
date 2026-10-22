@@ -75,7 +75,7 @@ function blankProject(name = 'Untitled') {
     format: 'noupix-project', version: 4, name, settings,
     fixtures: [], groups: [], controllers: [], sources: builtinSources(), zones: [newZone({ w: settings.compW, h: settings.compH, layers: [newLayer('b-rainbow')] })], guide: null,
     midi: { maps: [], order: [] }, macros: defaultMacros(), macroLinks: {},
-    xfade: { on: false, a: '', b: '', x: 0, phone: false },
+    xfade: { on: false, a: '', b: '', x: 0, mode: 'mix', phone: false },
   };
 }
 // A MIDI mapping (midi.js): a control (key: midi:<port>:<channel>:cc|note:<number>) drives a target (to: master,
@@ -224,6 +224,18 @@ function xfZones() {
   return a && b ? [a, b] : null;
 }
 const xfDriven = z => { const p = xfZones(); return !!p && p.includes(z); };
+// Its modes: how A's and B's levels go as it moves
+const XF_MODES = [
+  ['mix', 'Mix', 'Mix: A fades into B; where they cover the same lights, as bright all the way'],
+  ['dip', 'Dip', 'Dip: A fades to black by the middle, then B fades in'],
+  ['cut', 'Cut', 'Cut: A until the middle, then B'],
+];
+// A's and B's levels with the fader at x
+function xfLevels(x, mode) {
+  if (mode === 'dip') return [Math.max(0, 1 - 2 * x), Math.max(0, 2 * x - 1)];
+  if (mode === 'cut') return x < 0.5 ? [1, 0] : [0, 1];
+  return [1 - x, x];
+}
 const selZone = () => zoneById(ui.zone) || project.zones[project.zones.length - 1] || null;
 const selLayer = () => { const z = selZone(); return z ? z.layers.find(L => L.id === ui.layer) || z.layers[z.layers.length - 1] || null : null; };
 

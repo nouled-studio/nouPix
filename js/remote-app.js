@@ -83,7 +83,7 @@
     card.hidden = !x;
     if (!x) return;
     if (!card.firstChild) {
-      const range = el('input', { type: 'range', min: 0, max: 1000, step: 1, 'aria-label': 'Crossfader' });
+      const range = el('input', { type: 'range', min: 0, max: 1000, step: 1, 'aria-label': 'X-Fader' });
       let last = 0, pending = null;
       const out = () => { pending = null; last = Date.now(); send({ op: 'xfade', value: xfDrag }); };
       range.addEventListener('input', () => {
@@ -94,7 +94,7 @@
       const done = () => { if (xfDrag == null) return; clearTimeout(pending); out(); setTimeout(() => { xfDrag = null; }, 400); };
       range.addEventListener('change', done);
       range.addEventListener('pointerup', done);
-      card.append(el('div', { class: 'xhead' }, el('b', null, 'Crossfader')), el('div', { class: 'xrow' }, el('span', { class: 'xa' }), range, el('span', { class: 'xb' })));
+      card.append(el('div', { class: 'xhead' }, el('b', null, 'X-Fader')), el('div', { class: 'xrow' }, el('span', { class: 'xa' }), range, el('span', { class: 'xb' })));
     }
     card.querySelector('.xa').textContent = x.a;
     card.querySelector('.xb').textContent = x.b;
@@ -145,7 +145,7 @@
     if (!dragging.has(z.id)) { card.querySelector('.dim input').value = Math.round(z.opacity * 100); paintLevel(card, z.opacity); }
     // the crossfader on the main computer sets this level
     const dim = card.querySelector('.dim input');
-    dim.disabled = !!z.xf; dim.title = z.xf ? 'The crossfader sets this level' : '';
+    dim.disabled = !!z.xf; dim.title = z.xf ? 'The X-Fader sets this level' : '';
     const box = card.querySelector('.scenes');
     // the buttons are made again only when the scenes change, so a tap is never lost; otherwise the playing one moves
     const key = JSON.stringify(z.scenes.map(s => [s.id, s.name, s.tag, s.fade]));

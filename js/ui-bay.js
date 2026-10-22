@@ -131,7 +131,7 @@ function bayDrag(row, key) {
 function bayTargets() {
   const open = bayOpen(), rows = [h('h3', null, 'Output')], fans = {};
   for (const l of bayLinks()) fans[l.mac] = (fans[l.mac] || 0) + 1;
-  rows.push(bayRow('master', 'Master'), bayRow('blackout', 'Blackout'), bayRow('xf', 'Crossfader'));
+  rows.push(bayRow('master', 'Master'), bayRow('blackout', 'Blackout'), bayRow('xf', 'X-Fader'));
   if (project.groups.length) rows.push(h('h3', null, 'Groups'), ...project.groups.map(g => bayRow('gr:' + g.id, groupName(g) + ' dimmer')));
   rows.push(h('h3', null, 'Zones'));
   for (const z of project.zones.slice().reverse()) {

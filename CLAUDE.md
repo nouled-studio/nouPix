@@ -116,9 +116,10 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
 - A MIDI mapping can drive a control of an effect (`p:<source>:<control>`, `effectTarget`): `setEffectControl` sets it
   in every layer that plays that effect now (a step of undo, like a zone level); scenes keep their own values. The
   Content tab's controls read the layer's value on each sync, so they follow.
-- The crossfader is `project.xfade` (`{ on, a, b, x, phone }`: two zones' ids, the fader (0 all A, 1 all B), and whether
-  the Remote page shows it). Its button and strip are at the bottom of the Scenes panel; the fade for new scenes is in Settings. While it is on
-  (`xfZones()`), `xfApply` sets A's level to 1 − x and B's to x, and only it: `setZoneOpacity` ignores those two (sliders,
+- The crossfader ("X-Fader" on screen) is `project.xfade` (`{ on, a, b, x, mode, phone }`: two zones' ids, the fader (0 all A,
+  1 all B), its mode (`XF_MODES`: mix, dip through black, cut at the middle) and whether the Remote page shows it). Its button
+  (bottom left, with the modes) and strip (bottom middle) are at the bottom of the Scenes panel; the fade for new scenes is in Settings. While it is on
+  (`xfZones()`), `xfApply` sets A's and B's levels (`xfLevels`: in mix 1 − x and x), and only it: `setZoneOpacity` ignores those two (sliders,
   MIDI on their levels, devices), and their sliders are disabled. `setXfade` moves it (from its slider, MIDI's `xf`, a
   device's `{op: 'xfade'}`, from the Remote page only with `phone`), on or off; turning it on suggests making A and B
   cover the canvas (`xfFitAdvice`); turning it on or off and choosing a zone are steps of undo. `renderContent`
@@ -227,7 +228,7 @@ groups and zones (none at first, shown by their fixtures and scenes, undo), file
 format opened, `.noupix`, Save, Save as and autosave), the sliders' fill, the scene tiles' cuts, openLedMapper's stored data carried over.
 `test_xfade.py` checks the crossfader: the levels and the even mix (same place, either way up, overlapping in part),
 nothing else setting A's and B's levels while it is on (sliders, devices, MIDI), MIDI onto it on or off, the Scenes
-panel (button at the bottom right, strip in the middle, short fader, greyed sliders, A and B tags, previews filling their frames,
+panel (button at the bottom left that stays put, the modes, strip in the middle, short fader, greyed sliders, A and B tags, previews filling their frames,
 choosing zones, the zone menu), the fade for new scenes in Settings, undo, files, the advice to make both zones full size, and the
 Remote page (the option, the card, moving it both ways).
 `test_frames.py` checks that the frame rate holds while the interface works: the clock with frames that take most of
