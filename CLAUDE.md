@@ -118,7 +118,7 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   Content tab's controls read the layer's value on each sync, so they follow.
 - The crossfader ("X-Fader" on screen) is `project.xfade` (`{ on, a, b, x, mode, phone }`: two zones' ids, the fader (0 all A,
   1 all B), its mode (`XF_MODES`: mix, dip through black, cut at the middle) and whether the Remote page shows it). Its button
-  (bottom left, with the modes) and strip (bottom middle) are at the bottom of the Scenes panel; the fade for new scenes is in Settings. While it is on
+  (bottom left, with a button for the mode next to it that opens a list of the three, each a small graph, `xfGraph`) and strip (bottom middle) are at the bottom of the Scenes panel; the fade for new scenes is in Settings. While it is on
   (`xfZones()`), `xfApply` sets A's and B's levels (`xfLevels`: in mix 1 − x and x), and only it: `setZoneOpacity` ignores those two (sliders,
   MIDI on their levels, devices), and their sliders are disabled. `setXfade` moves it (from its slider, MIDI's `xf`, a
   device's `{op: 'xfade'}`, from the Remote page only with `phone`), on or off; turning it on suggests making A and B

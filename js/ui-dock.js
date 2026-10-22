@@ -238,17 +238,16 @@ function sceneTile(z, sc, i, keys, look) {
   return tile;
 }
 function renderScenes(body, inWindow = false) {
-  // along the bottom: on the left the X-Fader's button (where it stays, on or off) and its modes, its strip in the
+  // along the bottom: on the left the X-Fader's button (where it stays, on or off) and its mode, its strip in the
   // middle while it is on, the window button on the right
-  const X = project.xfade;
+  const X = project.xfade, mode = XF_MODES.find(m => m[0] === X.mode) || XF_MODES[0];
   const foot = h('div', { class: 'sfoot' },
     h('div', { class: 'sleft' },
-      X.on ? h('div', { class: 'seg mini xfmode', role: 'group', 'aria-label': 'X-Fader mode' }, XF_MODES.map(([m, label, tip, a, b]) =>
-        h('button', { type: 'button', class: X.mode === m ? 'on' : '', title: tip, 'aria-label': label, 'aria-pressed': String(X.mode === m), onclick: () => setXfadeMode(m),
-          html: `<svg viewBox="0 0 22 15" aria-hidden="true"><path class="b" d="${b}"/><path d="${a}"/></svg>` }))) : null,
       h('button', { class: 'btn sm xfbtn' + (X.on ? ' on' : ''), type: 'button', 'aria-pressed': String(X.on),
         title: X.on ? 'X-Fader on: it sets the levels of zones A and B. Click to turn it off.' : 'X-Fader: one fader between two zones, A and B',
-        onclick: () => setXfadeOn(!X.on) }, h('i', { class: 'dot' }), 'X-Fader')),
+        onclick: () => setXfadeOn(!X.on) }, h('i', { class: 'dot' }), 'X-Fader'),
+      X.on ? h('button', { class: 'btn sm xfmode', type: 'button', title: mode[2] + '. Click to choose another mode.', 'aria-label': 'X-Fader mode: ' + mode[1], 'aria-haspopup': 'menu',
+        onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi' }, xfGraph(m), m[1]), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
     X.on ? xfadeStrip() : h('span'),
     h('div', { class: 'sbtns' },
       inWindow ? h('button', { class: 'btn sm icon', type: 'button', html: ICONS.panel, title: 'Back to the panel: close this window, the scenes go back to the bottom panel', 'aria-label': 'Back to the panel', onclick: closeScenesWindow })
@@ -317,6 +316,8 @@ function xfadeStrip() {
     h('div', { class: 'xfmid' }, h('span', { class: 'xfend' }, 'A'), midiSlot(r, 'xf'), h('span', { class: 'xfend' }, 'B')),
     side('b'));
 }
+// A mode's small graph: A's level bright and B's faint, from the fader's left to its right
+const xfGraph = m => h('span', { class: 'xfg', html: `<svg viewBox="0 0 22 15" aria-hidden="true"><path class="b" d="${m[4]}"/><path d="${m[3]}"/></svg>` });
 // A preview: the zone's shape within 80 × 45 on screen, its frame around it exactly; twice the pixels on a sharp
 // screen
 function xfPvSize(c, z) {
