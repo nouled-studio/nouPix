@@ -83,13 +83,20 @@ button { cursor: pointer; }
 /* its level: a thin aluminium track filled up to the value (--p), and a bar to hold */
 .dim { display: grid; grid-template-columns: 1fr 52px; align-items: center; gap: 12px; }
 .dim .pc { text-align: right; font: 400 14px var(--mono); }
-.dim input { -webkit-appearance: none; appearance: none; width: 100%; height: 40px; margin: 0; background: transparent; touch-action: none; }
-.dim input::-webkit-slider-runnable-track { height: 3px; background: linear-gradient(to right, var(--fader) var(--p, 100%), var(--bg4) var(--p, 100%)); }
-.dim input::-moz-range-track { height: 3px; background: var(--bg4); }
-.dim input::-moz-range-progress { height: 3px; background: var(--fader); }
-.dim input::-webkit-slider-thumb { -webkit-appearance: none; width: 6px; height: 30px; margin-top: -13.5px; border: 0; border-radius: 0; background: var(--fader); }
-.dim input::-moz-range-thumb { width: 6px; height: 30px; border: 0; border-radius: 0; background: var(--fader); }
+.dim input, .xrow input { -webkit-appearance: none; appearance: none; width: 100%; height: 40px; margin: 0; background: transparent; touch-action: none; }
+.dim input::-webkit-slider-runnable-track, .xrow input::-webkit-slider-runnable-track { height: 3px; background: linear-gradient(to right, var(--fader) var(--p, 100%), var(--bg4) var(--p, 100%)); }
+.dim input::-moz-range-track, .xrow input::-moz-range-track { height: 3px; background: var(--bg4); }
+.dim input::-moz-range-progress, .xrow input::-moz-range-progress { height: 3px; background: var(--fader); }
+.dim input::-webkit-slider-thumb, .xrow input::-webkit-slider-thumb { -webkit-appearance: none; width: 6px; height: 30px; margin-top: -13.5px; border: 0; border-radius: 0; background: var(--fader); }
+.dim input::-moz-range-thumb, .xrow input::-moz-range-thumb { width: 6px; height: 30px; border: 0; border-radius: 0; background: var(--fader); }
 .dim input:disabled { opacity: .45; }
+/* the crossfader, when the main computer shows it here: above the zones, A's zone on the left and B's on the right */
+.xfade { display: grid; gap: 8px; margin: 14px 16px 0; padding: 14px; border: 1px solid var(--line2); background: var(--bg1); }
+.xfade[hidden] { display: none; }
+.xhead b { font: 600 12px var(--label); letter-spacing: .14em; text-transform: uppercase; color: var(--text2); }
+.xrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr) minmax(0, 1fr); align-items: center; gap: 12px; }
+.xrow span { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xrow .xb { text-align: right; }
 /* a scene: the logo's two 45° cuts; its edge and fill are layers clipped to that shape (see .scene in app.css) */
 .scenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
 .scene { position: relative; display: grid; align-content: center; gap: 2px; min-height: 56px; padding: 8px 10px; border: 0; background: none; text-align: left; isolation: isolate; --cut: 9px; }

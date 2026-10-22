@@ -75,7 +75,7 @@ function blankProject(name = 'Untitled') {
     format: 'noupix-project', version: 4, name, settings,
     fixtures: [], groups: [], controllers: [], sources: builtinSources(), zones: [newZone({ w: settings.compW, h: settings.compH, layers: [newLayer('b-rainbow')] })], guide: null,
     midi: { maps: [], order: [] }, macros: defaultMacros(), macroLinks: {},
-    xfade: { on: false, a: '', b: '', x: 0 },
+    xfade: { on: false, a: '', b: '', x: 0, phone: false },
   };
 }
 // A MIDI mapping (midi.js): a control (key: midi:<port>:<channel>:cc|note:<number>) drives a target (to: master,
@@ -216,7 +216,7 @@ const clampGamma = v => clamp(numOr(v, 1), 1, 3);
 /* ---------- look-ups ---------- */
 const zoneById = id => project.zones.find(z => z.id === id);
 // The crossfader (project.xfade): while it is on, x sets the levels of two zones, A at 1 - x and B at x, and nothing
-// else does. Its two zones, while it is on and both are there; null otherwise.
+// else does; phone: the Remote page shows it too. Its two zones, while it is on and both are there; null otherwise.
 function xfZones() {
   const X = project.xfade;
   if (!X || !X.on || X.a === X.b) return null;

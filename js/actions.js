@@ -154,6 +154,25 @@ function setXfadeOn(on) {
   X.on = !!on;
   xfApply();
   commit(); renderRight();
+  if (on) xfFitAdvice();
+}
+// The crossfader works best when A and B both cover the whole canvas, so each lights every fixture: if they don't,
+// say so, with a way to do it now
+function xfFitAdvice() {
+  const p = xfZones(), s = project.settings;
+  const part = p && p.filter(z => z.x !== 0 || z.y !== 0 || z.w !== s.compW || z.h !== s.compH);
+  if (!part || !part.length) return;
+  const close = () => bg.remove();
+  const fill = () => { close(); for (const z of p) Object.assign(z, { x: 0, y: 0, w: s.compW, h: s.compH }); commit(); renderRight(); toast(`${p[0].name} and ${p[1].name} cover the whole canvas. ${MOD}Z undoes.`); };
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal', role: 'dialog', 'aria-label': 'Crossfader' },
+      h('header', null, 'Crossfader'),
+      h('div', { class: 'mb' },
+        h('p', null, `For the crossfader we recommend that both zones, ${p[0].name} (A) and ${p[1].name} (B), cover the whole canvas, so the fade goes from one to the other on every light. ${part.map(z => z.name).join(' and ')} ${part.length > 1 ? "don't" : "doesn't"} yet.`),
+        h('p', { class: 'note' }, 'You can do it yourself: press Z (the Zone tool), select the zone, and set its area in the right panel, under Zones.')),
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Not now'),
+        mappingLocked() ? null : h('button', { class: 'btn primary', type: 'button', onclick: fill }, 'Make both full size'))));
+  uiDocNow().body.append(bg);   // in the window it was asked for from
 }
 // Which zone is A or B (which: 'a' or 'b'); the zone already on the other side swaps over
 function setXfadeZone(which, id) {

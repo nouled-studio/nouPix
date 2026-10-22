@@ -607,6 +607,9 @@ function renderSettings(body) {
     h('p', { class: 'note' }, 'Colour trims and gamma are set per fixture, in the Inspector under Pixels.'),
     checkRow('Send ArtSync after each frame', s, 'artSync', commit),
     h('p', { class: 'note' }, 'ArtSync makes nodes that support it update all universes at the same moment. Leave it off if your controllers do not support it: some stop outputting while they wait for a sync.')));
+  body.append(sec('Scenes',
+    numRow('Fade for new scenes', s, 'fade', { min: 0, max: 60, step: 0.1, onCommit: commit }),
+    h('p', { class: 'note' }, 'In seconds: the fade a scene gets when you store it (0 cuts). Each scene keeps its own, shown on its button, where you can change it.')));
   body.append(sec('Stage',
     numRow('Grid', s, 'grid', { min: 1, max: 500, step: 1, onCommit: commit }),
     checkRow('Snap to grid (hold Alt to override)', ui, 'snap', () => { $('#vSnap').checked = ui.snap; savePrefs(); }),

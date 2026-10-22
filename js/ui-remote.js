@@ -57,6 +57,8 @@ function remoteSection() {
     row('Port', numInput(port, 'v', { int: true, min: 1024, max: 65535, aria: 'Remote control port', onCommit: () => { cfg.port = port.v; if (cfg.on) remoteConfigure(); else remoteSaveCfg(); renderRight(); } })),
     row('Password', h('div', { class: 'pwrow' }, pw, show)),
     h('p', { class: 'note' }, 'Phones, tablets and computers on the same network open the address below and choose who they are: a Programmer (everything, with this password), an Operator (content, layers, scenes and zone levels; the mapping is locked), or Remote, a page for phones that plays the scenes of each zone and dims the zones. Without a password nobody can log in as a programmer.'),
+    checkRow('Crossfader on the Remote page', project.xfade, 'phone', () => commit()),
+    h('p', { class: 'note' }, 'For special occasions: while the crossfader is on (in the Scenes panel), the Remote page shows it too, above the zones, and phones can move it.'),
   ];
   if (on) {
     parts.push(h('div', { class: 'rurls' }, st.urls.map(u => h('div', { class: 'rurl' }, h('span', { class: 'mono' }, u),
