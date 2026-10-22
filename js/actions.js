@@ -138,8 +138,7 @@ function setXfade(x, from) {
 function xfApply() {
   const p = xfZones();
   if (!p) return;
-  const x = project.xfade.x;
-  p[0].opacity = 1 - x; p[1].opacity = x;
+  [p[0].opacity, p[1].opacity] = xfLevels(project.xfade.x, project.xfade.mode);
   showZoneOpacity(p[0]); showZoneOpacity(p[1]);
 }
 // On or off. On needs two zones: A and B are the first two unless two others were chosen. Off leaves the zones at
@@ -147,13 +146,39 @@ function xfApply() {
 function setXfadeOn(on) {
   const X = project.xfade, zs = project.zones;
   if (on) {
-    if (zs.length < 2) { toast('The crossfader needs two zones. Add another in the Content tab.'); return; }
+    if (zs.length < 2) { toast('The X-Fader needs two zones. Add another in the Content tab.'); return; }
     if (!zoneById(X.a)) X.a = zs.find(z => z.id !== X.b).id;
     if (!zoneById(X.b) || X.b === X.a) X.b = zs.find(z => z.id !== X.a).id;
   }
   X.on = !!on;
   xfApply();
   commit(); renderRight();
+  if (on) xfFitAdvice();
+}
+// The crossfader works best when A and B both cover the whole canvas, so each lights every fixture: if they don't,
+// say so, with a way to do it now
+function xfFitAdvice() {
+  const p = xfZones(), s = project.settings;
+  const part = p && p.filter(z => z.x !== 0 || z.y !== 0 || z.w !== s.compW || z.h !== s.compH);
+  if (!part || !part.length) return;
+  const close = () => bg.remove();
+  const fill = () => { close(); for (const z of p) Object.assign(z, { x: 0, y: 0, w: s.compW, h: s.compH }); commit(); renderRight(); toast(`${p[0].name} and ${p[1].name} cover the whole canvas. ${MOD}Z undoes.`); };
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal', role: 'dialog', 'aria-label': 'X-Fader' },
+      h('header', null, 'X-Fader'),
+      h('div', { class: 'mb' },
+        h('p', null, `For the X-Fader we recommend that both zones, ${p[0].name} (A) and ${p[1].name} (B), cover the whole canvas, so the fade goes from one to the other on every light. ${part.map(z => z.name).join(' and ')} ${part.length > 1 ? "don't" : "doesn't"} yet.`),
+        h('p', { class: 'note' }, 'You can do it yourself: press Z (the Zone tool), select the zone, and set its area in the right panel, under Zones.')),
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Not now'),
+        mappingLocked() ? null : h('button', { class: 'btn primary', type: 'button', onclick: fill }, 'Make both full size'))));
+  uiDocNow().body.append(bg);   // in the window it was asked for from
+}
+// How it fades: mix, dip or cut (XF_MODES)
+function setXfadeMode(mode) {
+  if (!XF_MODES.some(m => m[0] === mode) || project.xfade.mode === mode) return;
+  project.xfade.mode = mode;
+  xfApply();
+  commit();
 }
 // Which zone is A or B (which: 'a' or 'b'); the zone already on the other side swaps over
 function setXfadeZone(which, id) {

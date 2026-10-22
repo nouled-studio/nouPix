@@ -228,7 +228,7 @@ function zoneMenu(e, z) {
       ['New playlist…', () => newPlaylistDialog(z)],
     ] }],
     '-',
-    [hidden ? 'Show (opacity 100%)' : 'Hide (opacity 0)', () => { setZoneOpacity(z, hidden ? 1 : 0); commit(); }, { disabled: xfDriven(z), title: xfDriven(z) ? 'The crossfader sets its level' : null }],
+    [hidden ? 'Show (opacity 100%)' : 'Hide (opacity 0)', () => { setZoneOpacity(z, hidden ? 1 : 0); commit(); }, { disabled: xfDriven(z), title: xfDriven(z) ? 'The X-Fader sets its level' : null }],
     ['Fit to selected fixtures', () => fitZone(z), { disabled: !ui.sel.size }],
     ['Cover the whole canvas', () => { Object.assign(z, { x: 0, y: 0, w: project.settings.compW, h: project.settings.compH }); commit(); renderRight(); }],
     '-',

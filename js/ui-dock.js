@@ -238,18 +238,20 @@ function sceneTile(z, sc, i, keys, look) {
   return tile;
 }
 function renderScenes(body, inWindow = false) {
-  const fadeIn = numInput(project.settings, 'fade', { min: 0, max: 60, step: 0.1, aria: 'Fade time for new scenes', onCommit: commit });
-  Object.assign(fadeIn.style, { width: '52px', height: '22px' });
-  // one line: the fade for new scenes, the hints (cut to fit; all of them on hover), and the window button
-  const hint = 'Click: fade · Shift-click: cut · Drag a fade time to change it · Keys 1–9: scenes of the selected zone · Upper zones cover lower ones';
-  const bar = h('div', { class: 'bar sbar' },
-    h('label', { class: 'sfade', title: 'Fade time given to scenes you store from now on' }, 'New scenes fade', fadeIn, 's'),
-    h('span', { class: 'shint', title: hint }, hint),
-    h('button', { class: 'btn sm xfbtn' + (project.xfade.on ? ' on' : ''), type: 'button', 'aria-pressed': String(project.xfade.on),
-      title: project.xfade.on ? 'Crossfader on: it sets the levels of zones A and B. Click to turn it off.' : 'Crossfader: one fader between two zones, A and B',
-      onclick: () => setXfadeOn(!project.xfade.on) }, h('i', { class: 'dot' }), 'Crossfader'),
-    inWindow ? h('button', { class: 'btn sm icon', type: 'button', html: ICONS.panel, title: 'Back to the panel: close this window, the scenes go back to the bottom panel', 'aria-label': 'Back to the panel', onclick: closeScenesWindow })
-      : h('button', { class: 'btn sm icon', type: 'button', html: ICONS.popout, title: 'Open in a window: the scenes and playlists in a window of their own, to put on another screen', 'aria-label': 'Open in a window', onclick: openScenesWindow }));
+  // along the bottom: on the left the X-Fader's button (where it stays, on or off) and its mode, its strip in the
+  // middle while it is on, the window button on the right
+  const X = project.xfade, mode = XF_MODES.find(m => m[0] === X.mode) || XF_MODES[0];
+  const foot = h('div', { class: 'sfoot' },
+    h('div', { class: 'sleft' },
+      h('button', { class: 'btn sm xfbtn' + (X.on ? ' on' : ''), type: 'button', 'aria-pressed': String(X.on),
+        title: X.on ? 'X-Fader on: it sets the levels of zones A and B. Click to turn it off.' : 'X-Fader: one fader between two zones, A and B',
+        onclick: () => setXfadeOn(!X.on) }, h('i', { class: 'dot' }), 'X-Fader'),
+      X.on ? h('button', { class: 'btn sm xfmode', type: 'button', title: mode[2] + '. Click to choose another mode.', 'aria-label': 'X-Fader mode: ' + mode[1], 'aria-haspopup': 'menu',
+        onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi', 'aria-label': m[1] }, xfGraph(m)), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
+    X.on ? xfadeStrip() : h('span'),
+    h('div', { class: 'sbtns' },
+      inWindow ? h('button', { class: 'btn sm icon', type: 'button', html: ICONS.panel, title: 'Back to the panel: close this window, the scenes go back to the bottom panel', 'aria-label': 'Back to the panel', onclick: closeScenesWindow })
+        : h('button', { class: 'btn sm icon', type: 'button', html: ICONS.popout, title: 'Open in a window: the scenes and playlists in a window of their own, to put on another screen', 'aria-label': 'Open in a window', onclick: openScenesWindow })));
   const rows = h('div', { class: 'zonerows', 'data-keep': 'zonerows' });
   const sel = selZone();
   for (const z of project.zones.slice().reverse()) {
@@ -267,7 +269,7 @@ function renderScenes(body, inWindow = false) {
       } });
     const head = h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
       h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'nm' }, z.name),
-        xfDriven(z) ? h('span', { class: 'xftag', title: 'The crossfader sets its level' }, z.id === project.xfade.a ? 'A' : 'B') : null,
+        xfDriven(z) ? h('span', { class: 'xftag', title: 'The X-Fader sets its level' }, z.id === project.xfade.a ? 'A' : 'B') : null,
         h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists),
       h('div', { class: 'zc' }, zoneOpacityInput(z, 80),
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
@@ -291,28 +293,40 @@ function renderScenes(body, inWindow = false) {
     rows.append(h('div', { class: 'zoneblock' + (z === sel ? ' sel' : ''), 'data-zone': z.id }, r, playlistArea(z)));
   }
   if (!project.zones.length) rows.append(h('div', { class: 'empty' }, 'No zones. Add one in the Content tab, or draw one with the Zone tool (Z).'));
-  body.append(h('div', { class: 'scenepanel' }, bar, project.xfade.on ? xfadeStrip() : null, rows));
+  body.append(h('div', { class: 'scenepanel' }, rows, foot));
 }
 // The crossfader, while it is on: A's preview and zone, the fader, B's zone and preview
 function xfadeStrip() {
   const X = project.xfade, zs = project.zones.slice().reverse();
   const side = which => {
     const z = zoneById(X[which]), L = which.toUpperCase();
-    const pick = h('select', { class: 'xfsel', 'aria-label': 'Zone ' + L, title: `Zone ${L}: the crossfader sets its level`, onchange: e => setXfadeZone(which, e.target.value) },
+    const pick = h('select', { class: 'xfsel', 'aria-label': 'Zone ' + L, title: `Zone ${L}: the X-Fader sets its level`, onchange: e => setXfadeZone(which, e.target.value) },
       z ? null : h('option', { value: '', selected: true, disabled: true }, 'Choose a zone'),
       zs.map(o => h('option', { value: o.id, selected: o === z }, o.name)));
+    const c = h('canvas', { 'data-xf-pv': which });
+    if (z) xfPvSize(c, z);
     return h('div', { class: 'xfside ' + which },
-      h('div', { class: 'xfpv', title: z ? z.name : '' }, h('canvas', { 'data-xf-pv': which, width: 1, height: 1 }), h('b', null, L)),
+      h('div', { class: 'xfpv', title: z ? z.name : '' }, c, h('b', null, L)),
       h('div', { class: 'xfwho' }, pick, z ? h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)) : null));
   };
-  const r = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: X.x, 'data-xf': '', 'aria-label': 'Crossfader', title: 'Crossfader: A on the left, B on the right' });
+  const r = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: X.x, 'data-xf': '', 'aria-label': 'X-Fader', title: 'X-Fader: A on the left, B on the right' });
   r.addEventListener('input', () => setXfade(parseFloat(r.value), r));
   r.addEventListener('change', commitSoft);
   return h('div', { class: 'xfade' }, side('a'),
-    h('div', { class: 'xfmid' }, h('span', { class: 'xfend' }, 'A'), midiSlot(r, 'xf', 180), h('span', { class: 'xfend' }, 'B')),
+    h('div', { class: 'xfmid' }, h('span', { class: 'xfend' }, 'A'), midiSlot(r, 'xf'), h('span', { class: 'xfend' }, 'B')),
     side('b'));
 }
-// The previews of A and B, about 15 times a second, at the zone's shape within 96 × 54
+// A mode's small graph: A's level bright and B's faint, from the fader's left to its right
+const xfGraph = m => h('span', { class: 'xfg', html: `<svg viewBox="0 0 22 15" aria-hidden="true"><path class="b" d="${m[4]}"/><path d="${m[3]}"/></svg>` });
+// A preview: the zone's shape within 80 × 45 on screen, its frame around it exactly; twice the pixels on a sharp
+// screen
+function xfPvSize(c, z) {
+  const k = Math.min(80 / z.w, 45 / z.h), w = Math.max(1, Math.round(z.w * k)), hh = Math.max(1, Math.round(z.h * k));
+  const d = (c.ownerDocument.defaultView || window).devicePixelRatio > 1 ? 2 : 1;
+  if (c.width !== w * d || c.height !== hh * d) { c.width = w * d; c.height = hh * d; }
+  if (c.style.width !== w + 'px' || c.style.height !== hh + 'px') { c.style.width = w + 'px'; c.style.height = hh + 'px'; }
+}
+// The previews of A and B, about 15 times a second
 let xfShownAt = 0;
 function drawXfPreviews(now) {
   if (now - xfShownAt < 66 || !mixer.ok) return;
@@ -320,8 +334,7 @@ function drawXfPreviews(now) {
   for (const c of scenesRoots().flatMap(r => $$('canvas[data-xf-pv]', r))) {
     const z = zoneById(project.xfade[c.dataset.xfPv]);
     if (!z) continue;
-    const k = Math.min(96 / z.w, 54 / z.h), w = Math.max(1, Math.round(z.w * k)), hh = Math.max(1, Math.round(z.h * k));
-    if (c.width !== w || c.height !== hh) { c.width = w; c.height = hh; }
+    xfPvSize(c, z);
     mixer.thumb(z, c);
   }
 }

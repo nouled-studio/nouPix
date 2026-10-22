@@ -63,6 +63,7 @@
     $('#pname').textContent = state.name || 'nouPix';
     document.title = (state.name ? state.name + ' · ' : '') + 'nouPix Remote';
     $('#bo').hidden = !state.blackout;
+    renderXfade(state.xfade);
     const zones = $('#zones');
     const cards = new Map([...zones.children].map(c => [c.dataset.id, c]));
     const order = [];
@@ -74,6 +75,30 @@
     if (!state.zones.length) order.push(el('p', { class: 'empty' }, 'No zones in this project yet. The programmer adds them in nouPix.'));
     // cards move only when the zones change order: moving a card would stop a finger dragging its dimmer
     if (order.length !== zones.children.length || order.some((c, i) => zones.children[i] !== c)) zones.replaceChildren(...order);
+  }
+  // The crossfader, when the main computer shows it here: A's zone on the left, B's on the right
+  let xfDrag = null;
+  function renderXfade(x) {
+    const card = $('#xfade');
+    card.hidden = !x;
+    if (!x) return;
+    if (!card.firstChild) {
+      const range = el('input', { type: 'range', min: 0, max: 1000, step: 1, 'aria-label': 'X-Fader' });
+      let last = 0, pending = null;
+      const out = () => { pending = null; last = Date.now(); send({ op: 'xfade', value: xfDrag }); };
+      range.addEventListener('input', () => {
+        xfDrag = range.value / 1000;
+        range.style.setProperty('--p', range.value / 10 + '%');
+        if (Date.now() - last > 60) out(); else if (!pending) pending = setTimeout(out, 60);   // live, about 15 times a second
+      });
+      const done = () => { if (xfDrag == null) return; clearTimeout(pending); out(); setTimeout(() => { xfDrag = null; }, 400); };
+      range.addEventListener('change', done);
+      range.addEventListener('pointerup', done);
+      card.append(el('div', { class: 'xhead' }, el('b', null, 'X-Fader')), el('div', { class: 'xrow' }, el('span', { class: 'xa' }), range, el('span', { class: 'xb' })));
+    }
+    card.querySelector('.xa').textContent = x.a;
+    card.querySelector('.xb').textContent = x.b;
+    if (xfDrag == null) { const r = card.querySelector('input'); r.value = Math.round(x.x * 1000); r.style.setProperty('--p', x.x * 100 + '%'); }
   }
   function makeCard(z) {
     const range = el('input', { type: 'range', min: 0, max: 100, step: 1, 'aria-label': z.name + ' level' });
@@ -120,7 +145,7 @@
     if (!dragging.has(z.id)) { card.querySelector('.dim input').value = Math.round(z.opacity * 100); paintLevel(card, z.opacity); }
     // the crossfader on the main computer sets this level
     const dim = card.querySelector('.dim input');
-    dim.disabled = !!z.xf; dim.title = z.xf ? 'The crossfader sets this level' : '';
+    dim.disabled = !!z.xf; dim.title = z.xf ? 'The X-Fader sets this level' : '';
     const box = card.querySelector('.scenes');
     // the buttons are made again only when the scenes change, so a tap is never lost; otherwise the playing one moves
     const key = JSON.stringify(z.scenes.map(s => [s.id, s.name, s.tag, s.fade]));

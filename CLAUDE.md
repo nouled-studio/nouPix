@@ -116,10 +116,13 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
 - A MIDI mapping can drive a control of an effect (`p:<source>:<control>`, `effectTarget`): `setEffectControl` sets it
   in every layer that plays that effect now (a step of undo, like a zone level); scenes keep their own values. The
   Content tab's controls read the layer's value on each sync, so they follow.
-- The crossfader is `project.xfade` (`{ on, a, b, x }`: two zones' ids and the fader, 0 all A, 1 all B). While it is on
-  (`xfZones()`), `xfApply` sets A's level to 1 − x and B's to x, and only it: `setZoneOpacity` ignores those two (sliders,
+- The crossfader ("X-Fader" on screen) is `project.xfade` (`{ on, a, b, x, mode, phone }`: two zones' ids, the fader (0 all A,
+  1 all B), its mode (`XF_MODES`: mix, dip through black, cut at the middle) and whether the Remote page shows it). Its button
+  (bottom left, with a button for the mode next to it that opens a list of the three, each a small graph, `xfGraph`) and strip (bottom middle) are at the bottom of the Scenes panel; the fade for new scenes is in Settings. While it is on
+  (`xfZones()`), `xfApply` sets A's and B's levels (`xfLevels`: in mix 1 − x and x), and only it: `setZoneOpacity` ignores those two (sliders,
   MIDI on their levels, devices), and their sliders are disabled. `setXfade` moves it (from its slider, MIDI's `xf`, a
-  device's `{op: 'xfade'}`), on or off; turning it on or off and choosing a zone are steps of undo. `renderContent`
+  device's `{op: 'xfade'}`, from the Remote page only with `phone`), on or off; turning it on suggests making A and B
+  cover the canvas (`xfFitAdvice`); turning it on or off and choosing a zone are steps of undo. `renderContent`
   lays the lower of the two on whole where the upper covers it, so the upper's level alone mixes them there and the
   light stays even, and draws both even when one is faded out, for their previews.
 - A group's dimmer is `g.level` (0 to 1; absent at 1, so files without dimmed groups don't change): `setGroupLevel`
@@ -143,7 +146,7 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
 - **Roles:** `POST /login` gives a token for a role: `programmer` (password, compared in constant time, wrong ones
   slowed and locked out per address), `operator` or `remote`. The bridge passes every device message to the main
   window as `{t: 'rmsg', cid, role, m}`. The role comes from the token, never from the device.
-- **The main window decides** (`remoteFromDevice`): `remote` may only play scenes and playlists, set zone levels and move the crossfader;
+- **The main window decides** (`remoteFromDevice`): `remote` may only play scenes and playlists, set zone levels and move the crossfader (when the Remote page shows it);
   `operator` and `programmer` also the master and blackout, and send their whole project. An operator's project goes
   through `contentOf`, which keeps everything but the zones' layers, scenes, levels and playlists, the crossfader and the shaders. A programmer's
   replaces the project. The main window then sends the result to every device (`remoteChanged`, after every
@@ -225,7 +228,9 @@ groups and zones (none at first, shown by their fixtures and scenes, undo), file
 format opened, `.noupix`, Save, Save as and autosave), the sliders' fill, the scene tiles' cuts, openLedMapper's stored data carried over.
 `test_xfade.py` checks the crossfader: the levels and the even mix (same place, either way up, overlapping in part),
 nothing else setting A's and B's levels while it is on (sliders, devices, MIDI), MIDI onto it on or off, the Scenes
-panel (button, strip, short fader, greyed sliders, A and B tags, previews, choosing zones, the zone menu), undo, files.
+panel (button at the bottom left that stays put, the modes, strip in the middle, short fader, greyed sliders, A and B tags, previews filling their frames,
+choosing zones, the zone menu), the fade for new scenes in Settings, undo, files, the advice to make both zones full size, and the
+Remote page (the option, the card, moving it both ways).
 `test_frames.py` checks that the frame rate holds while the interface works: the clock with frames that take most of
 their period, the stage's redraws (content, the mouse over panels and stage, hover, dragging) and the pixel under the
 mouse. `test_drag.py` checks dragging 270 fixtures (mostly turned ovals): an oval's arc kept per shape and exact,

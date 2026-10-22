@@ -1,4 +1,4 @@
-# nouPix 1.0.3
+# nouPix 1.1.0
 
 <img src="icons/noupix-256.png" alt="" width="96" align="right">
 
@@ -54,6 +54,7 @@ To see it working before you build anything, open one of the [examples](examples
 - Content: 32 built-in generators, from very smooth ones for architecture (Color drift, Soft clouds, Horizon, Slow waves) to disco ones (Disco dots, Scanner, Confetti, Color hits, Mirror ball, Equalizer), plus your own ISF shaders, images, video (play, pause, trim with the mouse, loop or once, with or without its sound) and window capture (for example Resolume's output), in zones with layers and blend modes. Colours are picked on a colour wheel, with RGB or HSV sliders, lighting presets and recent colours. Any slider's value can be typed (double-click it) or stepped with Shift + scroll, and angles have buttons for 0°, 45°, 90°… Sources are sorted by **mood, use, look and motion** (Calm · Architectural · Organic · Drift, Party · Show · Particles · Beat…), with a search box.
 - **16-bit fixtures** (a coarse and a fine channel per colour) and **dimming curves**: gamma, linear, square law, inverse square and S curve (each but linear with its own slider: gamma, or strength), with a graph of the curve in the Inspector that moves as you drag it. 8-bit and 16-bit fixtures mix freely.
 - Scenes per zone, with crossfades; the fade time is on each scene's button.
+- **X-Fader:** one fader between two zones, A and B, at the bottom of the Scenes panel, with live previews of both and three modes (mix, dip through black, cut). MIDI can drive it, and phones too when you choose.
 - **Playlists:** several per zone, each a list of scenes with play times, played by itself in a loop, once, or followed by another playlist. Fades come from each scene, one for the whole playlist, or a step's own.
 - Art-Net output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
 - The output keeps running when the window is minimised or covered.

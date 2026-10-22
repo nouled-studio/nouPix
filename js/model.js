@@ -75,7 +75,7 @@ function blankProject(name = 'Untitled') {
     format: 'noupix-project', version: 4, name, settings,
     fixtures: [], groups: [], controllers: [], sources: builtinSources(), zones: [newZone({ w: settings.compW, h: settings.compH, layers: [newLayer('b-rainbow')] })], guide: null,
     midi: { maps: [], order: [] }, macros: defaultMacros(), macroLinks: {},
-    xfade: { on: false, a: '', b: '', x: 0 },
+    xfade: { on: false, a: '', b: '', x: 0, mode: 'mix', phone: false },
   };
 }
 // A MIDI mapping (midi.js): a control (key: midi:<port>:<channel>:cc|note:<number>) drives a target (to: master,
@@ -216,7 +216,7 @@ const clampGamma = v => clamp(numOr(v, 1), 1, 3);
 /* ---------- look-ups ---------- */
 const zoneById = id => project.zones.find(z => z.id === id);
 // The crossfader (project.xfade): while it is on, x sets the levels of two zones, A at 1 - x and B at x, and nothing
-// else does. Its two zones, while it is on and both are there; null otherwise.
+// else does; phone: the Remote page shows it too. Its two zones, while it is on and both are there; null otherwise.
 function xfZones() {
   const X = project.xfade;
   if (!X || !X.on || X.a === X.b) return null;
@@ -224,6 +224,19 @@ function xfZones() {
   return a && b ? [a, b] : null;
 }
 const xfDriven = z => { const p = xfZones(); return !!p && p.includes(z); };
+// Its modes: how A's and B's levels go as it moves; each with a small graph of them, A's level bright and B's faint,
+// from the fader's left to its right
+const XF_MODES = [
+  ['mix', 'Mix', 'Mix: A fades into B; where they cover the same lights, as bright all the way', 'M2 3 L20 12', 'M2 12 L20 3'],
+  ['dip', 'Dip', 'Dip: A fades to black by the middle, then B fades in', 'M2 3 L11 12', 'M11 12 L20 3'],
+  ['cut', 'Cut', 'Cut: A until the middle, then B', 'M2 3 H10 V12', 'M12 12 V3 H20'],
+];
+// A's and B's levels with the fader at x
+function xfLevels(x, mode) {
+  if (mode === 'dip') return [Math.max(0, 1 - 2 * x), Math.max(0, 2 * x - 1)];
+  if (mode === 'cut') return x < 0.5 ? [1, 0] : [0, 1];
+  return [1 - x, x];
+}
 const selZone = () => zoneById(ui.zone) || project.zones[project.zones.length - 1] || null;
 const selLayer = () => { const z = selZone(); return z ? z.layers.find(L => L.id === ui.layer) || z.layers[z.layers.length - 1] || null : null; };
 
