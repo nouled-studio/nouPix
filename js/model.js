@@ -224,7 +224,7 @@ function xfZones() {
   return a && b ? [a, b] : null;
 }
 const xfDriven = z => { const p = xfZones(); return !!p && p.includes(z); };
-// Its modes: how A's and B's levels go as it moves; each with a small graph of them, A's level bright and B's faint,
+// Its modes: how A's and B's levels go as it moves; each with a small graph of them, A's level and B's,
 // from the fader's left to its right
 const XF_MODES = [
   ['mix', 'Mix', 'Mix: A fades into B; where they cover the same lights, as bright all the way', 'M2 3 L20 12', 'M2 12 L20 3'],

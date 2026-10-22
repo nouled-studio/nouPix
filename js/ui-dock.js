@@ -316,7 +316,7 @@ function xfadeStrip() {
     h('div', { class: 'xfmid' }, h('span', { class: 'xfend' }, 'A'), midiSlot(r, 'xf'), h('span', { class: 'xfend' }, 'B')),
     side('b'));
 }
-// A mode's small graph: A's level bright and B's faint, from the fader's left to its right
+// A mode's small graph: A's level and B's, from the fader's left to its right
 const xfGraph = m => h('span', { class: 'xfg', html: `<svg viewBox="0 0 22 15" aria-hidden="true"><path class="b" d="${m[4]}"/><path d="${m[3]}"/></svg>` });
 // A preview: the zone's shape within 80 × 45 on screen, its frame around it exactly; twice the pixels on a sharp
 // screen
