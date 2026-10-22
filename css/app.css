@@ -377,7 +377,10 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .xfg { display: inline-grid; place-items: center; }
 .xfg svg { width: 22px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: miter; }
 .xfg svg .b { opacity: .55; }
-.xfmi { display: inline-flex; align-items: center; gap: 8px; }
+.xfmi { display: inline-flex; align-items: center; }
+/* the list of modes: only the graphs, as narrow as they are */
+.menu:has(.xfmi) { min-width: 0; }
+.menu button:has(.xfmi) { padding: 6px 8px; }
 .xfbtn .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line3); }
 .xfbtn.on { border-color: var(--sel); }
 .xfbtn.on .dot { background: var(--accent); }
