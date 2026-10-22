@@ -47,7 +47,7 @@ order by `<script src>` tags at the end of `index.html`:
 | `ui-macros.js` | The macros panel of the MIDI window (colour parts in HSV or RGB, the shared controls folded; its own binders, `macroBinders`), the "Follows Speed" note under an effect's control, "Macros it follows" in an effect's Parameters (what each control follows, for that effect), the Content tab's values and an open colour picker refreshed once a frame | `macrosPanel` `macroFollows` `macroLinksFold` `syncContentSoon` `updateMacrosUI` |
 | `ui-midi.js` | MIDI in the interface: the top-bar button, the MIDI window (a popup this page draws into: Learn, controllers and the macros under them, mappings (while learning, the control just moved at the top with a list to choose its target), monitor, the virtual controller: on-screen faders and pads sent through `midiIn` as port `MIDI_VIRTUAL`), the learn bar, learning by touching anything marked `data-midi` in either window (`midiCapture`), the yellow line and tags on what a control drives | `updateMidiUI` `openMidiWindow` `renderMidiWindow` `midiSlot` `midiButton` `markMidi` `initMidiUI` |
 | `ui-bay.js` | The patch bay, the MIDI window's second view (`ui.midiView`: 'list' or 'bay'): controls, targets (output, zones, macros) and effects' controls (colours too) in three columns, a yellow wire per mapping and aluminium wires from a macro to the effect controls that follow it (`bayLinks`, shown for the macro pointed at or pinned; SVG over the columns; dashed into a folded group or past a column's edge), wires drawn by dragging from a dot (`bayDrawStart`, `bayDropAt`: `midiAddMap`, `setMacroLink`), a wire picked with its settings and Remove (Delete, `bayRemoveSel`), rows that move their target, folding (`ui.bayOpen`), controls forgotten (×, `midiForget`) and put in order by dragging (`project.midi.order`, `midiSetOrder`; the list follows) | `bay` `bayView` `bayWires` `bayUpdate` `bayKeys` `bayLinks` `bayDrawStart` |
-| `app.js` | Top bar and status bar, the look (black or white: `ui.theme`, the top bar's button and Settings), wiring buttons and keys, the frame loop, `boot()`, and `window.olm` | `initUI` `setTheme` `applyTheme` `onKey` `renderAll` `boot` |
+| `app.js` | Top bar and status bar, the look (black or white: `ui.theme`, the top bar's button and Settings), wiring buttons and keys, the frame loop, `boot()`, and `window.olm`; looking for a new version (the latest release on GitHub, once a day, a window with Download, Later, Skip this version) | `initUI` `setTheme` `applyTheme` `onKey` `renderAll` `boot` `checkUpdates` `newerVersion` |
 
 ### How the files fit together
 
@@ -137,6 +137,10 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
 - `ui` holds view and selection state; the part listed in `UI_PREFS` is kept between sessions (`savePrefs`, under
   `noupix.ui`; that includes `ui.theme`, which a script in `index.html`'s head applies before anything is drawn).
   What the browser kept under `openledmapper.*` (or `weft.*`) moves to `noupix.*` once (`carryOverStorage`).
+- New versions: once the bridge says which version runs (`showVersion`), the main window asks GitHub's API for the latest
+  release (`checkUpdates`, from the page, so the browser's own certificates are used), at most once a day (`ui.updateAt`),
+  with Settings → Updates on (`ui.updates`); a version skipped (`ui.updateSkip`) isn't told of again by itself. A browser
+  driven by tests (`navigator.webdriver`) never looks by itself, so the suites stay offline.
 
 ## Remote control
 
@@ -231,6 +235,9 @@ nothing else setting A's and B's levels while it is on (sliders, devices, MIDI),
 panel (button at the bottom left that stays put, the modes, strip in the middle, short fader, greyed sliders, A and B tags, previews filling their frames,
 choosing zones, the zone menu), the fade for new scenes in Settings, undo, files, the advice to make both zones full size, and the
 Remote page (the option, the card, moving it both ways).
+`test_update.py` checks looking for a new version, with GitHub's answer simulated (never asked for real): versions compared,
+the window (notes as plain text, Download, Later, Skip this version), once a day, nothing by itself in a test browser, when off or
+offline, Settings → Updates and Check now.
 `test_frames.py` checks that the frame rate holds while the interface works: the clock with frames that take most of
 their period, the stage's redraws (content, the mouse over panels and stage, hover, dragging) and the pixel under the
 mouse. `test_drag.py` checks dragging 270 fixtures (mostly turned ovals): an oval's arc kept per shape and exact,

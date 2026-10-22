@@ -770,6 +770,8 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .modal { width: min(420px, 100%); background: var(--bg1); border: 1px solid var(--line2); border-radius: 0; }
 .modal header { padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px; }
 .modal .mb { padding: 12px 16px; display: grid; gap: 10px; }
+.updmodal { width: min(520px, 100%); }
+.updnotes { max-height: 240px; overflow: auto; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--line); color: var(--text2); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .modal footer { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
 .toasts { position: fixed; right: 14px; bottom: 34px; display: grid; gap: 6px; z-index: 60; }
 .toast { background: var(--bg3); border: 1px solid var(--line2); border-left: 3px solid var(--accent); border-radius: var(--r); padding: 8px 12px; font-size: 12.5px; max-width: 360px; }

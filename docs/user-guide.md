@@ -355,6 +355,10 @@ A control can drive several things: to learn the same control onto a second thin
 - To reach the interface from a tablet on the same network: `python3 noupix.py --host 0.0.0.0`.
 - Other options: `--port 9000` (web port), `--no-browser`, `--bind-port 0`.
 
+## New versions
+
+Once a day at most, when it starts, nouPix asks GitHub for its latest release. If there is a newer version, a window says so, with what's new: **Download** opens its page (download the file for your computer and install it over this one; your projects and settings stay), **Later** asks again tomorrow, and **Skip this version** doesn't tell you of that one again. Nothing is installed by itself, and without internet nothing is said. **Settings → Updates** turns it off, and **Check now** looks straight away. Only the main computer looks; phones and other devices don't.
+
 ## Files
 
 - The current project is kept in the browser automatically.
