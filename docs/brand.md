@@ -4,6 +4,9 @@ The look of the interface, the login page and the phone remote, and the logo. It
 nouPix brand kit; this is what the app does since 1.0, with the choices made while mocking it up. `css/app.css` and
 `css/remote.css` are the source of truth for the values; this page says what they mean.
 
+The same rules with pictures, for designers, video and web (logo use, colour, type, icons, controls, writing), are in the
+[brand guide (PDF)](nouPix-brand-guide.pdf). If the two ever disagree, the CSS wins.
+
 ## 1. The idea in four colours
 
 Pure black, so the light on the stage is the brightest thing on screen.

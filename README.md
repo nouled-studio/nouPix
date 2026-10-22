@@ -81,7 +81,7 @@ To see it working before you build anything, open one of the [examples](examples
 
 ## More
 
-- **Full reference:** every feature in detail is in [docs/user-guide.md](docs/user-guide.md). A PDF guide is coming.
+- **Full reference:** every feature in detail is in [docs/user-guide.md](docs/user-guide.md); the [Getting started guide (PDF)](docs/nouPix-getting-started.pdf) is the short way in.
 - **Limits:** Art-Net only (no sACN yet). No Syphon, Spout or NDI; use window capture instead.
 
 ## For developers
@@ -96,4 +96,4 @@ To see it working before you build anything, open one of the [examples](examples
 
 ## Licence and credits
 
-GNU Affero General Public License 3.0 (AGPL-3.0, see `LICENSE`), © 2026 nouled studio. Anyone may use, change and share nouPix, and sell it too, but whoever passes it on, changed or not, or lets people use a changed copy over a network, must give them its full source under the same licence. Until 17 October 2026 the code was under GPL-3.0; copies taken before then keep that licence. The look and the logo are described in [docs/brand.md](docs/brand.md). The fonts are Saira, Chakra Petch and JetBrains Mono (SIL Open Font License, `css/OFL.txt`). The ISF renderer is [interactive-shader-format](https://github.com/Vidvox/interactive-shader-format-js) by VIDVOX (ISC licence).
+GNU Affero General Public License 3.0 (AGPL-3.0, see `LICENSE`), © 2026 nouled studio. Anyone may use, change and share nouPix, and sell it too, but whoever passes it on, changed or not, or lets people use a changed copy over a network, must give them its full source under the same licence. Until 17 October 2026 the code was under GPL-3.0; copies taken before then keep that licence. The look and the logo are described in [docs/brand.md](docs/brand.md), and with pictures, for designers and anyone making content for nouPix, in the [brand guide (PDF)](docs/nouPix-brand-guide.pdf). The fonts are Saira, Chakra Petch and JetBrains Mono (SIL Open Font License, `css/OFL.txt`). The ISF renderer is [interactive-shader-format](https://github.com/Vidvox/interactive-shader-format-js) by VIDVOX (ISC licence).
