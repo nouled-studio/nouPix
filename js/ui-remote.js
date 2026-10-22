@@ -58,7 +58,7 @@ function remoteSection() {
     row('Password', h('div', { class: 'pwrow' }, pw, show)),
     h('p', { class: 'note' }, 'Phones, tablets and computers on the same network open the address below and choose who they are: a Programmer (everything, with this password), an Operator (content, layers, scenes and zone levels; the mapping is locked), or Remote, a page for phones that plays the scenes of each zone and dims the zones. Without a password nobody can log in as a programmer.'),
     checkRow('X-Fader on the Remote page', project.xfade, 'phone', () => commit()),
-    h('p', { class: 'note' }, 'For special occasions: while the X-Fader is on (in the Scenes panel), the Remote page shows it too, above the zones, and phones can move it.'),
+    h('p', { class: 'note' }, 'For special occasions: the Remote page shows the X-Fader above the zones, and while it is on (here, in the Scenes panel), phones can move it.'),
   ];
   if (on) {
     parts.push(h('div', { class: 'rurls' }, st.urls.map(u => h('div', { class: 'rurl' }, h('span', { class: 'mono' }, u),

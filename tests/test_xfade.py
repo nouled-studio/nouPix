@@ -216,7 +216,7 @@ try:
     cb.check(); time.sleep(0.3)
     check("ticking it is saved in the project", ev("project.xfade.phone") is True and ev("JSON.parse(serialize(false)).xfade.phone") is True)
     st = ev("remoteState().xfade")
-    check("the phones get it: A's and B's names and where it is", st == {"a": "Zone 1", "b": "Zone 2", "x": 0.3}, st)
+    check("the phones get it: on, A's and B's names and where it is", st == {"on": True, "a": "Zone 1", "b": "Zone 2", "x": 0.3}, st)
     ph = br.new_page(viewport={"width": 390, "height": 800})
     ph.on("pageerror", lambda e: errs.append("phone: " + str(e)))
     ph.goto(f"http://127.0.0.1:{RP}/remote")
@@ -234,11 +234,16 @@ try:
     try: ph.wait_for_function("document.querySelector('#xfade input').value === '100'", timeout=5000)
     except Exception: ok = False
     check("and the phone follows the computer", ok, ph.locator("#xfade input").input_value())
+    sw = ph.locator("#xfade .xsw")
+    check("it says it is on, and isn't a button", sw.inner_text().strip().upper() == "ON" and ph.locator("#xfade button").count() == 0)
     ev("setXfadeOn(false)")
     ok = True
-    try: ph.wait_for_function("document.querySelector('#xfade').hidden", timeout=5000)
+    try: ph.wait_for_function("document.querySelector('#xfade .xrow').hidden && !document.querySelector('#xfade').hidden", timeout=5000)
     except Exception: ok = False
-    check("turned off, it goes from the phone", ok)
+    check("turned off at the computer: the card stays and says Off, the fader goes", ok and sw.inner_text().strip().upper() == "OFF")
+    check("and its zones' dimmers are free there again", ph.evaluate("[...document.querySelectorAll('.zone .dim input')].every(r => !r.disabled)"))
+    ev("remoteFromDevice('c1', 'remote', { op: 'xfadeOn', on: true })")
+    check("a phone can't turn it on", ev("project.xfade.on") is False)
     ph.close()
     ev("(() => { remote.cfg.on = false; remoteConfigure(); })()")
 

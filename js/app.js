@@ -14,6 +14,50 @@ function updateHighlightUI() {
 function showVersion(v) {
   $('#appVer').textContent = v ? 'v' + v : '';
   $('.brand').title = v ? 'nouPix ' + v : 'nouPix';
+  // once the version running is known, a look for a newer one a little later (once a day at most)
+  if (v && !REMOTE_CLIENT && !showVersion.looked) { showVersion.looked = true; setTimeout(() => checkUpdates(false), 4000); }
+}
+// New versions: the latest release on GitHub, compared with the version running. By itself only on the main
+// computer, with Settings → Updates on, at most once a day, and never in a browser driven by tests (they check it
+// themselves); with no internet it says nothing. Asked for (Check now), it always answers.
+const UPDATE_URL = 'https://api.github.com/repos/nouled-studio/nouPix/releases/latest';
+const versionParts = v => (String(v || '').match(/\d+/g) || []).slice(0, 3).map(Number);
+function newerVersion(a, b) {   // whether version a comes after version b
+  const x = versionParts(a), y = versionParts(b);
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  return false;
+}
+async function checkUpdates(asked) {
+  const mine = bridge.hello && bridge.hello.version;
+  if (!asked && (!ui.updates || navigator.webdriver || Date.now() - ui.updateAt < 20 * 3600e3)) return;
+  if (!mine) { if (asked) toast('Which version this is shows once nouPix is running (the app, or noupix.py).', 'warn'); return; }
+  let rel;
+  try {
+    const r = await fetch(UPDATE_URL, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    rel = await r.json();
+  } catch (e) { if (asked) toast("Couldn't reach GitHub to look for a new version. Check the internet connection.", 'warn'); return; }
+  ui.updateAt = Date.now(); savePrefs();
+  const latest = String(rel.tag_name || '').replace(/^v/, '');
+  if (!latest || !newerVersion(latest, mine)) { if (asked) toast(`nouPix ${mine} is the latest version.`); return; }
+  if (!asked && ui.updateSkip === latest) return;
+  updateDialog(latest, mine, rel);
+}
+function updateDialog(latest, mine, rel) {
+  const close = () => bg.remove();
+  // the release's notes as plain text: GitHub writes them in Markdown (**bold**, ## heads, `code`)
+  const notes = String(rel.body || '').replace(/\r/g, '').replace(/\*\*|`/g, '').replace(/^#+\s*/gm, '').trim().slice(0, 4000);
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal updmodal', role: 'dialog', 'aria-label': 'New version' },
+      h('header', null, `nouPix ${latest} is available`),
+      h('div', { class: 'mb' },
+        h('p', null, `You have ${mine}. Download the new version, then install it over this one: your projects and settings stay.`),
+        notes ? h('div', { class: 'updnotes' }, notes) : null),
+      h('footer', null,
+        h('button', { class: 'btn', type: 'button', title: "Don't tell me about this version again", onclick: () => { ui.updateSkip = latest; savePrefs(); close(); } }, 'Skip this version'),
+        h('button', { class: 'btn', type: 'button', onclick: close }, 'Later'),
+        h('button', { class: 'btn primary', type: 'button', onclick: () => { window.open(rel.html_url || 'https://github.com/nouled-studio/nouPix/releases/latest', '_blank'); close(); } }, 'Download'))));
+  uiDocNow().body.append(bg);
 }
 // The look: black (the default) or white, one click away in the top bar and in Settings. It is this computer's
 // (ui.theme, with the preferences); the MIDI and Scenes windows follow, and the stage reads its colours again.

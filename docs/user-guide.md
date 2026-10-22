@@ -269,7 +269,7 @@ Phones, tablets and other computers on the same network can use nouPix too, whil
 
 - **Programmer** (needs the password): the whole interface, as on this computer. Fixtures, patch, zones, content, scenes, settings.
 - **Operator** (no password): the interface with the mapping locked. You see the fixtures, the patch and the zones, but can't move, add or delete fixtures, change the patch, the zones' areas or the settings. You can change the content: layers, sources, parameters, blend modes, zone levels, scenes (play, store, edit), playlists (play, make, edit), the master and blackout.
-- **Remote** (no password): a simple page for phones, tablets or a computer. Each zone shows its name, what plays in it, a dimmer, its playlists and its scenes: tap a playlist to play it (pause, play and next are under it, with the step playing and its time left), tap a scene to play it (with its fade; it pauses the playlist), drag the dimmer to set the zone's level. It is the programmer who makes the zones, scenes and playlists; the remote only plays and dims them. When **X-Fader on the Remote page** is ticked in Settings and the X-Fader is on, it shows above the zones, between A's and B's names, and phones can move it; A's and B's dimmers are greyed meanwhile.
+- **Remote** (no password): a simple page for phones, tablets or a computer. Each zone shows its name, what plays in it, a dimmer, its playlists and its scenes: tap a playlist to play it (pause, play and next are under it, with the step playing and its time left), tap a scene to play it (with its fade; it pauses the playlist), drag the dimmer to set the zone's level. It is the programmer who makes the zones, scenes and playlists; the remote only plays and dims them. When **X-Fader on the Remote page** is ticked in Settings, the X-Fader shows above the zones, saying whether it is on (it is turned on and off at the main computer only); while it is on, phones can move it between A's and B's names; A's and B's dimmers are greyed meanwhile.
 
 **How it works.** This computer stays in charge: every change made on a device comes here, and is shared with every other device. What a device may change depends on how it logged in, checked here, not on the device. Devices never send Art-Net, and can't switch it on or off. Undo works on every device: it goes back one step of what that device has seen (on an operator's device, only the content goes back).
 
@@ -354,6 +354,10 @@ A control can drive several things: to learn the same control onto a second thin
 - **Nodes → Discover** lists one row per device (one IP), with all the universes it reported, even when it answers once per port. **Add as controller** makes one controller for it with its IP and name. Discovery can't tell how a device spreads those universes over its physical outputs (2 outputs of 3 universes, 3 of 2…), so set **Outputs** and **Unis / output** (universes per output) yourself in the Patch tab: the controller's row shows the universes the device reported (**ArtPoll U 0–5**) as a reminder. For a device that is already a controller (same IP) the button is **Refresh universes**: it updates that reminder and nothing else.
 - To reach the interface from a tablet on the same network: `python3 noupix.py --host 0.0.0.0`.
 - Other options: `--port 9000` (web port), `--no-browser`, `--bind-port 0`.
+
+## New versions
+
+Once a day at most, when it starts, nouPix asks GitHub for its latest release. If there is a newer version, a window says so, with what's new: **Download** opens its page (download the file for your computer and install it over this one; your projects and settings stay), **Later** asks again tomorrow, and **Skip this version** doesn't tell you of that one again. Nothing is installed by itself, and without internet nothing is said. **Settings → Updates** turns it off, and **Check now** looks straight away. Only the main computer looks; phones and other devices don't.
 
 ## Files
 
