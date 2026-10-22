@@ -85,7 +85,7 @@ that needs most of its period still leaves the next on time, and frames never pi
 from now. A frame that took longer than its period makes the next wait half a period, so a slow machine
 keeps an interface that answers. Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimationFrame` when something
 changed, and only as often as leaves the output its time (at most 30 a second for moving content, 60 while working on
-it, at least 10 or once every 4 frames; fewer when drawing is slow; in the gap after an output frame). Moving the mouse redraws the stage only
+it, at least 10 or once every 4 frames; fewer when drawing is slow; in the gap after an output frame). A new size clears the stage's canvas: `resizeView` puts the last picture back at once, so resizing a panel never flashes it empty before the next drawing. Moving the mouse redraws the stage only
 while dragging, or when the fixture or pixel under it changes (`hoverPixel` looks only through fixtures near it).
 
 ### Changing the project
@@ -240,7 +240,7 @@ the window (notes as plain text, Download, Later, Skip this version), once a day
 offline, Settings → Updates and Check now.
 `test_frames.py` checks that the frame rate holds while the interface works: the clock with frames that take most of
 their period, the stage's redraws (content, the mouse over panels and stage, hover, dragging) and the pixel under the
-mouse. `test_drag.py` checks dragging 270 fixtures (mostly turned ovals): an oval's arc kept per shape and exact,
+mouse, and the stage never shown empty while the bottom panel is resized. `test_drag.py` checks dragging 270 fixtures (mostly turned ovals): an oval's arc kept per shape and exact,
 no list redraws for a press on the selection or a finished move, one step of undo, no long output gap, undo giving back
 the upright frame of a turned selection. `test_profile_move.py` checks the window profile moving from `~/.openledmapper` or `~/.weft` to `~/.noupix`.
 `test_scenes_window.py` checks the Scenes window (opening, playing, levels both ways, menus,
