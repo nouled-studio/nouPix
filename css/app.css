@@ -371,6 +371,9 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .sbtns .btn.icon { flex: none; width: 26px; height: 24px; padding: 0; display: grid; place-items: center; }
 .sbtns .btn.icon svg { width: 14px; height: 14px; }
 .sleft .xfbtn { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.xfmode button { display: grid; place-items: center; width: 32px; }
+.xfmode svg { width: 22px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: miter; }
+.xfmode svg .b { opacity: .55; }
 .xfbtn .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line3); }
 .xfbtn.on { border-color: var(--sel); }
 .xfbtn.on .dot { background: var(--accent); }

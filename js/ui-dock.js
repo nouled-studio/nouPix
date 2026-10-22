@@ -243,8 +243,9 @@ function renderScenes(body, inWindow = false) {
   const X = project.xfade;
   const foot = h('div', { class: 'sfoot' },
     h('div', { class: 'sleft' },
-      X.on ? h('div', { class: 'seg mini xfmode', role: 'group', 'aria-label': 'X-Fader mode' }, XF_MODES.map(([m, label, tip]) =>
-        h('button', { type: 'button', class: X.mode === m ? 'on' : '', title: tip, 'aria-pressed': String(X.mode === m), onclick: () => setXfadeMode(m) }, label))) : null,
+      X.on ? h('div', { class: 'seg mini xfmode', role: 'group', 'aria-label': 'X-Fader mode' }, XF_MODES.map(([m, label, tip, a, b]) =>
+        h('button', { type: 'button', class: X.mode === m ? 'on' : '', title: tip, 'aria-label': label, 'aria-pressed': String(X.mode === m), onclick: () => setXfadeMode(m),
+          html: `<svg viewBox="0 0 22 15" aria-hidden="true"><path class="b" d="${b}"/><path d="${a}"/></svg>` }))) : null,
       h('button', { class: 'btn sm xfbtn' + (X.on ? ' on' : ''), type: 'button', 'aria-pressed': String(X.on),
         title: X.on ? 'X-Fader on: it sets the levels of zones A and B. Click to turn it off.' : 'X-Fader: one fader between two zones, A and B',
         onclick: () => setXfadeOn(!X.on) }, h('i', { class: 'dot' }), 'X-Fader')),
