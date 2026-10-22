@@ -142,8 +142,8 @@ function xfApply() {
   showZoneOpacity(p[0]); showZoneOpacity(p[1]);
 }
 // On or off. On needs two zones: A and B are the first two unless two others were chosen. Off leaves the zones at
-// the levels the crossfader gave them. quiet: from a phone, so no advice shows on this computer.
-function setXfadeOn(on, quiet) {
+// the levels the crossfader gave them.
+function setXfadeOn(on) {
   const X = project.xfade, zs = project.zones;
   if (on) {
     if (zs.length < 2) { toast('The X-Fader needs two zones. Add another in the Content tab.'); return; }
@@ -153,7 +153,7 @@ function setXfadeOn(on, quiet) {
   X.on = !!on;
   xfApply();
   commit(); renderRight();
-  if (on && !quiet) xfFitAdvice();
+  if (on) xfFitAdvice();
 }
 // The crossfader works best when A and B both cover the whole canvas, so each lights every fixture: if they don't,
 // say so, with a way to do it now

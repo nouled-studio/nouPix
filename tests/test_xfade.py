@@ -235,25 +235,15 @@ try:
     except Exception: ok = False
     check("and the phone follows the computer", ok, ph.locator("#xfade input").input_value())
     sw = ph.locator("#xfade .xsw")
-    check("its switch says On", sw.inner_text().strip().upper() == "ON" and "on" in sw.get_attribute("class"))
-    sw.click()
+    check("it says it is on, and isn't a button", sw.inner_text().strip().upper() == "ON" and ph.locator("#xfade button").count() == 0)
+    ev("setXfadeOn(false)")
     ok = True
-    try: pg.wait_for_function("project.xfade.on === false", timeout=5000); ph.wait_for_function("document.querySelector('#xfade .xrow').hidden && !document.querySelector('#xfade').hidden", timeout=5000)
+    try: ph.wait_for_function("document.querySelector('#xfade .xrow').hidden && !document.querySelector('#xfade').hidden", timeout=5000)
     except Exception: ok = False
-    check("the phone turns it off: the card stays, with its switch, the fader goes", ok and sw.inner_text().strip().upper() == "OFF")
+    check("turned off at the computer: the card stays and says Off, the fader goes", ok and sw.inner_text().strip().upper() == "OFF")
     check("and its zones' dimmers are free there again", ph.evaluate("[...document.querySelectorAll('.zone .dim input')].every(r => !r.disabled)"))
-    ev("zoneById('z2').w = 200; commit()")   # so the advice would show, if a phone's switch asked for it
-    sw.click()
-    ok = True
-    try: pg.wait_for_function("project.xfade.on === true", timeout=5000); ph.wait_for_function("!document.querySelector('#xfade .xrow').hidden", timeout=5000)
-    except Exception: ok = False
-    check("and on again, with its fader", ok)
-    check("turned on from a phone, no advice shows on the computer", pg.locator(".modal[aria-label='X-Fader']").count() == 0)
-    ev("remoteFromDevice('c1', 'remote', { op: 'xfadeOn', on: false })")
-    check("off from a phone's message too", ev("project.xfade.on") is False)
-    ev("project.xfade.phone = false; remoteFromDevice('c1', 'remote', { op: 'xfadeOn', on: true })")
-    check("but not when the Remote page isn't to show it", ev("project.xfade.on") is False)
-    ev("project.xfade.phone = true; commit()")
+    ev("remoteFromDevice('c1', 'remote', { op: 'xfadeOn', on: true })")
+    check("a phone can't turn it on", ev("project.xfade.on") is False)
     ph.close()
     ev("(() => { remote.cfg.on = false; remoteConfigure(); })()")
 

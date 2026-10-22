@@ -121,7 +121,7 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   (bottom left, with a button for the mode next to it that opens a list of the three, each a small graph, `xfGraph`) and strip (bottom middle) are at the bottom of the Scenes panel; the fade for new scenes is in Settings. While it is on
   (`xfZones()`), `xfApply` sets A's and B's levels (`xfLevels`: in mix 1 − x and x), and only it: `setZoneOpacity` ignores those two (sliders,
   MIDI on their levels, devices), and their sliders are disabled. `setXfade` moves it (from its slider, MIDI's `xf`, a
-  device's `{op: 'xfade'}`, from the Remote page only with `phone`, which also lets it turn it on and off: `{op: 'xfadeOn'}`), on or off; turning it on suggests making A and B
+  device's `{op: 'xfade'}`, from the Remote page only with `phone`, which shows it on or off but can't switch it), on or off; turning it on suggests making A and B
   cover the canvas (`xfFitAdvice`); turning it on or off and choosing a zone are steps of undo. `renderContent`
   lays the lower of the two on whole where the upper covers it, so the upper's level alone mixes them there and the
   light stays even, and draws both even when one is faded out, for their previews.

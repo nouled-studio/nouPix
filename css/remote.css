@@ -94,7 +94,7 @@ button { cursor: pointer; }
 .xfade { display: grid; gap: 8px; margin: 14px 16px 0; padding: 14px; border: 1px solid var(--line2); background: var(--bg1); }
 .xfade[hidden] { display: none; }
 .xhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.xsw { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border: 1px solid var(--line2); background: var(--bg2); color: var(--text2); font: 600 11px var(--label); letter-spacing: .14em; text-transform: uppercase; }
+.xsw { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 2px; color: var(--muted); font: 600 11px var(--label); letter-spacing: .14em; text-transform: uppercase; }
 .xsw i { width: 7px; height: 7px; border-radius: 50%; background: var(--line3); }
 .xsw.on { border-color: var(--sel); color: var(--text); }
 .xsw.on i { background: var(--accent); }

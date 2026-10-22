@@ -121,8 +121,6 @@ function remoteFromDevice(cid, role, m) {
   } else if (m.op === 'xfade' && isFinite(m.value) && (role !== 'remote' || project.xfade.phone)) {   // the Remote page only when it shows it
     setXfade(+m.value);
     remoteChanged(); commitSoft();
-  } else if (m.op === 'xfadeOn' && (role !== 'remote' || project.xfade.phone)) {
-    setXfadeOn(!!m.on, true);
   } else if (m.op === 'master' && role !== 'remote' && isFinite(m.value)) {
     project.settings.master = clamp(+m.value, 0, 1);
     $('#master').value = project.settings.master; $('#masterVal').textContent = pct(project.settings.master);
