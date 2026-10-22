@@ -68,13 +68,17 @@ const remoteLive = () => ({ t: 'live', master: project.settings.master, blackout
 function remoteState() {
   const name = id => { const s = srcById(id); return s ? s.name : null; };
   return { t: 'state', name: project.name, master: project.settings.master, blackout: ui.blackout,
-    // the crossfader, while it is on and the Remote page is to show it
-    xfade: project.xfade.phone && xfZones() ? { a: xfZones()[0].name, b: xfZones()[1].name, x: project.xfade.x } : null,
+    // the X-Fader, when the Remote page is to show it: on or off, its zones (those it will take when off) and where it is
+    xfade: project.xfade.phone && project.zones.length > 1 ? xfForPhone() : null,
     zones: project.zones.slice().reverse().map(z => ({ id: z.id, name: z.name, tag: z.tag, opacity: z.opacity, xf: xfDriven(z), scene: z.scene,
       scenes: z.scenes.map(sc => ({ id: sc.id, name: sc.name, tag: sc.tag || '', fade: sc.fade })),
       content: z.layers.filter(L => L.on && L.src && name(L.src)).map(L => name(L.src)),
       playlists: z.playlists.map(pl => ({ id: pl.id, name: pl.name, length: playlistLength(pl), steps: pl.steps.length })),
       play: playForPhone(z) })) };
+}
+function xfForPhone() {
+  const X = project.xfade, zs = project.zones, a = zoneById(X.a) || zs.find(z => z.id !== X.b), b = zoneById(X.b) && X.b !== a.id ? zoneById(X.b) : zs.find(z => z !== a);
+  return { on: !!xfZones(), a: a.name, b: b.name, x: X.x };
 }
 function remoteWelcome(cid, role) {
   if (FULL_ROLES.includes(role)) remoteSend(cid, null, { t: 'project', data: serialize(false), live: remoteLive(), acks: remote.acks });
@@ -117,6 +121,8 @@ function remoteFromDevice(cid, role, m) {
   } else if (m.op === 'xfade' && isFinite(m.value) && (role !== 'remote' || project.xfade.phone)) {   // the Remote page only when it shows it
     setXfade(+m.value);
     remoteChanged(); commitSoft();
+  } else if (m.op === 'xfadeOn' && (role !== 'remote' || project.xfade.phone)) {
+    setXfadeOn(!!m.on, true);
   } else if (m.op === 'master' && role !== 'remote' && isFinite(m.value)) {
     project.settings.master = clamp(+m.value, 0, 1);
     $('#master').value = project.settings.master; $('#masterVal').textContent = pct(project.settings.master);

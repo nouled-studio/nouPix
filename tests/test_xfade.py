@@ -216,7 +216,7 @@ try:
     cb.check(); time.sleep(0.3)
     check("ticking it is saved in the project", ev("project.xfade.phone") is True and ev("JSON.parse(serialize(false)).xfade.phone") is True)
     st = ev("remoteState().xfade")
-    check("the phones get it: A's and B's names and where it is", st == {"a": "Zone 1", "b": "Zone 2", "x": 0.3}, st)
+    check("the phones get it: on, A's and B's names and where it is", st == {"on": True, "a": "Zone 1", "b": "Zone 2", "x": 0.3}, st)
     ph = br.new_page(viewport={"width": 390, "height": 800})
     ph.on("pageerror", lambda e: errs.append("phone: " + str(e)))
     ph.goto(f"http://127.0.0.1:{RP}/remote")
@@ -234,11 +234,26 @@ try:
     try: ph.wait_for_function("document.querySelector('#xfade input').value === '100'", timeout=5000)
     except Exception: ok = False
     check("and the phone follows the computer", ok, ph.locator("#xfade input").input_value())
-    ev("setXfadeOn(false)")
+    sw = ph.locator("#xfade .xsw")
+    check("its switch says On", sw.inner_text().strip().upper() == "ON" and "on" in sw.get_attribute("class"))
+    sw.click()
     ok = True
-    try: ph.wait_for_function("document.querySelector('#xfade').hidden", timeout=5000)
+    try: pg.wait_for_function("project.xfade.on === false", timeout=5000); ph.wait_for_function("document.querySelector('#xfade .xrow').hidden && !document.querySelector('#xfade').hidden", timeout=5000)
     except Exception: ok = False
-    check("turned off, it goes from the phone", ok)
+    check("the phone turns it off: the card stays, with its switch, the fader goes", ok and sw.inner_text().strip().upper() == "OFF")
+    check("and its zones' dimmers are free there again", ph.evaluate("[...document.querySelectorAll('.zone .dim input')].every(r => !r.disabled)"))
+    ev("zoneById('z2').w = 200; commit()")   # so the advice would show, if a phone's switch asked for it
+    sw.click()
+    ok = True
+    try: pg.wait_for_function("project.xfade.on === true", timeout=5000); ph.wait_for_function("!document.querySelector('#xfade .xrow').hidden", timeout=5000)
+    except Exception: ok = False
+    check("and on again, with its fader", ok)
+    check("turned on from a phone, no advice shows on the computer", pg.locator(".modal[aria-label='X-Fader']").count() == 0)
+    ev("remoteFromDevice('c1', 'remote', { op: 'xfadeOn', on: false })")
+    check("off from a phone's message too", ev("project.xfade.on") is False)
+    ev("project.xfade.phone = false; remoteFromDevice('c1', 'remote', { op: 'xfadeOn', on: true })")
+    check("but not when the Remote page isn't to show it", ev("project.xfade.on") is False)
+    ev("project.xfade.phone = true; commit()")
     ph.close()
     ev("(() => { remote.cfg.on = false; remoteConfigure(); })()")
 

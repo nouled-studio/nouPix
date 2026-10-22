@@ -76,13 +76,14 @@
     // cards move only when the zones change order: moving a card would stop a finger dragging its dimmer
     if (order.length !== zones.children.length || order.some((c, i) => zones.children[i] !== c)) zones.replaceChildren(...order);
   }
-  // The crossfader, when the main computer shows it here: A's zone on the left, B's on the right
+  // The X-Fader, when the main computer shows it here: on or off, and while on, A's zone on the left and B's on the right
   let xfDrag = null;
   function renderXfade(x) {
     const card = $('#xfade');
     card.hidden = !x;
     if (!x) return;
     if (!card.firstChild) {
+      const sw = el('button', { class: 'xsw', type: 'button', onclick: () => send({ op: 'xfadeOn', on: !sw.classList.contains('on') }) }, el('i'), el('span'));
       const range = el('input', { type: 'range', min: 0, max: 1000, step: 1, 'aria-label': 'X-Fader' });
       let last = 0, pending = null;
       const out = () => { pending = null; last = Date.now(); send({ op: 'xfade', value: xfDrag }); };
@@ -94,8 +95,13 @@
       const done = () => { if (xfDrag == null) return; clearTimeout(pending); out(); setTimeout(() => { xfDrag = null; }, 400); };
       range.addEventListener('change', done);
       range.addEventListener('pointerup', done);
-      card.append(el('div', { class: 'xhead' }, el('b', null, 'X-Fader')), el('div', { class: 'xrow' }, el('span', { class: 'xa' }), range, el('span', { class: 'xb' })));
+      card.append(el('div', { class: 'xhead' }, el('b', null, 'X-Fader'), sw), el('div', { class: 'xrow' }, el('span', { class: 'xa' }), range, el('span', { class: 'xb' })));
     }
+    const sw = card.querySelector('.xsw');
+    sw.classList.toggle('on', x.on); sw.setAttribute('aria-pressed', String(x.on));
+    sw.querySelector('span').textContent = x.on ? 'On' : 'Off';
+    sw.title = x.on ? 'Turn the X-Fader off: the zones keep their levels' : 'Turn the X-Fader on: one fader between ' + x.a + ' and ' + x.b;
+    card.querySelector('.xrow').hidden = !x.on;
     card.querySelector('.xa').textContent = x.a;
     card.querySelector('.xb').textContent = x.b;
     if (xfDrag == null) { const r = card.querySelector('input'); r.value = Math.round(x.x * 1000); r.style.setProperty('--p', x.x * 100 + '%'); }
