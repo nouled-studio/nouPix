@@ -136,15 +136,17 @@ A **Type** dropdown (generators, your own shaders, media) appears once you have 
 
 **Search** finds sources by name, description or keyword (sky, stars, fire, bpm…); several words narrow it down. Words for a mood or use also work: smooth → Calm, disco → Party, atmospheric → Ambient. Hover over a source to see its facets and keywords.
 
+To see more sources at once, drag the top edge of the Sources panel up (double-click it for the usual height); the height is kept for next time.
+
 A shader is placed by its ISF `CATEGORIES`. The built-ins list one value per facet, then keywords: `["calm","architectural","organic","drift","sky","nature"]`. Your own shaders are placed from the same values, or from common words in their categories (disco, smooth, dots, nature, strobe, bpm…).
 
-The built-in generators include very smooth ones for architecture (**Color drift**, **Soft clouds**, **Horizon**, **Slow waves**, **Breathe**, **Gradient**, **Aurora**, **Water**), atmospheric ones (**Starfield**, **Twinkle**, **Lava lamp**, **Noise**), and disco ones (**Disco dots** and **Color hits** on a tempo in BPM, **Scanner**, **Confetti**, **Mirror ball**, **Equalizer**, **Strobe**, **Bars**, **Comet chase**, **Spiral**).
+The built-in generators include very smooth ones for architecture (**Color drift**, **Soft clouds**, **Horizon**, **Slow waves**, **Breathe**, **Gradient**, **Aurora**, **Water**), atmospheric ones (**Starfield**, **Twinkle**, **Lava lamp**, **Noise**), and disco ones (**Disco dots** and **Color hits** on a tempo in BPM, **Scanner**, **Confetti**, **Mirror ball**, **Equalizer**, **Strobe**, **Bars**, **Comet chase**, **Spiral**). **Rainbow** and **Plasma** play every hue, or, with **Colors** set to **Color A to B**, go between two colours of your own (which follow Color 1 and Color 2).
 
-New in 1.1, 25 more, all with the same **Speed**: −1 is full speed in reverse, 0 stands still, 1 is full speed; their two colours follow Color 1 and Color 2.
+Since 1.1.0, 21 more, all with the same **Speed**: −1 is full speed in reverse, 0 stands still, 1 is full speed; their two colours follow Color 1 and Color 2.
 - **Architectural:** **Color wash** (the whole surface fading between two colours, or the fade travelling across), **Cascade** (columns lighting up one after another), **Orbit** (a gradient turning slowly), **Marble** (veins of light through stone), **Embers** (a warm, breathing glow).
-- **Ambient:** **Ripples** (rings from a point, as from a drop), **Nebula** (two coloured clouds swirling), **Caustics** (light at the bottom of a pool), **Fireflies**, **Bokeh** (soft circles drifting up).
+- **Ambient:** **Nebula** (two coloured clouds swirling), **Caustics** (light at the bottom of a pool), **Fireflies**, **Bokeh** (soft circles drifting up).
 - **Disco:** **Kaleidoscope**, **Laser fan**, **Tunnel** (rings rushing out, or in when reversed), **Chevrons**, **Lightning**, **Heartbeat**.
-- **After light artists:** **Turel** (a field of colour with a luminous opening), **Kusuma** (rows of small lights going on forever), **Elisun** (a huge sun in haze), **Flavine** (coloured tubes washing the wall), **Cruzado** (interleaved stripes making a third colour), **Rilay** (bending bands that seem to move), **Ikada** (rows of bars flickering past, like data), **Rothco** (soft blocks of colour breathing), **Villaray** (countless small lights in slow waves).
+- **After light artists:** **Turel** (a field of colour with a luminous opening), **Kusuma** (rows of small lights going on forever), **Elisun** (a huge sun in haze), **Flavine** (coloured tubes washing the wall), **Rilay** (bending bands that seem to move), **Villaray** (countless small lights in slow waves).
 
 Every speed, rate and tempo slider changes how fast a pattern moves without making it jump: each layer keeps its own clock for it. A custom ISF shader gets this for a float input named `speed` used as `TIME * speed`, and for any other rate with an `OLM_CLOCKS` entry in its header: `"OLM_CLOCKS": {"phase": {"FROM": "rate", "SCALE": 1, "WRAP": 1024}}` with a float input `phase`, used instead of `TIME * rate`. The app fills `phase` with the running total of rate × SCALE and hides it from the parameters.
 

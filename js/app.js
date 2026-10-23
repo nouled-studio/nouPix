@@ -198,6 +198,18 @@ function initUI() {
     const up = () => { grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); savePrefs(); };
     grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up);
   });
+  // the sources' height, dragged on their top edge like the bottom panel's; double-click for the usual height
+  const left = $('.left'), sgrip = $('#srcGrip');
+  const srcH = v => { ui.srcH = clamp(+v || 0.42, 0.15, 0.85); left.style.setProperty('--src-h', (ui.srcH * 100).toFixed(2) + '%'); };
+  srcH(ui.srcH);
+  sgrip.addEventListener('pointerdown', e => {
+    sgrip.setPointerCapture(e.pointerId);
+    const y0 = e.clientY, h0 = $('.left .sources').getBoundingClientRect().height, H = left.getBoundingClientRect().height || 1;
+    const mv = ev => srcH((h0 - (ev.clientY - y0)) / H);
+    const up = () => { sgrip.removeEventListener('pointermove', mv); sgrip.removeEventListener('pointerup', up); savePrefs(); };
+    sgrip.addEventListener('pointermove', mv); sgrip.addEventListener('pointerup', up);
+  });
+  sgrip.addEventListener('dblclick', () => { srcH(0.42); savePrefs(); });
   const onFile = (id, fn) => $(id).addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) fn(f); });
   onFile('#fileOpen', openProjectFile);
   onFile('#fileIsf', addIsfFile);
