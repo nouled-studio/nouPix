@@ -132,7 +132,7 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   `tag` on a scene) is the default: nothing gets one unless the user gives it. Fixtures show their group's (`fxTag`);
   a zone's is its scenes' edge, a scene's its corner mark (`--mark`; red without one), dim and bright while it plays. `hydrate` drops fixtures' colours, and
   the others from files before version 4 (they were given automatically then).
-- Files: `{ format: 'noupix-project', version: 4, … }`, saved as `.noupix` (JSON; `.json` opens too). Save writes over the file opened or saved (`projectFile`, where the browser lets pages write files), Save as asks, and `ui.autosave` writes every change to it. `hydrate` (project-io.js) repairs
+- Files: `{ format: 'noupix-project', version: 4, id, … }`, saved as `.noupix` (JSON; `.json` opens too). Save writes over the file opened or saved (`projectFile`, where the browser lets pages write files), Save as asks, and `ui.autosave` writes every change to it. The project's name follows its file (`nameFromFile` on Save as, the file's name on opening). A scene with `onOpen` (one per zone) is recalled by `loadProject` where no playlist plays on open. The project that opens when nouPix starts (Settings → Startup, `setStartupProject`) is kept by the bridge (`Startup`, `~/.noupix/startup.noupix`, `NOUPIX_STARTUP_FILE`), kept current while it is open (`keepStartupProject`), and sent in `hello` as `startupProject` to the first window after the bridge starts (`--project FILE` gives another); `openStartupProject` opens it. A video with `volFollow` plays at its volume × its zone's level × its layer's opacity (`videoVolume`). `hydrate` (project-io.js) repairs
   anything opened (older versions, openLedMapper and Weft files, hand edits) so the rest of the code can trust the
   project. A new field gets its default there.
 - `ui` holds view and selection state; the part listed in `UI_PREFS` is kept between sessions (`savePrefs`, under
@@ -265,6 +265,8 @@ library isn't installed, `NOUPIX_NDI_LIB` points at one): found, chosen, its pic
 about 30 frames a second, Light and Full, files and undo, the source stopping and coming back, choosing another,
 removing it, a bridge without NDI. `test_omt.py` checks OMT in against `omt_fake.c`, a stand-in library built from the real
 `libomt.h` (needs a C compiler): found, BGRA rows padded past their width arriving as RGBA, preview and full, following,
-stopping and coming back. `test_playlist.py` checks playlists
+stopping and coming back. `test_startup.py` checks the name following the file, the scene that plays on open, the startup
+project (Settings, kept by the bridge, only the first window, following changes, `--project`) and a video's volume following
+its zone. The harness gives each test bridge its own (empty) startup project. `test_playlist.py` checks playlists
 (files, the panel folding and opening, timing and fades, the end, pause and resume, undo, editing while playing, the
 fade on a scene's button, play on open, the phone).

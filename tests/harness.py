@@ -1,5 +1,5 @@
 # Shared test harness: fake Art-Net node + nouPix bridge + headless Chromium
-import socket, struct, subprocess, sys, threading, time, os
+import socket, struct, subprocess, sys, tempfile, threading, time, os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repo: the app is in its root
 WEFT = os.environ.get("WEFT", ROOT)
 
@@ -34,8 +34,14 @@ def bridge_script(build):
     return os.path.join(build, "weft.py")
 
 def start_bridge(port=8099, extra=()):
+    # the startup project of this computer's nouPix never reaches the tests: each bridge has its own (none) unless one is given
+    env = dict(os.environ)
+    env.setdefault("NOUPIX_STARTUP_FILE", os.path.join(tempfile.gettempdir(), "noupix-test-startup-%d.noupix" % port))
+    if "NOUPIX_STARTUP_FILE" not in os.environ:
+        try: os.remove(env["NOUPIX_STARTUP_FILE"])
+        except OSError: pass
     p = subprocess.Popen([sys.executable, bridge_script(WEFT), "--no-browser", "--bind-port", "0", "--port", str(port), *extra],
-                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
     time.sleep(0.8)
     return p
 

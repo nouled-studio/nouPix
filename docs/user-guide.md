@@ -1,6 +1,6 @@
 # nouPix: detailed reference
 
-Everything nouPix 1.1.0 does, in detail (the version shows next to the app name, top left). Up to 0.9 it was called openLedMapper. This is the source text for the PDF guide; the [README](../README.md) has the essentials.
+Everything nouPix 1.2.0 does, in detail (the version shows next to the app name, top left). Up to 0.9 it was called openLedMapper. This is the source text for the PDF guide; the [README](../README.md) has the essentials.
 
 A basic pixel-mapping tool: draw or import LED fixtures (lines, matrices, circles, free paths), split the canvas into zones, layer generators, ISF shaders, images, video or a screen capture in each zone, store looks as scenes to play live or in playlists, patch the fixtures to Art-Net controller outputs, and send it out.
 
@@ -142,7 +142,7 @@ A shader is placed by its ISF `CATEGORIES`. The built-ins list one value per fac
 
 The built-in generators include very smooth ones for architecture (**Color drift**, **Soft clouds**, **Horizon**, **Slow waves**, **Breathe**, **Gradient**, **Aurora**, **Water**), atmospheric ones (**Starfield**, **Twinkle**, **Lava lamp**, **Noise**), and disco ones (**Disco dots** and **Color hits** on a tempo in BPM, **Scanner**, **Confetti**, **Mirror ball**, **Equalizer**, **Strobe**, **Bars**, **Comet chase**, **Spiral**). **Rainbow** and **Plasma** play every hue, or, with **Colors** set to **Color A to B**, go between two colours of your own (which follow Color 1 and Color 2).
 
-Since 1.1.0, 21 more, all with the same **Speed**: −1 is full speed in reverse, 0 stands still, 1 is full speed; their two colours follow Color 1 and Color 2.
+New in 1.2.0, 21 more, all with the same **Speed**: −1 is full speed in reverse, 0 stands still, 1 is full speed; their two colours follow Color 1 and Color 2.
 - **Architectural:** **Color wash** (the whole surface fading between two colours, or the fade travelling across), **Cascade** (columns lighting up one after another), **Orbit** (a gradient turning slowly), **Marble** (veins of light through stone), **Embers** (a warm, breathing glow).
 - **Ambient:** **Nebula** (two coloured clouds swirling), **Caustics** (light at the bottom of a pool), **Fireflies**, **Bokeh** (soft circles drifting up).
 - **Disco:** **Kaleidoscope**, **Laser fan**, **Tunnel** (rings rushing out, or in when reversed), **Chevrons**, **Lightning**, **Heartbeat**.
@@ -171,7 +171,7 @@ Each zone has its own scenes. A scene stores the zone's layers: sources, paramet
 - With a zone's master at 0 you can still recall its scenes; they just don't show until you bring the master up.
 - The fade crossfades the zone's picture, so any two looks fade smoothly into each other. Starting another scene in the middle of a fade continues from what the zone shows at that moment.
 - **The fade time** shows on each scene's button (◢ 2 s, or **cut**). Drag it sideways to change it (**Shift** for bigger steps), click it to type one, or select it and use **↑ ↓**. It works on the scene playing too, so you can try a fade and change it straight away. 0 cuts.
-- **⋯** on a scene: add it to a playlist, update it with the zone's current layers, rename it, change its fade time or colour, duplicate or delete it. Drag scenes to reorder them, or onto another zone's row (even one with no scenes yet) to move them there.
+- **⋯** on a scene: add it to a playlist, update it with the zone's current layers, rename it, change its fade time or colour, duplicate or delete it. **Play when the project opens** (one scene per zone, marked with ⏻ on its button) plays it at once whenever the project opens, and when nouPix starts with it (see *Starting by itself*); a playlist set to play on open goes first. Drag scenes to reorder them, or onto another zone's row (even one with no scenes yet) to move them there.
 - **edited** on the current scene means the layers changed since you recalled it.
 - New scenes get the fade time set in **Settings → Scenes** (2 s at first). Scenes are saved in the project; **Ctrl Z** undoes a delete.
 - When a zone has more scenes than fit, its row scrolls sideways (the zone stays on the left): **‹ ›** at its ends move it a few scenes at a time, and its edges fade where there are more. The same goes for a playlist's steps. Playing a scene leaves the panel where you scrolled it.
@@ -264,7 +264,7 @@ Add one with **+ Add → Image or video file…** in Sources, or drop the file o
 - **Start / End** trim the video, in seconds (or drag the handles on the timeline); **Start here** and **End here** take the current moment, **Whole video** removes the trim.
 - **Play: Loop** plays the (trimmed) video over and over. **Once** plays it one time; **At the end** it keeps its **Last frame** or goes **Black**. **Restart** plays it again.
 - **Restart each time it is shown**: the video starts from its Start whenever a layer or a scene shows it again, rather than where it stopped.
-- **Speed** from 0.1× to 4×. **Play its sound** (off by default) with **Volume**. If the browser blocks the sound until you click in the page, the video plays silent and says so.
+- **Speed** from 0.1× to 4×. **Play its sound** (off by default) with **Volume**. **Volume follows its zone's level**: fading the zone (its fader, the X-Fader) or the layer fades the sound with the picture. If the browser blocks the sound until you click in the page, the video plays silent and says so.
 - A video plays only while a layer shows it.
 
 ## NDI and OMT
@@ -383,8 +383,17 @@ Once a day at most, when it starts, nouPix asks GitHub for its latest release. I
 
 - The current project is kept in the browser automatically.
 - **Project → Save** (`Ctrl S`, `⌘S` on a Mac) writes the project to a `.noupix` file you can open again later or on another computer. The first time it asks where; after that it writes over the same file without asking. **Save as…** (`Ctrl Shift S`) always asks, for a copy under another name. **Project → Autosave** (on or off, kept on this computer) writes every change to that file a moment later. Saving over the same file, and autosave, work in the app and in Chrome or Edge; other browsers download a copy each time. A `.noupix` file is JSON inside: older `.json` and `.noupix.json` files open too. Files from older versions (`.openledmapper.json` files from openLedMapper and `.weft.json` files from Weft too), or edited by hand, open with defaults for anything missing or unreadable.
+- **The project's name is its file's.** Saved as `name2.noupix` (Save as…), the project is called name2, in the top bar and in the file; a file opened takes the file's name. Saving under the name nouPix suggests keeps the name as it is.
 - **Project → Export patch list** writes a CSV with every fixture's controller, output and start/end universe and channel, for the install crew.
 - Image and video files are not stored in projects. Browsers don't keep file access between sessions, so re-link them from the Content tab.
+
+## Starting by itself
+
+For a computer that starts nouPix by itself and plays without anyone at it (a show computer, a Raspberry Pi in an installation):
+
+- **Settings → Startup → Open this project when nouPix starts.** nouPix keeps a copy of the project (in `.noupix/startup.noupix` in your home folder) and opens it in the first window after it starts. Changes to it are kept as you work. Unticking it, or ticking it on another project, changes which one opens.
+- In that project, choose what plays: a scene per zone with **⋯ → Play when the project opens**, or a playlist with **Play on open**. Without one, each zone shows the layers it had when the project was last changed.
+- From a start-up script: `python3 noupix.py --project /path/to/show.noupix` opens that file instead (and `--background` runs it without a terminal).
 
 ## Examples
 

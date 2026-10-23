@@ -228,7 +228,7 @@ function syncMedia() {
   }
 }
 // ---------- video files: their options, the formats that play, trimming, once or loop, audio
-const VIDEO_DEFAULTS = { trimIn: 0, trimOut: 0, loop: true, endHold: true, restart: false, audio: false, volume: 1 };
+const VIDEO_DEFAULTS = { trimIn: 0, trimOut: 0, loop: true, endHold: true, restart: false, audio: false, volume: 1, volFollow: false };
 function fixVideoOptions(s) {
   for (const [k, d] of Object.entries(VIDEO_DEFAULTS)) {
     if (typeof d === 'number') s[k] = numOr(s[k], d); else if (typeof s[k] !== 'boolean') s[k] = d;
@@ -249,8 +249,17 @@ function applyVideoOptions(src, el) {
   if (!el || !(el instanceof HTMLVideoElement) || el.srcObject) return;
   el.loop = src.loop !== false && !(src.trimIn > 0) && !(src.trimOut > 0);
   el.muted = !src.audio;
-  el.volume = clamp(numOr(src.volume, 1), 0, 1);
+  el.volume = videoVolume(src);
   el.playbackRate = src.rate || 1;
+}
+// Its volume; with volFollow, times the level it shows at: its zone's level × its layer's opacity, the highest where
+// several layers show it (so the X-Fader or a zone's fader fades its sound with its picture)
+function videoVolume(src) {
+  const v = clamp(numOr(src.volume, 1), 0, 1);
+  if (!src.volFollow) return v;
+  let k = 0;
+  for (const z of project.zones) for (const L of z.layers) if (L.on && L.src === src.id) k = Math.max(k, clamp(numOr(z.opacity, 1), 0, 1) * clamp(numOr(L.opacity, 1), 0, 1));
+  return v * k;
 }
 function playVideo(src, el) {
   el.play().catch(e => {   // browsers may refuse sound before a click: play it silent, say so once
@@ -272,6 +281,7 @@ function videoTick() {
     if (!(el instanceof HTMLVideoElement) || el.srcObject || el.readyState < 1) continue;
     const src = srcById(id);
     if (!src || src.kind !== 'video') continue;
+    if (src.audio && src.volFollow) { const v = videoVolume(src); if (Math.abs(el.volume - v) > 0.002) el.volume = v; }
     const [a, b] = videoSpan(src, el), t = el.currentTime;
     if (t < a - 0.05 && !el.seeking && !el._done) { el.currentTime = a; continue; }
     const atEnd = el.ended || (isFinite(b) && t >= b - 0.01);

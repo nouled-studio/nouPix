@@ -104,6 +104,7 @@ function hydrate(p) {
   const { name, format, version } = base;   // before the file's own are copied over them
   const out = Object.assign(base, p);
   if (typeof out.name !== 'string') out.name = name;
+  out.id = isId(p.id) ? String(p.id) : uid();   // which project it is, for the one that opens when nouPix starts
   out.format = format; out.version = version; // the file's structure is brought up to date below
   // colours: from version 4 a group or a zone has one only when the user gave it one; before, every one got one
   const chosen = numOr(p.version, 0) >= 4, tagOf = c => (chosen && isTag(c) ? c : '');
@@ -166,6 +167,8 @@ function hydrate(p) {
     z.tag = tagOf(z.tag);
     z.layers = (Array.isArray(z.layers) ? z.layers : []).map(fixLayer);
     z.scenes = fixScenes(z.scenes);
+    let onOpen = false;   // one scene per zone plays when the project opens
+    for (const sc of z.scenes) { if (sc.onOpen === true && !onOpen) onOpen = true; else delete sc.onOpen; }
     z.opacity = isFinite(z.opacity) ? clamp(+z.opacity, 0, 1) : 1;
     if (!z.scenes.some(sc => sc.id === z.scene)) z.scene = null;
     z.playlists = fixPlaylists(z.playlists, z.scenes);
@@ -255,6 +258,7 @@ const saveSoon = debounce(() => {
   }
   store.set('noupix.project', serialize(false));
   autosaveFile();
+  keepStartupProject();
 }, 400);
 // commit({ lists: false }): a change the fixture list and the dock don't show (fixtures moved). Anything else passed
 // (it is also an event handler and a form's onCommit) redraws them.
@@ -276,6 +280,8 @@ function loadProject(p, { resetView = true } = {}) {
   hist.stack = []; hist.idx = -1; pushHistory();
   // a playlist set to play when the project opens starts with the first frame (on the main window)
   if (!REMOTE_CLIENT) for (const z of project.zones) { const pl = z.playlists.find(x => x.autoplay && x.steps.length); if (pl) z._play = { list: pl.id, on: true, i: -1, start: 0, done: 0, manual: null, ended: false }; }
+  // and a scene set to play when the project opens, in a zone without such a playlist, at once
+  if (!REMOTE_CLIENT) for (const z of project.zones) { const sc = !z._play && z.scenes.find(x => x.onOpen); if (sc) recallScene(z, sc, 0); }
   renderAll(); saveSoon(); startClock();
 }
 
@@ -295,10 +301,17 @@ async function writeProjectFile(handle, ask) {
   await w.write(projectText()); await w.close();
   return true;
 }
+// The project's name is its file's: saved as name2.noupix, it is called name2 (and opened, it takes the file's name)
+const nameOfFile = n => String(n || '').replace(/\.(noupix|json)$/i, '').trim();
+function nameFromFile(n) {
+  const name = nameOfFile(n);
+  if (!name || name === project.name || name === nameOfFile(fileName())) return;   // the name it suggested (spaces as dashes): kept as it is
+  project.name = name; pushHistory(); saveSoon(); renderAll();
+}
 async function saveProjectFile(as = false) {
   if (!window.showSaveFilePicker) { download(fileName(), projectText()); toast('Project saved as ' + fileName()); return; }
   try {
-    if (as || !projectFile) projectFile = await showSaveFilePicker({ suggestedName: projectFile ? projectFile.name : fileName(), types: PROJECT_TYPES });
+    if (as || !projectFile) { projectFile = await showSaveFilePicker({ suggestedName: projectFile ? projectFile.name : fileName(), types: PROJECT_TYPES }); nameFromFile(projectFile.name); }
     if (await writeProjectFile(projectFile, true)) toast('Saved ' + projectFile.name);
   } catch (e) { if (e.name !== 'AbortError') toast('Could not save: ' + e.message, 'err'); }
 }
@@ -323,11 +336,30 @@ async function openProjectFile(file) {
   try {
     const p = JSON.parse(await file.text());
     if (!p || !Array.isArray(p.fixtures)) throw new Error('not a nouPix project');
+    if (nameOfFile(file.name)) p.name = nameOfFile(file.name);
     loadProject(p);
     projectFile = null;   // opened without a handle (dropped, or picked the old way): the next Save asks where
     toast(`Opened ${project.name}: ${project.fixtures.length} fixtures`);
     return true;
   } catch (e) { toast('Could not open that file: ' + e.message, 'err'); return false; }
+}
+/* ---------- the project that opens when nouPix starts ---------- */
+// The bridge keeps a copy of it (~/.noupix/startup.noupix) and hands it to the first window after it starts, so a
+// computer that starts nouPix by itself (a show computer, a Raspberry Pi) opens it, playing its scenes and playlists
+// set to play on open. While it is the one open, every change goes to that copy too. noupix.py --project FILE opens
+// that file instead.
+const isStartupProject = () => !!(bridge.hello && bridge.hello.startup && bridge.hello.startup.id === project.id);
+function setStartupProject(on) {
+  if (REMOTE_CLIENT || !bridge.connected) return;
+  bridgeSend(on ? { t: 'startup', op: 'set', project: JSON.parse(serialize(true)) } : { t: 'startup', op: 'clear' });
+  bridge.hello.startup = on ? { id: project.id, name: project.name } : null;
+  toast(on ? `${project.name} opens when nouPix starts.` : 'No project opens by itself when nouPix starts.');
+}
+const keepStartupProject = debounce(() => { if (isStartupProject() && bridge.connected) bridgeSend({ t: 'startup', op: 'set', project: JSON.parse(serialize(true)) }); }, 2000);
+function openStartupProject(p) {
+  if (REMOTE_CLIENT || !isObj(p) || !Array.isArray(p.fixtures)) return;
+  try { loadProject(p); projectFile = null; toast(`Opened ${project.name}, the project nouPix opens when it starts.`); }
+  catch (e) { report('opening the startup project', e); }
 }
 function exportCSV() {
   ensurePatch();

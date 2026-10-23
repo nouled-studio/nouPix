@@ -217,7 +217,7 @@ function connectBridge() {
   ws.onmessage = ev => {
     if (typeof ev.data !== 'string') { streamFrame(ev.data); return; }   // a frame of an NDI or OMT stream (streams.js)
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
-    if (m.t === 'hello') { bridge.hello = m; showVersion(m.version); (m.nodes || []).forEach(n => bridge.nodes.set(n.ip + '#' + n.bindIndex, n)); updateBridgeUI(); if (ui.dockTab === 'nodes') renderDock(); remoteHello(m.remote); }
+    if (m.t === 'hello') { bridge.hello = m; showVersion(m.version); (m.nodes || []).forEach(n => bridge.nodes.set(n.ip + '#' + n.bindIndex, n)); updateBridgeUI(); if (ui.dockTab === 'nodes') renderDock(); remoteHello(m.remote); if (m.startupProject) openStartupProject(m.startupProject); }
     else if (m.t === 'stats') { bridge.stats = m; updateBridgeUI(); }
     else if (m.t === 'node') { bridge.nodes.set(m.node.ip + '#' + m.node.bindIndex, m.node); if (ui.dockTab === 'nodes') renderDock(); }
     else if (m.t === 'polled') {

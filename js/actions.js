@@ -659,6 +659,14 @@ function setStreamQuality(src, hq) {
   src.hq = hq; syncStreams(); commit(); renderRight();
 }
 
+// The scene a zone plays when the project opens (one per zone; a playlist set to play on open goes first)
+function setSceneOnOpen(z, sc, on) {
+  for (const x of z.scenes) delete x.onOpen;
+  if (on) sc.onOpen = true;
+  commit();
+  toast(on ? `${sc.name} plays when the project opens.` : `${z.name} plays no scene by itself when the project opens.`);
+}
+
 /* ---------- stacking order ---------- */
 // The fixtures are drawn in list order, the last on top. A whole group moves as one; fixtures picked out of a
 // group move to the top or bottom of their group.

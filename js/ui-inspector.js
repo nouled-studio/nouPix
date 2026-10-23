@@ -593,7 +593,9 @@ function videoControls(src, el) {
   k.push(checkRow('Restart each time it is shown', src, 'restart', () => commit()));
   k.push(sliderRow('Speed', src, 'rate', { min: 0.1, max: 4, step: 0.05, fmt: v => v.toFixed(2) + '×', onInput: v => { if (el) el.playbackRate = v; }, onCommit: commit }));
   k.push(checkRow('Play its sound', src, 'audio', () => { apply(); if (el && src.audio && !el.paused) playVideo(src, el); commit(); renderRight(); }));
-  if (src.audio) k.push(sliderRow('Volume', src, 'volume', { min: 0, max: 1, step: 0.01, fmt: pct, onInput: apply, onCommit: commit }));
+  if (src.audio) k.push(sliderRow('Volume', src, 'volume', { min: 0, max: 1, step: 0.01, fmt: pct, onInput: apply, onCommit: commit }),
+    checkRow('Volume follows its zone’s level', src, 'volFollow', () => { apply(); commit(); }),
+    h('p', { class: 'note' }, 'Fading the zone (its fader, the X-Fader) or the layer fades the sound with the picture.'));
   if (el && el._done) k.push(h('p', { class: 'note' }, src.endHold !== false ? 'Played once: holding its last frame. Restart plays it again.' : 'Played once: black now. Restart plays it again.'));
   return k;
 }
@@ -631,6 +633,13 @@ function renderSettings(body) {
       project.guide ? h('button', { class: 'btn', type: 'button', onclick: () => { project.guide = null; guideImg = null; commit(); renderRight(); } }, 'Remove guide') : null),
     project.guide ? sliderRow('Guide opacity', ui, 'guideOp', { fmt: pct, onInput: savePrefs }) : null,
     h('p', { class: 'note' }, 'A guide image (for example your layout SVG) is drawn over the stage, fitted to the composition, so you can trace fixtures over it.')));
+  if (!REMOTE_CLIENT) {
+    const box = h('input', { type: 'checkbox', checked: isStartupProject(), disabled: !bridge.connected, onchange: e => { setStartupProject(e.target.checked); renderRight(); } });
+    const other = bridge.hello && bridge.hello.startup && !isStartupProject() ? bridge.hello.startup.name : '';
+    body.append(sec('Startup',
+      h('label', { class: 'checkrow' }, box, 'Open this project when nouPix starts'),
+      h('p', { class: 'note' }, (other ? `Now ${other} opens when nouPix starts. ` : '') + 'For a computer that starts nouPix by itself: it opens this project, with its scenes and playlists set to play when the project opens. Changes to it are kept as you work. To play a scene at the start: ⋯ on the scene → Play when the project opens.')));
+  }
   if (!REMOTE_CLIENT) body.append(sec('Updates',
     checkRow('Look for a new version when nouPix starts', ui, 'updates', savePrefs),
     h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => checkUpdates(true) }, 'Check now')),
