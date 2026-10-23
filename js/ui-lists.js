@@ -233,7 +233,7 @@ const SRC_ALIASES = {
 const SRC_SEARCH = { smooth: 'calm', soft: 'calm', slow: 'calm', relaxing: 'calm', disco: 'party', club: 'party', atmospheric: 'ambient', atmosphere: 'ambient', architecture: 'architectural', facade: 'architectural', bpm: 'beat' };
 const SRC_FACET_OF = new Map(SRC_FACETS.flatMap(f => f.values.map(([v]) => [v, f.key])));
 function srcTags(s) {
-  if (s.kind !== 'isf') return [s.kind === 'screen' ? 'capture' : s.kind];
+  if (s.kind !== 'isf') return s.kind === 'stream' ? ['capture', 'ndi', 'live'] : [s.kind === 'screen' ? 'capture' : s.kind];
   const hdr = headerOf(s), c = hdr && hdr.CATEGORIES;
   return Array.isArray(c) ? c.map(t => String(t).toLowerCase()) : [];
 }
@@ -280,11 +280,11 @@ function renderSrcList() {
   const shown = project.sources.filter(s => srcMatches(s, q));
   if (!shown.length) { grid.replaceChildren(h('div', { class: 'none' }, q ? `Nothing matches “${q}” with these filters.` : 'No source matches these filters.')); return; }
   grid.replaceChildren(...shown.map(s => {
-    const kind = s.kind === 'isf' ? 'ISF' : s.kind === 'screen' ? 'CAP' : s.kind === 'video' ? 'VID' : 'IMG';
-    const missing = (s.kind === 'image' || s.kind === 'video' || s.kind === 'screen') && !mediaEls.get(s.id);
+    const kind = s.kind === 'isf' ? 'ISF' : s.kind === 'screen' ? 'CAP' : s.kind === 'video' ? 'VID' : s.kind === 'stream' ? STREAM_PROTOS[s.proto] : 'IMG';
+    const missing = ['image', 'video', 'screen'].includes(s.kind) && !mediaEls.get(s.id) || isStream(s) && streamState(s) !== 'ok';
     const rt = s.kind === 'isf' && runtimes.get(s.id);
     const live = L && L.src === s.id, used = usedBy.get(s.id);
-    const tag = missing ? [s.kind === 'screen' ? 'OFF' : 'RELINK', 'warn'] : rt && rt.error ? ['ERROR', 'err'] : s.builtin ? null : [kind, ''];
+    const tag = missing ? [s.kind === 'screen' || isStream(s) && streamState(s) !== 'connecting' ? 'OFF' : isStream(s) ? '…' : 'RELINK', 'warn'] : rt && rt.error ? ['ERROR', 'err'] : s.builtin ? null : [kind, ''];
     const fs = srcFacets(s), kw = srcTags(s).filter(t => !SRC_FACET_OF.has(t));
     const tags = [SRC_FACETS.filter(f => f.key !== 'type' && fs[f.key]).map(f => srcLabel(f.key, fs[f.key])).join(' · '), kw.join(', ')].filter(Boolean).join('\n');
     const tile = h('div', { class: 'tile' + (live ? ' live' : used ? ' used' : ''), role: 'button', tabindex: 0,

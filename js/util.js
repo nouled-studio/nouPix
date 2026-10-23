@@ -80,6 +80,7 @@ function download(name, text, type = 'application/json') {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 const ICONS = {
+  stream: '<svg viewBox="0 0 16 16"><circle cx="8" cy="9" r="1.6" fill="currentColor"/><path d="M5.2 6.3a3.8 3.8 0 0 0 0 5.4M10.8 6.3a3.8 3.8 0 0 1 0 5.4M3.2 4.3a6.6 6.6 0 0 0 0 9.4M12.8 4.3a6.6 6.6 0 0 1 0 9.4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
   play: '<svg viewBox="0 0 16 16"><path d="M4.5 2.8v10.4L13 8z" fill="currentColor"/></svg>',
   pause: '<svg viewBox="0 0 16 16"><g fill="currentColor"><rect x="3.5" y="3" width="3" height="10" rx=".5"/><rect x="9.5" y="3" width="3" height="10" rx=".5"/></g></svg>',
   next: '<svg viewBox="0 0 16 16"><g fill="currentColor"><path d="M3 2.8v10.4L10.5 8z"/><rect x="11" y="3" width="2" height="10" rx=".5"/></g></svg>',

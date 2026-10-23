@@ -50,7 +50,7 @@ The interface is black, so the light on the stage is the brightest thing on scre
 1. **Settings → Composition.** Set the size of the canvas the content is rendered at. Fixture coordinates use these units.
 2. **Fixtures.** Pick a tool on the stage: `L` line, `M` matrix, `C` circle/ring, `P` path (straight segments), `N` pen (curves). Drag to draw, or click for a default size. You can also bring fixtures in with **SVG…** (see below). Edit exact values in the Inspector, including pixel count, color order, wiring start and direction.
 3. **Patch.** In the Patch panel, add a controller: IP address, number of outputs, universes per output and first universe. Then drag fixtures from the list onto an output. Fixtures chained on one output are addressed in order, automatically.
-4. **Content.** Click a generator in Sources to play it in the selected layer of the selected zone. Add zones, layers, blend modes and parameters in the Content tab (see below). You can also add your own ISF shader, an image, a video, or a window capture (for example Resolume's output).
+4. **Content.** Click a generator in Sources to play it in the selected layer of the selected zone. Add zones, layers, blend modes and parameters in the Content tab (see below). You can also add your own ISF shader, an image, a video, a window capture (for example Resolume's output) or an NDI or OMT stream.
 5. **Scenes.** When a zone's look is right, press **+ Store** on its row in the Scenes panel. Put scenes in a **playlist** to have the zone play them one after another by itself.
 6. **Art-Net** goes out from the start, every time nouPix opens. The status bar's right end shows how many packets go out each second, or what is wrong. **Settings → Art-Net connection → Send Art-Net** switches it off (for example while another console drives the lights) and on again. **Blackout** (the slashed sun at the right of the top bar, or `B`) turns every light off at once; it breathes red until you press it again.
 
@@ -267,6 +267,18 @@ Add one with **+ Add → Image or video file…** in Sources, or drop the file o
 - **Speed** from 0.1× to 4×. **Play its sound** (off by default) with **Volume**. If the browser blocks the sound until you click in the page, the video plays silent and says so.
 - A video plays only while a layer shows it.
 
+## NDI and OMT
+
+Video from other programs and computers on the network: Resolume, TouchDesigner, OBS, vMix, NDI Tools' Screen Capture, cameras… sent with **NDI** or **OMT** (Open Media Transport, the open-source alternative). Add a stream with **+ Add → NDI or OMT stream…** in Sources: the window lists every source nouPix finds on the network (sources from other computers can take a few seconds to appear). Click one to add it; it plays in the selected layer like any other source.
+
+- **NDI needs NDI Tools.** nouPix uses the NDI library that NDI Tools installs (free, from ndi.video) and doesn't include it. Without it, the window says so. Install NDI Tools and restart nouPix. To use a library somewhere else: `python3 noupix.py --ndi-lib /path/to/libndi.so` (or the environment variable `NOUPIX_NDI_LIB`).
+- **OMT needs libomt.** Download the release of `libomtnet` from github.com/openmediatransport for your computer and put `libomt` and `libvmx` (`.dylib` on a Mac, `.dll` on Windows) in the folder `.noupix/omt` in your home folder, then restart nouPix. On a Mac, files downloaded from the internet are blocked until you run `xattr -dr com.apple.quarantine ~/.noupix/omt` in Terminal. Or name it: `--omt-lib /path/to/libomt.dylib` (or `NOUPIX_OMT_LIB`).
+- **Quality.** **Light** (the default) takes the source's small preview stream (NDI's is about 640 pixels wide, OMT's 1/8 of the picture): little network and processor, and plenty for most fixtures. **Full** takes the whole picture, cut down to 1920 wide at most. Either way the picture is cut down by taking every n-th pixel, so a 4K source never costs 4K.
+- **Fit** is **Stretch** by default, so an output made for the canvas (Resolume's output, a TouchDesigner window) lands on it exactly.
+- **Choose source…** in the Content tab (or **Choose stream…** in the source's right-click menu) points it at another stream; layers and scenes that play it follow.
+- When the source stops sending, the source shows **OFF** and nouPix keeps trying: it plays again as soon as the source is back.
+- Streams are received by the bridge (`noupix.py`), on the main computer: devices on Remote control show them on the fixtures, not in their own window.
+
 ## Remote control
 
 Phones, tablets and other computers on the same network can use nouPix too, while this computer keeps sending the Art-Net.
@@ -387,7 +399,7 @@ Their controllers have made-up 10.0.0.x addresses: set your own in the Patch pan
 
 ## Limits of this version
 
-Art-Net only (no sACN/E1.31 yet). No Syphon, Spout or NDI: use window capture instead. Rendering lives in the nouPix window, so closing it stops the output. It's been tested in Chromium; Firefox and Safari should work but are less tested and don't get the keep-running switches.
+Art-Net only (no sACN/E1.31 yet). No Syphon or Spout: use NDI or OMT, or window capture, instead. Rendering lives in the nouPix window, so closing it stops the output. It's been tested in Chromium; Firefox and Safari should work but are less tested and don't get the keep-running switches.
 
 ## Building the apps
 

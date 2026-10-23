@@ -29,6 +29,7 @@ order by `<script src>` tags at the end of `index.html`:
 | `patch.js` | Addressing: universe and channels of every pixel on its controller output (`BPP`: channels per pixel, doubled on 16-bit fixtures), conflicts | `computePatch` `ensurePatch` `universes` `addrOf` `BPP` `assign` `unassign` |
 | `sources.js` | Content sources: WebGL canvas, ISF runtimes (compiled when first played or drawn as a thumbnail; `headerOf` reads a header without compiling, `controlsOf` an effect's controls from it, `effectRt` what `macroRolesOf` needs from it), parameters and speeds, images and videos (trim, loop, sound), the media format check, source thumbnails | `runtimeOf` `effectRt` `headerOf` `controlsOf` `isSpeedInput` `renderSource` `applyParams` `probeMedia` `attachMedia` `syncMedia` `videoTick` |
 | `render.js` | The GPU mixer (zones, layers, blend modes; the crossfader's even mix; a zone's picture made small for a preview, `mixer.thumb`), looks and fades, recalling a scene, sampling the composition at every pixel, highlight and test patterns | `mixer` `renderContent` `loadSource` `startFade` `recallScene` `sampleMix` `testPattern` `setHighlight` |
+| `streams.js` | NDI and OMT in: the streams the project's stream sources want (`syncStreams`, asked of the bridge), frames from the bridge into a canvas per stream that `mediaEls` holds for its sources (`streamFrame`), the sources found and each stream's state | `streams` `syncStreams` `findStreams` `streamFrame` `streamMessage` `streamState` `streamKey` `isStream` `STREAM_PROTOS` |
 | `output.js` | Gamma, sampled colours to DMX channels (each fixture's dimmer × its group's (`groupLevel`) × the master; 8-bit; 16-bit through `output16`: dimming curves shaped by gamma or strength, coarse then fine), the outgoing frame, the clock, the bridge connection | `buildOutput` `output16` `curveValue` `layoutFrame` `sendFrame` `tick` `startClock` `connectBridge` `bridge` |
 | `project-io.js` | Project files: repairing what is opened, undo history, autosave, open/save, CSV, SVG import, the demo | `hydrate` `serialize` `commit` `commitSoft` `undo` `redo` `loadProject` `importSvg` `demoProject` |
 | `remote.js` | Remote control: the host side (configure the bridge, send the project and the phones' state, apply devices' changes by role) and the client side (this page opened on a device at `/app`) | `remote` `REMOTE_CLIENT` `mappingLocked` `remoteChanged` `remoteFromDevice` `contentOf` `connectRemote` `remoteOp` |
@@ -58,10 +59,10 @@ order by `<script src>` tags at the end of `index.html`:
   stage canvas and the document, the autosave timer) may only use what earlier files define. Everything else runs
   later, after `boot()` at the end of `app.js`, when all files are there. A function used at load time from an
   earlier file doesn't exist yet: functions are only hoisted within their own file.
-- **Layers.** The engine is `util → model → macros → geometry → patch → sources → render → output → project-io → remote →
+- **Layers.** The engine is `util → model → macros → geometry → patch → sources → render → output → streams → project-io → remote →
   playlists → midi`; each uses only the ones before it, with these exceptions: `computePatch` ends with `layoutFrame` (output.js)
   so the outgoing frame matches the new patch; `tick` (output.js) calls `playlistTick`; `restore` (project-io.js) uses
-  `playlistOf`/`playingList` to carry playlists through an undo; remote.js reads the playlists' state (`playState`,
+  `playlistOf`/`playingList` to carry playlists through an undo; `connectBridge` (output.js) hands NDI frames and messages to `streamFrame`/`streamMessage` (streams.js); remote.js reads the playlists' state (`playState`,
   `playForPhone`) for the devices; `hydrate` repairs the MIDI mappings with `MIDI_KEY` (model.js); `applyParams`
   (sources.js) and `renderLook` (render.js) put the macros on each layer as it draws, from `project.macros`. The UI is `actions → ui-forms → ui-color, ui-stage, ui-lists, ui-inspector,
   ui-dock, ui-menus → app`; UI files use any engine file and each other.
@@ -179,7 +180,12 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
 Python standard library only. Serves `/` and `/index.html`, plain-named `.css`, `.js` and `.woff2` files in `css/`,
 `js/` and `js/vendor/` (nothing else), and the WebSocket at `/ws`; with remote control on, the network server described above. The
 page sends binary frames (`layoutFrame` in output.js describes the layout) that the bridge turns into Art-Net
-packets, plus JSON messages (discovery polls, settings, remote control). `VERSION`
+packets, plus JSON messages (discovery polls, settings, remote control). **NDI and OMT in** (`VideoIn`, `Ndi`, `Omt`): the bridge loads
+the library the user installed (NDI Tools, `--ndi-lib` or `NOUPIX_NDI_LIB`; libomt with libvmx, in `~/.noupix/omt`, `--omt-lib`
+or `NOUPIX_OMT_LIB`; nothing bundled) with ctypes, lists the sources (`{t: 'vin', op: 'find'}`) and receives the ones a window asks for (`op: 'sub'`), each on its
+own thread, frames cut down to 640 wide (Light, the preview stream) or 1920 (Full) by `shrink_rgba` (OMT's BGRA turned to RGBA), sent to the window
+as binary messages starting `VIN1`, newest frame only. A stream source is `{ kind: 'stream', proto: 'ndi' | 'omt', stream:
+its name on the network, name, hq, fit }`. `VERSION`
 is the app's version; it shows next to the name in the top bar. `noupix.spec` packs the bridge and the
 interface files for the desktop apps; `.github/workflows/release.yml` builds them when a `v<VERSION>` tag is
 pushed.
@@ -254,6 +260,11 @@ the upright frame of a turned selection. `test_profile_move.py` checks the windo
 dialogs and messages there, keys, MIDI learn and tags, closing every way). `test_bay.py` checks the patch bay
 (the switch, columns, wires, folding, a wire's settings, Remove and Delete, undo, learn, the rows, forgetting and ordering
 controls, drawing wires either way, the macros' aluminium wires: pointed at, pinned, picked, removed, drawn, refused). The simulated Web MIDI
-is `FAKE_MIDI` in `harness.py`. `test_playlist.py` checks playlists
+is `FAKE_MIDI` in `harness.py`. `test_ndi.py` checks NDI in with a test source sent through the NDI library (`ndi_sender.py`; skipped where the
+library isn't installed, `NOUPIX_NDI_LIB` points at one): found, chosen, its picture on the fixtures and following,
+about 30 frames a second, Light and Full, files and undo, the source stopping and coming back, choosing another,
+removing it, a bridge without NDI. `test_omt.py` checks OMT in against `omt_fake.c`, a stand-in library built from the real
+`libomt.h` (needs a C compiler): found, BGRA rows padded past their width arriving as RGBA, preview and full, following,
+stopping and coming back. `test_playlist.py` checks playlists
 (files, the panel folding and opening, timing and fades, the end, pause and resume, undo, editing while playing, the
 fade on a scene's button, play on open, the phone).

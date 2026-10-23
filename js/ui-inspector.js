@@ -491,6 +491,19 @@ function renderContentTab(body) {
       h('div', { class: 'actions' }, el ? h('button', { class: 'btn', type: 'button', onclick: () => stopCapture(src) }, 'Stop capture') : h('button', { class: 'btn primary', type: 'button', onclick: () => startCapture(src) }, 'Choose window…')),
       row('Fit', seg(FIT_OPTIONS, src.fit || 'stretch', v => { src.fit = v; commit(); }))));
   }
+  if (isStream(src)) {
+    const st = streamState(src), size = (streams.status[streamKey(src)] || {}).size;
+    const say = { ok: `Receiving${size ? `, ${size[0]} × ${size[1]}` : ''}.`, connecting: 'Connecting…',
+      waiting: 'No picture from it for a moment: is the program sending?', error: (streams.info && streams.info[src.proto] && streams.info[src.proto].note) || 'Can’t connect to it.',
+      off: REMOTE_CLIENT ? 'It plays on the main computer.' : 'nouPix isn’t connected to its bridge (noupix.py), which receives the streams.' }[st];
+    body.append(sec(STREAM_PROTOS[src.proto] + ' stream',
+      row('Source', h('span', { class: 'vname', title: src.stream }, src.stream || 'None')),
+      h('p', { class: 'note' + (st === 'ok' ? '' : ' warn') }, say),
+      REMOTE_CLIENT ? null : h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => streamPicker(src) }, 'Choose source…')),
+      row('Quality', seg([['light', 'Light'], ['full', 'Full']],
+        src.hq ? 'full' : 'light', v => setStreamQuality(src, v === 'full'))),
+      row('Fit', seg(FIT_OPTIONS, src.fit || 'fit', v => { src.fit = v; markThumb(src); commit(); }))));
+  }
   body.append(sec('Transition', sliderRow('Crossfade', project.settings, 'transition', { min: 0, max: 5, step: 0.1, fmt: v => v.toFixed(1) + ' s', onCommit: commit }),
     h('p', { class: 'note' }, 'Fade time when you click a source to play it in a layer. Scenes have their own fade time.')));
 }

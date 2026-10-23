@@ -81,7 +81,9 @@ try:
     sec.locator("button", has_text="Check now").click(); time.sleep(0.6)
     check("Check now with the latest: says so", pg.locator(".toast").filter(has_text=f"nouPix {mine} is the latest version").count() >= 1)
     gh["tag"] = "v9.0.0"
-    sec.locator("button", has_text="Check now").click(); time.sleep(0.6)
+    sec.locator("button", has_text="Check now").click()
+    try: dlg.first.wait_for(timeout=5000)   # the answer comes when it comes: on a busy machine, later than a moment
+    except Exception: pass
     check("Check now tells of a skipped version too", dlg.count() == 1)
     dlg.locator("button", has_text="Later").click()
     gh["mode"] = "error"
