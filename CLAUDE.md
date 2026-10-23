@@ -21,7 +21,7 @@ order by `<script src>` tags at the end of `index.html`:
 | File | Role | Main names |
 |---|---|---|
 | `vendor/isf.js` | ISF shader renderer by VIDVOX (third party, unchanged) | `interactiveShaderFormat` |
-| `builtins.js` | The 32 built-in effects, as ISF code and categories (data) | `BUILTINS` |
+| `builtins.js` | The 57 built-in effects, as ISF code and categories (data). The 25 from 1.1 on share one convention: `speed` from −1 (full, reverse) through 0 (still) to 1, used only as `TIME * speed`; their colours `colorA`/`colorB` (or `color`/`background`) for the Color 1 and 2 macros; other controls named for the macros (`scale`, `count`, `width`, `softness`, `angle`, `density`, `decay`, `size`); a good picture at the thumbnails' moment (`THUMB_TIME`) | `BUILTINS` |
 | `util.js` | Helpers used everywhere: elements, numbers and text, local storage, toasts, error reports, icons; the window the user works in (`uiDoc`: this page, or the MIDI or Scenes window), where toasts, menus and dialogs show | `$` `$$` `h` `isEl` `clamp` `wrap180` `wrap360` `pct` `fmtN` `store` `toast` `uiDocNow` `watchDoc` `debounce` `report` `replacer` `MOD` |
 | `model.js` | The project and its parts: constants (`CURVES`, `CURVE_STRENGTH`, `TAGS`: the colours a group or zone can be given), defaults, the `project` and `ui` state, factories, groups, selection, look-ups by id, a fixture's colour (its group's), the crossfader's two zones | `project` `ui` `blankProject` `newFixture` `fxBits` `fxCurve` `curveParam` `newZone` `newLayer` `newPlaylist` `newStep` `newController` `selected` `selUnits` `fxById` `fxTag` `isTag` `markGeom` `markPatch` `xfZones` `xfDriven` |
 | `macros.js` | Macros: their list (`MACROS`: Speed, Intensity, Saturation, Color 1 and 2, the shared controls), defaults and repair, which control of an effect follows which (by name, or as chosen for that effect in `project.macroLinks`), a value with its macro on it, colour parts | `MACROS` `macroDef` `defaultMacros` `fixMacros` `macroRoles` `macroChoices` `macroRolesOf` `fixMacroLinks` `macroActive` `macroOver` `macroPart` `macroPartPatch` |
@@ -85,7 +85,7 @@ that needs most of its period still leaves the next on time, and frames never pi
 from now. A frame that took longer than its period makes the next wait half a period, so a slow machine
 keeps an interface that answers. Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimationFrame` when something
 changed, and only as often as leaves the output its time (at most 30 a second for moving content, 60 while working on
-it, at least 10 or once every 4 frames; fewer when drawing is slow; in the gap after an output frame). Moving the mouse redraws the stage only
+it, at least 10 or once every 4 frames; fewer when drawing is slow; in the gap after an output frame). A new size clears the stage's canvas: `resizeView` puts the last picture back at once, so resizing a panel never flashes it empty before the next drawing. Moving the mouse redraws the stage only
 while dragging, or when the fixture or pixel under it changes (`hoverPixel` looks only through fixtures near it).
 
 ### Changing the project
@@ -238,9 +238,15 @@ Remote page (the option, the card, moving it both ways).
 `test_update.py` checks looking for a new version, with GitHub's answer simulated (never asked for real): versions compared,
 the window (notes as plain text, Download, Later, Skip this version), once a day, nothing by itself in a test browser, when off or
 offline, Settings → Updates and Check now.
+`test_effects.py` checks the 25 effects of 1.1: they compile, Speed −1..1 on the Speed macro (still at 0, moving at 1, reverse the same
+movement backwards), nothing moving but by speed, colours on Color 1 and 2, the filters, a lit thumbnail.
+`test_stability.py` (full run only, 5 minutes; `test_stability.py <port> <minutes>` for longer) is a show night of
+everything at once: scenes, a playlist, every effect, the X-Fader, MIDI, macros, undo, panels resized, the look, the
+Scenes window, projects reopened, a phone tapping and fading. A node receives the Art-Net: no gap over 2 s; the JS heap,
+GPU objects, compiled effects and the page's elements stay bounded; the same show runs as fast at the end as at the start.
 `test_frames.py` checks that the frame rate holds while the interface works: the clock with frames that take most of
 their period, the stage's redraws (content, the mouse over panels and stage, hover, dragging) and the pixel under the
-mouse. `test_drag.py` checks dragging 270 fixtures (mostly turned ovals): an oval's arc kept per shape and exact,
+mouse, and the stage never shown empty while the bottom panel is resized. `test_drag.py` checks dragging 270 fixtures (mostly turned ovals): an oval's arc kept per shape and exact,
 no list redraws for a press on the selection or a finished move, one step of undo, no long output gap, undo giving back
 the upright frame of a turned selection. `test_profile_move.py` checks the window profile moving from `~/.openledmapper` or `~/.weft` to `~/.noupix`.
 `test_scenes_window.py` checks the Scenes window (opening, playing, levels both ways, menus,

@@ -1,7 +1,7 @@
 # The output's frame rate holds while the interface works: a frame that takes most of its period still leaves the
 # next on time (the clock); moving the mouse over the panels draws nothing, over the stage only when it reaches
 # another fixture or pixel; the stage is drawn at most about 30 times a second for moving content; the pixel under
-# the mouse is the nearest one, as before.
+# the mouse is the nearest one, as before; resizing the bottom panel never shows the stage empty.
 import os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import CHROME_ARGS, start_bridge, app_error
@@ -87,6 +87,22 @@ try:
     ev("(() => { const f = olm.project.fixtures[0]; f.x1 = (f.x1 || 0) + 40; markGeom(); rebuildGeometry(); })()")
     moved = ev("(() => { const f = olm.project.fixtures[0], P = f._pts, h = hoverPixel(P[0], P[1]); return h && h.f === f && h.i === 0; })()")
     check("and it follows a fixture that moved", moved)
+    # ---------- resizing the bottom panel: the stage never shows empty, the output keeps going
+    ev("(() => { olm.project.settings.fps = 100; startClock(); fitView(); redrawStage(); })()"); time.sleep(0.6)
+    ev("""(() => { window._blank = 0; window._seen = 0; const c = document.querySelector('#view'), x = c.getContext('2d');
+      // after the page's own handling of each new size, as the browser would then paint it
+      window._probe = new ResizeObserver(() => { window._seen++; if (x.getImageData(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1).data[3] === 0) window._blank++; }); window._probe.observe(document.querySelector('#stage')); })()""")
+    g = pg.locator("#dockGrip").bounding_box(); gx, gy = g["x"] + g["width"] / 2, g["y"] + g["height"] / 2
+    def drag(up):
+        pg.mouse.move(gx, gy); pg.mouse.down()
+        for k in range(30): pg.mouse.move(gx, gy - 6 * k if up else gy - 180 + 6 * k); time.sleep(0.02)
+        pg.mouse.up()
+    drag(True); time.sleep(0.3)
+    check("resizing the bottom panel: the stage never shows empty (it flashed)", ev("window._seen") >= 20 and ev("window._blank") == 0, (ev("window._seen"), ev("window._blank")))
+    ev("window._probe.disconnect()")   # reading the stage back is slow here: the output is timed without it
+    g = pg.locator("#dockGrip").bounding_box(); gx, gy = g["x"] + g["width"] / 2, g["y"] + g["height"] / 2 + 180
+    f0 = ev("olm.frameIndex"); t0 = time.time(); drag(False); el = time.time() - t0; time.sleep(0.3)
+    check("and the output keeps going meanwhile", (ev("olm.frameIndex") - f0) / el > 30, round((ev("olm.frameIndex") - f0) / el, 1))
     ev("(() => { renderContent = window._render; olm.project.settings.fps = 40; startClock(); })()")
     check("no errors", not errs, errs[:3])
     br.close()

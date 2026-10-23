@@ -28,7 +28,26 @@ function resizeView() {
   const r = stageEl.getBoundingClientRect();
   DPR = window.devicePixelRatio || 1;
   VW = Math.max(1, r.width); VH = Math.max(1, r.height);
-  if (cv.width !== Math.round(VW * DPR) || cv.height !== Math.round(VH * DPR)) { cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR); }
+  const w = Math.round(VW * DPR), hh = Math.round(VH * DPR);
+  if (cv.width === w && cv.height === hh) return keepFit();
+  // A new size clears the canvas, and the next drawing may be a few frames away (it waits for the output's
+  // time): the last picture is put back meanwhile, where it was, so the stage doesn't flash empty while a
+  // panel is resized
+  const old = cv.width > 1 && cv.height > 1 && SC ? stageCopy() : null;
+  cv.width = w; cv.height = hh;
+  if (old && SC) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = SC.out; ctx.fillRect(0, 0, w, hh); ctx.drawImage(old, 0, 0); }
+  keepFit();
+}
+// The stage's picture, copied before a resize clears it (one canvas, kept for the next time)
+let stageKept = null;
+function stageCopy() {
+  if (!stageKept) stageKept = document.createElement('canvas');
+  if (stageKept.width !== cv.width || stageKept.height !== cv.height) { stageKept.width = cv.width; stageKept.height = cv.height; }
+  const k = stageKept.getContext('2d');
+  k.clearRect(0, 0, cv.width, cv.height); k.drawImage(cv, 0, 0);
+  return stageKept;
+}
+function keepFit() {
   if (!ui.fitted && VW > 50) { fitView(); ui.fitted = true; }
 }
 function fitView() {
