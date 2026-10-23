@@ -338,6 +338,7 @@ function drawXfPreviews(now) {
     xfPvSize(c, z);
     mixer.thumb(z, c);
   }
+  mixer.forgetGone();
 }
 function drawSceneProgress() {
   for (const el of scenesRoots().flatMap(r => $$('.scene', r))) {

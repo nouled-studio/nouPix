@@ -157,6 +157,11 @@ try:
     check("the previews show A (red) and B (green), at their zone's shape", lit == [["a", 80, 40, 255, 0, 0], ["b", 80, 40, 0, 255, 0]], lit)
     fit = ev("[...$$('#dockBody .xfpv')].map(f => { const c = f.querySelector('canvas').getBoundingClientRect(), r = f.getBoundingClientRect(); return [r.width - c.width, r.height - c.height, c.left - r.left, c.top - r.top]; })")
     check("each preview fills its frame exactly (the frame's 1 px border around it)", fit == [[2, 2, 1, 1], [2, 2, 1, 1]], fit)
+    waits = ev("""(() => { const P = WebGL2RenderingContext.prototype, rp = P.readPixels; let n = 0, all = 0;
+      P.readPixels = function (...a) { all++; if (typeof a[6] === 'object') n++; return rp.apply(this, a); };   // into an array: the page waits for the GPU
+      try { for (let i = 0; i < 6; i++) drawXfPreviews(performance.now() + 1e5 * (i + 1)); } finally { P.readPixels = rp; }
+      return [n, all]; })()""")
+    check("the previews are read back without making the page wait for the GPU", waits[0] == 0 and waits[1] > 0, waits)
     ev("setXfade(0)"); time.sleep(0.4)
     lit = ev("(() => { const c = $('#dockBody canvas[data-xf-pv=b]'), d = c.getContext('2d').getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2]]; })()")
     check("B's preview shows it while it is faded out", lit == [0, 255, 0], lit)

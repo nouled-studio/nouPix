@@ -10,7 +10,11 @@ const mixer = (() => {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 16;
   let g = null;
-  try { g = canvas.getContext('webgl', { preserveDrawingBuffer: true, alpha: false, antialias: false, depth: false }); } catch (e) { g = null; }
+  // WebGL2 where there is one (nearly everywhere), for reading the previews back without waiting; the shaders are
+  // WebGL1's, which WebGL2 runs the same
+  const opts = { preserveDrawingBuffer: true, alpha: false, antialias: false, depth: false };
+  try { g = canvas.getContext('webgl2', opts) || canvas.getContext('webgl', opts); } catch (e) { g = null; }
+  const gl2 = typeof WebGL2RenderingContext !== 'undefined' && g instanceof WebGL2RenderingContext;
   if (!g) return { ok: false, canvas };
   const VS = 'attribute vec2 p; varying vec2 uv; void main() { uv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }';
   const BLEND = `precision mediump float; varying vec2 uv; uniform sampler2D base, top; uniform vec2 scale; uniform float opacity; uniform int mode;
@@ -60,7 +64,9 @@ void main() {
   };
   // GPU resources. They are made again when the browser restores the context after losing it (a GPU reset).
   let blendP, mixP, quad, slots, cur, area, upload, zones, TW, TH, CW, CH, smp, small, smallBuf;
+  const reads = new Map();   // preview canvas -> its read under way: { buf, fence, w, h }
   function init() {
+    reads.clear();
     blendP = program(VS, BLEND); mixP = program(VS, MIX);
     quad = g.createBuffer();
     g.bindBuffer(g.ARRAY_BUFFER, quad);
@@ -86,6 +92,13 @@ void main() {
   init();
   canvas.addEventListener('webglcontextlost', e => e.preventDefault()); // so the browser restores it
   canvas.addEventListener('webglcontextrestored', init);
+  const buf = (w, hh) => { if (!smallBuf || smallBuf.length !== w * hh * 4) smallBuf = new Uint8ClampedArray(w * hh * 4); return new Uint8Array(smallBuf.buffer); };
+  // GL's rows go up from the bottom: the 2D canvas's go down
+  const show = (c, raw, w, hh) => {
+    const img = c.getContext('2d').createImageData(w, hh), row = w * 4;
+    for (let y = 0; y < hh; y++) img.data.set(raw.subarray((hh - 1 - y) * row, (hh - y) * row), y * row);
+    c.getContext('2d').putImageData(img, 0, 0);
+  };
   const bindTex = (unit, t, loc) => { g.activeTexture(g.TEXTURE0 + unit); g.bindTexture(g.TEXTURE_2D, t); g.uniform1i(loc, unit); };
   const pass = (fb, x, y, w, h, prog, set) => { g.bindFramebuffer(g.FRAMEBUFFER, fb); g.viewport(x, y, w, h); g.useProgram(prog.p); set(prog.u); g.drawArrays(g.TRIANGLES, 0, 6); };
   return {
@@ -143,17 +156,40 @@ void main() {
     thumb(z, c) {
       const Z = zones.get(z.id), w = c.width, hh = c.height;
       if (!Z || !Z.out.w || !w || !hh) return false;
+      // With WebGL2 the picture is read into a buffer on the GPU and shown a frame or two later, once the GPU is done:
+      // reading it at once (readPixels) would make the page wait for all the GPU's work, and the output frame with it
+      let R = gl2 && reads.get(c);
+      if (R && R.fence) {
+        const st = g.clientWaitSync(R.fence, 0, 0);
+        if (st === g.TIMEOUT_EXPIRED) return true;   // not ready yet: the last picture stays
+        g.deleteSync(R.fence); R.fence = null;
+        if (st !== g.WAIT_FAILED && c.width === R.w && c.height === R.h) {
+          const raw = buf(R.w, R.h);
+          g.bindBuffer(g.PIXEL_PACK_BUFFER, R.buf); g.getBufferSubData(g.PIXEL_PACK_BUFFER, 0, raw); g.bindBuffer(g.PIXEL_PACK_BUFFER, null);
+          show(c, raw, R.w, R.h);
+        }
+      }
       if (!small) small = target();
       size(small, w, hh);
       pass(small.fb, 0, 0, w, hh, mixP, u => { bindTex(0, Z.out.tex, u.a); bindTex(1, Z.out.tex, u.b); g.uniform2f(u.sa, 1, 1); g.uniform2f(u.sb, 1, 1); g.uniform1f(u.t, 1); });
-      if (!smallBuf || smallBuf.length !== w * hh * 4) smallBuf = new Uint8ClampedArray(w * hh * 4);
-      const raw = new Uint8Array(smallBuf.buffer);
+      if (gl2) {
+        if (!R) reads.set(c, R = { buf: g.createBuffer(), fence: null, w: 0, h: 0 });
+        g.bindBuffer(g.PIXEL_PACK_BUFFER, R.buf);
+        if (R.w !== w || R.h !== hh) { R.w = w; R.h = hh; g.bufferData(g.PIXEL_PACK_BUFFER, w * hh * 4, g.STREAM_READ); }
+        g.readPixels(0, 0, w, hh, g.RGBA, g.UNSIGNED_BYTE, 0);
+        g.bindBuffer(g.PIXEL_PACK_BUFFER, null);
+        R.fence = g.fenceSync(g.SYNC_GPU_COMMANDS_COMPLETE, 0);
+        g.flush();
+        return true;
+      }
+      const raw = buf(w, hh);
       g.readPixels(0, 0, w, hh, g.RGBA, g.UNSIGNED_BYTE, raw);
-      // GL's rows go up from the bottom: the 2D canvas's go down
-      const img = c.getContext('2d').createImageData(w, hh), row = w * 4;
-      for (let y = 0; y < hh; y++) img.data.set(raw.subarray((hh - 1 - y) * row, (hh - y) * row), y * row);
-      c.getContext('2d').putImageData(img, 0, 0);
+      show(c, raw, w, hh);
       return true;
+    },
+    // Preview canvases that are gone from the page (the panel drawn anew): their buffers go too
+    forgetGone() {
+      for (const [c, R] of [...reads]) if (!c.isConnected) { if (R.fence) g.deleteSync(R.fence); g.deleteBuffer(R.buf); reads.delete(c); }
     },
     prune(ids) {
       for (const [id, Z] of zones) {
