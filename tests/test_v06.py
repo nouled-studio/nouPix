@@ -111,7 +111,7 @@ with sync_playwright() as pw:
     ev("olm.ui.srcFacets = {}; olm.ui.srcFilter = 'disco'; renderSrcList()")
     check("search 'disco' finds the Party sources", sorted(ev("[...document.querySelectorAll('#srcList .tile .nm')].map(e => e.textContent)")) == sorted(party))
     ev("olm.ui.srcFilter = 'stars'; renderSrcList()")
-    check("search by keyword", sorted(ev("[...document.querySelectorAll('#srcList .tile .nm')].map(e => e.textContent)")) == ["Starfield", "Twinkle"])
+    check("search by keyword", sorted(ev("[...document.querySelectorAll('#srcList .tile .nm')].map(e => e.textContent)")) == ["Starfield", "Twinkle", "Villaray"])
     ev("olm.ui.srcFilter = 'zzzz'; renderSrcList()")
     check("no match: says so", "Nothing matches" in pg.inner_text("#srcList"))
     check("no 'null' left by the filters", "null" not in pg.inner_text("#srcFacets"))
