@@ -116,6 +116,7 @@ SUITES = [   # name, function, part of --quick
     ("xfade", simple("test_xfade.py", 8204, 300), True),
     ("update", simple("test_update.py", 8206, 200), True),
     ("effects", simple("test_effects.py", 8208, 300), True),
+    ("stability", simple("test_stability.py", 8210, 900, ("5",)), False),
     ("profile", last_line("test_profile_move.py", [], 60, lambda l: "ALL PASS" in l), True),
 ]
 

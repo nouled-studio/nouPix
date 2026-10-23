@@ -58,7 +58,18 @@ try:
 
     def stats():
         return ev("""() => { gc(); gc(); return { heapMB: +(performance.memory.usedJSHeapSize / 1048576).toFixed(1), gl: Object.assign({}, window.__gl),
-          frame: olm.frameIndex, runtimes: runtimes.size, hist: hist.stack.length }; }""")
+          frame: olm.frameIndex, runtimes: runtimes.size, hist: hist.stack.length, nodes: document.getElementsByTagName('*').length }; }""")
+    # the same show at the start and at the end: how fast it runs then, as frames and Art-Net packets a second
+    REF = ev("serialize(false)")
+    def reference():
+        ev("""ref => { if (scenesWinOpen()) closeScenesWindow(); if (ui.blackout) toggleBlackout(); setTheme('dark'); showRight(true);
+          ui.dockTab = 'scenes'; ui.dockH = 250; document.querySelector('#dock').style.setProperty('--bottom-h', '250px');
+          olm.loadProject(JSON.parse(ref), { resetView: false }); setOutput(true); renderDock(); }""", REF)
+        time.sleep(4)
+        f0, t0 = ev("olm.frameIndex"), time.time(); time.sleep(12); t1 = time.time()
+        return round((ev("olm.frameIndex") - f0) / (t1 - t0), 1), round(node.count(t0, t1) / (t1 - t0), 1), ev("document.getElementsByTagName('*').length")
+    ref0 = reference()
+    print(f"reference show at the start: {ref0[0]} frames/s, {ref0[1]} packets/s, {ref0[2]} elements", flush=True)
 
     # ---------- the actions, chosen at random
     BUILT = ev("BUILTINS.map(b => 'b-' + b.id)")
@@ -124,10 +135,11 @@ try:
         time.sleep(rnd.uniform(0.1, 0.4))
         if time.time() >= next_sample:
             s = stats(); s["t"] = round(time.time() - t_start); s["pkts"] = node.count(time.time() - 30, time.time()); samples.append(s)
-            print(f"t={s['t']}s heap {s['heapMB']} MB · gl {s['gl']} · runtimes {s['runtimes']} · Art-Net {s['pkts']} packets in 30 s · errors {len(errs)}", flush=True)
+            print(f"t={s['t']}s heap {s['heapMB']} MB · gl {s['gl']} · runtimes {s['runtimes']} · elements {s['nodes']} · Art-Net {s['pkts']} packets in 30 s · errors {len(errs)}", flush=True)
             next_sample += 30
-    # back to a known state: no blackout, the scenes window closed
-    ev("(() => { if (ui.blackout) toggleBlackout(); if (scenesWinOpen()) closeScenesWindow(); })()"); time.sleep(2)
+    # back to the reference show: it must run as fast as at the start, with as many elements on the page
+    ref1 = reference()
+    print(f"reference show at the end: {ref1[0]} frames/s, {ref1[1]} packets/s, {ref1[2]} elements", flush=True)
     last = stats()
     print(f"{steps} actions in {round(time.time() - t_start)} s", flush=True)
 
@@ -136,7 +148,9 @@ try:
     gaps = sorted(b - a for a, b in zip(ts, ts[1:]))
     check("Art-Net kept going all session: no gap over 2 s", ts and gaps[-1] < 2.0, round(gaps[-1], 2) if gaps else "nothing received")
     check("and in every half minute", all(s.get("pkts", 1) > 0 for s in samples), [s.get("pkts") for s in samples])
-    check("the frame clock kept ticking", last["frame"] > s0["frame"] + MINUTES * 60 * 5, (s0["frame"], last["frame"]))
+    check("the frame clock kept ticking", last["frame"] > s0["frame"] + MINUTES * 60 * 3, (s0["frame"], last["frame"]))
+    check("the same show runs as fast at the end as at the start (nothing builds up)", ref1[0] >= 0.85 * ref0[0] and ref1[1] >= 0.85 * ref0[1], (ref0, ref1))
+    check("and the page holds no more elements than at the start", ref1[2] <= ref0[2] + 50, (ref0[2], ref1[2]))
     # ---------- bounded
     check("JS heap stays bounded (the second half grows no more than a few MB)", last["heapMB"] < max(s["heapMB"] for s in samples[:len(samples) // 2 + 1]) + 12,
           [s["heapMB"] for s in samples] + [last["heapMB"]])

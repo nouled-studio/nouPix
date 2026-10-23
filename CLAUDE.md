@@ -240,6 +240,10 @@ the window (notes as plain text, Download, Later, Skip this version), once a day
 offline, Settings → Updates and Check now.
 `test_effects.py` checks the 25 effects of 1.1: they compile, Speed −1..1 on the Speed macro (still at 0, moving at 1, reverse the same
 movement backwards), nothing moving but by speed, colours on Color 1 and 2, the filters, a lit thumbnail.
+`test_stability.py` (full run only, 5 minutes; `test_stability.py <port> <minutes>` for longer) is a show night of
+everything at once: scenes, a playlist, every effect, the X-Fader, MIDI, macros, undo, panels resized, the look, the
+Scenes window, projects reopened, a phone tapping and fading. A node receives the Art-Net: no gap over 2 s; the JS heap,
+GPU objects, compiled effects and the page's elements stay bounded; the same show runs as fast at the end as at the start.
 `test_frames.py` checks that the frame rate holds while the interface works: the clock with frames that take most of
 their period, the stage's redraws (content, the mouse over panels and stage, hover, dragging) and the pixel under the
 mouse, and the stage never shown empty while the bottom panel is resized. `test_drag.py` checks dragging 270 fixtures (mostly turned ovals): an oval's arc kept per shape and exact,
