@@ -56,8 +56,12 @@ try:
         play(id, 0); a = col(); time.sleep(0.4); b = col()
         if sum(a) == 0 and sum(b) == 0: lit.append(id)
         if a != b: still.append(id)
-        play(id, 1); c = col(); time.sleep(0.4); d = col()
-        if c == d: moves.append(id)
+        # a few looks over a second and a half: Lightning, for one, is dark between its flashes
+        play(id, 1); c = col(); seen = False
+        for _ in range(5):
+            time.sleep(0.3)
+            if col() != c: seen = True; break
+        if not seen: moves.append(id)
     check("each one lights the fixtures", not lit, lit)
     check("each one stands still at speed 0", not still, still)
     check("and moves at full speed", not moves, moves)
