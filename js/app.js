@@ -349,10 +349,13 @@ function boot() {
   remoteOverlay(); updateRemoteUI();
   if (ui.midiOn && !REMOTE_CLIENT) startMidi();
   new ResizeObserver(() => { resizeView(); redrawStage(); }).observe(stageEl);
-  for (const t of ['pointerdown', 'pointerup', 'wheel', 'keydown', 'keyup', 'input', 'change', 'click', 'drop']) window.addEventListener(t, redrawStage, { capture: true, passive: true });
+  // The X-Fader and the zones' levels change only the content, which the stage follows each output frame anyway:
+  // moving them doesn't ask for a redraw as well (it drew the stage up to 60 times a second, stealing the output's time)
+  const levelOnly = e => !!(e.target && e.target.closest && e.target.closest('[data-xf], [data-zone-op]'));
+  for (const t of ['pointerdown', 'pointerup', 'wheel', 'keydown', 'keyup', 'input', 'change', 'click', 'drop']) window.addEventListener(t, e => { if (!levelOnly(e)) redrawStage(); }, { capture: true, passive: true });
   // Moving the mouse redraws the stage only while dragging; over the stage, also when it reaches another
   // fixture or pixel (ui-stage.js). Moving over the panels draws nothing.
-  window.addEventListener('pointermove', e => { if (e.buttons) redrawStage(); }, { capture: true, passive: true });
+  window.addEventListener('pointermove', e => { if (e.buttons && !levelOnly(e)) redrawStage(); }, { capture: true, passive: true });
   requestAnimationFrame(frameLoop);
   // a handle for the browser console and for tests (olm: the app's first initials, kept so scripts keep working)
   window.olm = { get project() { return project; }, get tickCost() { return tickCost; }, get drawCost() { return drawCost; }, get frameIndex() { return frameIndex; }, get clockT() { return clockT; }, glCanvas, samplePick, loadProject, ui, universes: () => universes, computePatch, setOutput, bridge, tick, mixer, goScene, storeScene, loadSource, selectZone, addZone, setTool, mediaEl: id => mediaEls.get(id) };

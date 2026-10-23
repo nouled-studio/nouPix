@@ -247,6 +247,19 @@ try:
     ph.close()
     ev("(() => { remote.cfg.on = false; remoteConfigure(); })()")
 
+    # ---------- moving it doesn't redraw the stage (the content follows each output frame anyway), and its step of
+    # undo waits for the fader to stop
+    ev("(() => { setXfadeOn(true); document.querySelectorAll('.modal-bg').forEach(e => e.remove()); ui.dockTab = 'scenes'; ui.dockCollapsed = false; renderDock(); })()"); time.sleep(0.3)
+    quiet = ev("""(() => { const r = document.querySelector('input[data-xf]'); stageDirty = false;
+      r.value = 0.3; r.dispatchEvent(new Event('input', { bubbles: true }));
+      r.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, buttons: 1 }));
+      const a = stageDirty; document.querySelector('#master').dispatchEvent(new Event('input', { bubbles: true }));
+      return [a, stageDirty, project.xfade.x]; })()""")
+    check("moving the X-Fader doesn't ask the stage to redraw (another slider still does)", quiet == [False, True, 0.3], quiet)
+    n0 = ev("hist.stack[hist.idx]")
+    ev("document.querySelector('input[data-xf]').dispatchEvent(new Event('change', { bubbles: true }))"); time.sleep(1.6)
+    check("its step of undo still comes once it stops", ev("hist.stack[hist.idx]") != n0 and ev("JSON.parse(hist.stack[hist.idx]).xfade.x") == 0.3)
+
     check("no errors", not errs, errs[:3])
     br.close()
 finally:

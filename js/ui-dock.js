@@ -311,7 +311,8 @@ function xfadeStrip() {
   };
   const r = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: X.x, 'data-xf': '', 'aria-label': 'X-Fader', title: 'X-Fader: A on the left, B on the right' });
   r.addEventListener('input', () => setXfade(parseFloat(r.value), r));
-  r.addEventListener('change', commitSoft);
+  // the step of undo (the whole project copied, saved, sent to the devices) waits for a quiet moment after the fader stops
+  r.addEventListener('change', () => (window.requestIdleCallback ? requestIdleCallback(() => commitSoft(), { timeout: 1000 }) : commitSoft()));
   return h('div', { class: 'xfade' }, side('a'),
     h('div', { class: 'xfmid' }, h('span', { class: 'xfend' }, 'A'), midiSlot(r, 'xf'), h('span', { class: 'xfend' }, 'B')),
     side('b'));
