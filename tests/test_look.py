@@ -157,6 +157,18 @@ try:
     check("the playing one: a white edge and the red mark", live.evaluate("e => getComputedStyle(e, '::before').backgroundColor") == "rgb(255, 255, 255)"
           and "rgb(255, 59, 59)" in live.evaluate("e => getComputedStyle(e, '::after').backgroundImage"))
 
+    # ---------- the sources' height: dragged on their top edge, kept, back to the usual on a double-click
+    hs = lambda: ev("(() => { const l = document.querySelector('.left').getBoundingClientRect(), s = document.querySelector('.left .sources').getBoundingClientRect(); return s.height / l.height; })()")
+    before = hs(); g = pg.locator("#srcGrip").bounding_box(); gx, gy = g["x"] + g["width"] / 2, g["y"] + g["height"] / 2
+    pg.mouse.move(gx, gy); pg.mouse.down(); pg.mouse.move(gx, gy - 200, steps=6); pg.mouse.up(); settle(0.2)
+    check("the sources get taller when their top edge is dragged up", hs() > before + 0.15 and abs(ev("ui.srcH") - hs()) < 0.03, (before, hs(), ev("ui.srcH")))
+    check("and the list shows more of them", ev("document.querySelector('.left .sources .pbody, .left .sources ul, #srcList').clientHeight") > 300, ev("document.querySelector('.left .sources .pbody, .left .sources ul, #srcList').clientHeight"))
+    check("their height is kept", abs(ev("store.get('noupix.ui', {}).srcH") - ev("ui.srcH")) < 1e-9)
+    pg.mouse.move(gx, gy - 200); pg.mouse.down(); pg.mouse.move(gx, 890, steps=6); pg.mouse.up(); settle(0.2)
+    check("never smaller than a few rows", ev("ui.srcH") >= 0.15 and ev("document.querySelector('.left .fixtures').getBoundingClientRect().height") > 60, ev("ui.srcH"))
+    pg.locator("#srcGrip").dblclick(); settle(0.2)
+    check("a double-click gives the usual height", abs(ev("ui.srcH") - 0.42) < 1e-9 and abs(hs() - before) < 0.02, (ev("ui.srcH"), hs(), before))
+
     # ---------- what openLedMapper kept in this browser carries over
     ev("(() => { for (const k of ['ui', 'remote', 'colors']) localStorage.removeItem('noupix.' + k); localStorage.setItem('openledmapper.colors', JSON.stringify(['#123456'])); localStorage.setItem('openledmapper.remote', JSON.stringify({ on: false, port: 8099, password: 'x' })); })()")
     pg.reload(); pg.wait_for_function("window.olm && olm.bridge.connected"); settle(0.5)

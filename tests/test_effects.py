@@ -1,6 +1,6 @@
-# The built-in effects added in 1.1: each compiles, has Speed from -1 (full, reverse) through 0 (still) to 1 (full),
+# The built-in effects added after 1.1.0: each compiles, has Speed from -1 (full, reverse) through 0 (still) to 1 (full),
 # moves only by it, follows the Color 1 and 2 macros with its colours, shows a lit thumbnail, and has its place in
-# the source list's filters.
+# the source list's filters. Rainbow and Plasma: their own hues as before, or between their two colours.
 import os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import CHROME_ARGS, start_bridge, app_error
@@ -9,8 +9,9 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8208
 fails = []
 def check(name, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + name + ("  " + str(detail)[:400] if detail != "" else ""), flush=True); ok or fails.append(name)
-NEW = ["wash", "cascade", "orbit", "marble", "embers", "ripples", "nebula", "caustics", "fireflies", "bokeh", "kaleido", "lasers", "tunnel",
-       "chevrons", "lightning", "heartbeat", "ganzfeld", "infinity", "sunhaze", "tubes", "chromatic", "opwave", "datastream", "colorfield", "constellation"]
+NEW = ["wash", "cascade", "orbit", "marble", "embers", "nebula", "caustics", "fireflies", "bokeh", "kaleido", "lasers", "tunnel",
+       "chevrons", "lightning", "heartbeat", "ganzfeld", "infinity", "sunhaze", "tubes", "opwave", "constellation"]
+GONE = ["ripples", "chromatic", "datastream", "colorfield"]
 
 bridge = start_bridge(PORT)
 try:
@@ -19,7 +20,8 @@ try:
     errs = []; pg.on("pageerror", lambda e: errs.append(str(e))); pg.on("console", lambda m: errs.append(m.text) if app_error(m) else None)
     pg.goto(f"http://127.0.0.1:{PORT}/"); pg.wait_for_function("window.olm && olm.bridge.connected"); time.sleep(0.5)
     ev = pg.evaluate
-    check("all 25 are in the library", ev("ids => ids.every(id => BUILTINS.some(b => b.id === id))", NEW) and ev("BUILTINS.length") == 57, ev("BUILTINS.length"))
+    check("all 21 are in the library", ev("ids => ids.every(id => BUILTINS.some(b => b.id === id))", NEW) and ev("BUILTINS.length") == 53, ev("BUILTINS.length"))
+    check("Ripples, Cruzado, Ikada and Rothco are gone", ev("ids => !ids.some(id => BUILTINS.some(b => b.id === id))", GONE))
 
     # ---------- each one: compiles, its speed, what moves it, its macros, its facets
     info = ev("""ids => ids.map(id => {
@@ -77,6 +79,26 @@ try:
     dark = ev("""ids => ids.filter(id => { const c = thumbOf(srcById('b-' + id)), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
       let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2]; return s < c.width * c.height * 12; })""", NEW)
     check("each thumbnail shows its effect (not black)", not dark, dark)
+
+    # ---------- Rainbow and Plasma: Colors as Rainbow (the default, as before) or Color A to B, on Color 1 and 2
+    pal = ev("""['rainbow', 'plasma'].map(id => { const src = srcById('b-' + id), hdr = runtimeOf(src).hdr, e = effectRt(src), roles = macroRoles(e);
+      const inp = n => (hdr.INPUTS || []).find(i => i.NAME === n) || {};
+      return { id, palette: inp('palette').DEFAULT, labels: inp('palette').LABELS, a: roles.colorA, b: roles.colorB }; })""")
+    check("Rainbow and Plasma have Colors (Rainbow by default) and two colours on Color 1 and 2",
+          all(o["palette"] == 0 and o["labels"] == ["Rainbow", "Color A to B"] and o["a"] == "color1" and o["b"] == "color2" for o in pal), pal)
+    # the picture: rainbow by default; red to blue with Color A to B only reds, blues and their mixes (no green), still at speed 0
+    shot = ev("""([id, P]) => { const src = srcById('b-' + id), rt = runtimeOf(src), c = document.createElement('canvas'); c.width = 64; c.height = 8;
+      isfTime = 1; applyParams(rt, { params: { ['b-' + id]: Object.assign({ speed: 0 }, P) } }, src); rt.R.draw({ width: 64, height: 8 }); isfTime = null;
+      c.getContext('2d').drawImage(glCanvas, 0, glCanvas.height - 8, 64, 8, 0, 0, 64, 8); return Array.from(c.getContext('2d').getImageData(0, 0, 64, 8).data); }""", ["rainbow", {}])
+    greens = lambda d: max(d[i + 1] for i in range(0, len(d), 4))
+    check("Rainbow by default plays every hue", greens(shot) > 200, greens(shot))
+    for id in ("rainbow", "plasma"):
+        d = ev("""([id, P]) => { const src = srcById('b-' + id), rt = runtimeOf(src), c = document.createElement('canvas'); c.width = 64; c.height = 8;
+          isfTime = 1; applyParams(rt, { params: { ['b-' + id]: Object.assign({ speed: 0 }, P) } }, src); rt.R.draw({ width: 64, height: 8 }); isfTime = null;
+          c.getContext('2d').drawImage(glCanvas, 0, glCanvas.height - 8, 64, 8, 0, 0, 64, 8); return Array.from(c.getContext('2d').getImageData(0, 0, 64, 8).data); }""",
+          [id, {"palette": 1, "colorA": [1, 0, 0, 1], "colorB": [0, 0, 1, 1], "saturation": 1}])
+        reds, blues = max(d[i] for i in range(0, len(d), 4)), max(d[i + 2] for i in range(0, len(d), 4))
+        check(f"{id} with Color A to B goes between its two colours (red to blue: no green)", greens(d) < 12 and reds > 200 and blues > 200, (greens(d), reds, blues))
     check("no errors", not errs, errs[:3])
     br.close()
 finally:
