@@ -643,6 +643,22 @@ function addScreenSource() {
   startCapture(src);
 }
 
+// A stream from the network (NDI or OMT): a new source, or another stream for one already there
+function setStreamSource(src, proto, name) {
+  if (!src) {
+    src = { id: uid(), kind: 'stream', proto, stream: name, name: name.replace(/^.*\((.*)\)$/, '$1') || name, hq: false, fit: 'stretch' };
+    project.sources.push(src);
+    loadSource(src.id);
+  } else Object.assign(src, { proto, stream: name });
+  syncStreams(); markThumb(src); ui.rightTab = 'content';
+  commit(); renderSrcList(); renderRight();
+  return src;
+}
+function setStreamQuality(src, hq) {
+  if (!!src.hq === hq) return;
+  src.hq = hq; syncStreams(); commit(); renderRight();
+}
+
 /* ---------- stacking order ---------- */
 // The fixtures are drawn in list order, the last on top. A whole group moves as one; fixtures picked out of a
 // group move to the top or bottom of their group.

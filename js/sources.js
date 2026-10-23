@@ -187,7 +187,7 @@ function drawMedia(src, w, h) {
   const el = mediaEls.get(src.id);
   if (!el) return false;
   if (el._done && src.kind === 'video' && src.endHold === false) return false;   // played once, then black
-  const iw = el.videoWidth || el.naturalWidth, ih = el.videoHeight || el.naturalHeight;
+  const iw = el.videoWidth || el.naturalWidth || el.width, ih = el.videoHeight || el.naturalHeight || el.height;   // a video, an image, or a stream's canvas
   if (!iw || !ih) return false;
   let dw = w, dh = h;
   if (src.fit !== 'stretch') {

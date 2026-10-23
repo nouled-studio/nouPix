@@ -9,6 +9,7 @@ Browsers cannot send UDP, so this script does the network side:
   * sends them to your controllers as Art-Net ArtDmx packets (UDP 6454)
   * runs ArtPoll discovery and reports the nodes it finds
   * with Remote control on (Settings), lets phones, tablets and other computers on the network use it too
+  * receives NDI and OMT video streams for the interface, when their libraries are installed
 
 Python 3.8+ and the standard library only. No installs needed.
 
@@ -306,6 +307,413 @@ class WebSocket:
         self.send(json.dumps(obj))
 
 
+# --------------------------------------------------------------------------- video from the network (NDI, OMT)
+# A browser can't receive NDI or OMT, so the bridge does: it loads the library the user has installed (NDI Tools or the
+# NDI runtime; libomt for Open Media Transport; nothing is bundled) with ctypes, lists the sources on the network and
+# receives the ones a window plays.
+# The window asks with {"t": "vin", "op": "find"} and {"t": "vin", "op": "sub", "subs": [{"proto", "name", "hq"}]};
+# each stream has a thread that keeps its newest frame, and each window a thread that sends them as binary messages:
+#   b"VIN1" | key length (1 byte) | key (utf-8) | width, height (2 bytes each, big-endian) | RGBA pixels, row by row
+# A frame goes only once the one before it has gone out, so a slow page gets fewer frames, never a queue. Pixel
+# mapping needs few pixels: by default the source's small preview stream (about 640 wide), and every frame is cut
+# down to VIN_MAX_W (or VIN_MAX_W_HQ for full quality) by taking every n-th pixel.
+
+VIN_MAX_W, VIN_MAX_W_HQ = 640, 1920
+VIN_MAGIC = b"VIN1"
+
+
+def ndi_library_paths():
+    """Where the NDI library may be, most likely first."""
+    env = os.environ.get("NOUPIX_NDI_LIB")
+    paths = [env] if env else []
+    if os.name == "nt":
+        for v in ("NDI_RUNTIME_DIR_V6", "NDI_RUNTIME_DIR_V5", "NDI_RUNTIME_DIR_V4"):
+            if os.environ.get(v):
+                paths.append(os.path.join(os.environ[v], "Processing.NDI.Lib.x64.dll"))
+        for d in (r"C:\Program Files\NDI\NDI 6 Runtime\v6", r"C:\Program Files\NDI\NDI 5 Runtime\v5",
+                  r"C:\Program Files\NDI\NDI 6 Tools\Runtime", r"C:\Program Files\NDI\NDI 5 Tools\Runtime"):
+            paths.append(os.path.join(d, "Processing.NDI.Lib.x64.dll"))
+        paths.append("Processing.NDI.Lib.x64.dll")
+    elif sys.platform == "darwin":
+        for v in ("NDI_RUNTIME_DIR_V6", "NDI_RUNTIME_DIR_V5"):
+            if os.environ.get(v):
+                paths.append(os.path.join(os.environ[v], "libndi.dylib"))
+        paths += ["/usr/local/lib/libndi.dylib", "/opt/homebrew/lib/libndi.dylib",
+                  "/Library/NDI SDK for Apple/lib/macOS/libndi.dylib", "/Library/NDI 6 SDK for Apple/lib/macOS/libndi.dylib",
+                  "/Applications/NDI Video Monitor.app/Contents/Frameworks/libndi.dylib", "libndi.dylib"]
+    else:
+        for d in ("", "/usr/lib/", "/usr/local/lib/", "/usr/lib/x86_64-linux-gnu/", "/usr/lib/aarch64-linux-gnu/"):
+            paths += [d + "libndi.so.6", d + "libndi.so.5", d + "libndi.so"]
+    return paths
+
+
+class Ndi:
+    """The parts of the NDI library nouPix uses: finding sources and receiving video as RGBA."""
+    proto = "ndi"
+
+    def __init__(self, path=None):
+        self.lib, self.note, self.finder, self.urls = None, "", None, {}
+        self.lock = threading.Lock()
+        try:
+            import ctypes
+        except ImportError:
+            self.note = "This Python can't load libraries."
+            return
+        self.C = ctypes
+        lib = None
+        for p in ([path] if path else ndi_library_paths()):
+            try:
+                lib = ctypes.CDLL(p)
+                self.path = p
+                break
+            except OSError:
+                continue
+        if lib is None:
+            self.note = "NDI isn't installed on this computer. Install NDI Tools (free, from ndi.video) and restart nouPix."
+            return
+        C = ctypes
+
+        class Source(C.Structure):
+            _fields_ = [("p_ndi_name", C.c_char_p), ("p_url_address", C.c_char_p)]
+
+        class FindCreate(C.Structure):
+            _fields_ = [("show_local_sources", C.c_bool), ("p_groups", C.c_char_p), ("p_extra_ips", C.c_char_p)]
+
+        class RecvCreate(C.Structure):
+            _fields_ = [("source_to_connect_to", Source), ("color_format", C.c_int), ("bandwidth", C.c_int),
+                        ("allow_video_fields", C.c_bool), ("p_ndi_recv_name", C.c_char_p)]
+
+        class VideoFrame(C.Structure):
+            _fields_ = [("xres", C.c_int), ("yres", C.c_int), ("FourCC", C.c_uint32), ("frame_rate_N", C.c_int),
+                        ("frame_rate_D", C.c_int), ("picture_aspect_ratio", C.c_float), ("frame_format_type", C.c_int),
+                        ("timecode", C.c_int64), ("p_data", C.c_void_p), ("line_stride_in_bytes", C.c_int),
+                        ("p_metadata", C.c_char_p), ("timestamp", C.c_int64)]
+        self.Source, self.FindCreate, self.RecvCreate, self.VideoFrame = Source, FindCreate, RecvCreate, VideoFrame
+        try:
+            sig = {
+                "NDIlib_initialize": (C.c_bool, []),
+                "NDIlib_find_create_v2": (C.c_void_p, [C.POINTER(FindCreate)]),
+                "NDIlib_find_get_current_sources": (C.POINTER(Source), [C.c_void_p, C.POINTER(C.c_uint32)]),
+                "NDIlib_recv_create_v3": (C.c_void_p, [C.POINTER(RecvCreate)]),
+                "NDIlib_recv_destroy": (None, [C.c_void_p]),
+                "NDIlib_recv_capture_v2": (C.c_int, [C.c_void_p, C.POINTER(VideoFrame), C.c_void_p, C.c_void_p, C.c_uint32]),
+                "NDIlib_recv_free_video_v2": (None, [C.c_void_p, C.POINTER(VideoFrame)]),
+            }
+            for name, (res, args) in sig.items():
+                f = getattr(lib, name)
+                f.restype, f.argtypes = res, args
+        except AttributeError:
+            self.note = "The NDI library found is too old. Install NDI Tools 5 or newer."
+            return
+        if not lib.NDIlib_initialize():
+            self.note = "NDI can't run on this computer's processor."
+            return
+        self.lib = lib
+
+    def sources(self):
+        """The names of the NDI sources seen on the network so far."""
+        if not self.lib:
+            return []
+        C = self.C
+        with self.lock:
+            if not self.finder:
+                # NOUPIX_NDI_EXTRA_IPS: computers to ask directly, where the network doesn't pass NDI's discovery
+                extra = os.environ.get("NOUPIX_NDI_EXTRA_IPS")
+                fc = self.FindCreate(True, None, extra.encode() if extra else None)
+                self.finder = self.lib.NDIlib_find_create_v2(C.byref(fc))
+                if not self.finder:
+                    return []
+            n = C.c_uint32(0)
+            arr = self.lib.NDIlib_find_get_current_sources(self.finder, C.byref(n))
+            # a receiver connects sooner with the source's address than by its name alone
+            for i in range(n.value):
+                if arr[i].p_ndi_name:
+                    self.urls[arr[i].p_ndi_name.decode("utf-8", "replace")] = arr[i].p_url_address
+            return sorted({arr[i].p_ndi_name.decode("utf-8", "replace") for i in range(n.value) if arr[i].p_ndi_name})
+
+    def open(self, name, hq):
+        """A receiver for one source, or None."""
+        if not self.lib:
+            return None
+        C = self.C
+        end = time.monotonic() + 3.0
+        while name not in self.urls and time.monotonic() < end:   # a source just asked for: wait a moment to find where it is
+            self.sources()
+            if name not in self.urls:
+                time.sleep(0.25)
+        rc = self.RecvCreate(self.Source(name.encode("utf-8"), self.urls.get(name)), 2, 100 if hq else 0, False, b"nouPix")   # RGBX_RGBA; highest or lowest
+        r = self.lib.NDIlib_recv_create_v3(C.byref(rc))
+        return NdiReceiver(self, r) if r else None
+
+
+class NdiReceiver:
+    def __init__(self, ndi, r):
+        self.ndi, self.r = ndi, r
+
+    def capture(self, timeout_ms):
+        """The next video frame as (width, height, stride, RGBA bytes), or None."""
+        n, C = self.ndi, self.ndi.C
+        vf = n.VideoFrame()
+        if n.lib.NDIlib_recv_capture_v2(self.r, C.byref(vf), None, None, timeout_ms) != 1:   # 1: a video frame
+            return None
+        try:
+            if not vf.p_data or vf.xres <= 0 or vf.yres <= 0:
+                return None
+            stride = vf.line_stride_in_bytes or vf.xres * 4
+            return vf.xres, vf.yres, stride, C.string_at(vf.p_data, stride * vf.yres)
+        finally:
+            n.lib.NDIlib_recv_free_video_v2(self.r, C.byref(vf))
+
+    def close(self):
+        if self.r:
+            self.ndi.lib.NDIlib_recv_destroy(self.r)
+            self.r = None
+
+
+def omt_library_paths():
+    """Where the OMT library (libomt, with libvmx beside it) may be, most likely first."""
+    env = os.environ.get("NOUPIX_OMT_LIB")
+    paths = [env] if env else []
+    name = "libomt.dll" if os.name == "nt" else "libomt.dylib" if sys.platform == "darwin" else "libomt.so"
+    for d in (HERE, os.path.join(HERE, "omt"), os.path.join(os.path.expanduser("~"), ".noupix", "omt")):
+        paths.append(os.path.join(d, name))
+    if sys.platform == "darwin":
+        paths += ["/usr/local/lib/libomt.dylib", "/opt/homebrew/lib/libomt.dylib"]
+    elif os.name != "nt":
+        paths += ["/usr/local/lib/libomt.so", "/usr/lib/libomt.so"]
+    return paths + [name]
+
+
+class Omt:
+    """The parts of libomt (Open Media Transport) nouPix uses: finding sources and receiving video as BGRA."""
+    proto, bgra = "omt", True
+
+    def __init__(self, path=None):
+        self.lib, self.note = None, ""
+        self.lock = threading.Lock()
+        import ctypes as C
+        self.C = C
+        lib = None
+        for p in ([path] if path else omt_library_paths()):
+            try:
+                lib = C.CDLL(p)
+                break
+            except OSError:
+                continue
+        if lib is None:
+            self.note = ("OMT isn't installed for nouPix. Put libomt and libvmx (from the Open Media Transport releases) "
+                         "in the folder ~/.noupix/omt and restart nouPix.")
+            return
+
+        class MediaFrame(C.Structure):   # OMTMediaFrame in libomt.h
+            _fields_ = [("Type", C.c_int), ("Timestamp", C.c_int64), ("Codec", C.c_int), ("Width", C.c_int), ("Height", C.c_int),
+                        ("Stride", C.c_int), ("Flags", C.c_int), ("FrameRateN", C.c_int), ("FrameRateD", C.c_int),
+                        ("AspectRatio", C.c_float), ("ColorSpace", C.c_int), ("SampleRate", C.c_int), ("Channels", C.c_int),
+                        ("SamplesPerChannel", C.c_int), ("Data", C.c_void_p), ("DataLength", C.c_int),
+                        ("CompressedData", C.c_void_p), ("CompressedLength", C.c_int),
+                        ("FrameMetadata", C.c_void_p), ("FrameMetadataLength", C.c_int)]
+        self.MediaFrame = MediaFrame
+        try:
+            sig = {
+                "omt_discovery_getaddresses": (C.POINTER(C.c_char_p), [C.POINTER(C.c_int)]),
+                "omt_receive_create": (C.c_void_p, [C.c_char_p, C.c_int, C.c_int, C.c_int]),
+                "omt_receive_destroy": (None, [C.c_void_p]),
+                "omt_receive": (C.POINTER(MediaFrame), [C.c_void_p, C.c_int, C.c_int]),
+            }
+            for name, (res, args) in sig.items():
+                f = getattr(lib, name)
+                f.restype, f.argtypes = res, args
+        except AttributeError:
+            self.note = "The OMT library found isn't one nouPix can use."
+            return
+        self.lib = lib
+
+    def sources(self):
+        if not self.lib:
+            return []
+        C = self.C
+        with self.lock:
+            n = C.c_int(0)
+            arr = self.lib.omt_discovery_getaddresses(C.byref(n))
+            return sorted({arr[i].decode("utf-8", "replace") for i in range(max(0, n.value)) if arr and arr[i]})
+
+    def open(self, name, hq):
+        if not self.lib:
+            return None
+        # video only, BGRA, the 1/8 preview unless full quality is asked for
+        r = self.lib.omt_receive_create(name.encode("utf-8"), 2, 2, 0 if hq else 1)
+        return OmtReceiver(self, r) if r else None
+
+
+class OmtReceiver:
+    def __init__(self, omt, r):
+        self.omt, self.r = omt, r
+
+    def capture(self, timeout_ms):
+        """The next video frame as (width, height, stride, BGRA bytes), or None. The data is libomt's until the next call."""
+        lib, C = self.omt.lib, self.omt.C
+        p = lib.omt_receive(self.r, 2, timeout_ms)
+        if not p:
+            return None
+        f = p.contents
+        if f.Type != 2 or not f.Data or f.Width <= 0 or f.Height <= 0 or f.Codec not in (0x41524742, 0x58524742):   # BGRA, BGRX
+            return None
+        stride = f.Stride or f.Width * 4
+        return f.Width, f.Height, stride, C.string_at(f.Data, stride * f.Height)
+
+    def close(self):
+        if self.r:
+            self.omt.lib.omt_receive_destroy(self.r)
+            self.r = None
+
+
+def bgra_to_rgba(data):
+    b = bytearray(data)
+    b[0::4], b[2::4] = data[2::4], data[0::4]
+    return bytes(b)
+
+
+def shrink_rgba(w, h, stride, data, max_w):
+    """Takes every n-th pixel of every n-th row, so the frame is at most max_w wide, the rows packed tightly."""
+    import array
+    k = -(-w // max_w)
+    if k == 1 and stride == w * 4:
+        return w, h, data
+    if stride % 4:
+        data, stride = b"".join(data[y * stride:y * stride + w * 4] for y in range(h)), w * 4
+    px, out, W = array.array("I"), array.array("I"), stride // 4
+    px.frombytes(data[:W * 4 * h])
+    for y in range(0, h, k):
+        out.extend(px[y * W:y * W + w:k])
+    return len(range(0, w, k)), len(range(0, h, k)), out.tobytes()
+
+
+class Stream:
+    """One source being received: a thread that keeps its newest frame."""
+
+    def __init__(self, backend, key, name, hq):
+        self.backend, self.key, self.name, self.hq = backend, key, name, hq
+        self.frame, self.seq, self.state, self.size = None, 0, "connecting", None
+        self.frames, self.users, self.alive = 0, 0, True
+        threading.Thread(target=self._run, daemon=True).start()
+
+    def _run(self):
+        rx, last = None, time.monotonic()
+        while self.alive:
+            if rx is None:
+                rx = self.backend.open(self.name, self.hq)
+                if rx is None:
+                    self.state = "error"
+                    time.sleep(1.0)
+                    continue
+            f = rx.capture(250)
+            now = time.monotonic()
+            if f is None:
+                if now - last > 2.0:
+                    self.state = "waiting"
+                if now - last > 6.0:   # connect again: the source may have moved, or been found only now
+                    rx.close()
+                    rx, last = None, now
+                    getattr(self.backend, "urls", {}).pop(self.name, None)
+                continue
+            w, h, data = shrink_rgba(*f, VIN_MAX_W_HQ if self.hq else VIN_MAX_W)
+            if getattr(self.backend, "bgra", False):
+                data = bgra_to_rgba(data)
+            last, self.state, self.size = now, "ok", (w, h)
+            with VIN_CHANGED:
+                self.frame, self.seq, self.frames = (w, h, data), self.seq + 1, self.frames + 1
+                VIN_CHANGED.notify_all()
+        if rx:
+            rx.close()
+
+
+VIN_CHANGED = threading.Condition()
+
+
+class VideoIn:
+    """The streams the windows play, shared between them."""
+
+    def __init__(self, ndi_path=None, omt_path=None):
+        self.ndi_path, self.omt_path, self._backends = ndi_path, omt_path, None
+        self.streams, self.lock = {}, threading.RLock()
+
+    @property
+    def backends(self):
+        # loaded when a window first asks, so starting nouPix never waits for them
+        with self.lock:
+            if self._backends is None:
+                self._backends = {"ndi": Ndi(self.ndi_path), "omt": Omt(self.omt_path)}
+            return self._backends
+
+    def info(self):
+        return {p: {"ok": bool(b.lib), "note": b.note} for p, b in self.backends.items()}
+
+    def find(self):
+        out = []
+        for p, b in self.backends.items():
+            out += [{"proto": p, "name": n} for n in b.sources()]
+        return out
+
+    def window(self, ws):
+        """Called once per window: returns the function its messages go to, and the one to call when it closes."""
+        subs = {}   # key -> [stream, last seq sent]
+
+        def message(msg):
+            if msg.get("op") == "find":
+                ws.send_json({"t": "vin", "sources": self.find(), "info": self.info()})
+            elif msg.get("op") == "sub" and isinstance(msg.get("subs"), list):
+                want = {}
+                for s in msg["subs"][:16]:
+                    if isinstance(s, dict) and s.get("proto") in self.backends and isinstance(s.get("name"), str) and s["name"]:
+                        name, hq = s["name"][:120], s.get("hq") is True
+                        want["%s|%s|%d" % (s["proto"], name, hq)] = (s["proto"], name, hq)
+                with self.lock:
+                    for key in [k for k in subs if k not in want]:
+                        self._release(subs.pop(key)[0])
+                    for key, (p, name, hq) in want.items():
+                        if key not in subs:
+                            st = self.streams.get(key)
+                            if not st:
+                                st = self.streams[key] = Stream(self.backends[p], key, name, hq)
+                            st.users += 1
+                            subs[key] = [st, 0]
+                with VIN_CHANGED:
+                    VIN_CHANGED.notify_all()
+
+        def send_loop():
+            last_status = 0.0
+            while ws.alive:
+                with VIN_CHANGED:
+                    VIN_CHANGED.wait(0.5)
+                with self.lock:
+                    items = list(subs.items())
+                for key, s in items:
+                    st = s[0]
+                    if st.seq != s[1] and st.frame:
+                        s[1] = st.seq
+                        w, h, data = st.frame
+                        k = key.encode("utf-8")
+                        ws.send(VIN_MAGIC + bytes((len(k),)) + k + struct.pack(">HH", w, h) + data, 2)
+                now = time.monotonic()
+                if items and now - last_status > 1.0:
+                    last_status = now
+                    ws.send_json({"t": "vin", "status": {key: {"state": s[0].state, "size": s[0].size} for key, s in items}})
+
+        def closed():
+            with self.lock:
+                for s in subs.values():
+                    self._release(s[0])
+                subs.clear()
+        threading.Thread(target=send_loop, daemon=True).start()
+        return message, closed
+
+    def _release(self, st):
+        st.users -= 1
+        if st.users <= 0:
+            st.alive = False
+            self.streams.pop(st.key, None)
+
+
 # --------------------------------------------------------------------------- HTTP handler
 
 def local_ips():
@@ -496,6 +904,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.server.window_count(+1)
         on_node = lambda node: ws.send_json({"t": "node", "node": node})
         art.listeners.add(on_node)
+        vin_message, vin_closed = self.server.vin.window(ws)
         ws.send_json({
             "t": "hello", "version": VERSION, "bindIp": art.bind_ip, "bindPort": art.bind_port,
             "discovery": art.discovery, "discoveryNote": art.discovery_note, "interfaces": local_ips(),
@@ -521,11 +930,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if op == 2:
                     art.frame_from(ws, payload)
                 elif op == 1:
-                    self.handle_message(art, ws, payload, self.server.remote)
+                    self.handle_message(art, ws, payload, self.server.remote, vin_message)
         except (ConnectionError, OSError, ValueError):
             pass
         finally:
             ws.alive = False
+            vin_closed()
             self.server.window_count(-1)
             art.listeners.discard(on_node)
             if art.owner is ws:
@@ -534,7 +944,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.server.remote.host_gone(ws)
 
     @staticmethod
-    def handle_message(art, ws, payload, remote=None):
+    def handle_message(art, ws, payload, remote=None, vin=None):
         try:
             msg = json.loads(payload.decode("utf-8"))
         except ValueError:
@@ -545,6 +955,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             art.set_output(ws, bool(msg.get("on")))
         elif msg.get("t") == "remote" and remote:
             remote.configure(ws, msg)
+        elif msg.get("t") == "vin" and vin:
+            vin(msg)
         elif msg.get("t") == "rout" and remote:
             remote.route(ws, msg)
         elif msg.get("t") == "poll":
@@ -1028,6 +1440,8 @@ def main():
                     "last window closes" % LOG_FILE.replace("%", "%%"))
     ap.add_argument("--embedded", action="store_true", help="run inside the desktop app: no window, prints 'READY <address>' "
                     "once listening, and stops when its input closes (when the app quits)")
+    ap.add_argument("--ndi-lib", help="the NDI library to use (found automatically where NDI Tools installs it)")
+    ap.add_argument("--omt-lib", help="the OMT library, libomt (looked for in ~/.noupix/omt, next to nouPix, and the usual places)")
     ap.add_argument("--parent-pid", type=int, help="with --embedded: also stop if this process (the app) disappears")
     args = ap.parse_args()
     if args.embedded:
@@ -1086,6 +1500,7 @@ def run(args, background):
         sys.exit("Could not open a web port between %d and %d." % (args.port, args.port + 9))
     server.artnet = art
     server.remote = Remote()
+    server.vin = VideoIn(args.ndi_lib, args.omt_lib)
     url = "http://%s:%d/" % (shown_host(args), server.server_address[1])
 
     exe = None if args.no_browser or args.default_browser else (args.browser_path or find_browser())

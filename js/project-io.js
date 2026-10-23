@@ -127,11 +127,12 @@ function hydrate(p) {
   const builtins = builtinSources(), srcIds = new Set(builtins.map(s => s.id));
   const custom = (Array.isArray(p.sources) ? p.sources : []).filter(s => isObj(s) && !s.builtin && isId(s.id) && !srcIds.has(s.id) && srcIds.add(s.id));
   for (const s of custom) {
-    if (!['isf', 'image', 'video', 'screen'].includes(s.kind)) s.kind = 'image';
+    if (!['isf', 'image', 'video', 'screen', 'stream'].includes(s.kind)) s.kind = 'image';
     if (typeof s.name !== 'string') s.name = s.name != null ? String(s.name) : 'Source';
     if (s.kind === 'isf' && typeof s.code !== 'string') s.code = '';
     if ('rate' in s) s.rate = numOr(s.rate, 1);
     if (s.kind === 'video') fixVideoOptions(s);
+    if (s.kind === 'stream') { if (!STREAM_PROTOS[s.proto]) s.proto = 'ndi'; s.stream = typeof s.stream === 'string' ? s.stream : ''; s.hq = s.hq === true; }
   }
   out.sources = builtins.concat(custom);
   if (!Array.isArray(p.zones)) { // 0.2 and older: one set of layers and scenes for the whole canvas

@@ -146,7 +146,7 @@ function tick() {
   if (ui.outputMode === 'content' || ui.showContent) try { renderContent(); } catch (e) { report('content', e); }
   if (ui.outputMode !== 'content') testPattern(ui.outputMode);
   try { updateThumbs(); } catch (e) { report('thumbnails', e); }
-  if (now - mediaChecked > 1000) { mediaChecked = now; syncMedia(); }
+  if (now - mediaChecked > 1000) { mediaChecked = now; syncMedia(); syncStreams(); }
   try { videoTick(); } catch (e) { report('video', e); }
   buildOutput();
   if (ui.outputOn) sendFrame();
@@ -215,7 +215,7 @@ function connectBridge() {
     if (!bridge.started && !REMOTE_CLIENT) { bridge.started = true; setOutput(true); }
   };
   ws.onmessage = ev => {
-    if (typeof ev.data !== 'string') return;
+    if (typeof ev.data !== 'string') { streamFrame(ev.data); return; }   // a frame of an NDI or OMT stream (streams.js)
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
     if (m.t === 'hello') { bridge.hello = m; showVersion(m.version); (m.nodes || []).forEach(n => bridge.nodes.set(n.ip + '#' + n.bindIndex, n)); updateBridgeUI(); if (ui.dockTab === 'nodes') renderDock(); remoteHello(m.remote); }
     else if (m.t === 'stats') { bridge.stats = m; updateBridgeUI(); }
@@ -226,6 +226,7 @@ function connectBridge() {
       if (ui.dockTab === 'nodes') renderDock();
     }
     else if (m.t === 'error') { toast(m.msg, 'warn'); }
+    else if (m.t === 'vin') streamMessage(m);
     else if (m.t === 'takeover' && ui.outputOn) { ui.outputOn = false; keepAwake(false); updateBridgeUI(); toast('Art-Net was switched on in another nouPix window, so this window stopped sending.', 'warn'); }
     else remoteHostMessage(m);
   };
