@@ -194,9 +194,18 @@ function initUI() {
   grip.addEventListener('pointerdown', e => {
     grip.setPointerCapture(e.pointerId);
     const y0 = e.clientY, h0 = ui.dockH;
-    const mv = ev => { ui.dockH = clamp(h0 - (ev.clientY - y0), 120, Math.round(innerHeight * 0.7)); ui.dockCollapsed = false; $('#dock').classList.remove('collapsed'); $('#dock').style.setProperty('--bottom-h', ui.dockH + 'px'); };
-    const up = () => { grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); savePrefs(); };
-    grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up);
+    // the new height goes on once per drawn frame, however often the mouse reports, and the stage's canvas keeps
+    // its size until the drag ends (holdStage): the page is laid out again at most once a frame, the canvas never
+    let y = y0, raf = 0;
+    const apply = () => { raf = 0; ui.dockH = clamp(h0 - (y - y0), 120, Math.round(innerHeight * 0.7)); ui.dockCollapsed = false; $('#dock').classList.remove('collapsed'); $('#dock').style.setProperty('--bottom-h', ui.dockH + 'px'); };
+    const mv = ev => { y = ev.clientY; if (!raf) raf = requestAnimationFrame(apply); };
+    const up = () => {
+      for (const t of ['pointermove', 'pointerup', 'pointercancel']) grip.removeEventListener(t, t === 'pointermove' ? mv : up);
+      if (raf) { cancelAnimationFrame(raf); apply(); }
+      holdStage(false); savePrefs();
+    };
+    holdStage(true);
+    grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
   });
   // the sources' height, dragged on their top edge like the bottom panel's; double-click for the usual height
   const left = $('.left'), sgrip = $('#srcGrip');

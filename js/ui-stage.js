@@ -28,15 +28,39 @@ function resizeView() {
   const r = stageEl.getBoundingClientRect();
   DPR = window.devicePixelRatio || 1;
   VW = Math.max(1, r.width); VH = Math.max(1, r.height);
-  const w = Math.round(VW * DPR), hh = Math.round(VH * DPR);
+  let w = Math.round(VW * DPR), hh = Math.round(VH * DPR);
+  // While a panel is dragged the canvas keeps its size, as large as the stage has been (the part past the stage is
+  // cut off): a new size every step of the drag means a new canvas each time, which stalls the output
+  if (stageHeld) { w = Math.max(w, cv.width); hh = Math.max(hh, cv.height); }
   if (cv.width === w && cv.height === hh) return keepFit();
   // A new size clears the canvas, and the next drawing may be a few frames away (it waits for the output's
   // time): the last picture is put back meanwhile, where it was, so the stage doesn't flash empty while a
   // panel is resized
   const old = cv.width > 1 && cv.height > 1 && SC ? stageCopy() : null;
   cv.width = w; cv.height = hh;
+  if (stageHeld) { cv.style.width = w / DPR + 'px'; cv.style.height = hh / DPR + 'px'; }
   if (old && SC) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = SC.out; ctx.fillRect(0, 0, w, hh); ctx.drawImage(old, 0, 0); }
   keepFit();
+}
+// Holding the canvas's size while a panel is dragged: from the start it is as tall as the window, so the drag
+// needn't make it bigger; when the drag ends it takes the stage's size again
+let stageHeld = false;
+function holdStage(on) {
+  if (on === stageHeld) return;
+  stageHeld = on;
+  if (on) {
+    const old = cv.width > 1 && cv.height > 1 && SC ? stageCopy() : null, r = stageEl.getBoundingClientRect();
+    const w = Math.max(cv.width, Math.round(r.width * DPR)), hh = Math.max(cv.height, Math.round(innerHeight * DPR));
+    if (w !== cv.width || hh !== cv.height) {
+      cv.width = w; cv.height = hh;
+      if (old) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = SC.out; ctx.fillRect(0, 0, w, hh); ctx.drawImage(old, 0, 0); }
+    }
+    cv.style.width = w / DPR + 'px'; cv.style.height = hh / DPR + 'px';
+  } else {
+    cv.style.width = cv.style.height = '';
+    resizeView();
+  }
+  redrawStage();
 }
 // The stage's picture, copied before a resize clears it (one canvas, kept for the next time)
 let stageKept = null;

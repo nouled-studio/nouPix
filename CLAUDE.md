@@ -86,7 +86,7 @@ that needs most of its period still leaves the next on time, and frames never pi
 from now. A frame that took longer than its period makes the next wait half a period, so a slow machine
 keeps an interface that answers. Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimationFrame` when something
 changed, and only as often as leaves the output its time (at most 30 a second for moving content, 60 while working on
-it, at least 10 or once every 4 frames; fewer when drawing is slow; in the gap after an output frame). A new size clears the stage's canvas: `resizeView` puts the last picture back at once, so resizing a panel never flashes it empty before the next drawing. Moving the mouse redraws the stage only
+it, at least 10 or once every 4 frames; fewer when drawing is slow; in the gap after an output frame). A new size clears the stage's canvas: `resizeView` puts the last picture back at once, so resizing a panel never flashes it empty before the next drawing. While the bottom panel's edge is dragged, its height goes on once per drawn frame and the canvas keeps one size, as tall as the window (`holdStage`), taking the stage's size again when the drag ends: a new canvas on every step stalled the output. Moving the mouse redraws the stage only
 while dragging, or when the fixture or pixel under it changes (`hoverPixel` looks only through fixtures near it).
 
 ### Changing the project
