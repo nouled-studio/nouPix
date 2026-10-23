@@ -128,6 +128,7 @@ function sceneMenu(anchor, z, sc) {
     ] }],
     [`Update with ${z.name}'s current layers`, () => { sc.layers = snapshotLayers(z); z.scene = sc.id; commit(); toast(`${sc.name} updated`); }],
     ['Rename, fade time, colour…', () => editScene(sc)],
+    [(sc.onOpen ? '✓ ' : '') + 'Play when the project opens', () => setSceneOnOpen(z, sc, !sc.onOpen), { title: 'One scene per zone; a playlist set to play on open goes first' }],
     ['Duplicate', () => { const c = Object.assign(JSON.parse(JSON.stringify(sc)), { id: uid(), name: nextCopyName(sc.name, new Set(z.scenes.map(x => x.name))) }); z.scenes.splice(z.scenes.indexOf(sc) + 1, 0, c); commit(); }],
     '-',
     ['Delete', () => { z.scenes = z.scenes.filter(x => x !== sc); if (z.scene === sc.id) z.scene = null; dropSceneSteps(z, sc.id); commit(); toast(`${sc.name} deleted. Ctrl Z brings it back.`); }, { danger: true }],
@@ -212,6 +213,7 @@ function sceneTile(z, sc, i, keys, look) {
     title: `${sc.name} · ${sc.layers.length} layer${sc.layers.length === 1 ? '' : 's'} · ${sc.fade > 0 ? 'fades in over ' + fmtV(sc.fade) + ' s' : 'cuts in'}` +
       (inLists ? ` · in ${inLists} playlist${inLists === 1 ? '' : 's'}` : '') + '\nDrag to reorder, or onto a playlist to add it' },
     h('div', { class: 't' }, keys && i < 9 ? h('span', { class: 'k' }, i + 1) : null, h('span', { class: 'nm' }, sc.name),
+      sc.onOpen ? h('span', { class: 'au', title: 'Plays when the project opens', html: ICONS.power }) : null,
       h('button', { class: 'x', type: 'button', title: 'Add to playlist, update, rename, delete…', 'aria-label': 'Options for ' + sc.name, onclick: e => { e.stopPropagation(); sceneMenu(e.currentTarget, z, sc); } }, '⋯')),
     h('div', { class: 's' }, null, h('span', { class: 'fill' }),
       edited ? h('span', { class: 'badge warn', title: 'The layers have changed since this scene was recalled. ⋯ → Update saves the changes into it.' }, 'edited') : null),
@@ -311,7 +313,8 @@ function xfadeStrip() {
   };
   const r = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: X.x, 'data-xf': '', 'aria-label': 'X-Fader', title: 'X-Fader: A on the left, B on the right' });
   r.addEventListener('input', () => setXfade(parseFloat(r.value), r));
-  r.addEventListener('change', commitSoft);
+  // the step of undo (the whole project copied, saved, sent to the devices) waits for a quiet moment after the fader stops
+  r.addEventListener('change', () => (window.requestIdleCallback ? requestIdleCallback(() => commitSoft(), { timeout: 1000 }) : commitSoft()));
   return h('div', { class: 'xfade' }, side('a'),
     h('div', { class: 'xfmid' }, h('span', { class: 'xfend' }, 'A'), midiSlot(r, 'xf'), h('span', { class: 'xfend' }, 'B')),
     side('b'));
@@ -337,6 +340,7 @@ function drawXfPreviews(now) {
     xfPvSize(c, z);
     mixer.thumb(z, c);
   }
+  mixer.forgetGone();
 }
 function drawSceneProgress() {
   for (const el of scenesRoots().flatMap(r => $$('.scene', r))) {

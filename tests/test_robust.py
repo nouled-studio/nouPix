@@ -123,7 +123,7 @@ with sync_playwright() as p:
           pg.evaluate("p => { olm.loadProject(p); olm.setOutput(true); }", base_project([solid([0, 0, 1])])); time.sleep(0.5)
           wait_uni3(lambda v: v[:3] == [0, 0, 255])
           for label, canvas in [("mixer", "olm.mixer.canvas"), ("shaders", "olm.glCanvas")]:
-              pg.evaluate(f"() => {{ window.__lc = {canvas}.getContext('webgl').getExtension('WEBGL_lose_context'); window.__lc.loseContext(); }}")
+              pg.evaluate(f"() => {{ const c = {canvas}; window.__lc = (c.getContext('webgl2') || c.getContext('webgl')).getExtension('WEBGL_lose_context'); window.__lc.loseContext(); }}")
               time.sleep(1.2); t0 = time.time(); time.sleep(1.0)
               held, n = uni3(), node.count(t0, time.time())
               check(f"GPU reset ({label}): output keeps its last colours", held[:3] == [0, 0, 255] and n >= 4, (held, n))

@@ -93,11 +93,18 @@ try:
       // after the page's own handling of each new size, as the browser would then paint it
       window._probe = new ResizeObserver(() => { window._seen++; if (x.getImageData(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1).data[3] === 0) window._blank++; }); window._probe.observe(document.querySelector('#stage')); })()""")
     g = pg.locator("#dockGrip").bounding_box(); gx, gy = g["x"] + g["width"] / 2, g["y"] + g["height"] / 2
-    def drag(up):
+    sizes = []
+    def drag(up, watch=False):
         pg.mouse.move(gx, gy); pg.mouse.down()
-        for k in range(30): pg.mouse.move(gx, gy - 6 * k if up else gy - 180 + 6 * k); time.sleep(0.02)
+        for k in range(30):
+            pg.mouse.move(gx, gy - 6 * k if up else gy - 180 + 6 * k); time.sleep(0.02)
+            if watch: sizes.append(ev("[document.querySelector('#view').width, document.querySelector('#view').height]"))
         pg.mouse.up()
-    drag(True); time.sleep(0.3)
+    dock0 = ev("ui.dockH")
+    drag(True, True); time.sleep(0.3)
+    check("while it is dragged the stage's canvas keeps one size (no new canvas each step)", len(set(map(tuple, sizes))) == 1, sorted(set(map(tuple, sizes))))
+    check("the panel follows the drag", ev("ui.dockH") > dock0 + 120, (dock0, ev("ui.dockH")))
+    check("and when it ends the canvas fits the stage again", ev("(() => { const c = document.querySelector('#view'), r = document.querySelector('#stage').getBoundingClientRect(); return c.width === Math.round(r.width * devicePixelRatio) && c.height === Math.round(r.height * devicePixelRatio) && !c.style.height; })()"))
     check("resizing the bottom panel: the stage never shows empty (it flashed)", ev("window._seen") >= 20 and ev("window._blank") == 0, (ev("window._seen"), ev("window._blank")))
     ev("window._probe.disconnect()")   # reading the stage back is slow here: the output is timed without it
     g = pg.locator("#dockGrip").bounding_box(); gx, gy = g["x"] + g["width"] / 2, g["y"] + g["height"] / 2 + 180

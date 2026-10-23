@@ -529,8 +529,8 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .ptab.on .nm { color: var(--live); }
 .ptab.paused .nm { color: var(--warn); }
 .ptab .tm { font-family: var(--mono); font-size: 10px; color: var(--muted); font-weight: 400; }
-.ptab .au { display: grid; color: var(--accent); }
-.ptab .au svg { width: 11px; height: 11px; }
+.ptab .au, .scene .au { display: grid; color: var(--accent); }
+.ptab .au svg, .scene .au svg { width: 11px; height: 11px; }
 .ptab .x { border: 0; background: none; color: var(--muted); padding: 0 2px; cursor: pointer; font-size: 13px; line-height: 1; }
 .ptab .x:hover { color: var(--text); }
 .ptab .tprog { position: absolute; left: 0; top: 0; height: 2px; width: 0; background: var(--live); }

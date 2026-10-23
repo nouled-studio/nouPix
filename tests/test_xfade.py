@@ -157,6 +157,13 @@ try:
     check("the previews show A (red) and B (green), at their zone's shape", lit == [["a", 80, 40, 255, 0, 0], ["b", 80, 40, 0, 255, 0]], lit)
     fit = ev("[...$$('#dockBody .xfpv')].map(f => { const c = f.querySelector('canvas').getBoundingClientRect(), r = f.getBoundingClientRect(); return [r.width - c.width, r.height - c.height, c.left - r.left, c.top - r.top]; })")
     check("each preview fills its frame exactly (the frame's 1 px border around it)", fit == [[2, 2, 1, 1], [2, 2, 1, 1]], fit)
+    waits = ev("""(() => { const P = WebGL2RenderingContext.prototype, rp = P.readPixels; let n = 0, all = 0;
+      let inPv = false;   // only the previews' reads (the output frame reads back too, between rounds)
+      P.readPixels = function (...a) { if (inPv) { all++; if (typeof a[6] === 'object') n++; } return rp.apply(this, a); };   // into an array: the page waits for the GPU
+      // until both previews have been read back at least once more (the GPU may take a few rounds to finish)
+      return new Promise(res => { let i = 0; const go = () => { inPv = true; try { drawXfPreviews(performance.now() + 1e5 * ++i); } finally { inPv = false; }
+        if (all >= 4 || i > 200) { P.readPixels = rp; res([n, all]); } else setTimeout(go, 15); }; go(); }); })()""")
+    check("the previews are read back without making the page wait for the GPU", waits[0] == 0 and waits[1] >= 4, waits)
     ev("setXfade(0)"); time.sleep(0.4)
     lit = ev("(() => { const c = $('#dockBody canvas[data-xf-pv=b]'), d = c.getContext('2d').getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2]]; })()")
     check("B's preview shows it while it is faded out", lit == [0, 255, 0], lit)
@@ -246,6 +253,19 @@ try:
     check("a phone can't turn it on", ev("project.xfade.on") is False)
     ph.close()
     ev("(() => { remote.cfg.on = false; remoteConfigure(); })()")
+
+    # ---------- moving it doesn't redraw the stage (the content follows each output frame anyway), and its step of
+    # undo waits for the fader to stop
+    ev("(() => { setXfadeOn(true); document.querySelectorAll('.modal-bg').forEach(e => e.remove()); ui.dockTab = 'scenes'; ui.dockCollapsed = false; renderDock(); })()"); time.sleep(0.3)
+    quiet = ev("""(() => { const r = document.querySelector('input[data-xf]'); stageDirty = false;
+      r.value = 0.3; r.dispatchEvent(new Event('input', { bubbles: true }));
+      r.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, buttons: 1 }));
+      const a = stageDirty; document.querySelector('#master').dispatchEvent(new Event('input', { bubbles: true }));
+      return [a, stageDirty, project.xfade.x]; })()""")
+    check("moving the X-Fader doesn't ask the stage to redraw (another slider still does)", quiet == [False, True, 0.3], quiet)
+    n0 = ev("hist.stack[hist.idx]")
+    ev("document.querySelector('input[data-xf]').dispatchEvent(new Event('change', { bubbles: true }))"); time.sleep(1.6)
+    check("its step of undo still comes once it stops", ev("hist.stack[hist.idx]") != n0 and ev("JSON.parse(hist.stack[hist.idx]).xfade.x") == 0.3)
 
     check("no errors", not errs, errs[:3])
     br.close()

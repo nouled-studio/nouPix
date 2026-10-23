@@ -28,7 +28,7 @@ order by `<script src>` tags at the end of `index.html`:
 | `geometry.js` | Mapping math: each fixture's pixel positions, lengths, bounds, distances; moving, turning, scaling a fixture and the frame around several | `computePoints` `rebuildGeometry` `computeBB` `rotateFixture` `scaleFixture` `frameOf` `snap45` |
 | `patch.js` | Addressing: universe and channels of every pixel on its controller output (`BPP`: channels per pixel, doubled on 16-bit fixtures), conflicts | `computePatch` `ensurePatch` `universes` `addrOf` `BPP` `assign` `unassign` |
 | `sources.js` | Content sources: WebGL canvas, ISF runtimes (compiled when first played or drawn as a thumbnail; `headerOf` reads a header without compiling, `controlsOf` an effect's controls from it, `effectRt` what `macroRolesOf` needs from it), parameters and speeds, images and videos (trim, loop, sound), the media format check, source thumbnails | `runtimeOf` `effectRt` `headerOf` `controlsOf` `isSpeedInput` `renderSource` `applyParams` `probeMedia` `attachMedia` `syncMedia` `videoTick` |
-| `render.js` | The GPU mixer (zones, layers, blend modes; the crossfader's even mix; a zone's picture made small for a preview, `mixer.thumb`), looks and fades, recalling a scene, sampling the composition at every pixel, highlight and test patterns | `mixer` `renderContent` `loadSource` `startFade` `recallScene` `sampleMix` `testPattern` `setHighlight` |
+| `render.js` | The GPU mixer (zones, layers, blend modes; the crossfader's even mix; a zone's picture made small for a preview, `mixer.thumb`, read back on WebGL2 through a buffer and a fence so the page never waits for the GPU), looks and fades, recalling a scene, sampling the composition at every pixel, highlight and test patterns | `mixer` `renderContent` `loadSource` `startFade` `recallScene` `sampleMix` `testPattern` `setHighlight` |
 | `streams.js` | NDI and OMT in: the streams the project's stream sources want (`syncStreams`, asked of the bridge), frames from the bridge into a canvas per stream that `mediaEls` holds for its sources (`streamFrame`), the sources found and each stream's state | `streams` `syncStreams` `findStreams` `streamFrame` `streamMessage` `streamState` `streamKey` `isStream` `STREAM_PROTOS` |
 | `output.js` | Gamma, sampled colours to DMX channels (each fixture's dimmer × its group's (`groupLevel`) × the master; 8-bit; 16-bit through `output16`: dimming curves shaped by gamma or strength, coarse then fine), the outgoing frame, the clock, the bridge connection | `buildOutput` `output16` `curveValue` `layoutFrame` `sendFrame` `tick` `startClock` `connectBridge` `bridge` |
 | `project-io.js` | Project files: repairing what is opened, undo history, autosave, open/save, CSV, SVG import, the demo | `hydrate` `serialize` `commit` `commitSoft` `undo` `redo` `loadProject` `importSvg` `demoProject` |
@@ -86,7 +86,7 @@ that needs most of its period still leaves the next on time, and frames never pi
 from now. A frame that took longer than its period makes the next wait half a period, so a slow machine
 keeps an interface that answers. Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimationFrame` when something
 changed, and only as often as leaves the output its time (at most 30 a second for moving content, 60 while working on
-it, at least 10 or once every 4 frames; fewer when drawing is slow; in the gap after an output frame). A new size clears the stage's canvas: `resizeView` puts the last picture back at once, so resizing a panel never flashes it empty before the next drawing. Moving the mouse redraws the stage only
+it, at least 10 or once every 4 frames; fewer when drawing is slow; in the gap after an output frame). A new size clears the stage's canvas: `resizeView` puts the last picture back at once, so resizing a panel never flashes it empty before the next drawing. While the bottom panel's edge is dragged, its height goes on once per drawn frame and the canvas keeps one size, as tall as the window (`holdStage`), taking the stage's size again when the drag ends: a new canvas on every step stalled the output. Moving the mouse redraws the stage only
 while dragging, or when the fixture or pixel under it changes (`hoverPixel` looks only through fixtures near it).
 
 ### Changing the project
@@ -132,7 +132,7 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   `tag` on a scene) is the default: nothing gets one unless the user gives it. Fixtures show their group's (`fxTag`);
   a zone's is its scenes' edge, a scene's its corner mark (`--mark`; red without one), dim and bright while it plays. `hydrate` drops fixtures' colours, and
   the others from files before version 4 (they were given automatically then).
-- Files: `{ format: 'noupix-project', version: 4, … }`, saved as `.noupix` (JSON; `.json` opens too). Save writes over the file opened or saved (`projectFile`, where the browser lets pages write files), Save as asks, and `ui.autosave` writes every change to it. `hydrate` (project-io.js) repairs
+- Files: `{ format: 'noupix-project', version: 4, id, … }`, saved as `.noupix` (JSON; `.json` opens too). Save writes over the file opened or saved (`projectFile`, where the browser lets pages write files), Save as asks, and `ui.autosave` writes every change to it. The project's name follows its file (`nameFromFile` on Save as, the file's name on opening). A scene with `onOpen` (one per zone) is recalled by `loadProject` where no playlist plays on open. The project that opens when nouPix starts (Settings → Startup, `setStartupProject`) is kept by the bridge (`Startup`, `~/.noupix/startup.noupix`, `NOUPIX_STARTUP_FILE`), kept current while it is open (`keepStartupProject`), and sent in `hello` as `startupProject` to the first window after the bridge starts (`--project FILE` gives another); `openStartupProject` opens it. A video with `volFollow` plays at its volume × its zone's level × its layer's opacity (`videoVolume`). `hydrate` (project-io.js) repairs
   anything opened (older versions, openLedMapper and Weft files, hand edits) so the rest of the code can trust the
   project. A new field gets its default there.
 - `ui` holds view and selection state; the part listed in `UI_PREFS` is kept between sessions (`savePrefs`, under
@@ -265,6 +265,8 @@ library isn't installed, `NOUPIX_NDI_LIB` points at one): found, chosen, its pic
 about 30 frames a second, Light and Full, files and undo, the source stopping and coming back, choosing another,
 removing it, a bridge without NDI. `test_omt.py` checks OMT in against `omt_fake.c`, a stand-in library built from the real
 `libomt.h` (needs a C compiler): found, BGRA rows padded past their width arriving as RGBA, preview and full, following,
-stopping and coming back. `test_playlist.py` checks playlists
+stopping and coming back. `test_startup.py` checks the name following the file, the scene that plays on open, the startup
+project (Settings, kept by the bridge, only the first window, following changes, `--project`) and a video's volume following
+its zone. The harness gives each test bridge its own (empty) startup project. `test_playlist.py` checks playlists
 (files, the panel folding and opening, timing and fades, the end, pause and resume, undo, editing while playing, the
 fade on a scene's button, play on open, the phone).

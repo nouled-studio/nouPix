@@ -194,9 +194,18 @@ function initUI() {
   grip.addEventListener('pointerdown', e => {
     grip.setPointerCapture(e.pointerId);
     const y0 = e.clientY, h0 = ui.dockH;
-    const mv = ev => { ui.dockH = clamp(h0 - (ev.clientY - y0), 120, Math.round(innerHeight * 0.7)); ui.dockCollapsed = false; $('#dock').classList.remove('collapsed'); $('#dock').style.setProperty('--bottom-h', ui.dockH + 'px'); };
-    const up = () => { grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); savePrefs(); };
-    grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up);
+    // the new height goes on once per drawn frame, however often the mouse reports, and the stage's canvas keeps
+    // its size until the drag ends (holdStage): the page is laid out again at most once a frame, the canvas never
+    let y = y0, raf = 0;
+    const apply = () => { raf = 0; ui.dockH = clamp(h0 - (y - y0), 120, Math.round(innerHeight * 0.7)); ui.dockCollapsed = false; $('#dock').classList.remove('collapsed'); $('#dock').style.setProperty('--bottom-h', ui.dockH + 'px'); };
+    const mv = ev => { y = ev.clientY; if (!raf) raf = requestAnimationFrame(apply); };
+    const up = () => {
+      for (const t of ['pointermove', 'pointerup', 'pointercancel']) grip.removeEventListener(t, t === 'pointermove' ? mv : up);
+      if (raf) { cancelAnimationFrame(raf); apply(); }
+      holdStage(false); savePrefs();
+    };
+    holdStage(true);
+    grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
   });
   // the sources' height, dragged on their top edge like the bottom panel's; double-click for the usual height
   const left = $('.left'), sgrip = $('#srcGrip');
@@ -340,10 +349,13 @@ function boot() {
   remoteOverlay(); updateRemoteUI();
   if (ui.midiOn && !REMOTE_CLIENT) startMidi();
   new ResizeObserver(() => { resizeView(); redrawStage(); }).observe(stageEl);
-  for (const t of ['pointerdown', 'pointerup', 'wheel', 'keydown', 'keyup', 'input', 'change', 'click', 'drop']) window.addEventListener(t, redrawStage, { capture: true, passive: true });
+  // The X-Fader and the zones' levels change only the content, which the stage follows each output frame anyway:
+  // moving them doesn't ask for a redraw as well (it drew the stage up to 60 times a second, stealing the output's time)
+  const levelOnly = e => !!(e.target && e.target.closest && e.target.closest('[data-xf], [data-zone-op]'));
+  for (const t of ['pointerdown', 'pointerup', 'wheel', 'keydown', 'keyup', 'input', 'change', 'click', 'drop']) window.addEventListener(t, e => { if (!levelOnly(e)) redrawStage(); }, { capture: true, passive: true });
   // Moving the mouse redraws the stage only while dragging; over the stage, also when it reaches another
   // fixture or pixel (ui-stage.js). Moving over the panels draws nothing.
-  window.addEventListener('pointermove', e => { if (e.buttons) redrawStage(); }, { capture: true, passive: true });
+  window.addEventListener('pointermove', e => { if (e.buttons && !levelOnly(e)) redrawStage(); }, { capture: true, passive: true });
   requestAnimationFrame(frameLoop);
   // a handle for the browser console and for tests (olm: the app's first initials, kept so scripts keep working)
   window.olm = { get project() { return project; }, get tickCost() { return tickCost; }, get drawCost() { return drawCost; }, get frameIndex() { return frameIndex; }, get clockT() { return clockT; }, glCanvas, samplePick, loadProject, ui, universes: () => universes, computePatch, setOutput, bridge, tick, mixer, goScene, storeScene, loadSource, selectZone, addZone, setTool, mediaEl: id => mediaEls.get(id) };

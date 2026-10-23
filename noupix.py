@@ -44,7 +44,7 @@ import time
 import urllib.parse
 import webbrowser
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 HERE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 ARTNET_PORT = 6454
 WS_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -714,6 +714,59 @@ class VideoIn:
             self.streams.pop(st.key, None)
 
 
+# --------------------------------------------------------------------------- the project that opens at the start
+# A computer that starts nouPix by itself (a show computer, a Raspberry Pi) opens the project chosen for it in Settings
+# (Open this project when nouPix starts): the window sends it here, it is kept in STARTUP_FILE, and the first window
+# after the bridge starts gets it. --project FILE opens that file instead, without changing the one kept.
+
+STARTUP_FILE = os.environ.get("NOUPIX_STARTUP_FILE") or os.path.join(os.path.expanduser("~"), ".noupix", "startup.noupix")
+
+
+class Startup:
+    def __init__(self, path=None):
+        self.lock = threading.Lock()
+        self.kept = self._read(STARTUP_FILE)
+        self.given = self._read(path) if path else None
+        if path and self.given is None:
+            log("Could not open %s as a nouPix project: starting without it." % path)
+
+    @staticmethod
+    def _read(fn):
+        try:
+            with open(fn, "r", encoding="utf-8") as f:
+                p = json.load(f)
+            return p if isinstance(p, dict) and isinstance(p.get("fixtures"), list) else None
+        except (OSError, ValueError):
+            return None
+
+    def meta(self):
+        p = self.kept
+        return {"id": p.get("id"), "name": p.get("name")} if p else None
+
+    def first(self):
+        """The project the first window opens: the one given with --project, or the one kept."""
+        return self.given or self.kept
+
+    def message(self, msg):
+        with self.lock:
+            if msg.get("op") == "set" and isinstance(msg.get("project"), dict) and isinstance(msg["project"].get("fixtures"), list):
+                self.kept = msg["project"]
+                try:
+                    os.makedirs(os.path.dirname(STARTUP_FILE), exist_ok=True)
+                    tmp = STARTUP_FILE + ".tmp"
+                    with open(tmp, "w", encoding="utf-8") as f:
+                        json.dump(self.kept, f)
+                    os.replace(tmp, STARTUP_FILE)
+                except OSError as e:
+                    log("Could not keep the startup project: %s" % e)
+            elif msg.get("op") == "clear":
+                self.kept = None
+                try:
+                    os.remove(STARTUP_FILE)
+                except OSError:
+                    pass
+
+
 # --------------------------------------------------------------------------- HTTP handler
 
 def local_ips():
@@ -901,6 +954,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         art = self.server.artnet
         ws = WebSocket(self.rfile, self.wfile)
+        first = not self.server.seen_window   # the first window since the bridge started opens the startup project
         self.server.window_count(+1)
         on_node = lambda node: ws.send_json({"t": "node", "node": node})
         art.listeners.add(on_node)
@@ -911,6 +965,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "nets": network_interfaces(),
             "nodes": list(art.nodes.values()),
             "remote": self.server.remote.status(),
+            "startup": self.server.startup.meta(),
+            **({"startupProject": self.server.startup.first()} if first and self.server.startup.first() else {}),
         })
 
         def stats():
@@ -930,7 +986,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if op == 2:
                     art.frame_from(ws, payload)
                 elif op == 1:
-                    self.handle_message(art, ws, payload, self.server.remote, vin_message)
+                    self.handle_message(art, ws, payload, self.server.remote, vin_message, self.server.startup)
         except (ConnectionError, OSError, ValueError):
             pass
         finally:
@@ -944,7 +1000,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.server.remote.host_gone(ws)
 
     @staticmethod
-    def handle_message(art, ws, payload, remote=None, vin=None):
+    def handle_message(art, ws, payload, remote=None, vin=None, startup=None):
         try:
             msg = json.loads(payload.decode("utf-8"))
         except ValueError:
@@ -957,6 +1013,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             remote.configure(ws, msg)
         elif msg.get("t") == "vin" and vin:
             vin(msg)
+        elif msg.get("t") == "startup" and startup:
+            startup.message(msg)
         elif msg.get("t") == "rout" and remote:
             remote.route(ws, msg)
         elif msg.get("t") == "poll":
@@ -1440,6 +1498,7 @@ def main():
                     "last window closes" % LOG_FILE.replace("%", "%%"))
     ap.add_argument("--embedded", action="store_true", help="run inside the desktop app: no window, prints 'READY <address>' "
                     "once listening, and stops when its input closes (when the app quits)")
+    ap.add_argument("--project", help="a .noupix project to open when the first window opens (instead of the one chosen in Settings)")
     ap.add_argument("--ndi-lib", help="the NDI library to use (found automatically where NDI Tools installs it)")
     ap.add_argument("--omt-lib", help="the OMT library, libomt (looked for in ~/.noupix/omt, next to nouPix, and the usual places)")
     ap.add_argument("--parent-pid", type=int, help="with --embedded: also stop if this process (the app) disappears")
@@ -1501,6 +1560,7 @@ def run(args, background):
     server.artnet = art
     server.remote = Remote()
     server.vin = VideoIn(args.ndi_lib, args.omt_lib)
+    server.startup = Startup(args.project)
     url = "http://%s:%d/" % (shown_host(args), server.server_address[1])
 
     exe = None if args.no_browser or args.default_browser else (args.browser_path or find_browser())

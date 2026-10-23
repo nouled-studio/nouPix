@@ -118,6 +118,7 @@ SUITES = [   # name, function, part of --quick
     ("effects", simple("test_effects.py", 8208, 300), True),
     ("ndi", simple("test_ndi.py", 8212, 300), True),
     ("omt", simple("test_omt.py", 8214, 300), True),
+    ("startup", simple("test_startup.py", 8216, 300), True),
     ("stability", simple("test_stability.py", 8210, 900, ("5",)), False),
     ("profile", last_line("test_profile_move.py", [], 60, lambda l: "ALL PASS" in l), True),
 ]
