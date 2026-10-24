@@ -767,6 +767,229 @@ class Startup:
                     pass
 
 
+# --------------------------------------------------------------------------- media library and packages
+# Images and videos added to a project are copied once into MEDIA_DIR, named by their content (the first 32 hex digits
+# of their SHA-256, and their extension), and played from here (/media/<name>, with ranges, so a video can seek): a
+# project refers to them by that name and finds them again in every session, without relinking. A package
+# (name.noupixpkg) is a zip of the project (project.noupix) and the media it uses (media/<name>), stored as they are
+# (videos are compressed already); opening one puts its media into this computer's library.
+
+MEDIA_DIR = os.environ.get("NOUPIX_MEDIA_DIR") or os.path.join(os.path.expanduser("~"), ".noupix", "media")
+MEDIA_NAME = re.compile(r"^[0-9a-f]{32}\.[a-z0-9]{1,5}$")
+MEDIA_TYPES = {"mp4": "video/mp4", "m4v": "video/mp4", "mov": "video/quicktime", "webm": "video/webm", "mkv": "video/x-matroska",
+               "ogv": "video/ogg", "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif",
+               "webp": "image/webp", "avif": "image/avif", "bmp": "image/bmp", "svg": "image/svg+xml"}
+PACKAGES = {}   # token -> (project text, media names, made at): a package asked for, then fetched by its link
+
+
+def media_path(name):
+    return os.path.join(MEDIA_DIR, name) if isinstance(name, str) and MEDIA_NAME.match(name) else None
+
+
+def media_ext(filename):
+    ext = os.path.splitext(filename or "")[1].lstrip(".").lower()
+    return ext if ext in MEDIA_TYPES else None
+
+
+def media_store(read, length, ext, chunk=1 << 20):
+    """Copies length bytes from read() into the library; returns its name (the same content is kept once)."""
+    os.makedirs(MEDIA_DIR, exist_ok=True)
+    h = hashlib.sha256()
+    tmp = os.path.join(MEDIA_DIR, ".in-%s" % secrets.token_hex(8))
+    try:
+        with open(tmp, "wb") as f:
+            left = length
+            while left > 0:
+                b = read(min(chunk, left))
+                if not b:
+                    raise ConnectionError("the file stopped coming")
+                h.update(b)
+                f.write(b)
+                left -= len(b)
+        name = "%s.%s" % (h.hexdigest()[:32], ext)
+        final = os.path.join(MEDIA_DIR, name)
+        if os.path.exists(final):
+            os.remove(tmp)
+        else:
+            os.replace(tmp, final)
+        return name
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+class MediaHandler:
+    """The local server's part for the library and packages (mixed into Handler)."""
+
+    def media_get(self, name):
+        fn = media_path(name)
+        if not fn or not os.path.isfile(fn):
+            return self.send_error(404, "Not in the media library")
+        size = os.path.getsize(fn)
+        start, end = 0, size - 1
+        rng = re.match(r"bytes=(\d*)-(\d*)$", self.headers.get("Range", "").strip())
+        if rng and (rng.group(1) or rng.group(2)):
+            if rng.group(1):
+                start = int(rng.group(1))
+                end = min(int(rng.group(2)), size - 1) if rng.group(2) else size - 1
+            else:   # the last n bytes
+                start = max(0, size - int(rng.group(2)))
+            if start >= size or start > end:
+                self.send_response(416)
+                self.send_header("Content-Range", "bytes */%d" % size)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.send_response(206)
+            self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, size))
+        else:
+            self.send_response(200)
+        self.send_header("Content-Type", MEDIA_TYPES.get(name.rsplit(".", 1)[1], "application/octet-stream"))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        if self.command == "HEAD":
+            return
+        try:
+            with open(fn, "rb") as f:
+                f.seek(start)
+                left = end - start + 1
+                while left > 0:
+                    b = f.read(min(1 << 20, left))
+                    if not b:
+                        break
+                    self.wfile.write(b)
+                    left -= len(b)
+        except (ConnectionError, OSError):
+            self.close_connection = True
+
+    def media_info(self, query):
+        names = [n for n in urllib.parse.parse_qs(query).get("names", [""])[0].split(",") if n]
+        out = {}
+        for n in names[:2000]:
+            fn = media_path(n)
+            out[n] = os.path.getsize(fn) if fn and os.path.isfile(fn) else None
+        total = 0
+        try:
+            for e in os.scandir(MEDIA_DIR):
+                if MEDIA_NAME.match(e.name):
+                    total += e.stat().st_size
+        except OSError:
+            pass
+        self.reply_json(200, {"sizes": out, "library": total, "dir": MEDIA_DIR})
+
+    def reply_json(self, status, obj):
+        body = json.dumps(obj).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def body_length(self):
+        try:
+            return max(0, int(self.headers.get("Content-Length", "0")))
+        except ValueError:
+            return 0
+
+    def do_POST(self):
+        u = urllib.parse.urlparse(self.path)
+        if not self.origin_ok():
+            return self.send_error(403, "Origin not allowed")
+        q = urllib.parse.parse_qs(u.query)
+        n = self.body_length()
+        try:
+            if u.path == "/media":   # a file added to a project
+                ext = media_ext(q.get("name", [""])[0])
+                if not ext:
+                    return self.reply_json(400, {"error": "not an image or video nouPix takes"})
+                return self.reply_json(200, {"name": media_store(self.rfile.read, n, ext), "size": n})
+            if u.path == "/media/clean":   # forget what isn't in the list kept
+                keep = set(json.loads(self.rfile.read(n).decode("utf-8")).get("keep", []))
+                freed = removed = 0
+                for e in os.scandir(MEDIA_DIR) if os.path.isdir(MEDIA_DIR) else []:
+                    if MEDIA_NAME.match(e.name) and e.name not in keep:
+                        freed += e.stat().st_size
+                        os.remove(e.path)
+                        removed += 1
+                return self.reply_json(200, {"removed": removed, "freed": freed})
+            if u.path == "/package":   # the project for a package: its link comes back, to fetch it
+                msg = json.loads(self.rfile.read(n).decode("utf-8"))
+                media = [m for m in msg.get("media", []) if media_path(m) and os.path.isfile(media_path(m))]
+                now = time.time()
+                for t in [t for t, v in PACKAGES.items() if now - v[2] > 3600]:
+                    PACKAGES.pop(t, None)
+                token = secrets.token_urlsafe(12)
+                PACKAGES[token] = (msg.get("project", ""), media, now)
+                return self.reply_json(200, {"token": token})
+            if u.path == "/package/open":   # a package opened: its media into the library, its project back
+                return self.package_open(n)
+        except (ValueError, OSError, ConnectionError) as e:
+            return self.reply_json(400, {"error": str(e)})
+        self.send_error(404)
+
+    def package_get(self, token):
+        """The package as a stream: the zip is written as it goes, the videos read from the library."""
+        import zipfile
+        job = PACKAGES.pop(token, None)
+        if not job:
+            return self.send_error(404, "That package was already fetched, or is too old")
+        text, media, _ = job
+        self.send_response(200)
+        self.send_header("Content-Type", "application/zip")
+        self.send_header("Content-Disposition", "attachment")
+        self.send_header("Connection", "close")
+        self.send_header("X-Package-Size", str(sum(os.path.getsize(media_path(m)) for m in media) + len(text.encode("utf-8"))))
+        self.end_headers()
+        self.close_connection = True
+        try:
+            with zipfile.ZipFile(self.wfile, "w", zipfile.ZIP_STORED) as z:
+                z.writestr("project.noupix", text)
+                for m in media:
+                    with open(media_path(m), "rb") as src, z.open("media/" + m, "w", force_zip64=True) as dst:
+                        shutil.copyfileobj(src, dst, 1 << 20)
+        except (ConnectionError, OSError):
+            pass
+
+    def package_open(self, n):
+        import zipfile, tempfile
+        fd, tmp = tempfile.mkstemp(suffix=".noupixpkg")
+        try:
+            with os.fdopen(fd, "wb") as f:
+                left = n
+                while left > 0:
+                    b = self.rfile.read(min(1 << 20, left))
+                    if not b:
+                        raise ConnectionError("the package stopped coming")
+                    f.write(b)
+                    left -= len(b)
+            try:
+                z = zipfile.ZipFile(tmp)
+            except zipfile.BadZipFile:
+                return self.reply_json(400, {"error": "not a nouPix package"})
+            with z:
+                names = z.namelist()
+                if "project.noupix" not in names:
+                    return self.reply_json(400, {"error": "not a nouPix package (no project.noupix in it)"})
+                text = z.read("project.noupix").decode("utf-8")
+                got = []
+                for name in names:
+                    base = name[len("media/"):] if name.startswith("media/") else ""
+                    if not MEDIA_NAME.match(base):
+                        continue
+                    with z.open(name) as src:
+                        stored = media_store(src.read, z.getinfo(name).file_size, base.rsplit(".", 1)[1])
+                    got.append(stored)
+            return self.reply_json(200, {"project": json.loads(text), "media": got})
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
 # --------------------------------------------------------------------------- HTTP handler
 
 def local_ips():
@@ -900,7 +1123,7 @@ STATIC = re.compile(r"^/(?:css|js|js/vendor)/[A-Za-z0-9_-]+\.(css|js|woff2)$")  
 STATIC_TYPES = {"css": "text/css; charset=utf-8", "js": "text/javascript; charset=utf-8", "woff2": "font/woff2"}
 
 
-class Handler(http.server.BaseHTTPRequestHandler):
+class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
     server_version = "nouPix/" + VERSION
     protocol_version = "HTTP/1.1"
 
@@ -918,6 +1141,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
         m = STATIC.match(path)
         if m:
             return self.send_file(os.path.join(HERE, *path.lstrip("/").split("/")), STATIC_TYPES[m.group(1)])
+        if path.startswith("/media/"):
+            return self.media_get(path[len("/media/"):])
+        if path == "/media-info":
+            return self.media_info(urllib.parse.urlparse(self.path).query)
+        if path.startswith("/package/"):
+            return self.package_get(path.split("/")[2])
+        self.send_error(404)
+
+    def do_HEAD(self):
+        path = urllib.parse.urlparse(self.path).path
+        if path.startswith("/media/"):
+            return self.media_get(path[len("/media/"):])
         self.send_error(404)
 
     def send_file(self, fn, ctype):
@@ -1250,6 +1485,9 @@ class Remote:
 
 class RemoteHandler(Handler):
     """The network web server of remote control: its pages, the interface's files, logging in, and devices' WebSocket."""
+
+    def do_HEAD(self):   # the media library is this computer's only
+        self.send_error(404)
 
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path

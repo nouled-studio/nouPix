@@ -133,6 +133,8 @@ const numOr = (v, d) => (typeof v === 'number' ? (isFinite(v) ? v : d) : typeof 
 
 /* ---------- formats ---------- */
 const pct = v => Math.round(v * 100) + '%';
+// A file's size, short: 840 kB, 12.3 MB, 1.24 GB
+const fmtBytes = n => (n >= 1e9 ? (n / 1e9).toFixed(2) + ' GB' : n >= 1e6 ? (n / 1e6).toFixed(1) + ' MB' : n >= 1e3 ? Math.round(n / 1e3) + ' kB' : n + ' B');
 // For JSON.stringify: leaves out the keys starting with _ (worked out at run time, never saved)
 const replacer = (k, v) => (k.startsWith('_') ? undefined : v);
 // Several fixtures align to the box around all of them, a single one to the canvas. Locked fixtures stay put,

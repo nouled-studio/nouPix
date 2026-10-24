@@ -37,6 +37,7 @@ def start_bridge(port=8099, extra=()):
     # the startup project of this computer's nouPix never reaches the tests: each bridge has its own (none) unless one is given
     env = dict(os.environ)
     env.setdefault("NOUPIX_STARTUP_FILE", os.path.join(tempfile.gettempdir(), "noupix-test-startup-%d.noupix" % port))
+    env.setdefault("NOUPIX_MEDIA_DIR", os.path.join(tempfile.gettempdir(), "noupix-test-media-%d" % port))   # never this computer's library
     if "NOUPIX_STARTUP_FILE" not in os.environ:
         try: os.remove(env["NOUPIX_STARTUP_FILE"])
         except OSError: pass

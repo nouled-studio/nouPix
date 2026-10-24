@@ -284,7 +284,8 @@ function renderSrcList() {
     const missing = ['image', 'video', 'screen'].includes(s.kind) && !mediaEls.get(s.id) || isStream(s) && streamState(s) !== 'ok';
     const rt = s.kind === 'isf' && runtimes.get(s.id);
     const live = L && L.src === s.id, used = usedBy.get(s.id);
-    const tag = missing ? [s.kind === 'screen' || isStream(s) && streamState(s) !== 'connecting' ? 'OFF' : isStream(s) ? '…' : 'RELINK', 'warn'] : rt && rt.error ? ['ERROR', 'err'] : s.builtin ? null : [kind, ''];
+    const loading = missing && s.media && s._mediaGone !== s.media;   // coming from the media library
+    const tag = missing ? [s.kind === 'screen' || isStream(s) && streamState(s) !== 'connecting' ? 'OFF' : isStream(s) || loading ? '…' : 'RELINK', 'warn'] : rt && rt.error ? ['ERROR', 'err'] : s.builtin ? null : [kind, ''];
     const fs = srcFacets(s), kw = srcTags(s).filter(t => !SRC_FACET_OF.has(t));
     const tags = [SRC_FACETS.filter(f => f.key !== 'type' && fs[f.key]).map(f => srcLabel(f.key, fs[f.key])).join(' · '), kw.join(', ')].filter(Boolean).join('\n');
     const tile = h('div', { class: 'tile' + (live ? ' live' : used ? ' used' : ''), role: 'button', tabindex: 0,

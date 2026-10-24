@@ -216,6 +216,7 @@ function renderSource(src, L, w, h) {
 // Play the videos that some layer shows (also restarts ones the browser paused in the background),
 // pause the ones nothing shows.
 function syncMedia() {
+  loadLibraryMedia();
   const used = new Set();
   for (const z of project.zones) for (const L of z.layers.concat(z._fade && z._fade.from || [])) if (L.on && L.src) used.add(L.src);
   for (const [id, el] of mediaEls) {
@@ -301,18 +302,20 @@ function mediaKindOf(file) {
   if ((file.type || '').startsWith('image/') || IMAGE_EXT.includes(ext)) return 'image';
   return null;
 }
-// Loads a file into a hidden player and resolves once a first frame decodes, or rejects with what is wrong
+// Loads a file (or { name, url } of one in the media library) into a hidden player and resolves once a first frame
+// decodes, or rejects with what is wrong
 function probeMedia(file, timeout = 20000) {
   return new Promise((resolve, reject) => {
     const kind = mediaKindOf(file);
     if (!kind) return reject(new Error(`${file.name} is not a video or image file nouPix can play. ${MEDIA_FORMATS}`));
-    const url = URL.createObjectURL(file);
+    const url = file.url || URL.createObjectURL(file);
     let el, timer = null;
     const end = (ok, v) => {
       clearTimeout(timer);
       if (ok) return resolve(v);
       if (el instanceof HTMLVideoElement) { el.removeAttribute('src'); el.load(); }
-      URL.revokeObjectURL(url); reject(v);
+      if (!file.url) URL.revokeObjectURL(url);
+      reject(v);
     };
     timer = setTimeout(() => end(false, new Error(`${file.name} did not load. ${MEDIA_FORMATS}`)), timeout);
     if (kind === 'video') {
@@ -376,6 +379,39 @@ function updateThumbs() {
   }
 }
 function markThumb(src) { const c = thumbs.get(src.id); if (c) c._stale = true; }
+
+/* ---------- the media library ---------- */
+// Images and videos added on the main computer are copied once into the bridge's media library (noupix.py) and played
+// from there: a source keeps the file's name in the library (src.media), and loads it again in every session, where
+// before each file had to be relinked. A page not served by the bridge, and a device, work as before (relink).
+const libraryOk = () => !REMOTE_CLIENT && /^https?:$/.test(location.protocol);
+const mediaUrl = name => '/media/' + encodeURIComponent(name);
+const mediaLoading = new Set();   // source ids being loaded from the library
+// Sends a file to the library; resolves with its name there. onProgress gets 0..1.
+function libraryPut(path, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open('POST', path);
+    x.upload.onprogress = e => { if (onProgress && e.lengthComputable) onProgress(e.loaded / e.total); };
+    x.onload = () => { let r = null; try { r = JSON.parse(x.responseText); } catch (e) { /* not JSON */ }
+      if (x.status === 200 && r) resolve(r); else reject(new Error((r && r.error) || 'the bridge said ' + x.status)); };
+    x.onerror = () => reject(new Error('nouPix lost its bridge (noupix.py)'));
+    x.send(file);
+  });
+}
+// Sources whose file is in the library but not loaded yet (a project opened, an undo, a package): loaded now
+function loadLibraryMedia() {
+  if (!libraryOk()) return;
+  for (const s of project.sources) {
+    if (!s.media || mediaEls.has(s.id) || mediaLoading.has(s.id) || s._mediaGone === s.media) continue;
+    mediaLoading.add(s.id);
+    const name = s.media;
+    probeMedia({ name, url: mediaUrl(name) })
+      .then(probe => { if (s.media === name && !mediaEls.has(s.id)) { attachMedia(s, probe); syncMedia(); renderSrcList(); if (ui.rightTab === 'content') renderRight(); } })
+      .catch(() => { s._mediaGone = name; renderSrcList(); })   // not in this computer's library: relink it, or open its package
+      .finally(() => mediaLoading.delete(s.id));
+  }
+}
 
 /* ---------- media files ---------- */
 // A file that played in probeMedia becomes the source's picture

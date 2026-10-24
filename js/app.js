@@ -234,7 +234,7 @@ function initUI() {
     const n = f.name.toLowerCase();
     if (n.endsWith('.svg')) importSvgDialog(f);
     else if (n.endsWith('.fs') || n.endsWith('.glsl')) addIsfFile(f);
-    else if (n.endsWith('.noupix') || n.endsWith('.json')) openProjectFile(f);
+    else if (n.endsWith('.noupix') || n.endsWith('.noupixpkg') || n.endsWith('.json')) openProjectFile(f);
     else if (mediaKindOf(f)) { mediaTarget = null; addMediaFile(f); }
     else toast(`${f.name}: nouPix opens projects (.noupix), shaders (.fs), SVG layouts, videos and images. ${MEDIA_FORMATS}`, 'warn');
   });

@@ -133,6 +133,7 @@ function hydrate(p) {
     if (s.kind === 'isf' && typeof s.code !== 'string') s.code = '';
     if ('rate' in s) s.rate = numOr(s.rate, 1);
     if (s.kind === 'video') fixVideoOptions(s);
+    if (!(typeof s.media === 'string' && /^[0-9a-f]{32}\.[a-z0-9]{1,5}$/.test(s.media)) || !['image', 'video'].includes(s.kind)) delete s.media;   // its file in the media library
     if (s.kind === 'stream') { if (!STREAM_PROTOS[s.proto]) s.proto = 'ndi'; s.stream = typeof s.stream === 'string' ? s.stream : ''; s.hq = s.hq === true; }
   }
   out.sources = builtins.concat(custom);
@@ -290,7 +291,9 @@ function loadProject(p, { resetView = true } = {}) {
 // (Chrome, Edge, the desktop app), the file opened or saved is remembered: Save writes over it without asking, Save
 // as asks, and with autosave on every change goes to it a moment later. Elsewhere each save downloads a copy.
 let projectFile = null;
-const PROJECT_TYPES = [{ description: 'nouPix project', accept: { 'application/json': ['.noupix', '.json'] } }];
+const PROJECT_TYPES = [{ description: 'nouPix project', accept: { 'application/json': ['.noupix', '.json'], 'application/zip': ['.noupixpkg'] } }];
+const PACKAGE_TYPES = [{ description: 'nouPix package (the project and its media)', accept: { 'application/zip': ['.noupixpkg'] } }];
+const isPackage = name => /\.noupixpkg$/i.test(name || '');
 const projectText = () => JSON.stringify(JSON.parse(serialize(true)), null, 1);
 const fileName = () => ((project.name || 'noupix-project').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'noupix-project') + '.noupix';
 async function writeProjectFile(handle, ask) {
@@ -329,10 +332,11 @@ async function openProjectDialog() {
   if (!window.showOpenFilePicker) { $('#fileOpen').click(); return; }
   try {
     const [handle] = await showOpenFilePicker({ types: PROJECT_TYPES });
-    if (await openProjectFile(await handle.getFile())) projectFile = handle;
+    if (await openProjectFile(await handle.getFile()) && !isPackage(handle.name)) projectFile = handle;
   } catch (e) { if (e.name !== 'AbortError') toast('Could not open: ' + e.message, 'err'); }
 }
 async function openProjectFile(file) {
+  if (isPackage(file.name)) return openPackage(file);
   try {
     const p = JSON.parse(await file.text());
     if (!p || !Array.isArray(p.fixtures)) throw new Error('not a nouPix project');
@@ -360,6 +364,45 @@ function openStartupProject(p) {
   if (REMOTE_CLIENT || !isObj(p) || !Array.isArray(p.fixtures)) return;
   try { loadProject(p); projectFile = null; toast(`Opened ${project.name}, the project nouPix opens when it starts.`); }
   catch (e) { report('opening the startup project', e); }
+}
+/* ---------- packages: the project and its media in one file ---------- */
+// name.noupixpkg is a zip (made and read by the bridge) of project.noupix and the images and videos it uses, from the
+// media library, to take a project to another computer. Opening one puts its media into this computer's library.
+// Shaders and the guide image are inside the project already.
+const packageMedia = () => project.sources.filter(s => (s.kind === 'image' || s.kind === 'video') && !s.builtin);
+async function exportPackage(name) {
+  const media = [...new Set(packageMedia().map(s => s.media).filter(Boolean))];
+  const r = await fetch('/package', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project: projectText(), media }) });
+  if (!r.ok) throw new Error('the bridge said ' + r.status);
+  const { token } = await r.json(), url = `/package/${token}/${encodeURIComponent(name)}`;
+  if (window.showSaveFilePicker) {
+    let handle;
+    try { handle = await showSaveFilePicker({ suggestedName: name, types: PACKAGE_TYPES }); } catch (e) { if (e.name === 'AbortError') return false; throw e; }
+    toast(`Writing ${handle.name}…`);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('the bridge said ' + res.status);
+    await res.body.pipeTo(await handle.createWritable());   // straight to the file, however big
+    toast(`Saved ${handle.name}: the project and ${media.length} media file${media.length === 1 ? '' : 's'}.`);
+    return true;
+  }
+  const a = h('a', { href: url, download: name }); document.body.append(a); a.click(); a.remove();
+  toast(`${name} is downloading: the project and ${media.length} media file${media.length === 1 ? '' : 's'}.`);
+  return true;
+}
+async function openPackage(file) {
+  if (!libraryOk()) { toast('Packages open in nouPix started from noupix.py or the app, which keep the media.', 'warn'); return false; }
+  try {
+    const big = file.size > 50e6;
+    if (big) toast(`Opening ${file.name}: copying its media into this computer's library…`);
+    const r = await libraryPut('/package/open', file);
+    const p = r.project;
+    if (!isObj(p) || !Array.isArray(p.fixtures)) throw new Error('no nouPix project in it');
+    if (nameOfFile(file.name)) p.name = nameOfFile(file.name.replace(/\.noupixpkg$/i, ''));
+    loadProject(p);
+    projectFile = null;   // Save writes a .noupix: it asks where
+    toast(`Opened ${project.name}, with ${r.media.length} media file${r.media.length === 1 ? '' : 's'}.`);
+    return true;
+  } catch (e) { toast('Could not open that package: ' + e.message, 'err'); return false; }
 }
 function exportCSV() {
   ensurePatch();

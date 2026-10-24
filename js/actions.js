@@ -608,10 +608,20 @@ async function addMediaFile(file) {
   const isNew = !src;
   if (isNew) { src = { id: uid(), kind: probe.kind, name: file.name, fit: 'fit', rate: 1 }; project.sources.push(src); }
   attachMedia(src, probe);
+  storeMedia(src, file);
   if (isNew) loadSource(src.id);
   syncMedia(); ui.rightTab = 'content';
   commit(); renderSrcList(); renderRight();
   if (probe.kind === 'video') toast(`${src.name}: ${probe.w} × ${probe.h}, ${fmtDur(probe.duration)}`);
+}
+// A file added: copied into the media library (sources.js), so it opens again by itself
+function storeMedia(src, file) {
+  if (!libraryOk()) return;
+  const big = file.size > 50e6;
+  if (big) toast(`Copying ${file.name} into the media library, so it opens again by itself…`);
+  libraryPut('/media?name=' + encodeURIComponent(file.name), file)
+    .then(r => { src.media = r.name; delete src._mediaGone; commitSoft(); if (big) toast(`${file.name} is in the media library.`); })
+    .catch(e => toast(`${file.name} couldn't go into the media library (${e.message}): relink it next time.`, 'warn'));
 }
 async function startCapture(src) {
   try {
@@ -665,6 +675,25 @@ function setSceneOnOpen(z, sc, on) {
   if (on) sc.onOpen = true;
   commit();
   toast(on ? `${sc.name} plays when the project opens.` : `${z.name} plays no scene by itself when the project opens.`);
+}
+
+// Emptying the media library of all but this project's files (other projects that use them then ask to relink)
+function cleanLibraryDialog() {
+  const keep = [...new Set(project.sources.map(s => s.media).filter(Boolean))];
+  const close = () => bg.remove();
+  const go = async () => {
+    close();
+    try {
+      const r = await (await fetch('/media/clean', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keep }) })).json();
+      toast(`Removed ${r.removed} file${r.removed === 1 ? '' : 's'} from the media library (${fmtBytes(r.freed)}).`); renderRight();
+    } catch (e) { toast('Could not clean the media library: ' + e.message, 'err'); }
+  };
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal', role: 'dialog', 'aria-label': 'Clean the media library' },
+      h('header', null, 'Clean the media library'),
+      h('div', { class: 'mb' }, h('p', null, `This removes every image and video in the library that ${project.name} doesn't use. Other projects that use them will ask to relink them (or open from their package). Your original files aren't touched.`)),
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'), h('button', { class: 'btn danger-t', type: 'button', onclick: go }, 'Remove'))));
+  uiDocNow().body.append(bg);
 }
 
 /* ---------- stacking order ---------- */
