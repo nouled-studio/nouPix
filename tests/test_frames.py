@@ -1,7 +1,8 @@
 # The output's frame rate holds while the interface works: a frame that takes most of its period still leaves the
 # next on time (the clock); moving the mouse over the panels draws nothing, over the stage only when it reaches
 # another fixture or pixel; the stage is drawn at most about 30 times a second for moving content; the pixel under
-# the mouse is the nearest one, as before; resizing the bottom panel never shows the stage empty.
+# the mouse is the nearest one, as before; resizing the bottom panel never shows the stage empty; many pixels on screen
+# are drawn as the content through a mask of their circles, dimmed by dimmers, group levels, master and blackout.
 import os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import CHROME_ARGS, start_bridge, app_error
@@ -111,6 +112,36 @@ try:
     f0 = ev("olm.frameIndex"); t0 = time.time(); drag(False); el = time.time() - t0; time.sleep(0.3)
     check("and the output keeps going meanwhile", (ev("olm.frameIndex") - f0) / el > 30, round((ev("olm.frameIndex") - f0) / el, 1))
     ev("(() => { renderContent = window._render; olm.project.settings.fps = 40; startClock(); })()")
+
+    # ---------- many pixels: the content through a mask of their circles
+    ev("""(() => { const p = blankProject('M'); p.settings.compW = 1000; p.settings.compH = 600;
+      p.zones = [newZone({ w: 1000, h: 600, layers: [newLayer('b-solid')] })];
+      p.zones[0].layers[0].params = { 'b-solid': { color: [1, 1, 1, 1] } };
+      p.fixtures = Array.from({ length: 40 }, (_, i) => newFixture('line', { x1: 20, y1: 15 + i * 14, x2: 980, y2: 15 + i * 14, pixels: 100 }));
+      p.groups = [{ id: 'g1', name: 'G', open: true }]; p.fixtures[1].group = 'g1';
+      olm.loadProject(p); fitView(); })()"""); time.sleep(1)
+    # the brightness of a fixture's middle pixel on the stage, drawn once the view is settled
+    probe = lambda i: ev(f"""(() => {{ dotLayers.seen = ui.view.zoom + '|' + ui.view.x + '|' + ui.view.y; dotLayers.movedAt = -1e9; drawView();
+      const f = olm.project.fixtures[{i}], k = f._n >> 1, x = document.querySelector('#view').getContext('2d');
+      const d = x.getImageData(Math.round((f._pts[2 * k] * ui.view.zoom + ui.view.x) * DPR), Math.round((f._pts[2 * k + 1] * ui.view.zoom + ui.view.y) * DPR), 1, 1).data;
+      return d[0] + d[1] + d[2]; }})()""")
+    lit = probe(0)
+    check("4,000 pixels on screen are drawn through the mask, showing the content", ev("!!dotLayers.view") and lit > 600, lit)
+    ev("olm.project.fixtures[0].dimmer = 0")
+    check("a fixture's dimmer at 0 makes its pixels dark, the others stay lit", probe(0) < 60 and probe(2) > 600, (probe(0), probe(2)))
+    ev("olm.project.fixtures[0].dimmer = 1; olm.project.groups[0].level = 0.5")
+    check("its group's level dims a fixture of the group", 250 < probe(1) < 500 and probe(0) > 600, (probe(1), probe(0)))
+    ev("olm.project.groups[0].level = 1; olm.project.fixtures[0].enabled = false")
+    check("a disabled fixture shows dark", probe(0) < 60, probe(0))
+    ev("olm.project.fixtures[0].enabled = true; olm.project.settings.master = 0.5")
+    check("the master dims them all", 250 < probe(0) < 500 and 250 < probe(2) < 500, (probe(0), probe(2)))
+    ev("olm.project.settings.master = 1; ui.blackout = true")
+    check("and blackout puts them all out", probe(0) < 60 and probe(2) < 60, (probe(0), probe(2)))
+    ev("ui.blackout = false; dotLayers.view = null; ui.outputMode = 'fixtures'; drawView()")
+    check("while highlighting, each dot is drawn in its colour instead", ev("dotLayers.view === null"))
+    ev("ui.outputMode = 'content'; fitView(); zoomAt(VW / 2, VH / 2, 12 / ui.view.zoom); dotLayers.view = null; drawView()")
+    check("and so when zoomed in to few pixels", ev("dotLayers.view === null"))
+    ev("fitView()")
     check("no errors", not errs, errs[:3])
     br.close()
 finally:

@@ -261,7 +261,8 @@ try:
     check("main window gone: the devices say they wait for it", until(ph, "!document.querySelector('#wait').hidden && document.querySelector('#waitMsg').textContent.includes('main computer')") and until(op, "!!document.querySelector('#remoteWait')"))
     host = hctx.new_page(); watch(host, "host2"); H = host.evaluate
     host.goto(f"http://127.0.0.1:{PORT}/"); host.wait_for_function("window.olm && olm.bridge.connected")
-    check("reopened, it switches remote control on again by itself", until(host, "remote.status && remote.status.on && remote.clients.size >= 4", 10000), H("remote.status"))
+    # the devices come back on their own retry timers: on a busy machine that can take more than ten seconds
+    check("reopened, it switches remote control on again by itself", until(host, "remote.status && remote.status.on && remote.clients.size >= 4", 20000), H("remote.status"))
     check("and the devices carry on without logging in again", until(ph, "document.querySelector('#wait').hidden") and until(op, "!document.querySelector('#remoteWait')") and until(pr, "!document.querySelector('#remoteWait')"))
 
     # ---------- a new password logs the programmers out

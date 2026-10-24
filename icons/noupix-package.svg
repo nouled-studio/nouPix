@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- a nouPix package (.noupixpkg): the project's page with its media stacked behind, tied with a red strap -->
+  <path d="M17.5,3.5 L22.5,0.8 L57.5,0.8 L57.5,51 L52.5,56" fill="none" stroke="#5A5A5A" stroke-width="0.8"/>
+  <path d="M14.5,6 L20,1.8 L55,1.8 L55,53.5 L49.5,58.8" fill="#141414" stroke="#4A4A4A" stroke-width="0.8"/>
+  <path d="M8.5,10 L14.5,4 L49.5,4 L49.5,57 L43.5,63 L8.5,63 Z" fill="#000000" stroke="#4A4A4A" stroke-width="0.8"/>
+  <g transform="translate(29 24) scale(0.46) translate(-32 -32)">
+    <circle cx="32" cy="32" r="20" fill="none" stroke="#F0F0F0" stroke-width="2.4"/>
+    <path d="M3,32 H25 M39,32 H61 M25,24 L39,32 L25,40 Z M39,24 V40" fill="none" stroke="#F0F0F0" stroke-width="2.4" stroke-linejoin="miter"/>
+    <path d="M30.79,23.62 L34.19,17.23 M34.71,25.86 L38.11,19.47" fill="none" stroke="#FF3B3B" stroke-width="2.4"/>
+    <path d="M35.48,14.79 L35.28,17.81 L33.09,16.65 Z M39.4,17.03 L39.2,20.05 L37.01,18.89 Z" fill="#FF3B3B"/>
+  </g>
+  <path d="M8.5,44 H49.5 M36,4 V63" stroke="#FF3B3B" stroke-width="1.8"/>
+  <path d="M31,44 L36,40 L41,44 L36,48 Z" fill="#000000" stroke="#FF3B3B" stroke-width="1.4"/>
+</svg>

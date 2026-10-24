@@ -107,8 +107,8 @@ function outlinePath(f, c) {
 }
 // How big a fixture's dots are on screen: about a third of the pixel pitch, at least 1.1 px so a sparse fixture far
 // away stays visible, but never more than ~half the pitch, so dense pixels zoomed out make a thin line, not a thick band
-function dotRadius(f) {
-  const s = f._pitch * ui.view.zoom;
+function dotRadius(f, zoom = ui.view.zoom) {
+  const s = f._pitch * zoom;
   return clamp(s * 0.36, clamp(s * 0.45, 0.6, 1.1), 10);
 }
 function drawDots(f, dispOverride) {
@@ -146,6 +146,102 @@ function drawDots(f, dispOverride) {
   if (open) ctx.fill();
   ctx.shadowBlur = blur;
   return r;
+}
+/* ---------- the pixels as a mask over the content ---------- */
+// Drawing every pixel as its own circle in its own colour (drawDots) costs a separate fill per colour: thousands for
+// moving content, and the browser draws them all on one thread, which also delays the output. Here the pixels'
+// circles are drawn once into a mask, again only when the view, the layout or a dimmer changes; each frame the
+// content is drawn through that mask, which costs the same however many pixels there are. A fixture's circles are as
+// opaque as its level (its dimmer × its group's), the master and blackout dim the whole layer, a disabled fixture is
+// left out. What the stage doesn't show (gamma and curves, trims, the white channel) is checked on the real LEDs.
+const MASK_MIN_DOTS = 800;   // fewer pixels on screen than this: each drawn as its own dot, which is exact and cheap then
+const MASK_SETTLE = 200;   // ms the view stays still before its layers are drawn again at the new zoom
+const dotLayers = { base: null, mask: null, tmp: null, baseKey: '', levels: '', view: null, seen: '', movedAt: 0, timer: 0 };
+function layerCanvas(name) {
+  let c = dotLayers[name];
+  if (!c) c = dotLayers[name] = document.createElement('canvas');
+  if (c.width !== cv.width || c.height !== cv.height) { c.width = cv.width; c.height = cv.height; dotLayers.baseKey = ''; }
+  return c;
+}
+// Draws the pixels masked when that's the way, and says whether it did
+function dotsMasked() {
+  if (!mixer.ok || ui.outputMode !== 'content') return false;
+  const z = ui.view.zoom, ox = ui.view.x, oy = ui.view.y, xmax = VW + 10, ymax = VH + 10;
+  let seen = 0;
+  for (const f of project.fixtures) {
+    const P = f._pts;
+    for (let i = 0; i < f._n && seen < MASK_MIN_DOTS; i++) {
+      const sx = P[2 * i] * z + ox, sy = P[2 * i + 1] * z + oy;
+      if (sx >= -10 && sy >= -10 && sx <= xmax && sy <= ymax) seen++;
+    }
+    if (seen >= MASK_MIN_DOTS) break;
+  }
+  if (seen < MASK_MIN_DOTS) return false;
+  const base = layerCanvas('base'), mask = layerCanvas('mask'), tmp = layerCanvas('tmp'), now = performance.now();
+  const levels = new Map(project.groups.map(g => [g.id, groupLevel(g)]));
+  const lv = f => (f.enabled ? clamp(numOr(f.dimmer, 1), 0, 1) * (f.group != null ? levels.get(f.group) ?? 1 : 1) : 0);
+  const rimmed = ui.showContent && ui.contentOp > 0.4;
+  const baseKey = [cv.width, cv.height, DPR, geomVersion, ui.theme, rimmed].join('|'), lvKey = project.fixtures.map(lv).join();
+  // While the view moves (zoom, pan), the layers drawn for where it was are scaled to where it is, and drawn again
+  // once it stays still: drawing them is the slow part, drawing them scaled is as cheap as one picture
+  const view = `${z}|${ox}|${oy}`;
+  if (view !== dotLayers.seen) { dotLayers.seen = view; dotLayers.movedAt = now; }
+  const v0 = dotLayers.view, moving = now - dotLayers.movedAt < MASK_SETTLE;
+  const stale = baseKey !== dotLayers.baseKey || !v0;
+  if (stale || (!moving && (v0.z !== z || v0.ox !== ox || v0.oy !== oy))) {
+    dotLayers.baseKey = baseKey; dotLayers.levels = ''; dotLayers.view = { z, ox, oy };
+    drawDotLayer(base, false, z, ox, oy, lv, rimmed);
+  } else if (moving && (v0.z !== z || v0.ox !== ox || v0.oy !== oy)) {
+    clearTimeout(dotLayers.timer);
+    dotLayers.timer = setTimeout(redrawStage, MASK_SETTLE + 20);
+  }
+  const at = dotLayers.view;
+  if (lvKey !== dotLayers.levels) { dotLayers.levels = lvKey; drawDotLayer(mask, true, at.z, at.ox, at.oy, lv, rimmed); }
+  // the layers as drawn for `at`, placed for the view now (device pixels)
+  const s = z / at.z, place = x => x.setTransform(s, 0, 0, s, DPR * (ox - at.ox * s), DPR * (oy - at.oy * s));
+  // each frame: the content, kept only inside the circles, over the rings and off dots
+  const t = tmp.getContext('2d'), W = project.settings.compW, H = project.settings.compH;
+  t.setTransform(1, 0, 0, 1, 0, 0); t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, tmp.width, tmp.height);
+  t.setTransform(DPR, 0, 0, DPR, 0, 0); t.imageSmoothingEnabled = true;
+  t.drawImage(mixer.canvas, ox, oy, W * z, H * z);
+  place(t); t.globalCompositeOperation = 'destination-in'; t.drawImage(mask, 0, 0); t.globalCompositeOperation = 'source-over';
+  ctx.save();
+  place(ctx); ctx.shadowBlur = 0;
+  ctx.drawImage(base, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = ui.blackout ? 0 : clamp(project.settings.master, 0, 1);
+  if (ctx.globalAlpha > 0) ctx.drawImage(tmp, 0, 0);
+  ctx.restore();
+  return true;
+}
+// One of the two layers, for the view (z, ox, oy): the rings and the dark "off" dot under each pixel, or the mask,
+// each fixture's circles as opaque as its level
+function drawDotLayer(c, isMask, z, ox, oy, lv, rimmed) {
+  const x = c.getContext('2d'), xmax = VW + 10, ymax = VH + 10;
+  x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, c.width, c.height); x.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const circles = (f, grow) => {
+    const P = f._pts, r0 = dotRadius(f, z), r = r0 + grow, sq = r0 < 0.75;
+    for (let i = 0; i < f._n; i++) {
+      const sx = P[2 * i] * z + ox, sy = P[2 * i + 1] * z + oy;
+      if (sx < -10 || sy < -10 || sx > xmax || sy > ymax) continue;
+      if (sq) x.rect(sx - r, sy - r, 2 * r, 2 * r); else { x.moveTo(sx + r, sy); x.arc(sx, sy, r, 0, 6.2832); }
+    }
+  };
+  if (isMask) {
+    let alpha = -1;
+    for (const f of project.fixtures) {
+      const a = lv(f);
+      if (a <= 0) continue;
+      if (a !== alpha) { if (alpha >= 0) x.fill(); alpha = a; x.fillStyle = `rgba(255,255,255,${a})`; x.beginPath(); }
+      circles(f, 0);
+    }
+    if (alpha >= 0) x.fill();
+    return;
+  }
+  const edge = f => clamp(dotRadius(f, z) * 0.3, 0.5, 1.5);
+  if (rimmed) { x.fillStyle = 'rgba(0,0,0,0.8)'; x.beginPath(); for (const f of project.fixtures) circles(f, edge(f) + Math.min(1.5, dotRadius(f, z) * 0.6)); x.fill(); }
+  x.fillStyle = SC.dotEdge; x.beginPath(); for (const f of project.fixtures) circles(f, edge(f)); x.fill();
+  x.fillStyle = SC.dot; x.beginPath(); for (const f of project.fixtures) circles(f, 0); x.fill();
 }
 function drawWiring(f, color) {
   const P = f._pts, n = f._n;
@@ -263,7 +359,12 @@ function drawView() {
     if (!f.enabled) ctx.setLineDash([4, 4]);
     ctx.stroke();
     ctx.restore();
-    drawDots(f);
+  }
+  // The pixels: with many on screen, the content seen through their circles (dotsMasked); with few (zoomed in), or
+  // while Highlight shows its patterns, each dot in the colour it sends
+  if (!dotsMasked()) for (const f of project.fixtures) drawDots(f);
+  for (const f of project.fixtures) {
+    const isSel = ui.sel.has(f.id), hov = ui.hoverFx === f.id, col = isSel ? SC.sel : fxTag(f) || SC.muted;
     if (((isSel && ui.sel.size <= 6) || ui.showWiring) && f._n > 1) drawWiring(f, col);
     if (ui.showLabels && (z > 0.35 || isSel) && (!isSel || ui.sel.size <= 6 || hov)) {
       const b = fixtureBounds(f);
