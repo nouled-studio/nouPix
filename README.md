@@ -82,6 +82,7 @@ To see it working before you build anything, open one of the [examples](examples
 ## More
 
 - **Full reference:** every feature in detail is in [docs/user-guide.md](docs/user-guide.md); the [Getting started guide (PDF)](docs/nouPix-getting-started.pdf) is the short way in.
+- **Media library and packages:** images and videos are copied once into nouPix's library, so projects open with them without relinking; **Export package…** writes one `.noupixpkg` file with the project and its media, to open on another computer.
 - **Limits:** Art-Net only (no sACN yet). No Syphon or Spout; use NDI, OMT or window capture instead.
 
 ## For developers

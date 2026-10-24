@@ -640,6 +640,12 @@ function renderSettings(body) {
       h('label', { class: 'checkrow' }, box, 'Open this project when nouPix starts'),
       h('p', { class: 'note' }, (other ? `Now ${other} opens when nouPix starts. ` : '') + 'For a computer that starts nouPix by itself: it opens this project, with its scenes and playlists set to play when the project opens. Changes to it are kept as you work. To play a scene at the start: ⋯ on the scene → Play when the project opens.')));
   }
+  if (!REMOTE_CLIENT && libraryOk()) {
+    const info = h('p', { class: 'note' }, 'Images and videos you add are copied here once, so projects open with them on this computer without relinking.');
+    const clean = h('button', { class: 'btn', type: 'button', onclick: () => cleanLibraryDialog() }, 'Remove what this project doesn’t use…');
+    body.append(sec('Media library', info, h('div', { class: 'actions' }, clean)));
+    fetch('/media-info').then(r => r.json()).then(r => { info.textContent = `${fmtBytes(r.library)} in ${r.dir}. Images and videos you add are copied there once, so projects open with them on this computer without relinking. Export package (Project menu) takes a project and its media to another computer.`; }).catch(() => {});
+  }
   if (!REMOTE_CLIENT) body.append(sec('Updates',
     checkRow('Look for a new version when nouPix starts', ui, 'updates', savePrefs),
     h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => checkUpdates(true) }, 'Check now')),

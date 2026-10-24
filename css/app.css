@@ -768,6 +768,17 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .statusbar .pill.ok > span:last-child { min-width: 21ch; }
 
 /* ---------- modal + toast ---------- */
+/* exporting a package: what goes in it, and its weight */
+.pkmodal { width: min(480px, 100%); }
+.pklist { display: grid; gap: 2px; max-height: 40vh; overflow: auto; }
+.pkrow { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; gap: 8px; height: 28px; padding: 0 10px; background: var(--bg2); }
+.pkrow .ic { display: flex; color: var(--muted); }
+.pkrow .ic svg { width: 14px; height: 14px; }
+.pkrow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pkrow .meta { font: 400 11px var(--mono); color: var(--text2); }
+.pkrow.miss .meta { color: var(--warn); }
+.pkrow.total { background: none; border-top: 1px solid var(--line); font-weight: 600; }
+.pkrow.total .meta { color: var(--text); }
 /* choosing an NDI source */
 .vmodal { width: min(460px, 100%); }
 .vlist { display: grid; gap: 2px; max-height: 50vh; overflow: auto; }

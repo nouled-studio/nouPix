@@ -45,6 +45,38 @@ function streamPicker(src) {
   uiDocNow().body.append(bg);
 }
 
+/* ---------- exporting a package ---------- */
+// What goes in it, and how much it weighs, before it is written; media not in the library are named (relink them)
+async function packageDialog() {
+  if (!libraryOk()) { toast('Packages are made by nouPix started from noupix.py or the app, which keep the media.', 'warn'); return; }
+  const list = packageMedia(), names = [...new Set(list.map(s => s.media).filter(Boolean))];
+  let sizes = {};
+  try { sizes = (await (await fetch('/media-info?names=' + encodeURIComponent(names.join(',')))).json()).sizes || {}; } catch (e) { /* bridge gone: all missing */ }
+  const proj = new Blob([projectText()]).size, seen = new Set();
+  let total = proj;
+  const rows = list.map(s => {
+    const n = sizes[s.media];
+    if (n != null && !seen.has(s.media)) { seen.add(s.media); total += n; }
+    return h('div', { class: 'pkrow' + (n == null ? ' miss' : '') }, h('span', { class: 'ic' }, icon(s.kind)), h('span', { class: 'nm' }, s.name),
+      h('span', { class: 'meta' }, n == null ? 'not in the library' : fmtBytes(n)));
+  });
+  const missing = list.filter(s => sizes[s.media] == null);
+  const fname = fileName().replace(/\.noupix$/, '.noupixpkg');
+  const close = () => bg.remove();
+  const go = async () => { btn.disabled = true; try { if (await exportPackage(fname)) close(); else btn.disabled = false; } catch (e) { toast('Could not export: ' + e.message, 'err'); btn.disabled = false; } };
+  const btn = h('button', { class: 'btn primary', type: 'button', onclick: go }, 'Export');
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal pkmodal', role: 'dialog', 'aria-label': 'Export package' },
+      h('header', null, 'Export package'),
+      h('div', { class: 'mb' },
+        h('p', null, 'One file with the project and its images and videos, to open on another computer: ' + fname),
+        h('div', { class: 'pklist' }, h('div', { class: 'pkrow' }, h('span', { class: 'ic' }, icon('isf')), h('span', { class: 'nm' }, 'The project, with its shaders'), h('span', { class: 'meta' }, fmtBytes(proj))), ...rows),
+        h('div', { class: 'pkrow total' }, h('span'), h('span', { class: 'nm' }, 'Total'), h('span', { class: 'meta', 'data-total': '' }, fmtBytes(total))),
+        missing.length ? h('p', { class: 'note warn' }, `${missing.map(s => s.name).join(', ')} ${missing.length === 1 ? 'isn’t' : 'aren’t'} in the media library, so ${missing.length === 1 ? 'it doesn’t' : 'they don’t'} go in the package: relink ${missing.length === 1 ? 'it' : 'them'} first (right-click → Relink file…).`) : null),
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'), btn)));
+  uiDocNow().body.append(bg);
+}
+
 /* ---------- SVG import dialog ---------- */
 function importSvgDialog(file) {
   const opt = { fixtures: true, guide: true, pitch: 10 };
@@ -350,6 +382,7 @@ function projectMenu(anchor) {
     ['Save', () => saveProjectFile(), { key: MOD + 'S' }],
     ['Save as…', () => saveProjectFile(true), { key: MOD + '⇧S' }],
     window.showSaveFilePicker && !REMOTE_CLIENT && [ui.autosave ? 'Autosave: on' : 'Autosave: off', () => setAutosave(!ui.autosave), { title: 'Every change goes to the project file a moment later' }],
+    !REMOTE_CLIENT && ['Export package…', packageDialog, { title: 'The project and its images and videos in one file, to take it to another computer' }],
     ['Export patch list (CSV)', exportCSV],
     '-',
     m && ['Import SVG…', () => $('#fileSvg').click()],
