@@ -108,6 +108,16 @@ try:
     pg.locator(".modal").get_by_role("button", name="Remove").click()
     check("cleaning it keeps only this project's files", wait(lambda: lib(LIB_B) == [vid]), lib(LIB_B))
     check("the video still plays", red(ev))
+    # ---------- opened by its path (a double-click in the Finder or Explorer, passed on by the desktop app)
+    shutil.rmtree(LIB_B, ignore_errors=True)
+    ev("t => openPath(t)", pkg)
+    check("a package opened by its path: its media into the library, the project open", wait(lambda: lib(LIB_B) == sorted([vid, img]) and ev("project.name") == "Media-show"), (lib(LIB_B), ev("project.name")))
+    check("and its video plays", wait(lambda: red(ev)))
+    ev("t => openPath(t)", plain)
+    check("a project file by its path opens too, named after the file", wait(lambda: ev("project.name") == "plain"), ev("project.name"))
+    try: urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{PORT}/open-path", data=json.dumps({"path": "/etc/passwd"}).encode())); ok = False
+    except urllib.error.HTTPError as e: ok = e.code == 400
+    check("only nouPix files are opened by path", ok)
     # ---------- files
     bad = ev("hydrate({ sources: [{ id: 'q', kind: 'video', name: 'q', media: '../../etc/passwd' }, { id: 'r', kind: 'video', name: 'r', media: '%s' }] }).sources.filter(s => s.id === 'q' || s.id === 'r').map(s => s.media || null)" % vid)
     check("a project only keeps media names the library can have", bad == [None, vid], bad)

@@ -10,7 +10,9 @@ index.html, css/, js/  ── the interface (browser): fixtures, content, scenes
 noupix.py              ── the bridge (Python 3.8+, standard library only): serves the page, sends Art-Net
         │  with remote control on: a second web server on the network (default port 8090)
 login.html, remote.html── what other devices open: the login page, and the phone page; /app is index.html
-desktop/               ── Electron window that starts the bridge and loads http://127.0.0.1:<port>/
+desktop/               ── Electron window that starts the bridge and loads http://127.0.0.1:<port>/; owns .noupix and
+                          .noupixpkg (icons in desktop/resources, made by icons/make_file_icons.py from the two SVGs):
+                          a file double-clicked goes to the page's openPath, which has the bridge read it (POST /open-path)
 ```
 
 ## The interface

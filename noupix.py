@@ -926,6 +926,14 @@ class MediaHandler:
                 return self.reply_json(200, {"token": token})
             if u.path == "/package/open":   # a package opened: its media into the library, its project back
                 return self.package_open(n)
+            if u.path == "/open-path":   # a project or package by its path: one double-clicked, passed on by the app
+                fn = json.loads(self.rfile.read(n).decode("utf-8")).get("path", "")
+                if not isinstance(fn, str) or not re.search(r"\.(noupix|noupixpkg|json)$", fn, re.I) or not os.path.isfile(fn):
+                    return self.reply_json(400, {"error": "not a nouPix project or package"})
+                if fn.lower().endswith(".noupixpkg"):
+                    return self.reply_json(200, self.package_read(fn))
+                with open(fn, "r", encoding="utf-8") as f:
+                    return self.reply_json(200, {"project": json.load(f), "media": []})
         except (ValueError, OSError, ConnectionError) as e:
             return self.reply_json(400, {"error": str(e)})
         self.send_error(404)
@@ -953,6 +961,28 @@ class MediaHandler:
         except (ConnectionError, OSError):
             pass
 
+    @staticmethod
+    def package_read(fn):
+        """A package's media into the library; its project back, with the media's names."""
+        import zipfile
+        try:
+            z = zipfile.ZipFile(fn)
+        except zipfile.BadZipFile:
+            raise ValueError("not a nouPix package")
+        with z:
+            names = z.namelist()
+            if "project.noupix" not in names:
+                raise ValueError("not a nouPix package (no project.noupix in it)")
+            text = z.read("project.noupix").decode("utf-8")
+            got = []
+            for name in names:
+                base = name[len("media/"):] if name.startswith("media/") else ""
+                if not MEDIA_NAME.match(base):
+                    continue
+                with z.open(name) as src:
+                    got.append(media_store(src.read, z.getinfo(name).file_size, base.rsplit(".", 1)[1]))
+        return {"project": json.loads(text), "media": got}
+
     def package_open(self, n):
         import zipfile, tempfile
         fd, tmp = tempfile.mkstemp(suffix=".noupixpkg")
@@ -965,24 +995,7 @@ class MediaHandler:
                         raise ConnectionError("the package stopped coming")
                     f.write(b)
                     left -= len(b)
-            try:
-                z = zipfile.ZipFile(tmp)
-            except zipfile.BadZipFile:
-                return self.reply_json(400, {"error": "not a nouPix package"})
-            with z:
-                names = z.namelist()
-                if "project.noupix" not in names:
-                    return self.reply_json(400, {"error": "not a nouPix package (no project.noupix in it)"})
-                text = z.read("project.noupix").decode("utf-8")
-                got = []
-                for name in names:
-                    base = name[len("media/"):] if name.startswith("media/") else ""
-                    if not MEDIA_NAME.match(base):
-                        continue
-                    with z.open(name) as src:
-                        stored = media_store(src.read, z.getinfo(name).file_size, base.rsplit(".", 1)[1])
-                    got.append(stored)
-            return self.reply_json(200, {"project": json.loads(text), "media": got})
+            return self.reply_json(200, self.package_read(tmp))
         finally:
             try:
                 os.remove(tmp)

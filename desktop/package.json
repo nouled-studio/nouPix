@@ -21,7 +21,8 @@
     "productName": "nouPix",
     "copyright": "Copyright © 2026 nouled studio. AGPL-3.0",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "resources"
     },
     "files": [
       "main.js",
@@ -38,7 +39,43 @@
       "icon": "../icons/noupix.icns",
       "category": "public.app-category.graphics-design",
       "identity": null,
-      "minimumSystemVersion": "12.0"
+      "minimumSystemVersion": "12.0",
+      "extendInfo": {
+        "UTExportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "studio.nouled.noupix.project",
+            "UTTypeDescription": "nouPix project",
+            "UTTypeConformsTo": [
+              "public.data"
+            ],
+            "UTTypeIconFile": "noupix.icns",
+            "UTTypeTagSpecification": {
+              "public.filename-extension": [
+                "noupix"
+              ],
+              "public.mime-type": [
+                "application/x-noupix-project"
+              ]
+            }
+          },
+          {
+            "UTTypeIdentifier": "studio.nouled.noupix.package",
+            "UTTypeDescription": "nouPix package",
+            "UTTypeConformsTo": [
+              "public.data"
+            ],
+            "UTTypeIconFile": "noupixpkg.icns",
+            "UTTypeTagSpecification": {
+              "public.filename-extension": [
+                "noupixpkg"
+              ],
+              "public.mime-type": [
+                "application/x-noupix-package"
+              ]
+            }
+          }
+        ]
+      }
     },
     "win": {
       "target": "nsis",
@@ -50,6 +87,26 @@
       "createDesktopShortcut": true,
       "runAfterFinish": true,
       "artifactName": "nouPix-${version}-windows-setup.${ext}"
-    }
+    },
+    "fileAssociations": [
+      {
+        "ext": "noupix",
+        "name": "nouPix project",
+        "description": "nouPix project",
+        "role": "Editor",
+        "icon": "noupix",
+        "mimeType": "application/x-noupix-project",
+        "rank": "Owner"
+      },
+      {
+        "ext": "noupixpkg",
+        "name": "nouPix package",
+        "description": "nouPix package (a project and its media)",
+        "role": "Editor",
+        "icon": "noupixpkg",
+        "mimeType": "application/x-noupix-package",
+        "rank": "Owner"
+      }
+    ]
   }
 }

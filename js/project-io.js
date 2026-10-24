@@ -361,7 +361,7 @@ function setStartupProject(on) {
 }
 const keepStartupProject = debounce(() => { if (isStartupProject() && bridge.connected) bridgeSend({ t: 'startup', op: 'set', project: JSON.parse(serialize(true)) }); }, 2000);
 function openStartupProject(p) {
-  if (REMOTE_CLIENT || !isObj(p) || !Array.isArray(p.fixtures)) return;
+  if (REMOTE_CLIENT || !isObj(p) || !Array.isArray(p.fixtures) || openedByPath) return;   // a file double-clicked goes first
   try { loadProject(p); projectFile = null; toast(`Opened ${project.name}, the project nouPix opens when it starts.`); }
   catch (e) { report('opening the startup project', e); }
 }
@@ -403,6 +403,24 @@ async function openPackage(file) {
     toast(`Opened ${project.name}, with ${r.media.length} media file${r.media.length === 1 ? '' : 's'}.`);
     return true;
   } catch (e) { toast('Could not open that package: ' + e.message, 'err'); return false; }
+}
+// A project or package by its path on this computer: one double-clicked in the Finder or Explorer, which the desktop
+// app passes on (desktop/main.js). The bridge reads it.
+let openedByPath = false;
+async function openPath(path) {
+  openedByPath = true;
+  const name = String(path).split(/[\\/]/).pop();
+  try {
+    const r = await fetch('/open-path', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'the bridge said ' + r.status);
+    if (!isObj(j.project) || !Array.isArray(j.project.fixtures)) throw new Error('not a nouPix project');
+    const base = nameOfFile(name.replace(/\.noupixpkg$/i, ''));
+    if (base) j.project.name = base;
+    loadProject(j.project);
+    projectFile = null;   // Save asks where (the app can't write to a file it was handed by its path)
+    toast(isPackage(name) ? `Opened ${project.name}, with ${j.media.length} media file${j.media.length === 1 ? '' : 's'}.` : `Opened ${project.name}`);
+  } catch (e) { toast(`Could not open ${name}: ${e.message}`, 'err'); }
 }
 function exportCSV() {
   ensurePatch();

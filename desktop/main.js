@@ -31,11 +31,27 @@ let win = null;
 let bridge = null;
 let quitting = false;
 
-// One copy at a time: opening the app again brings its window to the front.
+// Project files and packages opened from the Finder or Explorer (a double-click, Open with, one dropped on the app's
+// icon): given to the page once it is there, which has the bridge read them (openPath in project-io.js). macOS tells
+// the app with open-file, also before it is ready; Windows and Linux start it with the file as an argument, or pass
+// it to the copy already running.
+const toOpen = [];
+let pageReady = false;
+const isProjectPath = a => /\.(noupix|noupixpkg)$/i.test(a) && fs.existsSync(a);
+process.argv.slice(1).filter(isProjectPath).forEach(p => toOpen.push(path.resolve(p)));
+function openFile(p) { toOpen.push(p); openFiles(); }
+function openFiles() {
+  if (!win || !pageReady) return;
+  while (toOpen.length) win.webContents.executeJavaScript(`openPath(${JSON.stringify(toOpen.shift())})`).catch(() => {});
+}
+app.on('open-file', (e, p) => { e.preventDefault(); openFile(p); });
+
+// One copy at a time: opening the app again brings its window to the front, with the file it was asked to open.
 if (!app.requestSingleInstanceLock()) {
   app.exit(0);
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (e, argv, cwd) => {
+    argv.slice(1).map(a => path.resolve(cwd || '', a)).filter(isProjectPath).forEach(openFile);
     if (!win) return;
     if (win.isMinimized()) win.restore();
     win.show();
@@ -120,6 +136,7 @@ async function start() {
   });
   win.once('ready-to-show', () => win.show());
   win.on('closed', () => { win = null; });
+  win.webContents.on('did-finish-load', () => { pageReady = true; openFiles(); });
 
   const wc = win.webContents;
   // Links leave the app for the default browser; the interface itself stays on the bridge's address. The MIDI
