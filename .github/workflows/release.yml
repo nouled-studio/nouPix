@@ -147,10 +147,32 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: docs/releases
+
       - uses: actions/download-artifact@v8
         with:
           path: out
           merge-multiple: true
+
+      # What's new comes from docs/releases/<version>.md when there is one (v1.2.0 -> 1.2.0.md), then the downloads
+      - name: Release notes
+        run: |
+          f="docs/releases/${GITHUB_REF_NAME#v}.md"
+          : > notes.md
+          if [ -f "$f" ]; then { cat "$f"; printf '\n\n'; } >> notes.md; else echo "::warning::No $f: the release has only the downloads and the list of changes"; fi
+          cat >> notes.md <<'DOWNLOADS'
+          **Download** the file for your computer:
+          - **Windows:** `…-windows-setup.exe`, then run it. It installs nouPix for you and adds it to the Start menu.
+          - **Mac with Apple silicon (M1 or newer):** `…-macos-apple-silicon.dmg`
+          - **Mac with an Intel processor:** `…-macos-intel.dmg`
+
+            Open the disk image and drag nouPix onto Applications.
+          - **Linux, or any computer with Python 3.8+:** the source code below, then `python3 noupix.py`
+
+          The apps aren't signed yet, so Windows and macOS warn the first time you open them. See *Download* in the README for what to click.
+          DOWNLOADS
 
       - uses: softprops/action-gh-release@v3
         with:
@@ -158,13 +180,5 @@ jobs:
           files: out/*
           fail_on_unmatched_files: true
           generate_release_notes: true
-          body: |
-            **Download** the file for your computer:
-            - **Windows:** `…-windows-setup.exe`, then run it. It installs nouPix for you and adds it to the Start menu.
-            - **Mac with Apple silicon (M1 or newer):** `…-macos-apple-silicon.dmg`
-            - **Mac with an Intel processor:** `…-macos-intel.dmg`
+          body_path: notes.md
 
-              Open the disk image and drag nouPix onto Applications.
-            - **Linux, or any computer with Python 3.8+:** the source code below, then `python3 noupix.py`
-
-            The apps aren't signed yet, so Windows and macOS warn the first time you open them. See *Download* in the README for what to click.

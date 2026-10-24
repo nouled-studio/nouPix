@@ -216,6 +216,8 @@ pushed.
   bridge serves it and the desktop build packs the whole folder), and add it to the table above.
 - **Versions:** bump `VERSION` in `noupix.py`, `desktop/package.json` (and its lock file), the README
   title and the user guide's first line together.
+  What's new goes in `docs/releases/<version>.md` (Markdown, before the tag): the release workflow puts it at the top of
+  the release page, above the downloads and the list of merged pull requests.
 
 ## Tests
 
