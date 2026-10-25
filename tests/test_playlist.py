@@ -53,6 +53,11 @@ try:
     # ---------- the New playlist window
     pg.click(".zoneblock >> nth=0 >> .plbtn"); wait(0.2)
     check("a zone without playlists: its playlist button opens the New playlist window", pg.locator(".pmodal").count() == 1)
+    vp = pg.viewport_size; pg.set_viewport_size({"width": vp["width"], "height": 420}); wait(0.2)
+    box = pg.locator(".pmodal footer .btn.primary").bounding_box()
+    check("in a low window its Create playlist button stays in view (the middle scrolls)", box and box["y"] + box["height"] <= 420
+          and E("(() => { const m = document.querySelector('.pmodal .mb'); return m.scrollHeight > m.clientHeight; })()"), box)
+    pg.set_viewport_size(vp); wait(0.2)
     pg.fill(".pmodal .row input[type=text] >> nth=0", "Evening")
     sc = E("Z().scenes.map(s => s.name)")
     rows = lambda: pg.locator(".pmodal .ppick:not(.head)")
