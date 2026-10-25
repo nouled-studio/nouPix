@@ -649,7 +649,7 @@ function renderSettings(body) {
   if (!REMOTE_CLIENT) body.append(sec('Updates',
     checkRow('Look for a new version when nouPix starts', ui, 'updates', savePrefs),
     h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => checkUpdates(true) }, 'Check now')),
-    h('p', { class: 'note' }, `This is nouPix ${(bridge.hello && bridge.hello.version) || ''}. Once a day at most, nouPix asks GitHub for its latest release and tells you when there is a newer one, with a link to download it. It installs nothing by itself, and says nothing without internet.`)));
+    h('p', { class: 'note' }, `This is nouPix ${(bridge.hello && bridge.hello.version) || ''}. Every time it starts, and once a day while it runs, nouPix asks GitHub for its latest release and tells you when there is a newer one, with a link to download it. It installs nothing by itself, and says nothing without internet.`)));
   if (!REMOTE_CLIENT) body.append(remoteSection());
   // Art-Net goes out from the start; it can be switched off here. Where the page finds noupix.py is only asked in a
   // browser: the desktop app always uses its own.

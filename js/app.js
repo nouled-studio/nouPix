@@ -14,11 +14,16 @@ function updateHighlightUI() {
 function showVersion(v) {
   $('#appVer').textContent = v ? 'v' + v : '';
   $('.brand').title = v ? 'nouPix ' + v : 'nouPix';
-  // once the version running is known, a look for a newer one a little later (once a day at most)
-  if (v && !REMOTE_CLIENT && !showVersion.looked) { showVersion.looked = true; setTimeout(() => checkUpdates(false), 4000); }
+  // once the version running is known, a look for a newer one a little later, every time nouPix starts; then once a
+  // day while it keeps running (a show computer may never be restarted)
+  if (v && !REMOTE_CLIENT && !showVersion.looked) {
+    showVersion.looked = true;
+    setTimeout(() => checkUpdates(false, true), 4000);
+    setInterval(() => checkUpdates(false), 3600e3);
+  }
 }
 // New versions: the latest release on GitHub, compared with the version running. By itself only on the main
-// computer, with Settings → Updates on, at most once a day, and never in a browser driven by tests (they check it
+// computer, with Settings → Updates on, when nouPix starts (atStart) and at most once a day while it runs, and never in a browser driven by tests (they check it
 // themselves); with no internet it says nothing. Asked for (Check now), it always answers.
 const UPDATE_URL = 'https://api.github.com/repos/nouled-studio/nouPix/releases/latest';
 const versionParts = v => (String(v || '').match(/\d+/g) || []).slice(0, 3).map(Number);
@@ -27,9 +32,9 @@ function newerVersion(a, b) {   // whether version a comes after version b
   for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
   return false;
 }
-async function checkUpdates(asked) {
+async function checkUpdates(asked, atStart) {
   const mine = bridge.hello && bridge.hello.version;
-  if (!asked && (!ui.updates || navigator.webdriver || Date.now() - ui.updateAt < 20 * 3600e3)) return;
+  if (!asked && (!ui.updates || navigator.webdriver || (!atStart && Date.now() - ui.updateAt < 20 * 3600e3))) return;
   if (!mine) { if (asked) toast('Which version this is shows once nouPix is running (the app, or noupix.py).', 'warn'); return; }
   let rel;
   try {

@@ -1,6 +1,6 @@
 # Looking for a new version: the latest release on GitHub (answered here, never asked of GitHub itself) compared with
-# the version running; the window that tells of a newer one (notes, Download, Later, Skip this version); once a day at
-# most; nothing by itself in a test browser, with it off, or without internet; Check now in Settings always answers.
+# the version running; the window that tells of a newer one (notes, Download, Later, Skip this version); on every start,
+# and once a day at most while it runs; nothing by itself in a test browser, with it off, or without internet; Check now in Settings always answers.
 import json, os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import CHROME_ARGS, start_bridge, app_error
@@ -49,6 +49,10 @@ try:
     check("the next day, again", gh["hits"] == h0 + 1 and dlg.count() == 1)
     dlg.locator("button", has_text="Later").click(); time.sleep(0.2)
     check("Later closes it", dlg.count() == 0)
+    ev("ui.updateAt = Date.now(); checkUpdates(false, true)"); time.sleep(0.5)
+    check("every time nouPix starts, even if it looked earlier that day", gh["hits"] == h0 + 2 and dlg.count() == 1)
+    dlg.locator("button", has_text="Later").click(); time.sleep(0.2)
+    check("starting looks with atStart, and keeps looking once a day while it runs", "checkUpdates(false, true)" in ev("showVersion.toString()") and "setInterval" in ev("showVersion.toString()"))
     ev("ui.updateAt = 0; checkUpdates(false)"); time.sleep(0.5)
     dlg.locator("button", has_text="Skip this version").click(); time.sleep(0.2)
     check("Skip this version is remembered", ev("ui.updateSkip") == "9.0.0" and ev("JSON.parse(localStorage.getItem('noupix.ui')).updateSkip") == "9.0.0")

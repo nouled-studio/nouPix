@@ -377,7 +377,7 @@ A control can drive several things: to learn the same control onto a second thin
 
 ## New versions
 
-Once a day at most, when it starts, nouPix asks GitHub for its latest release. If there is a newer version, a window says so, with what's new: **Download** opens its page (download the file for your computer and install it over this one; your projects and settings stay), **Later** asks again tomorrow, and **Skip this version** doesn't tell you of that one again. Nothing is installed by itself, and without internet nothing is said. **Settings → Updates** turns it off, and **Check now** looks straight away. Only the main computer looks; phones and other devices don't.
+Every time it starts, and once a day while it keeps running, nouPix asks GitHub for its latest release. If there is a newer version, a window says so, with what's new: **Download** opens its page (download the file for your computer and install it over this one; your projects and settings stay), **Later** tells you again the next time nouPix starts (or tomorrow), and **Skip this version** doesn't tell you of that one again. Nothing is installed by itself, and without internet nothing is said. **Settings → Updates** turns it off, and **Check now** looks straight away. Only the main computer looks; phones and other devices don't.
 
 ## Files
 
