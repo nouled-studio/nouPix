@@ -1,6 +1,7 @@
 /* A stand-in for libomt, built from libomt.h (Open Media Transport, MIT licence), for test_omt.py: one source,
    "NOUPIX-TEST (nouPix OMT)", sending BGRA frames 320 x 180 (40 x 23 as a preview) with rows padded past their width,
-   the left half one colour and the right half another, read from the file named by FAKE_OMT_COLORS ("r g b r g b"). */
+   the left half one colour and the right half another, read from the file named by FAKE_OMT_COLORS ("r g b r g b");
+   ending the process on request (FAKE_OMT_ABORT). */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,7 +11,14 @@
 static char *names[] = { "NOUPIX-TEST (nouPix OMT)" };
 typedef struct { int flags; OMTMediaFrame frame; unsigned char *buf; } rx;
 
-char **omt_discovery_getaddresses(int *count) { *count = 1; return names; }
+/* with the file named by FAKE_OMT_ABORT there, looking for sources ends the process, as the real libomt does when its
+   .NET runtime fails */
+char **omt_discovery_getaddresses(int *count) {
+  const char *ab = getenv("FAKE_OMT_ABORT");
+  FILE *f = ab ? fopen(ab, "r") : NULL;
+  if (f) { fclose(f); fputs("Unhandled exception. System.Exception: the fake libomt was asked to fail\n", stderr); fflush(stderr); abort(); }
+  *count = 1; return names;
+}
 
 omt_receive_t *omt_receive_create(const char *address, OMTFrameType types, OMTPreferredVideoFormat format, OMTReceiveFlags flags) {
   if (strcmp(address, names[0]) != 0 || !(types & OMTFrameType_Video) || format != OMTPreferredVideoFormat_BGRA) return NULL;

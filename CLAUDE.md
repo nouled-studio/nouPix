@@ -191,7 +191,9 @@ packets, plus JSON messages (discovery polls, settings, remote control). **NDI a
 the library the user installed (NDI Tools, `--ndi-lib` or `NOUPIX_NDI_LIB`; libomt with libvmx, in `~/.noupix/omt`, `--omt-lib`
 or `NOUPIX_OMT_LIB`; nothing bundled) with ctypes, lists the sources (`{t: 'vin', op: 'find'}`) and receives the ones a window asks for (`op: 'sub'`), each on its
 own thread, frames cut down to 640 wide (Light, the preview stream) or 1920 (Full) by `shrink_rgba` (OMT's BGRA turned to RGBA), sent to the window
-as binary messages starting `VIN1`, newest frame only. **Media library and packages** (`MediaHandler`, mixed into the local
+as binary messages starting `VIN1`, newest frame only. libomt is .NET compiled to native code and ends its process when its runtime fails, so the bridge never loads it:
+`OmtProcess` runs it in a helper process (this program with `--omt-helper`, `omt_helper`; frames come back cut down and in RGBA), and if
+the helper dies the bridge says why in the stream window (its last error lines) and starts a new one 10 s later. **Media library and packages** (`MediaHandler`, mixed into the local
 `Handler` only): `POST /media?name=` stores a file in `MEDIA_DIR` (`~/.noupix/media`, `NOUPIX_MEDIA_DIR`) named by its content
 (32 hex digits of SHA-256 and its extension, `MEDIA_NAME`), `GET /media/<name>` serves it with ranges, `/media-info` gives
 sizes, `POST /media/clean` keeps a list; `POST /package` then `GET /package/<token>/<file>` streams a zip (stored, zip64) of
@@ -279,7 +281,7 @@ library isn't installed, `NOUPIX_NDI_LIB` points at one): found, chosen, its pic
 about 30 frames a second, Light and Full, files and undo, the source stopping and coming back, choosing another,
 removing it, a bridge without NDI. `test_omt.py` checks OMT in against `omt_fake.c`, a stand-in library built from the real
 `libomt.h` (needs a C compiler): found, BGRA rows padded past their width arriving as RGBA, preview and full, following,
-stopping and coming back. `test_startup.py` checks the name following the file, the scene that plays on open, the startup
+stopping and coming back, and the library ending its process (`FAKE_OMT_ABORT`: the bridge goes on, says why, and starts a new helper). `test_startup.py` checks the name following the file, the scene that plays on open, the startup
 project (Settings, kept by the bridge, only the first window, following changes, `--project`) and a video's volume following
 its zone. The harness gives each test bridge its own (empty) startup project and media library. `test_media.py` checks the media
 library and packages (copied once by content, ranges and seeking, a new session without relinking, the export window and its

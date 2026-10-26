@@ -573,6 +573,201 @@ def bgra_to_rgba(data):
     return bytes(b)
 
 
+# --------------------------------------------------------------------------- OMT in its own process
+# libomt is .NET compiled to native code: when its runtime can't start, or meets an error it doesn't catch, it ends the
+# whole process (abort). So the bridge never loads it: a helper process does (this program again, with --omt-helper),
+# and the bridge talks to it through its input and output. If the helper dies, the bridge says why (the last lines it
+# wrote) and goes on, with NDI and everything else; the next time a window asks, a new helper is tried.
+#   to the helper: one JSON object a line: {op: 'find'} | {op: 'open', rid, name, hq} | {op: 'close', rid}
+#   from it: length (4 bytes) | 'J' and a JSON object (its note when it starts, the sources found, whether a receiver
+#   opened) or 'F' | rid, width, height (4 bytes each) | RGBA pixels, already cut down to size
+
+def omt_helper_command(path):
+    me = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, os.path.abspath(__file__)]
+    return me + ["--omt-helper"] + (["--omt-lib", path] if path else [])
+
+
+class OmtProcess:
+    """The bridge's side of OMT: the same parts as Omt (sources, open), with libomt in the helper process."""
+    proto, bgra = "omt", False
+    RETRY = 10.0   # seconds before a helper that died is started again
+
+    def __init__(self, path=None):
+        self.path, self.lock, self.p, self.died_at = path, threading.RLock(), None, 0.0
+        self.lib, self.note, self.rx, self.replies, self.rid = None, "", {}, {}, 0
+        self.tail = []   # the last lines the helper wrote to its error output
+        self.changed = threading.Condition(self.lock)
+        self._start()
+
+    def _start(self):
+        try:
+            p = subprocess.Popen(omt_helper_command(self.path), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        except OSError as e:
+            self.lib, self.note = None, "OMT's helper couldn't start: %s" % e
+            return
+        self.p, self.tail = p, []
+        threading.Thread(target=self._errors, args=(p,), daemon=True).start()
+        threading.Thread(target=self._read, args=(p,), daemon=True).start()
+        first = self._reply(p, "hello", 15.0)
+        if first is None:
+            return
+        self.lib, self.note = (True if first.get("ok") else None), first.get("note", "")
+
+    def _errors(self, p):
+        for line in p.stderr:
+            line = line.decode("utf-8", "replace").rstrip()
+            if line:
+                self.tail = (self.tail + [line])[-12:]
+
+    def _read(self, p):
+        out = p.stdout
+        try:
+            while True:
+                head = out.read(4)
+                if len(head) < 4:
+                    break
+                body = out.read(struct.unpack(">I", head)[0])
+                if body[:1] == b"F":
+                    rid, w, h = struct.unpack(">III", body[1:13])
+                    r = self.rx.get(rid)
+                    if r:
+                        with self.changed:
+                            r.frame, r.seq = (w, h, w * 4, body[13:]), r.seq + 1
+                            self.changed.notify_all()
+                elif body[:1] == b"J":
+                    m = json.loads(body[1:].decode("utf-8"))
+                    with self.changed:
+                        self.replies[m.get("re", "")] = m
+                        self.changed.notify_all()
+        except (OSError, ValueError):
+            pass
+        p.wait()
+        time.sleep(0.2)   # its last words, from the error output
+        with self.changed:
+            if self.p is p:
+                self.p, self.lib, self.died_at = None, None, time.monotonic()
+                said = [l for l in self.tail if l.strip()][-3:]
+                self.note = ("OMT's library stopped (exit code %s)%s. nouPix goes on without it, and tries again in a few seconds."
+                             % (p.returncode, ": " + " / ".join(said)[:400] if said else ""))
+                log(self.note)
+            self.changed.notify_all()
+
+    def _send(self, msg):
+        p = self.p
+        if not p:
+            return False
+        try:
+            p.stdin.write((json.dumps(msg) + "\n").encode("utf-8"))
+            p.stdin.flush()
+            return True
+        except (OSError, ValueError):
+            return False
+
+    def _reply(self, p, re_, timeout):
+        end = time.monotonic() + timeout
+        with self.changed:
+            while re_ not in self.replies and self.p is p and time.monotonic() < end:
+                self.changed.wait(max(0.0, end - time.monotonic()))
+            return self.replies.pop(re_, None)
+
+    def _alive(self):
+        with self.lock:
+            if self.p is None and time.monotonic() - self.died_at > self.RETRY:
+                self._start()
+            return self.p if self.lib else None
+
+    def sources(self):
+        p = self._alive()
+        if not p or not self._send({"op": "find"}):
+            return []
+        m = self._reply(p, "find", 5.0)
+        return [n for n in (m or {}).get("sources", []) if isinstance(n, str)]
+
+    def open(self, name, hq):
+        p = self._alive()
+        if not p:
+            return None
+        with self.lock:
+            self.rid += 1
+            rid = self.rid
+            r = self.rx[rid] = OmtProcessReceiver(self, p, rid)
+        m = self._send({"op": "open", "rid": rid, "name": name, "hq": bool(hq)}) and self._reply(p, "open%d" % rid, 10.0)
+        if not (m and m.get("ok")):
+            r.close()
+            return None
+        return r
+
+
+class OmtProcessReceiver:
+    def __init__(self, omt, p, rid):
+        self.omt, self.p, self.rid, self.frame, self.seq, self.taken = omt, p, rid, None, 0, 0
+
+    def capture(self, timeout_ms):
+        o = self.omt
+        end = time.monotonic() + timeout_ms / 1000.0
+        with o.changed:
+            while self.seq == self.taken and o.p is self.p and time.monotonic() < end:
+                o.changed.wait(max(0.0, end - time.monotonic()))
+            if self.seq == self.taken:
+                return None
+            self.taken = self.seq
+            return self.frame
+
+    def close(self):
+        o = self.omt
+        if o.rx.pop(self.rid, None) and o.p is self.p:
+            o._send({"op": "close", "rid": self.rid})
+
+
+def omt_helper(path):
+    """The helper process: loads libomt, and answers the bridge (see OmtProcess)."""
+    out = os.fdopen(os.dup(1), "wb")   # the answers; whatever else writes to the output goes to the error output
+    os.dup2(2, 1)
+    wlock = threading.Lock()
+
+    def put(kind, body):
+        with wlock:
+            out.write(struct.pack(">I", len(body) + 1) + kind + body)
+            out.flush()
+
+    def say(m):
+        put(b"J", json.dumps(m).encode("utf-8"))
+
+    omt = Omt(path)
+    say({"re": "hello", "ok": bool(omt.lib), "note": omt.note})
+    rxs = {}
+
+    def receive(rid, rx, hq):
+        while rid in rxs:
+            f = rx.capture(250)
+            if f is None:
+                continue
+            w, h, data = shrink_rgba(*f, VIN_MAX_W_HQ if hq else VIN_MAX_W)
+            put(b"F", struct.pack(">III", rid, w, h) + bgra_to_rgba(data))
+        rx.close()
+
+    for line in sys.stdin.buffer:
+        try:
+            m = json.loads(line.decode("utf-8"))
+        except ValueError:
+            continue
+        op = m.get("op")
+        if op == "find":
+            say({"re": "find", "sources": omt.sources() if omt.lib else []})
+        elif op == "open":
+            rid = int(m.get("rid", 0))
+            rx = omt.open(str(m.get("name", "")), m.get("hq") is True) if omt.lib else None
+            if rx:
+                rxs[rid] = True
+                threading.Thread(target=receive, args=(rid, rx, m.get("hq") is True), daemon=True).start()
+            say({"re": "open%d" % rid, "ok": bool(rx)})
+        elif op == "close":
+            rxs.pop(int(m.get("rid", 0)), None)
+    # the bridge has gone: stop at once
+    os._exit(0)
+
+
 def shrink_rgba(w, h, stride, data, max_w):
     """Takes every n-th pixel of every n-th row, so the frame is at most max_w wide, the rows packed tightly."""
     import array
@@ -642,7 +837,7 @@ class VideoIn:
         # loaded when a window first asks, so starting nouPix never waits for them
         with self.lock:
             if self._backends is None:
-                self._backends = {"ndi": Ndi(self.ndi_path), "omt": Omt(self.omt_path)}
+                self._backends = {"ndi": Ndi(self.ndi_path), "omt": OmtProcess(self.omt_path)}
             return self._backends
 
     def info(self):
@@ -1752,8 +1947,12 @@ def main():
     ap.add_argument("--project", help="a .noupix project to open when the first window opens (instead of the one chosen in Settings)")
     ap.add_argument("--ndi-lib", help="the NDI library to use (found automatically where NDI Tools installs it)")
     ap.add_argument("--omt-lib", help="the OMT library, libomt (looked for in ~/.noupix/omt, next to nouPix, and the usual places)")
+    ap.add_argument("--omt-helper", action="store_true", help=argparse.SUPPRESS)   # OMT's own process (OmtProcess)
     ap.add_argument("--parent-pid", type=int, help="with --embedded: also stop if this process (the app) disappears")
     args = ap.parse_args()
+    if args.omt_helper:
+        omt_helper(args.omt_lib)
+        return
     if args.embedded:
         args.no_browser, args.background = True, False
     background = args.background
