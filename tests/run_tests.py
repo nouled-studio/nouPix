@@ -6,7 +6,8 @@
     python tests/run_tests.py groups v05 only the suites named (see SUITES)
 
 Needs: pip install playwright && playwright install chromium
-The tests listen on UDP 6454 like an Art-Net node, so quit other Art-Net software first.
+The tests listen on UDP 6454 like an Art-Net node, and on 5568 like an sACN receiver, so quit other Art-Net and
+sACN software first.
 The golden output test also uses 127.0.0.2 and 127.0.0.3; on macOS add them once per boot with
     sudo ifconfig lo0 alias 127.0.0.2 up && sudo ifconfig lo0 alias 127.0.0.3 up
 """
@@ -119,6 +120,7 @@ SUITES = [   # name, function, part of --quick
     ("effects", simple("test_effects.py", 8208, 300), True),
     ("ndi", simple("test_ndi.py", 8212, 300), True),
     ("omt", simple("test_omt.py", 8214, 300), True),
+    ("sacn", simple("test_sacn.py", 8220, 300), True),
     ("startup", simple("test_startup.py", 8216, 300), True),
     ("media", simple("test_media.py", 8218, 400), True),
     ("stability", simple("test_stability.py", 8210, 900, ("5",)), False),

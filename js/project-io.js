@@ -13,6 +13,9 @@ function fixSettings(given) {
   s.compW = clamp(Math.round(s.compW), 16, 8192); s.compH = clamp(Math.round(s.compH), 16, 8192);
   s.fps = clamp(s.fps, 1, 100);
   if (!['off', 'sub', 'add'].includes(s.whiteMode)) s.whiteMode = 'off';
+  if (!['artnet', 'sacn'].includes(s.protocol)) s.protocol = 'artnet';
+  s.sacnPriority = clamp(Math.round(s.sacnPriority), 0, 200);
+  s.sacnMulticast = s.sacnMulticast === true;
   // 255.255.255.255 was the default address for ArtPoll; discovery now goes to the networks chosen in Nodes
   if (s.broadcast.trim() === '255.255.255.255') s.broadcast = '';
   delete s.trim;   // the colour trims are per fixture now (see hydrate)
@@ -424,14 +427,15 @@ async function openPath(path) {
 }
 function exportCSV() {
   ensurePatch();
-  const rows = [['Fixture', 'Type', 'Pixels', 'Color order', 'Bits', 'Controller', 'IP', 'Output', 'Position', 'Start universe', 'Start channel', 'End universe', 'End channel', 'Overflow pixels']];
+  const uni = isSacn() ? 'sACN universe' : 'universe';   // the universes as they go out: sACN counts from 1
+  const rows = [['Fixture', 'Type', 'Pixels', 'Color order', 'Bits', 'Controller', 'IP', 'Output', 'Position', 'Start ' + uni, 'Start channel', 'End ' + uni, 'End channel', 'Overflow pixels']];
   const order = [];
   for (const c of project.controllers) c.chains.forEach(ch => ch.forEach(id => { const f = fxById(id); if (f) order.push(f); }));
   for (const f of project.fixtures) if (!f._patch) order.push(f);
   for (const f of order) {
     const p = f._patch;
     const a = p && p.first >= 0 ? addrOf(p.base, p.first) : null, b = p && p.first >= 0 ? addrOf(p.base, p.last) : null;
-    rows.push([f.name, TYPE_LABEL[f.type], pixelCount(f), f.order, fxBits(f), p ? p.ctrl.name : '', p ? p.ctrl.ip : '', p ? p.out + 1 : '', p ? p.pos + 1 : '', a ? a.u : '', a ? a.ch : '', b ? b.u : '', b ? b.ch : '', p ? p.overflow : '']);
+    rows.push([f.name, TYPE_LABEL[f.type], pixelCount(f), f.order, fxBits(f), p ? p.ctrl.name : '', p ? p.ctrl.ip : '', p ? p.out + 1 : '', p ? p.pos + 1 : '', a ? uniLabel(a.u) : '', a ? a.ch : '', b ? uniLabel(b.u) : '', b ? b.ch : '', p ? p.overflow : '']);
   }
   const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v).join(',')).join('\n');
   download((project.name || 'noupix').replace(/\s+/g, '-') + '-patch.csv', csv, 'text/csv');

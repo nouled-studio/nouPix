@@ -7,11 +7,19 @@
 const BPP = f => f.order.length * (f.bits === 16 ? 2 : 1);
 let universes = [];
 let patchConflicts = [];
+// What goes out: Art-Net, or sACN (E1.31). The universes are counted from 0 inside, as Art-Net counts them; sACN counts
+// from 1, so with sACN every universe is shown (and sent, by the bridge) one higher: 0 is sACN universe 1.
+const isSacn = () => project.settings.protocol === 'sacn';
+const sacnMulticast = () => isSacn() && project.settings.sacnMulticast;
+const outName = () => (isSacn() ? 'sACN' : 'Art-Net');
+const uniLabel = u => u + (isSacn() ? 1 : 0);
+// The multicast group of an sACN universe (as the bridge sends to it): 239.255, then the universe's two bytes
+const sacnGroup = u => `239.255.${u >> 8}.${u & 255}`;
 let patchVersion = 0;
 function computePatch() {
   if (geomDirty) rebuildGeometry();
   universes = []; patchConflicts = [];
-  const byKey = new Map();
+  const byKey = new Map(), mcast = sacnMulticast();
   for (const f of project.fixtures) { f._out = null; f._patch = null; }
   const map = new Map(project.fixtures.map(f => [f.id, f]));
   for (const c of project.controllers) {
@@ -27,9 +35,10 @@ function computePatch() {
       const getUni = u => {
         if (unis[u]) return unis[u];
         const num = base + u;
-        const key = c.ip.trim() + '|' + num;
+        // with sACN to multicast groups a universe is the same one for every controller: it can be used once
+        const key = (mcast ? '*' : c.ip.trim()) + '|' + num;
         let U = byKey.get(key);
-        if (U) { if (U.ctrl !== c || U.out !== o) patchConflicts.push(`${c.name} OUT ${o + 1} and ${U.ctrl.name} OUT ${U.out + 1} both use ${c.ip} universe ${num}`); }
+        if (U) { if (U.ctrl !== c || U.out !== o) patchConflicts.push(`${c.name} OUT ${o + 1} and ${U.ctrl.name} OUT ${U.out + 1} both use ${mcast ? 'sACN' : c.ip} universe ${uniLabel(num)}`); }
         else {
           U = { key, ip: c.ip.trim(), ipb, uni: num, ctrl: c, out: o, data: new Uint8Array(512), enabled: !!(c.enabled && ipb && num <= 32767), used: 0 };
           byKey.set(key, U); universes.push(U);
@@ -49,7 +58,7 @@ function computePatch() {
           if (u >= 0 && u < c.upo) { const at = u * 512 + f.addr.ch - 1; manual = true; overlap = at < lin; lin = at; }
           else outside = true;
         }
-        if (overlap) patchConflicts.push(`${f.name} is set to start at U ${f.addr.u} ch ${f.addr.ch}, on channels the fixture before it on ${c.name} OUT ${o + 1} already uses`);
+        if (overlap) patchConflicts.push(`${f.name} is set to start at U ${uniLabel(f.addr.u)} ch ${f.addr.ch}, on channels the fixture before it on ${c.name} OUT ${o + 1} already uses`);
         for (let i = 0; i < n; i++) {
           if (!c.split) { const w = lin % 512; if (w + bpp > 512) lin += 512 - w; }
           const end = lin + bpp;
@@ -81,14 +90,14 @@ const addrOf = (base, lin) => ({ u: base + (lin >> 9), ch: (lin & 511) + 1 });
 function addrText(p) {
   if (!p || p.first < 0) return '';
   const a = addrOf(p.base, p.first), b = addrOf(p.base, p.last);
-  return `U ${a.u} · ch ${a.ch}  →  U ${b.u} · ch ${b.ch}`;
+  return `U ${uniLabel(a.u)} · ch ${a.ch}  →  U ${uniLabel(b.u)} · ch ${b.ch}`;
 }
 // A pixel's address, as U 1 ch 4–6, or '' when it isn't patched
 function pixelAddrText(f, i) {
   const p = f._patch;
   if (!(p && f._out && f._out.lin[i] >= 0)) return '';
   const a = addrOf(p.base, f._out.lin[i]);
-  return `U ${a.u} ch ${a.ch}–${a.ch + BPP(f) - 1}`;
+  return `U ${uniLabel(a.u)} ch ${a.ch}–${a.ch + BPP(f) - 1}`;
 }
 // The output a patch is on, as shown on the badges: 1, 2… or A1, B2… with more than one controller
 function outLabel(p) { return (project.controllers.length > 1 ? ctrlLetter(p.ctrl) : '') + (p.out + 1); }

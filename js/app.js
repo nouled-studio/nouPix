@@ -91,14 +91,14 @@ function updateBridgeUI() {
   const st = bridge.stats, hl = bridge.hello;
   const from = hl ? `Sending from ${hl.bindIp === '0.0.0.0' ? 'all network cards' : hl.bindIp}, port ${hl.bindPort}${hl.discovery ? '' : ' · node discovery off: ' + (hl.discoveryNote || '')}` : '';
   let show = true;
-  if (bridge.state === 'none') { pill.classList.add('warn'); txt.textContent = 'Preview only'; pill.title = 'This page can\'t send Art-Net on its own. Start nouPix (the app, or noupix.py) and use the window it opens.'; }
+  if (bridge.state === 'none') { pill.classList.add('warn'); txt.textContent = 'Preview only'; pill.title = `This page can't send ${outName()} on its own. Start nouPix (the app, or noupix.py) and use the window it opens.`; }
   else if (!bridge.connected) {
     show = Date.now() - (bridge.since || 0) > 1500;
-    pill.classList.add('warn'); txt.textContent = 'Output not connected'; pill.title = 'Reconnecting to the part of nouPix that sends Art-Net…';
+    pill.classList.add('warn'); txt.textContent = 'Output not connected'; pill.title = `Reconnecting to the part of nouPix that sends ${outName()}…`;
   }
   else if (st && st.errors && st.lastError) { pill.classList.add('err'); txt.textContent = ui.outputOn ? `Send error · ${fmtN(st.pps)} pkt/s` : 'Send error'; pill.title = 'Last send error: ' + st.lastError + (from ? '\n' + from : ''); }
-  else if (ui.outputOn) { pill.classList.add('ok'); txt.textContent = `Sending · ${fmtN(st ? st.pps : 0)} pkt/s`; pill.title = 'Art-Net packets sent per second. ' + from; }
-  else { txt.textContent = 'Art-Net off'; pill.title = 'Switched off in Settings → Art-Net connection.'; }
+  else if (ui.outputOn) { pill.classList.add('ok'); txt.textContent = `Sending · ${fmtN(st ? st.pps : 0)} pkt/s`; pill.title = `${outName()} packets sent per second${sacnMulticast() ? ', to multicast groups' : ''}. ` + from; }
+  else { txt.textContent = outName() + ' off'; pill.title = `Switched off in Settings → ${outName()} connection.`; }
   pill.hidden = !show;
   const tick = $('#outputOn');   // Settings → Art-Net connection, when it is open
   if (tick) tick.checked = ui.outputOn;
@@ -106,7 +106,7 @@ function updateBridgeUI() {
 function setOutput(on) {
   if (REMOTE_CLIENT) return;   // only the main computer sends Art-Net
   if (on && !bridge.connected) {
-    toast(bridge.state === 'none' ? 'This page can\'t send Art-Net on its own: start nouPix (the app, or noupix.py) and use the window it opens.' : 'The Art-Net output isn\'t connected yet. Try again in a moment.', 'warn');
+    toast(bridge.state === 'none' ? `This page can't send ${outName()} on its own: start nouPix (the app, or noupix.py) and use the window it opens.` : `The ${outName()} output isn't connected yet. Try again in a moment.`, 'warn');
     return;
   }
   if (on) bridgeSend({ t: 'output', on: true });

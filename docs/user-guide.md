@@ -52,7 +52,7 @@ The interface is black, so the light on the stage is the brightest thing on scre
 3. **Patch.** In the Patch panel, add a controller: IP address, number of outputs, universes per output and first universe. Then drag fixtures from the list onto an output. Fixtures chained on one output are addressed in order, automatically.
 4. **Content.** Click a generator in Sources to play it in the selected layer of the selected zone. Add zones, layers, blend modes and parameters in the Content tab (see below). You can also add your own ISF shader, an image, a video, a window capture (for example Resolume's output) or an NDI or OMT stream.
 5. **Scenes.** When a zone's look is right, press **+ Store** on its row in the Scenes panel. Put scenes in a **playlist** to have the zone play them one after another by itself.
-6. **Art-Net** goes out from the start, every time nouPix opens. The status bar's right end shows how many packets go out each second, or what is wrong. **Settings → Art-Net connection → Send Art-Net** switches it off (for example while another console drives the lights) and on again. **Blackout** (the slashed sun at the right of the top bar, or `B`) turns every light off at once; it breathes red until you press it again.
+6. **Art-Net** goes out from the start, every time nouPix opens (or **sACN**, if the project is set to it: see *Art-Net or sACN*). The status bar's right end shows how many packets go out each second, or what is wrong. **Settings → Art-Net connection → Send Art-Net** switches it off (for example while another console drives the lights) and on again. **Blackout** (the slashed sun at the right of the top bar, or `B`) turns every light off at once; it breathes red until you press it again.
 
 **Ovals.** A circle stretches into an oval: drag the side handles of its frame on the stage, or set **Radius X** and **Y** in the Inspector (**Make it round** brings it back). Its pixels are spaced evenly along the curve, as on a real strip. Ellipses in an imported SVG become ovals.
 
@@ -226,7 +226,7 @@ A playlist plays some of a zone's scenes one after another, by itself: Evening, 
 - **Skip ch 511–512** (on by default) never splits a pixel across universes: 170 RGB pixels per universe, channels 511 and 512 left empty, as nearly every pixel controller expects (the ⓘ beside it explains). Turn it off only for a controller set to continuous addressing: then all 512 channels are used. RGBW pixels fill a universe exactly (128), so nothing is skipped either way. 16-bit pixels take twice the channels (85 RGB or 64 RGBW per universe).
 - The **ON** switch beside a controller's name stops or starts sending to it. The red bin deletes it, on a double-click (Ctrl Z brings it back).
 - Pixels that don't fit in an output's universes are not sent. They show in red in the Patch panel and Inspector.
-- Universe numbers are Art-Net 15-bit port addresses, starting at 0. The DMX Monitor also shows them as net / subnet / universe.
+- Universe numbers are Art-Net 15-bit port addresses, starting at 0. The DMX Monitor also shows them as net / subnet / universe. With sACN they are shown, typed and sent from 1 (see *Art-Net or sACN*).
 - **Advanced patch** (Inspector → Output, one fixture): set the universe and channel the fixture starts at, inside its output's universes, for example to leave a gap of channels on purpose. The fixtures after it on that output carry on from its last channel. A start that overlaps the fixture before it is flagged, and a set start is dropped when the fixture moves to another output.
 - Every packet is a full 512-channel ArtDmx packet with a sequence number, sent unicast to the controller's IP. ArtSync is optional (Settings).
 - **Frame rate** (Settings): 40 frames a second by default, up to 100. Above 44, frames come faster than a DMX line refreshes; pixel controllers take them, but some DMX nodes skip frames.
@@ -365,6 +365,18 @@ A control can drive several things: to learn the same control onto a second thin
 - A mapping to a scene, playlist, zone or shader that has been deleted shows as **Missing** and does nothing. Point it at something else, or remove it.
 - MIDI is read on this computer only: devices logged in by remote control don't listen to it. On Windows a MIDI port works in one program at a time: close it in other programs first.
 
+## Art-Net or sACN
+
+**Settings → Output → Protocol** chooses what goes out: **Art-Net** (the default, and what every project opened from before uses) or **sACN** (ANSI E1.31, also called streaming ACN). One protocol at a time, for the whole project; the choice is saved with it, and undo takes it back.
+
+- **Universe numbers.** sACN counts universes from 1, Art-Net from 0. With sACN every universe is shown as sACN counts it: the first universe, 0 in Art-Net, is sACN universe 1, the next is 2, and so on. The Patch panel, **First uni** (typed from 1), the menus, the Inspector, the DMX Monitor and the CSV all use these numbers, and they are the numbers on the wire. Switching protocol never moves the patch: only the numbers shown change by one. Controllers that speak both protocols usually count the same way (Art-Net 0 = sACN 1).
+- **Priority** (0 to 200, 100 by default): a receiver that gets the same universe from two sources takes the higher priority. Give a lighting desk a higher one to let it take over.
+- **Send to: Each controller** sends each universe to its controller's IP address, as Art-Net does. **Multicast** sends each universe to its multicast group (239.255.0.1 for universe 1, 239.255.0.2 for 2…), which any receiver on the network can join. With multicast a universe is one for the whole network, so two controllers using the same universe are flagged as a clash.
+- Every packet is a full 512-channel E1.31 packet with a sequence number per universe, the source name *nouPix* and this computer's name, and the same source ID (CID) every time. Every 10 seconds nouPix also lists the universes it sends on the sACN discovery group, which tools like sACNView show.
+- When nouPix stops sending a universe (output switched off, back to Art-Net, the window closed, a universe unpatched), it sends the three *stream terminated* packets E1.31 asks for, so receivers let go at once instead of after 2.5 seconds.
+- **Nodes → Discover** still uses Art-Net's ArtPoll: sACN has no way to find controllers, and most sACN controllers also answer ArtPoll. The universes a node reports are Art-Net's (the table says so); **Add as controller** turns them into the same patch.
+- ArtSync is Art-Net's: with sACN it doesn't apply, and its setting is hidden.
+
 ## Network notes
 
 - **Nodes → Discover** sends ArtPoll on each network of this computer, to that network's broadcast address (2.255.255.255 for a 2.0.0.10/8 card, 192.168.1.255 for 192.168.1.20/24). The networks are listed beside the button: untick one to leave it out of scans (Wi-Fi, a venue network you shouldn't flood), and its nodes are hidden from the list. The choice is kept on this computer. **Also** takes one more address to send ArtPoll to. The table shows which network each node answered on.
@@ -411,7 +423,7 @@ Their controllers have made-up 10.0.0.x addresses: set your own in the Patch pan
 
 ## Limits of this version
 
-Art-Net only (no sACN/E1.31 yet). No Syphon or Spout: use NDI or OMT, or window capture, instead. Rendering lives in the nouPix window, so closing it stops the output. It's been tested in Chromium; Firefox and Safari should work but are less tested and don't get the keep-running switches.
+One protocol at a time: Art-Net or sACN, for the whole project. No Syphon or Spout: use NDI or OMT, or window capture, instead. Rendering lives in the nouPix window, so closing it stops the output. It's been tested in Chromium; Firefox and Safari should work but are less tested and don't get the keep-running switches.
 
 ## Building the apps
 

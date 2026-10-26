@@ -2,7 +2,7 @@
 
 <img src="icons/noupix-256.png" alt="" width="96" align="right">
 
-A pixel-mapping tool for LED installations, by nouled studio. It was called openLedMapper until 1.0. Draw or import your LED fixtures, play generators, shaders, images, video or a screen capture on them, store looks as scenes, play them in playlists, and send it all out over Art-Net.
+A pixel-mapping tool for LED installations, by nouled studio. It was called openLedMapper until 1.0. Draw or import your LED fixtures, play generators, shaders, images, video or a screen capture on them, store looks as scenes, play them in playlists, and send it all out over Art-Net or sACN.
 
 ## Download
 
@@ -56,7 +56,7 @@ To see it working before you build anything, open one of the [examples](examples
 - Scenes per zone, with crossfades; the fade time is on each scene's button. A scene or a playlist can play when the project opens, and a project can open when nouPix starts (Settings → Startup, or `noupix.py --project FILE`): for computers that run a show by themselves.
 - **X-Fader:** one fader between two zones, A and B, like the crossfader of a DJ or video mixer. Turn it on at the bottom left of the Scenes panel; its strip shows a live preview of each zone (even the one faded out, so you see what comes next) and lists to choose them. Three modes, each drawn as a small graph: **Mix** fades A into B, as bright in the middle as at the ends where both cover the same lights; **Dip** goes through black; **Cut** switches at the middle. While it is on it alone sets A's and B's levels. Give it a fader on your MIDI controller, and, for special occasions, put it on the phones' Remote page too.
 - **Playlists:** several per zone, each a list of scenes with play times, played by itself in a loop, once, or followed by another playlist. Fades come from each scene, one for the whole playlist, or a step's own.
-- Art-Net output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
+- Art-Net or sACN (E1.31, unicast or multicast) output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
 - The output keeps running when the window is minimised or covered.
 - **Black or white:** the interface is black, so the light on the stage is the brightest thing on screen; one click in the top bar (or Settings → Interface) turns it white for daylight. Groups and zones can be given a colour, which their fixtures and scenes show; nothing gets one unless you choose it.
 - Works offline: the fonts and everything else come with the app. Online, it tells you when a new version is out (when it starts, from GitHub; Settings → Updates turns it off).
@@ -83,7 +83,7 @@ To see it working before you build anything, open one of the [examples](examples
 
 - **Full reference:** every feature in detail is in [docs/user-guide.md](docs/user-guide.md); the [Getting started guide (PDF)](docs/nouPix-getting-started.pdf) is the short way in.
 - **Media library and packages:** images and videos are copied once into nouPix's library, so projects open with them without relinking; **Export package…** writes one `.noupixpkg` file with the project and its media, to open on another computer.
-- **Limits:** Art-Net only (no sACN yet). No Syphon or Spout; use NDI, OMT or window capture instead.
+- **Limits:** one protocol at a time (Art-Net or sACN, for the whole project). No Syphon or Spout; use NDI, OMT or window capture instead.
 
 ## For developers
 

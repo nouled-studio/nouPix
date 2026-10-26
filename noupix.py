@@ -43,6 +43,7 @@ import sys
 import threading
 import time
 import urllib.parse
+import uuid
 import webbrowser
 
 VERSION = "1.2.1"
@@ -55,6 +56,39 @@ HOLD_AFTER = 1.0   # seconds without frames from the page before the bridge star
 HOLD_EVERY = 0.5   # how often the held frame is repeated, so controllers don't time out
 POLL_AGAIN = 0.25  # seconds before each ArtPoll goes out a second time
 WS_SILENT = 10.0   # seconds a window may not answer the bridge's pings before it is taken as gone
+
+# sACN (ANSI E1.31), sent instead of Art-Net when the project says so: the same universes, numbered from 1 (the page's
+# universe 0 is sACN universe 1), to each controller's address or to the universe's multicast group (239.255.hi.lo).
+SACN_PORT = 5568
+SACN_ROOT = b"\x00\x10\x00\x00ASC-E1.17\x00\x00\x00"   # preamble size, post-amble size, ACN packet identifier
+SACN_MAX_UNIVERSE = 63999
+SACN_DISCOVERY = "239.255.250.214"   # universe 64214: where sources list the universes they send, every 10 s
+SACN_DISCOVERY_EVERY = 10.0
+# who sends: the same on this computer every time (E1.31 asks a source to keep its CID), and a name desks can show
+SACN_CID = uuid.uuid5(uuid.NAMESPACE_DNS, "noupix." + socket.gethostname()).bytes
+SACN_SOURCE = ("nouPix " + socket.gethostname()).encode("utf-8")[:63].decode("utf-8", "ignore").encode("utf-8").ljust(64, b"\x00")
+
+
+def sacn_group(universe):
+    """The multicast address of an sACN universe."""
+    return "239.255.%d.%d" % (universe >> 8, universe & 0xFF)
+
+
+def sacn_packet(universe, data, seq, priority=100, options=0):
+    """An E1.31 data packet: root, framing and DMP layers, then the start code (0) and the channels."""
+    n = len(data)
+    return (SACN_ROOT + struct.pack(">HI", 0x7000 | (110 + n), 0x04) + SACN_CID
+            + struct.pack(">HI", 0x7000 | (88 + n), 0x02) + SACN_SOURCE
+            + struct.pack(">BHBBH", priority, 0, seq, options, universe)
+            + struct.pack(">HBBHHH", 0x7000 | (11 + n), 0x02, 0xA1, 0, 1, n + 1) + b"\x00" + bytes(data))
+
+
+def sacn_discovery(universes, page=0, last=0):
+    """An E1.31 universe discovery packet: the universes this source sends (at most 512 on a page)."""
+    n = len(universes)
+    return (SACN_ROOT + struct.pack(">HI", 0x7000 | (104 + 2 * n), 0x08) + SACN_CID
+            + struct.pack(">HI", 0x7000 | (82 + 2 * n), 0x02) + SACN_SOURCE + b"\x00" * 4
+            + struct.pack(">HIBB", 0x7000 | (8 + 2 * n), 0x01, page, last) + b"".join(struct.pack(">H", u) for u in universes))
 
 
 def log(msg):
@@ -84,11 +118,17 @@ class ArtNet:
             self.bind_error = "port %d unavailable (%s) - is another Art-Net app running?" % (bind_port, e.strerror or e)
             self.sock.bind((bind_ip, 0))
         self.bind_ip, self.bind_port = self.sock.getsockname()
+        if self.bind_ip not in ("0.0.0.0", ""):   # sACN's multicast goes out of the network card chosen, too
+            try:
+                self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.bind_ip))
+            except OSError:
+                pass
         # Replies to ArtPoll arrive on 6454, so discovery only works when we own that port.
         self.discovery = self.bind_port == ARTNET_PORT
         self.discovery_note = "" if self.discovery else (
             self.bind_error or "listening on UDP %d instead of %d (--bind-port)" % (self.bind_port, ARTNET_PORT))
         self.seq = {}
+        self.sacn_seq, self.sacn_streams, self.sacn_priority, self.sacn_listed = {}, {}, 100, 0.0
         # Frames come from the page's connection, and from the hold loop when the page stalls: one at a time
         self.send_lock = threading.Lock()
         self.packets = 0
@@ -110,24 +150,32 @@ class ArtNet:
                 self.owner.send_json({"t": "takeover"})  # two windows must not fight over the same universes
             self.owner, self.held, self.last_frame = ws, None, time.time()
         elif self.owner is ws:
+            self.release(ws)
+
+    def release(self, ws):
+        """The window stops driving the lights (output off, closed, gone): sACN receivers are told at once."""
+        if self.owner is ws:
             self.owner = None
+            self.end_sacn()
 
     def frame_from(self, ws, payload):
         if ws is not self.owner:
             return
-        self.send_frame(payload)
+        self.send_frame(payload, getattr(ws, "sacn_priority", 100))
         self.frames += 1
-        self.held, self.last_frame = payload, time.time()
+        self.held, self.held_priority, self.last_frame = payload, getattr(ws, "sacn_priority", 100), time.time()
         if self.holding:
             self.holding = False
             log("Frames from the nouPix window resumed.")
 
-    def send_frame(self, p):
+    def send_frame(self, p, priority=100):
         # [u8 type=1][u8 flags][u16 count] then count x ([4 ip][u16 universe][u16 length][data])
+        # flags: 1 ArtSync after the frame (Art-Net), 2 sACN instead of Art-Net, 4 sACN to multicast groups
         if len(p) < 4 or p[0] != 1:
             return
         flags, count = p[1], struct.unpack_from("<H", p, 2)[0]
-        off, ips = 4, []
+        sacn = bool(flags & 2)
+        off, ips, streams = 4, [], {}
         with self.send_lock:
             for _ in range(count):
                 if off + 8 > len(p):
@@ -135,12 +183,28 @@ class ArtNet:
                 ip = socket.inet_ntoa(p[off:off + 4])
                 uni, n = struct.unpack_from("<HH", p, off + 4)
                 off += 8
-                self.send_dmx(ip, uni, p[off:off + min(n, 512)])  # ArtDmx carries at most 512 channels
+                data = p[off:off + min(n, 512)]   # a universe carries at most 512 channels
                 off += n
+                if sacn:
+                    u = uni + 1
+                    if u <= SACN_MAX_UNIVERSE:
+                        key = (sacn_group(u) if flags & 4 else ip, u)
+                        streams[key] = data
+                        self.send_sacn(key, data, priority)
+                    continue
+                self.send_dmx(ip, uni, data)
                 if ip not in ips:
                     ips.append(ip)
-            if flags & 1:
+            if flags & 1 and not sacn:
                 self.send_sync(ips)
+            # sACN streams no longer sent (a universe unpatched, multicast switched, back to Art-Net) are ended
+            self.sacn_priority = priority
+            for key in [k for k in self.sacn_streams if k not in streams]:
+                self._end_stream(key)
+            self.sacn_streams = streams
+            if streams and time.monotonic() - self.sacn_listed >= SACN_DISCOVERY_EVERY:
+                self.sacn_listed = time.monotonic()
+                self.send_sacn_discovery(sorted({u for _, u in streams}))
 
     def _hold_loop(self):
         # If the page stops sending (window minimised, asleep, busy) keep repeating its last frame,
@@ -157,7 +221,7 @@ class ArtNet:
                     "Is the window minimised, or the computer asleep?" % HOLD_AFTER)
             if now - last >= HOLD_EVERY:
                 last = now
-                self.send_frame(self.held)
+                self.send_frame(self.held, getattr(self, "held_priority", 100))
 
     def send_dmx(self, ip, universe, data):
         key = (ip, universe)
@@ -175,6 +239,40 @@ class ArtNet:
         except OSError as e:
             self.errors += 1
             self.last_error = "%s: %s" % (ip, e.strerror or e)
+
+    def send_sacn(self, key, data, priority, options=0):
+        dest, universe = key
+        seq = (self.sacn_seq.get(key, -1) + 1) & 0xFF
+        self.sacn_seq[key] = seq
+        try:
+            self.sock.sendto(sacn_packet(universe, data, seq, priority, options), (dest, SACN_PORT))
+            self.packets += 1
+        except OSError as e:
+            self.errors += 1
+            self.last_error = "%s: %s" % (dest, e.strerror or e)
+
+    def _end_stream(self, key):
+        # E1.31 6.2.6: three packets with Stream_Terminated, so receivers let go now instead of after 2.5 s
+        data = self.sacn_streams.get(key, b"")
+        for _ in range(3):
+            self.send_sacn(key, data, self.sacn_priority, 0x40)
+        self.sacn_seq.pop(key, None)
+
+    def end_sacn(self):
+        with self.send_lock:
+            for key in list(self.sacn_streams):
+                self._end_stream(key)
+            self.sacn_streams = {}
+
+    def send_sacn_discovery(self, universes):
+        pages = [universes[i:i + 512] for i in range(0, len(universes), 512)] or [[]]
+        for i, page in enumerate(pages):
+            try:
+                self.sock.sendto(sacn_discovery(page, i, len(pages) - 1), (SACN_DISCOVERY, SACN_PORT))
+                self.packets += 1
+            except OSError as e:
+                self.errors += 1
+                self.last_error = "%s: %s" % (SACN_DISCOVERY, e.strerror or e)
 
     def send_sync(self, ips):
         pkt = ARTNET_ID + struct.pack("<H", OP_SYNC) + bytes((0, 14, 0, 0))
@@ -1489,7 +1587,7 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
         art.listeners.add(on_node)
         vin_message, vin_closed = self.server.vin.window(ws)
         ws.send_json({
-            "t": "hello", "version": VERSION, "bindIp": art.bind_ip, "bindPort": art.bind_port,
+            "t": "hello", "version": VERSION, "bindIp": art.bind_ip, "bindPort": art.bind_port, "protocols": ["artnet", "sacn"],
             "discovery": art.discovery, "discoveryNote": art.discovery_note, "interfaces": local_ips(),
             "nets": network_interfaces(),
             "nodes": list(art.nodes.values()),
@@ -1531,8 +1629,8 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
             self.server.window_count(-1)
             art.listeners.discard(on_node)
             if art.owner is ws:
-                art.owner = None
-                log("The nouPix window closed or disconnected while Art-Net was on.")
+                art.release(ws)
+                log("The nouPix window closed or disconnected while its output was on.")
             self.server.remote.host_gone(ws)
 
     @staticmethod
@@ -1545,6 +1643,11 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
             return
         if msg.get("t") == "output":
             art.set_output(ws, bool(msg.get("on")))
+        elif msg.get("t") == "sacn":   # the window's sACN priority (0 to 200), for the frames it sends with sACN
+            try:
+                ws.sacn_priority = max(0, min(200, int(msg.get("priority"))))
+            except (TypeError, ValueError, OverflowError):
+                ws.sacn_priority = 100
         elif msg.get("t") == "remote" and remote:
             remote.configure(ws, msg)
         elif msg.get("t") == "vin" and vin:

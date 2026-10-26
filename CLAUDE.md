@@ -28,11 +28,11 @@ order by `<script src>` tags at the end of `index.html`:
 | `model.js` | The project and its parts: constants (`CURVES`, `CURVE_STRENGTH`, `TAGS`: the colours a group or zone can be given), defaults, the `project` and `ui` state, factories, groups, selection, look-ups by id, a fixture's colour (its group's), the crossfader's two zones | `project` `ui` `blankProject` `newFixture` `fxBits` `fxCurve` `curveParam` `newZone` `newLayer` `newPlaylist` `newStep` `newController` `selected` `selUnits` `fxById` `fxTag` `isTag` `markGeom` `markPatch` `xfZones` `xfDriven` |
 | `macros.js` | Macros: their list (`MACROS`: Speed, Intensity, Saturation, Color 1 and 2, the shared controls), defaults and repair, which control of an effect follows which (by name, or as chosen for that effect in `project.macroLinks`), a value with its macro on it, colour parts | `MACROS` `macroDef` `defaultMacros` `fixMacros` `macroRoles` `macroChoices` `macroRolesOf` `fixMacroLinks` `macroActive` `macroOver` `macroPart` `macroPartPatch` |
 | `geometry.js` | Mapping math: each fixture's pixel positions, lengths, bounds, distances; moving, turning, scaling a fixture and the frame around several | `computePoints` `rebuildGeometry` `computeBB` `rotateFixture` `scaleFixture` `frameOf` `snap45` |
-| `patch.js` | Addressing: universe and channels of every pixel on its controller output (`BPP`: channels per pixel, doubled on 16-bit fixtures), conflicts | `computePatch` `ensurePatch` `universes` `addrOf` `BPP` `assign` `unassign` |
+| `patch.js` | Addressing: universe and channels of every pixel on its controller output (`BPP`: channels per pixel, doubled on 16-bit fixtures), conflicts; the protocol out (`isSacn`, `outName`) and universes as it counts them (`uniLabel`: sACN's one higher; with multicast, `sacnMulticast`, a universe is one for every controller) | `computePatch` `ensurePatch` `universes` `addrOf` `BPP` `assign` `unassign` `isSacn` `uniLabel` `outName` |
 | `sources.js` | Content sources (images and videos played from the bridge's media library, `src.media`, `loadLibraryMedia`, `libraryPut`): WebGL canvas, ISF runtimes (compiled when first played or drawn as a thumbnail; `headerOf` reads a header without compiling, `controlsOf` an effect's controls from it, `effectRt` what `macroRolesOf` needs from it), parameters and speeds, images and videos (trim, loop, sound), the media format check, source thumbnails | `runtimeOf` `effectRt` `headerOf` `controlsOf` `isSpeedInput` `renderSource` `applyParams` `probeMedia` `attachMedia` `syncMedia` `videoTick` |
 | `render.js` | The GPU mixer (zones, layers, blend modes; the crossfader's even mix; a zone's picture made small for a preview, `mixer.thumb`, read back on WebGL2 through a buffer and a fence so the page never waits for the GPU), looks and fades, recalling a scene, sampling the composition at every pixel, highlight and test patterns | `mixer` `renderContent` `loadSource` `startFade` `recallScene` `sampleMix` `testPattern` `setHighlight` |
 | `streams.js` | NDI and OMT in: the streams the project's stream sources want (`syncStreams`, asked of the bridge), frames from the bridge into a canvas per stream that `mediaEls` holds for its sources (`streamFrame`), the sources found and each stream's state | `streams` `syncStreams` `findStreams` `streamFrame` `streamMessage` `streamState` `streamKey` `isStream` `STREAM_PROTOS` |
-| `output.js` | Gamma, sampled colours to DMX channels (each fixture's dimmer × its group's (`groupLevel`) × the master; 8-bit; 16-bit through `output16`: dimming curves shaped by gamma or strength, coarse then fine), the outgoing frame, the clock, the bridge connection | `buildOutput` `output16` `curveValue` `layoutFrame` `sendFrame` `tick` `startClock` `connectBridge` `bridge` |
+| `output.js` | Gamma, sampled colours to DMX channels (each fixture's dimmer × its group's (`groupLevel`) × the master; 8-bit; 16-bit through `output16`: dimming curves shaped by gamma or strength, coarse then fine), the outgoing frame (its flags say Art-Net or sACN, `frameFlags`), the clock, the bridge connection | `buildOutput` `output16` `curveValue` `layoutFrame` `sendFrame` `frameFlags` `tick` `startClock` `connectBridge` `bridge` |
 | `project-io.js` | Project files: repairing what is opened, undo history, autosave, open/save, packages (`exportPackage`, `openPackage`), CSV, SVG import, the demo | `hydrate` `serialize` `commit` `commitSoft` `undo` `redo` `loadProject` `importSvg` `demoProject` |
 | `remote.js` | Remote control: the host side (configure the bridge, send the project and the phones' state, apply devices' changes by role) and the client side (this page opened on a device at `/app`) | `remote` `REMOTE_CLIENT` `mappingLocked` `remoteChanged` `remoteFromDevice` `contentOf` `connectRemote` `remoteOp` |
 | `playlists.js` | Playlists: a zone plays some of its scenes in turn on the frame clock; which fade a step uses; play, pause, next, the end; the state devices see | `playlistTick` `playPlaylist` `togglePlaylist` `pausePlaylist` `resumePlaylist` `stepPlaylist` `playlistManual` `stepFade` `playingList` `playElapsed` `playState` |
@@ -133,6 +133,12 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   cover the canvas (`xfFitAdvice`); turning it on or off and choosing a zone are steps of undo. `renderContent`
   lays the lower of the two on whole where the upper covers it, so the upper's level alone mixes them there and the
   light stays even, and draws both even when one is faded out, for their previews.
+- What goes out is the project's: `settings.protocol` (`'artnet'`, the default, or `'sacn'`), `sacnPriority` (0 to 200,
+  100) and `sacnMulticast`; one protocol at a time. Universes are counted from 0 inside, as Art-Net counts them; with sACN
+  every number the interface shows or takes is one higher (`uniLabel`; First uni is typed from 1) and the bridge adds the
+  one on the wire, so switching never moves the patch. Each frame says how to send it in its flags (1 ArtSync, 2 sACN,
+  4 multicast), so an undo or another project can't leave the bridge on the old protocol; the priority goes as
+  `{t: 'sacn', priority}` when it changes. Switching protocol or multicast is `markPatch` (multicast changes what clashes).
 - A group's dimmer is `g.level` (0 to 1; absent at 1, so files without dimmed groups don't change): `setGroupLevel`
   sets it and every slider showing it; `buildOutput` multiplies it in.
 - Colours: a group (`g.tag`), a zone (`z.tag`) or a scene (`sc.tag`) may have one, a hex from `TAGS`; none (`''`, or no
@@ -187,7 +193,9 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
 Python standard library only. Serves `/` and `/index.html`, plain-named `.css`, `.js` and `.woff2` files in `css/`,
 `js/` and `js/vendor/` (nothing else), and the WebSocket at `/ws`; with remote control on, the network server described above. The
 page sends binary frames (`layoutFrame` in output.js describes the layout) that the bridge turns into Art-Net
-packets, plus JSON messages (discovery polls, settings, remote control). **NDI and OMT in** (`VideoIn`, `Ndi`, `Omt`): the bridge loads
+packets, or sACN ones (`sacn_packet`, port 5568, universe + 1, to the controller or to `sacn_group`; the sequence per stream,
+the CID the same on this computer, `SACN_SOURCE`; `send_sacn_discovery` every 10 s; a stream that ends gets three
+Stream_Terminated packets, `_end_stream`, also when its window lets go, `ArtNet.release`), plus JSON messages (discovery polls, settings, remote control). **NDI and OMT in** (`VideoIn`, `Ndi`, `Omt`): the bridge loads
 the library the user installed (NDI Tools, `--ndi-lib` or `NOUPIX_NDI_LIB`; libomt with libvmx, in `~/.noupix/omt`, `--omt-lib`
 or `NOUPIX_OMT_LIB`; nothing bundled) with ctypes, lists the sources (`{t: 'vin', op: 'find'}`) and receives the ones a window asks for (`op: 'sub'`), each on its
 own thread, frames cut down to 640 wide (Light, the preview stream) or 1920 (Full) by `shrink_rgba` (OMT's BGRA turned to RGBA), sent to the window
@@ -287,7 +295,10 @@ library isn't installed, `NOUPIX_NDI_LIB` points at one): found, chosen, its pic
 about 30 frames a second, Light and Full, files and undo, the source stopping and coming back, choosing another,
 removing it, a bridge without NDI. `test_omt.py` checks OMT in against `omt_fake.c`, a stand-in library built from the real
 `libomt.h` (needs a C compiler): found, BGRA rows padded past their width arriving as RGBA, preview and full, following,
-stopping and coming back, and the library ending its process (`FAKE_OMT_ABORT`: the bridge goes on, says why, and starts a new helper). `test_startup.py` checks the name following the file, the scene that plays on open, the startup
+stopping and coming back, and the library ending its process (`FAKE_OMT_ABORT`: the bridge goes on, says why, and starts a new helper). `test_sacn.py` checks sACN out against a receiver that reads E1.31 by the standard (every layer, CID, name, priority,
+sequence, universe + 1, unicast and multicast, the discovery packets, three Stream_Terminated packets whenever a stream
+ends), one packet byte for byte, and the interface's numbers (Patch, First uni from 1, menus, monitor, CSV), multicast
+clashes, undo, files and their repair. `test_startup.py` checks the name following the file, the scene that plays on open, the startup
 project (Settings, kept by the bridge, only the first window, following changes, `--project`) and a video's volume following
 its zone. The harness gives each test bridge its own (empty) startup project and media library. Tests ask the bridge for
 files with `fetch` (harness.py), a kept-open connection as the browser uses, never `urllib` (it asks the server to close
