@@ -145,9 +145,12 @@ function bayTargets() {
   for (const d of MACROS) {
     // Intensity is every layer's level: no control of an effect follows it, so it has no blue wires
     if (d.kind !== 'color') { const r = bayRow('m:' + d.id, d.label); rows.push(d.id === 'intensity' ? r : bayMacroRow(r, d.id, fans[d.id] || 0)); continue; }
-    const m = project.macros[d.id], sw = h('i', { class: 'bsw' });
+    const m = project.macros[d.id], sw = h('i', { class: 'bsw', 'data-sw': d.id });
     sw.style.background = toHex(macroRgb(m));
-    const head = h('div', { class: 'brow', 'data-t': 'm:' + d.id, onmouseenter: () => bayHover('m:' + d.id), onmouseleave: () => bayHover(null) }, h('span', { class: 'nm' }, d.label), sw, h('span', { class: 'k' }, m.mode.toUpperCase()));
+    // learnt as its first part (Hue, or Red in RGB); its parts are opened with the arrow
+    const first = `m:${d.id}.0`, firstName = MACRO_PARTS[m.mode][0][1];
+    const head = h('div', { class: 'brow', 'data-t': 'm:' + d.id, 'data-midi': first, title: `Learn picks its ${firstName.toLowerCase()}; open it for each part.`, onmouseenter: () => bayHover('m:' + d.id), onmouseleave: () => bayHover(null) },
+      h('span', { class: 'nm' }, d.label), sw, h('span', { class: 'k' }, m.mode.toUpperCase()));
     const parts = MACRO_PARTS[m.mode].map((p, i) => bayRow(`m:${d.id}.${i}`, p[1], 'sub'));
     rows.push(bayGroup(d.id, bayMacroRow(head, d.id, fans[d.id] || 0), parts));
   }
@@ -158,7 +161,11 @@ function bayTargets() {
 function bayFxRow(src, inp, roles) {
   const t = `p:${src.id}:${inp.NAME}`, label = inp.LABEL || inp.NAME, mac = roles[inp.NAME];
   const tag = mac ? h('span', { class: 'mtag', title: `Follows ${macroDef(mac).label}` }, macroDef(mac).label) : null;
-  if (midiTarget(t)) return bayRow(t, label, 'sub', tag);
+  if (midiTarget(t)) {
+    const row = bayRow(t, label, 'sub', tag), r = mac && row.querySelector('input[type=range]');
+    if (r) { const wrap = h('span', { class: 'bvw' }); r.replaceWith(wrap); wrap.append(r, h('i', { class: 'bmod', 'data-bmod': t, hidden: true })); }
+    return row;
+  }
   return h('div', { class: 'brow sub link', 'data-t': t, onmouseenter: () => bayHover(t), onmouseleave: () => bayHover(null) },
     bayDot('in', t), h('span', { class: 'nm', title: `${src.name} · ${label}` }, label, tag), h('span', { class: 'k' }, 'colour'));
 }
@@ -310,11 +317,7 @@ function bayPop(D, mid, box, w, l) {
     pop.dataset.for = sig;
     const rm = h('button', { class: 'btn sm danger-t', type: 'button', title: 'Remove this wire (Delete)', onclick: bayRemoveSel }, icon('trash'), 'Remove');
     if (w) {
-      const T = midiTarget(w.to), k = midiKeyParts(w.key);
-      const seg = (key, opts) => h('span', { class: 'seg mini' }, opts.map(([v, label, tip]) => h('button', { type: 'button', class: w[key] === v ? 'on' : '', title: tip, onclick: () => midiSetMap(w.id, { [key]: v }) }, label)));
-      const how = !T ? h('span', { class: 'muted' }, 'Missing') : T.kind === 'fader' ? seg('takeover', [['pickup', 'Pickup', 'It follows once the fader reaches it'], ['jump', 'Jump', 'It goes where the fader is at once']])
-        : T.kind === 'toggle' ? seg('mode', [['toggle', 'Toggle', 'Each press turns it on or off'], k.type === 'cc' ? ['hold', 'Follow', 'On while the control is up'] : ['hold', 'Hold', 'On while held']])
-          : h('span', { class: 'muted' }, 'On a press');
+      const how = midiHow(w) || h('span', { class: 'muted' }, 'Missing');
       pop.replaceChildren(h('div', { class: 'bph' }, h('b', { class: 'mono' }, midiKeyFull(w.key)), ' drives'), midiTargetSelect(w), h('div', { class: 'bpr' }, how, h('span', { class: 'fill' }), rm));
     } else {
       const inp = controlsOf(l.src).find(i => i.NAME === l.name), rt = effectRt(l.src), label = `${l.src.name} · ${inp ? inp.LABEL || inp.NAME : l.name}`;
@@ -337,8 +340,28 @@ function bayRemoveSel() {
   if (src) setMacroLink(src, name, '');
 }
 // With each message: where each control is, each slider and button, and the wires (a hot one shows the control moving)
+// Where its macro takes an effect's control, 0 to 1 as its slider shows it, while that macro changes it (the slider
+// keeps the control's own value, which is what it sets): { x, mac }, or null
+function bayEffective(t) {
+  const i = t.indexOf(':', 2), src = srcById(t.slice(2, i)), name = t.slice(i + 1);
+  const inp = src && src.kind === 'isf' && controlsOf(src).find(x => x.NAME === name);
+  if (!inp || (inp.TYPE !== 'float' && inp.TYPE !== 'int')) return null;
+  const mac = macroRolesOf(src, effectRt(src))[name];
+  const L = project.zones.flatMap(z => z.layers.filter(L => L.src === src.id))[0];
+  if (!mac || !macroActive(mac) || !L) return null;
+  const v = paramValue(L, src, inp);
+  if (mac === 'speed' || isSpeedInput(src, inp)) return { x: clamp(Math.abs(v) / speedMax(inp) * (mac === 'speed' ? project.macros.speed.v : 1), 0, 1), mac };
+  const lo = inp.MIN ?? 0, hi = inp.MAX ?? 1;
+  return hi > lo ? { x: clamp((macroOver(mac, inp, v) - lo) / (hi - lo), 0, 1), mac } : null;
+}
 function bayUpdate(D) {
   if (bayDragging || bay.drag) return;
+  for (const s of $$('.bay [data-sw]', D)) s.style.background = toHex(macroRgb(project.macros[s.dataset.sw]));
+  for (const m of $$('.bay [data-bmod]', D)) {
+    const e = bayEffective(m.dataset.bmod);
+    m.hidden = !e;
+    if (e) { m.style.left = `calc(${e.x} * (100% - 12px) + 6px)`; m.title = `With ${macroDef(e.mac).label}: ${Math.round(e.x * 100)} %. The slider is its own value.`; }
+  }
   for (const b of $$('.bay [data-cbar]', D)) { const c = midi.controls.get(b.dataset.cbar); b.style.width = c ? c.last * 100 + '%' : '0'; }
   for (const r of $$('.bay [data-bv]', D)) { const T = midiTarget(r.dataset.bv); if (T && D.activeElement !== r) r.value = T.get(); }
   for (const b of $$('.bay [data-bb]', D)) { const T = midiTarget(b.dataset.bb); if (T && T.kind === 'toggle') { b.textContent = T.get() > 0.5 ? 'On' : 'Off'; b.classList.toggle('on', T.get() > 0.5); } }

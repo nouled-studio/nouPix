@@ -294,6 +294,23 @@ function loadProject(p, { resetView = true } = {}) {
 // (Chrome, Edge, the desktop app), the file opened or saved is remembered: Save writes over it without asking, Save
 // as asks, and with autosave on every change goes to it a moment later. Elsewhere each save downloads a copy.
 let projectFile = null;
+// In the app, where the browser's file handles aren't there: the file the project was opened from (by its path) or
+// saved to (a download, whose place the app tells, savedToPath). Save writes it through the bridge (POST /save-path).
+let projectPath = null;
+function setProjectFile(handle, path = null) { projectFile = handle; projectPath = handle ? null : path; }
+const fileOfPath = p => String(p || '').split(/[\\/]/).pop();
+async function writeProjectPath(quiet) {
+  const r = await fetch('/save-path', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: projectPath, project: projectText() }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'the bridge said ' + r.status);
+  if (!quiet) toast('Saved ' + fileOfPath(projectPath));
+}
+// The app: a project downloaded (Save as) went to this file; Save writes it from now on
+function savedToPath(path) {
+  setProjectFile(null, path);
+  nameFromFile(fileOfPath(path));
+  if (ui.autosave) autosaveFile();
+}
 const PROJECT_TYPES = [{ description: 'nouPix project', accept: { 'application/json': ['.noupix', '.json'], 'application/zip': ['.noupixpkg'] } }];
 const PACKAGE_TYPES = [{ description: 'nouPix package (the project and its media)', accept: { 'application/zip': ['.noupixpkg'] } }];
 const isPackage = name => /\.noupixpkg$/i.test(name || '');
@@ -315,27 +332,35 @@ function nameFromFile(n) {
   project.name = name; pushHistory(); saveSoon(); renderAll();
 }
 async function saveProjectFile(as = false) {
+  // the file it came from or went to, known by its path (the app): written over, without asking
+  if (!as && projectPath && bridge.connected && !REMOTE_CLIENT) {
+    try { await writeProjectPath(false); } catch (e) { toast(`Could not save ${fileOfPath(projectPath)}: ${e.message}. Save as… chooses another place.`, 'err'); }
+    return;
+  }
   if (!window.showSaveFilePicker) { download(fileName(), projectText()); toast('Project saved as ' + fileName()); return; }
   try {
-    if (as || !projectFile) { projectFile = await showSaveFilePicker({ suggestedName: projectFile ? projectFile.name : fileName(), types: PROJECT_TYPES }); nameFromFile(projectFile.name); }
+    if (as || !projectFile) { setProjectFile(await showSaveFilePicker({ suggestedName: projectFile ? projectFile.name : fileName(), types: PROJECT_TYPES })); nameFromFile(projectFile.name); }
     if (await writeProjectFile(projectFile, true)) toast('Saved ' + projectFile.name);
   } catch (e) { if (e.name !== 'AbortError') toast('Could not save: ' + e.message, 'err'); }
 }
 // With autosave on, a change reaches the file a moment after the last one; quietly, and only once it may be written
 const autosaveFile = debounce(() => {
-  if (ui.autosave && projectFile && !REMOTE_CLIENT) writeProjectFile(projectFile, false).catch(() => {});
+  if (!ui.autosave || REMOTE_CLIENT) return;
+  if (projectFile) writeProjectFile(projectFile, false).catch(() => {});
+  else if (projectPath && bridge.connected) writeProjectPath(true).catch(() => {});
 }, 1500);
 function setAutosave(on) {
   ui.autosave = on; savePrefs();
-  toast(on ? (projectFile ? 'Autosave on: changes go to ' + projectFile.name : 'Autosave on: save the project once to choose its file') : 'Autosave off');
-  if (on && !projectFile) saveProjectFile();
+  const file = projectFile ? projectFile.name : projectPath ? fileOfPath(projectPath) : '';
+  toast(on ? (file ? 'Autosave on: changes go to ' + file : 'Autosave on: save the project once to choose its file') : 'Autosave off');
+  if (on && !file) saveProjectFile();
   else autosaveFile();
 }
 async function openProjectDialog() {
   if (!window.showOpenFilePicker) { $('#fileOpen').click(); return; }
   try {
     const [handle] = await showOpenFilePicker({ types: PROJECT_TYPES });
-    if (await openProjectFile(await handle.getFile()) && !isPackage(handle.name)) projectFile = handle;
+    if (await openProjectFile(await handle.getFile()) && !isPackage(handle.name)) setProjectFile(handle);
   } catch (e) { if (e.name !== 'AbortError') toast('Could not open: ' + e.message, 'err'); }
 }
 async function openProjectFile(file) {
@@ -345,7 +370,7 @@ async function openProjectFile(file) {
     if (!p || !Array.isArray(p.fixtures)) throw new Error('not a nouPix project');
     if (nameOfFile(file.name)) p.name = nameOfFile(file.name);
     loadProject(p);
-    projectFile = null;   // opened without a handle (dropped, or picked the old way): the next Save asks where
+    setProjectFile(null);   // opened without a handle (dropped, or picked the old way): the next Save asks where
     toast(`Opened ${project.name}: ${project.fixtures.length} fixtures`);
     return true;
   } catch (e) { toast('Could not open that file: ' + e.message, 'err'); return false; }
@@ -365,7 +390,7 @@ function setStartupProject(on) {
 const keepStartupProject = debounce(() => { if (isStartupProject() && bridge.connected) bridgeSend({ t: 'startup', op: 'set', project: JSON.parse(serialize(true)) }); }, 2000);
 function openStartupProject(p) {
   if (REMOTE_CLIENT || !isObj(p) || !Array.isArray(p.fixtures) || openedByPath) return;   // a file double-clicked goes first
-  try { loadProject(p); projectFile = null; toast(`Opened ${project.name}, the project nouPix opens when it starts.`); }
+  try { loadProject(p); setProjectFile(null); toast(`Opened ${project.name}, the project nouPix opens when it starts.`); }
   catch (e) { report('opening the startup project', e); }
 }
 /* ---------- packages: the project and its media in one file ---------- */
@@ -402,7 +427,7 @@ async function openPackage(file) {
     if (!isObj(p) || !Array.isArray(p.fixtures)) throw new Error('no nouPix project in it');
     if (nameOfFile(file.name)) p.name = nameOfFile(file.name.replace(/\.noupixpkg$/i, ''));
     loadProject(p);
-    projectFile = null;   // Save writes a .noupix: it asks where
+    setProjectFile(null);   // Save writes a .noupix: it asks where
     toast(`Opened ${project.name}, with ${r.media.length} media file${r.media.length === 1 ? '' : 's'}.`);
     return true;
   } catch (e) { toast('Could not open that package: ' + e.message, 'err'); return false; }
@@ -421,7 +446,7 @@ async function openPath(path) {
     const base = nameOfFile(name.replace(/\.noupixpkg$/i, ''));
     if (base) j.project.name = base;
     loadProject(j.project);
-    projectFile = null;   // Save asks where (the app can't write to a file it was handed by its path)
+    setProjectFile(null, isPackage(name) ? null : path);   // Save writes the project back to its file; a package's asks where
     toast(isPackage(name) ? `Opened ${project.name}, with ${j.media.length} media file${j.media.length === 1 ? '' : 's'}.` : `Opened ${project.name}`);
   } catch (e) { toast(`Could not open ${name}: ${e.message}`, 'err'); }
 }

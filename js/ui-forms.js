@@ -213,6 +213,11 @@ function hscroller(el, keep) {
   requestAnimationFrame(show);
   return box;
 }
+// One of those windows to the front. focus() does in a browser, though not from minimised; the app also restores it
+// when its address changes to #raise… (desktop/main.js), a move inside the page that leaves what is drawn there alone
+function raiseWindow(w) {
+  try { w.focus(); w.location.hash = 'raise' + Date.now(); } catch (e) { /* closing */ }
+}
 // A window this page draws into (the MIDI window, the Scenes window): the same fonts and styles, its title and class;
 // messages, menus and dialogs asked for there show there (watchDoc)
 function dressWindow(w, title, cls) {

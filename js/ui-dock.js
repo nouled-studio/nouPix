@@ -74,7 +74,7 @@ const scenesDoc = () => (scenesWinOpen() ? scenesWin.document : null);
 // Where the scenes are drawn now: the bottom panel's, the Scenes window's
 const scenesRoots = () => [$('#dockBody'), scenesDoc() && $('#dockBody', scenesDoc())].filter(Boolean);
 function openScenesWindow() {
-  if (scenesWinOpen()) { scenesWin.focus(); return; }
+  if (scenesWinOpen()) { raiseWindow(scenesWin); return; }
   const w = window.open('', 'olm-scenes', 'popup,width=1180,height=460');
   if (!w) { toast('The Scenes window could not open: allow pop-up windows for this page.', 'err'); return; }
   scenesWin = w;

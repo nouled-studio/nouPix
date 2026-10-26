@@ -30,6 +30,19 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 let win = null;
 let bridge = null;
 let quitting = false;
+// The MIDI and Scenes windows (the page draws into them), by their names: 'olm-midi', 'olm-scenes'
+const popups = new Map();
+// Brings one of them to the front, also from minimised; or asks the page to open it
+function raisePopup(name) {
+  const w = popups.get(name);
+  if (w && !w.isDestroyed()) {
+    if (w.isMinimized()) w.restore();
+    w.show();
+    w.focus();
+  } else if (win) {
+    win.webContents.executeJavaScript(name === 'olm-midi' ? 'openMidiWindow()' : 'openScenesWindow()', true).catch(() => {});
+  }
+}
 
 // Project files and packages opened from the Finder or Explorer (a double-click, Open with, one dropped on the app's
 // icon): given to the page once it is there, which has the bridge read them (openPath in project-io.js). macOS tells
@@ -152,6 +165,14 @@ async function start() {
     return { action: 'deny' };
   });
   wc.on('will-navigate', (e, target) => { if (!target.startsWith(url)) { e.preventDefault(); openOutside(target); } });
+  // The page can't restore a minimised window, nor always bring one to the front: it asks by setting the window's
+  // address to #raise… (an in-page move, which the page's drawing doesn't notice), and the app does it.
+  wc.on('did-create-window', (child, { frameName }) => {
+    if (frameName !== 'olm-midi' && frameName !== 'olm-scenes') return;
+    popups.set(frameName, child);
+    child.on('closed', () => { if (popups.get(frameName) === child) popups.delete(frameName); });
+    child.webContents.on('did-navigate-in-page', (e, target) => { if (/#raise/.test(target)) raisePopup(frameName); });
+  });
   // The page asks before closing while Art-Net is on. In Chrome the browser shows that question; here the app does.
   wc.on('will-prevent-unload', e => {
     const choice = dialog.showMessageBoxSync(win, {
@@ -171,6 +192,11 @@ async function start() {
   // Project files and the patch list are downloads: ask where to save them.
   session.defaultSession.on('will-download', (e, item) => {
     item.setSaveDialogOptions({ defaultPath: path.join(app.getPath('documents'), item.getFilename()) });
+    // a project saved: the page learns its file, so the next Save (Ctrl S) writes it without asking
+    item.once('done', (ev, state) => {
+      const p = item.getSavePath();
+      if (state === 'completed' && win && /\.noupix$/i.test(p)) win.webContents.executeJavaScript(`savedToPath(${JSON.stringify(p)})`).catch(() => {});
+    });
   });
 
   win.loadURL(url);
@@ -227,7 +253,14 @@ function setUpMenu() {
       { role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' },
       { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' },
     ] },
-    { role: 'windowMenu' },
+    { label: 'Window', submenu: [
+      { role: 'minimize' }, { role: 'zoom' }, { type: 'separator' },
+      // the MIDI and Scenes windows, from here too: also minimised, or behind the main window
+      { label: 'MIDI window', accelerator: 'CmdOrCtrl+Shift+M', click: () => raisePopup('olm-midi') },
+      { label: 'Scenes window', click: () => raisePopup('olm-scenes') },
+      { label: 'Main window', click: () => { if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } } },
+      { type: 'separator' }, { role: 'close' },
+    ] },
     { role: 'help', submenu: [
       { label: 'nouPix on GitHub', click: () => shell.openExternal('https://github.com/nouled-studio/openLEDmapper') },
       { label: 'Show log file', click: () => shell.showItemInFolder(LOG_FILE) },

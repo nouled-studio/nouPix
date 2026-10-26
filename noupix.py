@@ -1261,6 +1261,20 @@ class MediaHandler:
                 return self.reply_json(200, {"token": token})
             if u.path == "/package/open":   # a package opened: its media into the library, its project back
                 return self.package_open(n)
+            if u.path == "/save-path":   # Save in the app: the project written over the file it came from or went to
+                msg = json.loads(self.rfile.read(n).decode("utf-8"))
+                fn, text = msg.get("path", ""), msg.get("project", "")
+                if (not isinstance(fn, str) or not isinstance(text, str) or not re.search(r"\.(noupix|json)$", fn, re.I)
+                        or not os.path.isabs(fn) or not os.path.isdir(os.path.dirname(fn))):
+                    return self.reply_json(400, {"error": "not a place for a nouPix project"})
+                saved = json.loads(text)
+                if not isinstance(saved, dict) or not isinstance(saved.get("fixtures"), list):
+                    return self.reply_json(400, {"error": "not a nouPix project"})
+                tmp = fn + ".saving"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    f.write(text)
+                os.replace(tmp, fn)   # whole or not at all: a project cut short never replaces the one there
+                return self.reply_json(200, {"saved": fn})
             if u.path == "/open-path":   # a project or package by its path: one double-clicked, passed on by the app
                 fn = json.loads(self.rfile.read(n).decode("utf-8")).get("path", "")
                 if not isinstance(fn, str) or not re.search(r"\.(noupix|noupixpkg|json)$", fn, re.I) or not os.path.isfile(fn):
