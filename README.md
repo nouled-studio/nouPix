@@ -42,7 +42,7 @@ New to nouPix? The **[Getting started guide (PDF)](docs/nouPix-getting-started.p
 2. **Patch:** add your controller in the Patch panel (IP, outputs, universes per output), or find it with **Nodes → Discover**. Drag fixtures onto its outputs; ↑ ↓ (or Alt ↑ ↓) change their order, which sets their addresses.
 3. **Content:** click a source to play it. Use zones and layers (Content tab) to play different things on different parts.
 4. **Scenes:** press **+ Store** to save a look, and click it to fade back to it. Drag its fade time to change it. The playlist button next to **+ Store** makes a playlist of scenes that plays by itself. With two zones over the whole canvas, **X-Fader** (bottom left of the Scenes panel) mixes one into the other with a single fader.
-5. Art-Net goes out from the start; the status bar shows it. **Settings → Art-Net connection** switches it off.
+5. Art-Net goes out from the start; the status bar shows it. **Settings → Art-Net / sACN** switches it off and chooses the protocol.
 
 Right-click anything for its options.
 

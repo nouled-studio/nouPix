@@ -52,7 +52,7 @@ The interface is black, so the light on the stage is the brightest thing on scre
 3. **Patch.** In the Patch panel, add a controller: IP address, number of outputs, universes per output and first universe. Then drag fixtures from the list onto an output. Fixtures chained on one output are addressed in order, automatically.
 4. **Content.** Click a generator in Sources to play it in the selected layer of the selected zone. Add zones, layers, blend modes and parameters in the Content tab (see below). You can also add your own ISF shader, an image, a video, a window capture (for example Resolume's output) or an NDI or OMT stream.
 5. **Scenes.** When a zone's look is right, press **+ Store** on its row in the Scenes panel. Put scenes in a **playlist** to have the zone play them one after another by itself.
-6. **Art-Net** goes out from the start, every time nouPix opens (or **sACN**, if the project is set to it: see *Art-Net or sACN*). The status bar's right end shows how many packets go out each second, or what is wrong. **Settings → Art-Net connection → Send Art-Net** switches it off (for example while another console drives the lights) and on again. **Blackout** (the slashed sun at the right of the top bar, or `B`) turns every light off at once; it breathes red until you press it again.
+6. **Art-Net** goes out from the start, every time nouPix opens (or **sACN**, if the project is set to it: see *Art-Net or sACN*). The status bar's right end shows how many packets go out each second, or what is wrong. **Settings → Art-Net / sACN → Send** switches it off (for example while another console drives the lights) and on again. **Blackout** (the slashed sun at the right of the top bar, or `B`) turns every light off at once; it breathes red until you press it again.
 
 **Ovals.** A circle stretches into an oval: drag the side handles of its frame on the stage, or set **Radius X** and **Y** in the Inspector (**Make it round** brings it back). Its pixels are spaced evenly along the curve, as on a real strip. Ellipses in an imported SVG become ovals.
 
@@ -367,7 +367,7 @@ A control can drive several things: to learn the same control onto a second thin
 
 ## Art-Net or sACN
 
-**Settings → Output → Protocol** chooses what goes out: **Art-Net** (the default, and what every project opened from before uses) or **sACN** (ANSI E1.31, also called streaming ACN). One protocol at a time, for the whole project; the choice is saved with it, and undo takes it back.
+**Settings → Art-Net / sACN → Protocol** chooses what goes out: **Art-Net** (the default, and what every project opened from before uses) or **sACN** (ANSI E1.31, also called streaming ACN). One protocol at a time, for the whole project; the choice is saved with it, and undo takes it back.
 
 - **Universe numbers.** sACN counts universes from 1, Art-Net from 0. With sACN every universe is shown as sACN counts it: the first universe, 0 in Art-Net, is sACN universe 1, the next is 2, and so on. The Patch panel, **First uni** (typed from 1), the menus, the Inspector, the DMX Monitor and the CSV all use these numbers, and they are the numbers on the wire. Switching protocol never moves the patch: only the numbers shown change by one. Controllers that speak both protocols usually count the same way (Art-Net 0 = sACN 1).
 - **Priority** (0 to 200, 100 by default): a receiver that gets the same universe from two sources takes the higher priority. Give a lighting desk a higher one to let it take over.

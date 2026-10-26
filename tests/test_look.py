@@ -48,7 +48,7 @@ try:
           and css("#btnBlackout", "color") == "rgb(255, 59, 59)" and pg.locator("#btnBlackout svg").count() == 1)
     ev("(() => { ui.rightTab = 'settings'; renderRight(); })()"); settle(0.3)
     pg.click("label[for=outputOn]"); settle(0.3)
-    check("Settings → Art-Net connection switches it off, and the status bar says so", not ev("ui.outputOn") and "Art-Net off" in pg.text_content("#bridgePill") and pg.is_visible("#bridgePill"))
+    check("Settings → Art-Net / sACN switches it off, and the status bar says so", not ev("ui.outputOn") and "Art-Net off" in pg.text_content("#bridgePill") and pg.is_visible("#bridgePill"))
     pg.click("label[for=outputOn]"); settle(0.3)
     check("and on again", ev("ui.outputOn") and "Sending" in pg.text_content("#bridgePill"))
     ev("toggleBlackout()"); settle(0.3)

@@ -641,8 +641,8 @@ function renderSettings(body) {
       project.fixtures.forEach(f => { f.gamma = s.gamma; }); commit(); toast(`Gamma ${s.gamma.toFixed(2)} set on all ${project.fixtures.length} fixtures. ${MOD}Z undoes.`); } }, 'Apply to all fixtures')),
     h('p', { class: 'note' }, 'Each fixture has its own gamma (Inspector → Pixels), as LED types differ. New fixtures start from this value.'),
     row('White (RGBW)', selectEl([['off', 'Off: W stays 0'], ['sub', 'W = min(RGB), subtract'], ['add', 'W = min(RGB), keep RGB']], s.whiteMode, v => { s.whiteMode = v; commit(); }, { aria: 'White channel mode' })),
-    h('p', { class: 'note' }, 'Colour trims and gamma are set per fixture, in the Inspector under Pixels.'),
-    ...protocolRows(s)));
+    h('p', { class: 'note' }, 'Colour trims and gamma are set per fixture, in the Inspector under Pixels.')));
+  body.append(sendSection(s));
   body.append(sec('Scenes',
     numRow('Fade for new scenes', s, 'fade', { min: 0, max: 60, step: 0.1, onCommit: commit }),
     h('p', { class: 'note' }, 'In seconds: the fade a scene gets when you store it (0 cuts). Each scene keeps its own, shown on its button, where you can change it.')));
@@ -672,19 +672,21 @@ function renderSettings(body) {
     h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => checkUpdates(true) }, 'Check now')),
     h('p', { class: 'note' }, `This is nouPix ${(bridge.hello && bridge.hello.version) || ''}. Every time it starts, and once a day while it runs, nouPix asks GitHub for its latest release and tells you when there is a newer one, with a link to download it. It installs nothing by itself, and says nothing without internet.`)));
   if (!REMOTE_CLIENT) body.append(remoteSection());
-  // Art-Net goes out from the start; it can be switched off here. Where the page finds noupix.py is only asked in a
-  // browser: the desktop app always uses its own.
-  if (!REMOTE_CLIENT) {
-    const app = /Electron/.test(navigator.userAgent), auto = bridgeUrl();
-    const sw = h('input', { type: 'checkbox', id: 'outputOn', checked: ui.outputOn });
-    sw.addEventListener('change', () => { setOutput(sw.checked); sw.checked = ui.outputOn; });
-    body.append(sec(outName() + ' connection',
-      h('label', { class: 'checkrow', for: 'outputOn' }, sw, 'Send ' + outName()),
-      h('p', { class: 'note' }, 'On from the start, every time nouPix opens. Switch it off to stop sending, for example while another console drives the lights. The status bar shows what goes out.'),
-      app ? null : row('Address', textInput(s, 'bridgeUrl', { placeholder: auto || 'ws://127.0.0.1:8080/ws', aria: 'Output connection address', onCommit: () => { commit(); connectBridge(); } })),
-      app ? null : h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: connectBridge }, 'Reconnect')),
-      app ? null : h('p', { class: 'note', html: outName() + ' is sent by <code>noupix.py</code> running on this computer. Leave the address empty to use the one this page was opened from.' })));
-  }
+}
+// What goes out to the lights, in one place: sending on or off, the protocol and its options, and (in a browser) where
+// the page finds noupix.py; the app always uses its own. Output is on from the start. A device sees the protocol only.
+function sendSection(s) {
+  if (REMOTE_CLIENT) return sec('Art-Net / sACN', ...protocolRows(s));
+  const app = /Electron/.test(navigator.userAgent), auto = bridgeUrl();
+  const sw = h('input', { type: 'checkbox', id: 'outputOn', checked: ui.outputOn });
+  sw.addEventListener('change', () => { setOutput(sw.checked); sw.checked = ui.outputOn; });
+  return sec('Art-Net / sACN',
+    h('label', { class: 'checkrow', for: 'outputOn' }, sw, 'Send ' + outName()),
+    h('p', { class: 'note' }, 'On from the start, every time nouPix opens. Switch it off to stop sending, for example while another console drives the lights. The status bar shows what goes out.'),
+    ...protocolRows(s),
+    app ? null : row('Address', textInput(s, 'bridgeUrl', { placeholder: auto || 'ws://127.0.0.1:8080/ws', aria: 'Output connection address', onCommit: () => { commit(); connectBridge(); } })),
+    app ? null : h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: connectBridge }, 'Reconnect')),
+    app ? null : h('p', { class: 'note', html: outName() + ' is sent by <code>noupix.py</code> running on this computer. Leave the address empty to use the one this page was opened from.' }));
 }
 
 /* ---------- selection ---------- */
