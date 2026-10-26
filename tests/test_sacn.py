@@ -183,7 +183,7 @@ try:
     else:
         print("PASS multicast doesn't reach this machine's receivers: the groups aren't checked here")
     E("ui.rightTab = 'settings'; renderRight()")
-    t0 = time.time(); seg("Each controller").click(); time.sleep(0.8)
+    t0 = time.time(); seg("Unicast").click(); time.sleep(0.8)
     if mcast_ok:
         ended = [p for p in groups["239.255.0.1"].since(t0) if p["options"] & 0x40]
         check("back to each controller: the multicast streams end", len(ended) == 3, len(ended))

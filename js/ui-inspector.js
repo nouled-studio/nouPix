@@ -611,10 +611,10 @@ function protocolRows(s) {
       h('p', { class: 'note' }, 'sACN (E1.31) numbers universes from 1: the first universe, 0 in Art-Net, is sACN universe 1, and so on. Every universe shown is the sACN one; controllers set for both protocols usually count the same way.'),
       numRow('Priority', s, 'sacnPriority', { min: 0, max: 200, step: 1, int: true, onCommit: commit }),
       h('p', { class: 'note' }, 'From 0 to 200; 100 is the usual. A receiver getting the same universe from two sources takes the higher priority: give a desk more to let it take over.'),
-      row('Send to', seg([['unicast', 'Each controller'], ['multicast', 'Multicast']], s.sacnMulticast ? 'multicast' : 'unicast', v => { s.sacnMulticast = v === 'multicast'; changed(); })),
+      row('Send to', seg([['unicast', 'Unicast'], ['multicast', 'Multicast']], s.sacnMulticast ? 'multicast' : 'unicast', v => { s.sacnMulticast = v === 'multicast'; changed(); })),
       h('p', { class: 'note' }, s.sacnMulticast
-        ? 'Each universe goes to its multicast group (239.255.x.x), which every receiver on the network can join: a universe can then be used by one controller only.'
-        : 'Each universe goes to the IP address of its controller, as with Art-Net.'));
+        ? 'Multicast: each universe goes to its multicast group (239.255.x.x), which every receiver on the network can join: a universe can then be used by one controller only.'
+        : 'Unicast: each universe goes to the IP address of its controller, as with Art-Net.'));
   } else {
     rows.push(checkRow('Send ArtSync after each frame', s, 'artSync', commit),
       h('p', { class: 'note' }, 'ArtSync makes nodes that support it update all universes at the same moment. Leave it off if your controllers do not support it: some stop outputting while they wait for a sync.'));
