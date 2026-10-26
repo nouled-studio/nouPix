@@ -2,9 +2,9 @@
 # play from there with seeking, and load again in a new session without relinking; Export package shows what goes in
 # and its weight, and writes the project with its media; opening the package on "another computer" (another bridge with
 # an empty library) plays it; a project alone there asks to relink; cleaning the library keeps this project's files.
-import os, sys, time, json, shutil, subprocess, tempfile, zipfile, urllib.request
+import os, sys, time, json, shutil, subprocess, tempfile, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import CHROME_ARGS, start_bridge, app_error
+from harness import CHROME_ARGS, start_bridge, app_error, fetch
 from playwright.sync_api import sync_playwright
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8218
 fails = []
@@ -50,8 +50,7 @@ try:
     check("and plays", wait(lambda: red(ev)), ev("Array.from(olm.project.fixtures[0]._col)"))
     with open(f"{D}/red.webm", "rb") as f: same = f.read() == open(os.path.join(LIB_A, vid), "rb").read()
     check("the copy is the file, byte for byte", same)
-    req = urllib.request.Request(f"http://127.0.0.1:{PORT}/media/{vid}", headers={"Range": "bytes=10-19"})
-    r = urllib.request.urlopen(req)
+    r = fetch(f"http://127.0.0.1:{PORT}/media/{vid}", headers={"Range": "bytes=10-19"})
     check("the library serves ranges (a video can seek)", r.status == 206 and len(r.read()) == 10 and r.headers["Content-Range"].startswith("bytes 10-19/"))
     pg.set_input_files("#fileMedia", f"{D}/blue.png")
     img = wait(lambda: ev("(project.sources.find(s => s.kind === 'image') || {}).media"))
@@ -87,6 +86,18 @@ try:
     pkg = f"{D}/{dl.value.suggested_filename}"; dl.value.save_as(pkg)
     names = zipfile.ZipFile(pkg).namelist()
     check("it writes name.noupixpkg: the project and its media", dl.value.suggested_filename == "Media-show.noupixpkg" and sorted(names) == sorted(["project.noupix", "media/" + vid, "media/" + img]), (dl.value.suggested_filename, names))
+    # the package comes in chunks, its end marked in the stream, and its connection carries the next request
+    import http.client
+    c = http.client.HTTPConnection("127.0.0.1", PORT, timeout=15)
+    c.request("POST", "/package", body=json.dumps({"project": "{}", "media": [vid]}), headers={"Content-Type": "application/json"})
+    tok = json.loads(c.getresponse().read())["token"]
+    c.request("GET", f"/package/{tok}/x.noupixpkg"); r = c.getresponse(); body = r.read()
+    import io
+    zipped = zipfile.ZipFile(io.BytesIO(body))
+    chunked = r.getheader("Transfer-Encoding") == "chunked" and not r.will_close and zipped.testzip() is None and sorted(zipped.namelist()) == sorted(["project.noupix", "media/" + vid])
+    c.request("GET", f"/package/{tok}/x.noupixpkg"); r = c.getresponse(); r.read()
+    check("a package is sent in chunks, whole, on a connection that stays open (a firewall's reset can't cut it short unseen)", chunked and r.status == 404, (r.status,))
+    c.close()
     pg.close(); bridge.kill()
 
     # ---------- another computer: an empty library
@@ -115,17 +126,14 @@ try:
     check("and its video plays", wait(lambda: red(ev)))
     ev("t => openPath(t)", plain)
     check("a project file by its path opens too, named after the file", wait(lambda: ev("project.name") == "plain"), ev("project.name"))
-    try: urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{PORT}/open-path", data=json.dumps({"path": "/etc/passwd"}).encode())); ok = False
-    except urllib.error.HTTPError as e: ok = e.code == 400
+    ok = fetch(f"http://127.0.0.1:{PORT}/open-path", data=json.dumps({"path": "/etc/passwd"}).encode()).status == 400
     check("only nouPix files are opened by path", ok)
     # ---------- files
     bad = ev("hydrate({ sources: [{ id: 'q', kind: 'video', name: 'q', media: '../../etc/passwd' }, { id: 'r', kind: 'video', name: 'r', media: '%s' }] }).sources.filter(s => s.id === 'q' || s.id === 'r').map(s => s.media || null)" % vid)
     check("a project only keeps media names the library can have", bad == [None, vid], bad)
-    try: urllib.request.urlopen(f"http://127.0.0.1:{PORT}/media/..%2Fx.webm"); ok = False
-    except urllib.error.HTTPError as e: ok = e.code == 404
+    ok = fetch(f"http://127.0.0.1:{PORT}/media/..%2Fx.webm").status == 404
     check("and the bridge serves nothing but library files", ok)
-    try: urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{PORT}/media?name=x.webm", data=b"x", headers={"Origin": "https://example.com"})); ok = False
-    except urllib.error.HTTPError as e: ok = e.code == 403
+    ok = fetch(f"http://127.0.0.1:{PORT}/media?name=x.webm", data=b"x", headers={"Origin": "https://example.com"}).status == 403
     check("other websites can't put files in it", ok)
     check("no errors", not errs, errs[:3])
     br.close()

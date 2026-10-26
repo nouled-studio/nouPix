@@ -28,6 +28,7 @@ import argparse
 import base64
 import hashlib
 import hmac
+import html
 import http.client
 import http.server
 import json
@@ -52,6 +53,8 @@ ARTNET_ID = b"Art-Net\x00"
 OP_POLL, OP_POLL_REPLY, OP_DMX, OP_SYNC = 0x2000, 0x2100, 0x5000, 0x5200
 HOLD_AFTER = 1.0   # seconds without frames from the page before the bridge starts repeating the last one
 HOLD_EVERY = 0.5   # how often the held frame is repeated, so controllers don't time out
+POLL_AGAIN = 0.25  # seconds before each ArtPoll goes out a second time
+WS_SILENT = 10.0   # seconds a window may not answer the bridge's pings before it is taken as gone
 
 
 def log(msg):
@@ -146,7 +149,7 @@ class ArtNet:
         while True:
             time.sleep(0.1)
             now = time.time()
-            if self.owner is None or self.held is None or now - self.last_frame < HOLD_AFTER:
+            if self.owner is None or not self.owner.alive or self.held is None or now - self.last_frame < HOLD_AFTER:
                 continue
             if not self.holding:
                 self.holding = True
@@ -183,13 +186,19 @@ class ArtNet:
                 self.errors += 1
                 self.last_error = "%s: %s" % (ip, e.strerror or e)
 
-    def poll(self, address):
+    def poll(self, address, again=True):
         pkt = ARTNET_ID + struct.pack("<H", OP_POLL) + bytes((0, 14, 0, 0))
         try:
             self.sock.sendto(pkt, (address, ARTNET_PORT))
-            return None
         except OSError as e:
             return "ArtPoll to %s failed: %s" % (address, e.strerror or e)
+        # Once more shortly after: some firewalls on Windows (Avast's) drop the first packet between two addresses,
+        # which can be this poll or a node's first reply. Nodes answer each poll; a node found twice is kept once.
+        if again:
+            t = threading.Timer(POLL_AGAIN, self.poll, (address, False))
+            t.daemon = True
+            t.start()
+        return None
 
     def _recv_loop(self):
         while True:
@@ -245,16 +254,28 @@ def unmask(data, mask):
 
 
 class WebSocket:
-    def __init__(self, rfile, wfile):
-        self.r, self.w = rfile, wfile
+    def __init__(self, rfile, wfile, sock=None):
+        self.r, self.w, self.sock = rfile, wfile, sock
         self.lock = threading.Lock()
         self.alive = True
+        self.heard = time.monotonic()   # when the other end last sent anything (a pong too)
 
     def _read(self, n):
         b = self.r.read(n)
         if not b or len(b) < n:
             raise ConnectionError("closed")
+        self.heard = time.monotonic()
         return b
+
+    def drop(self):
+        """Ends the connection from here: for the other end gone though its close never came (a firewall on Windows,
+        Avast's, can lose it). The reader stops waiting, and the window is let go (its Art-Net among it)."""
+        self.alive = False
+        if self.sock:
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
 
     def recv(self):
         op0, buf = None, b""
@@ -301,7 +322,7 @@ class WebSocket:
             try:
                 self.w.write(hdr + data)
             except OSError:
-                self.alive = False
+                self.drop()
 
     def send_json(self, obj):
         self.send(json.dumps(obj))
@@ -1013,6 +1034,27 @@ def media_store(read, length, ext, chunk=1 << 20):
             os.remove(tmp)
 
 
+class ChunkedWriter:
+    """A response body written as HTTP/1.1 chunks (Transfer-Encoding: chunked), for a body whose size isn't known."""
+
+    def __init__(self, out):
+        self.out = out
+
+    def write(self, b):
+        n = memoryview(b).nbytes
+        if n:
+            self.out.write(b"%x\r\n" % n)
+            self.out.write(b)
+            self.out.write(b"\r\n")
+        return n
+
+    def flush(self):
+        self.out.flush()
+
+    def end(self):
+        self.out.write(b"0\r\n\r\n")
+
+
 class MediaHandler:
     """The local server's part for the library and packages (mixed into Handler)."""
 
@@ -1140,21 +1182,31 @@ class MediaHandler:
         if not job:
             return self.send_error(404, "That package was already fetched, or is too old")
         text, media, _ = job
+        # Its size isn't known before it is written: it goes in chunks, so its end is marked in the stream and the
+        # connection stays open. A body that ends when the server closes the connection breaks where a firewall
+        # turns that close into a reset (Avast's, on Windows), and a package cut short there would look complete.
+        chunked = self.request_version != "HTTP/1.0"
         self.send_response(200)
         self.send_header("Content-Type", "application/zip")
         self.send_header("Content-Disposition", "attachment")
-        self.send_header("Connection", "close")
+        if chunked:
+            self.send_header("Transfer-Encoding", "chunked")
+        else:
+            self.send_header("Connection", "close")
+            self.close_connection = True
         self.send_header("X-Package-Size", str(sum(os.path.getsize(media_path(m)) for m in media) + len(text.encode("utf-8"))))
         self.end_headers()
-        self.close_connection = True
+        out = ChunkedWriter(self.wfile) if chunked else self.wfile
         try:
-            with zipfile.ZipFile(self.wfile, "w", zipfile.ZIP_STORED) as z:
+            with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as z:
                 z.writestr("project.noupix", text)
                 for m in media:
                     with open(media_path(m), "rb") as src, z.open("media/" + m, "w", force_zip64=True) as dst:
                         shutil.copyfileobj(src, dst, 1 << 20)
+            if chunked:
+                out.end()
         except (ConnectionError, OSError):
-            pass
+            self.close_connection = True   # unfinished: without its last chunk the browser knows it is cut short
 
     @staticmethod
     def package_read(fn):
@@ -1338,6 +1390,40 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
+    def send_error(self, code, message=None, explain=None):
+        # Python's own error reply says "Connection: close" and the server then ends the connection. Some firewalls
+        # on Windows (Avast's) turn a connection ended by the server into a reset, and the browser gets no reply at
+        # all instead of the error. So an error goes like any other reply, on a connection kept open, once the
+        # request is read in full. A malformed request, one that asked to close, or a large body unread still closes.
+        if not self.command or self.close_connection or self.headers.get("Transfer-Encoding") or not self.drain_body():
+            return super().send_error(code, message, explain)
+        short, long = self.responses.get(code, ("???", "???"))
+        body = (self.error_message_format % {"code": code, "message": html.escape(message or short, quote=False),
+                                             "explain": html.escape(explain or long, quote=False)}).encode("utf-8", "replace")
+        self.send_response(code, message or short)
+        self.send_header("Content-Type", self.error_content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def drain_body(self):
+        """Reads the body of a request refused before it was read (64 kB at most), so the connection can carry
+        the next request. False when it can't: too big, or not all there within a second."""
+        n = self.body_length()
+        if n == 0:
+            return True
+        if n > 65536:
+            return False
+        was = self.connection.gettimeout()
+        try:
+            self.connection.settimeout(1)
+            return len(self.rfile.read(n)) == n
+        except OSError:
+            return False
+        finally:
+            self.connection.settimeout(was)
+
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
         if path == "/ws" and self.headers.get("Upgrade", "").lower() == "websocket":
@@ -1396,7 +1482,7 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
         self.close_connection = True
 
         art = self.server.artnet
-        ws = WebSocket(self.rfile, self.wfile)
+        ws = WebSocket(self.rfile, self.wfile, self.connection)
         first = not self.server.seen_window   # the first window since the bridge started opens the startup project
         self.server.window_count(+1)
         on_node = lambda node: ws.send_json({"t": "node", "node": node})
@@ -1416,6 +1502,13 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
             last_p, last_f, last_t = art.packets, art.frames, time.time()
             while ws.alive:
                 time.sleep(1.0)
+                # A ping every second, which browsers answer by themselves (minimised or busy too). A window silent
+                # for WS_SILENT is gone though its close never came: the bridge must not drive the lights for it.
+                if time.monotonic() - ws.heard > WS_SILENT:
+                    log("The nouPix window stopped answering: let go.")
+                    ws.drop()
+                    break
+                ws.send(b"", 9)
                 now = time.time()
                 dt = max(1e-3, now - last_t)
                 ws.send_json({"t": "stats", "pps": round((art.packets - last_p) / dt), "fps": round((art.frames - last_f) / dt, 1),
@@ -1754,7 +1847,7 @@ class RemoteHandler(Handler):
         self.send_header("Sec-WebSocket-Accept", accept)
         self.end_headers()
         self.close_connection = True
-        ws = WebSocket(self.rfile, self.wfile)
+        ws = WebSocket(self.rfile, self.wfile, self.connection)
         remote = self.server.remote
         c = remote.join(token, ws, self.connection, self.client_address[0])
         if not c:

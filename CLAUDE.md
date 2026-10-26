@@ -196,9 +196,15 @@ as binary messages starting `VIN1`, newest frame only. libomt is .NET compiled t
 the helper dies the bridge says why in the stream window (its last error lines) and starts a new one 10 s later. **Media library and packages** (`MediaHandler`, mixed into the local
 `Handler` only): `POST /media?name=` stores a file in `MEDIA_DIR` (`~/.noupix/media`, `NOUPIX_MEDIA_DIR`) named by its content
 (32 hex digits of SHA-256 and its extension, `MEDIA_NAME`), `GET /media/<name>` serves it with ranges, `/media-info` gives
-sizes, `POST /media/clean` keeps a list; `POST /package` then `GET /package/<token>/<file>` streams a zip (stored, zip64) of
-`project.noupix` and `media/<name>`, and `POST /package/open` takes one back into the library. Posts from another
-site's page are refused (`origin_ok`). A stream source is `{ kind: 'stream', proto: 'ndi' | 'omt', stream:
+sizes, `POST /media/clean` keeps a list; `POST /package` then `GET /package/<token>/<file>` streams a zip (stored, zip64,
+in chunks: `ChunkedWriter`) of `project.noupix` and `media/<name>`, and `POST /package/open` takes one back into the library. Posts from another
+site's page are refused (`origin_ok`). **The bridge never ends a connection it could keep:** some firewalls on Windows
+(Avast's) turn a connection the server closes into a reset, and the reply is lost. Every reply has a `Content-Length` or
+comes in chunks; errors go through `Handler.send_error`, which keeps the connection (Python's own closes it; a body not
+read yet is read first, `drain_body`); each ArtPoll goes out twice (`POLL_AGAIN`), as those firewalls also drop the first
+UDP packet between two addresses. They can lose a window's close too, so the bridge pings each window every second
+(browsers answer by themselves) and lets go of one silent for `WS_SILENT` (`WebSocket.drop`): it never drives the lights
+for a window that is gone. A stream source is `{ kind: 'stream', proto: 'ndi' | 'omt', stream:
 its name on the network, name, hq, fit }`. `VERSION`
 is the app's version; it shows next to the name in the top bar. `noupix.spec` packs the bridge and the
 interface files for the desktop apps; `.github/workflows/release.yml` builds them when a `v<VERSION>` tag is
@@ -283,7 +289,10 @@ removing it, a bridge without NDI. `test_omt.py` checks OMT in against `omt_fake
 `libomt.h` (needs a C compiler): found, BGRA rows padded past their width arriving as RGBA, preview and full, following,
 stopping and coming back, and the library ending its process (`FAKE_OMT_ABORT`: the bridge goes on, says why, and starts a new helper). `test_startup.py` checks the name following the file, the scene that plays on open, the startup
 project (Settings, kept by the bridge, only the first window, following changes, `--project`) and a video's volume following
-its zone. The harness gives each test bridge its own (empty) startup project and media library. `test_media.py` checks the media
+its zone. The harness gives each test bridge its own (empty) startup project and media library. Tests ask the bridge for
+files with `fetch` (harness.py), a kept-open connection as the browser uses, never `urllib` (it asks the server to close
+the connection); their WebSocket clients answer the bridge's pings, as browsers do. `test_bridge` checks a window that goes
+silent being let go, `test_static` errors keeping their connection, `test_media` the package coming in chunks. `test_media.py` checks the media
 library and packages (copied once by content, ranges and seeking, a new session without relinking, the export window and its
 sizes, the package streamed or downloaded, opened with an empty library, a project alone asking to relink, cleaning, refusing
 other sites). `test_playlist.py` checks playlists

@@ -2,9 +2,9 @@
 # where the address counts as secure (localhost, or the network address with Chrome's "insecure origins treated as
 # secure" setting) and says why not on plain http; the page works over the computer's network address, not only
 # 127.0.0.1; and its Full screen button hides the browser's bars and brings them back.
-import os, sys, time, json, struct, tempfile, urllib.request
+import os, sys, time, json, struct, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import CHROME_ARGS, start_bridge, app_error
+from harness import CHROME_ARGS, start_bridge, app_error, fetch
 from playwright.sync_api import sync_playwright
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8164
 RP = PORT + 1
@@ -25,7 +25,7 @@ try:
     lan = lan[0].rstrip("/") if lan else None
 
     # ---------- the files that make it an app
-    get = lambda p: urllib.request.urlopen(f"http://127.0.0.1:{RP}{p}")
+    get = lambda p: fetch(f"http://127.0.0.1:{RP}{p}")
     r = get("/remote.webmanifest"); man = json.loads(r.read())
     check("the manifest is served as a manifest", "manifest+json" in r.headers["Content-Type"])
     check("it opens the remote page, without the browser's bars", man["start_url"] == "/remote" and man["display"] == "standalone" and man["name"] and man["short_name"], man)

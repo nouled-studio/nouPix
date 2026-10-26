@@ -20,11 +20,11 @@ def run(args, timeout, env=None):
     """Run a test script; its output goes to a log file. Returns the log's text."""
     run.n = getattr(run, "n", 0) + 1
     log = os.path.join(OUT, "%02d_%s.log" % (run.n, re.sub(r"\W+", "_", args[0])))
-    e = dict(os.environ, **(env or {}))
-    with open(log, "w") as f:
+    e = dict(os.environ, PYTHONIOENCODING="utf-8", **(env or {}))   # the suites print → and °: UTF-8 on Windows too
+    with open(log, "w", encoding="utf-8") as f:
         try: subprocess.run([PY, "-u"] + args, cwd=HERE, stdout=f, stderr=subprocess.STDOUT, timeout=timeout, env=e)
         except subprocess.TimeoutExpired: f.write("\nFAILED: timed out after %d s\n" % timeout)
-    return open(log).read()
+    return open(log, encoding="utf-8", errors="replace").read()
 
 def counted(text):
     passes = len(re.findall(r"^PASS", text, re.M))
@@ -68,10 +68,11 @@ def last_line(script, args, timeout, good):
 def bridge():
     t = run(["test_bridge.py"], 300)
     want = ["frame without output-on sent: 0", "owner frame sent: 1", "A got takeover: True", "old owner frame dropped: True",
-            "after output off, frames: 0", "after owner disconnect, frames: 0"]
+            "after output off, frames: 0", "after owner disconnect, frames: 0", "silent window's frame sent: True",
+            "after owner went silent, frames: 0", "a window that answers stays: True", "and drives the lights after 12 s: True"]
     held = re.search(r"held frames in 3 s after stall: (\d+)", t)
     missing = [w for w in want if w not in t] + ([] if held and int(held.group(1)) >= 3 else ["held frames after a stall"])
-    return not missing, "output only when on, takeover, frame hold, stop on disconnect" if not missing else "not as expected: " + "; ".join(missing)
+    return not missing, "output only when on, takeover, frame hold, stop on disconnect or silence" if not missing else "not as expected: " + "; ".join(missing)
 
 def fuzz():
     t = run(["fuzz_ui.py", "8147", "7", "200"], 1200)
@@ -125,6 +126,8 @@ SUITES = [   # name, function, part of --quick
 ]
 
 if __name__ == "__main__":
+    try: sys.stdout.reconfigure(errors="replace")   # a console that can't show → or ° (Windows) shows ? instead of crashing
+    except (AttributeError, ValueError): pass
     args = sys.argv[1:]
     quick = "--quick" in args
     names = [a for a in args if not a.startswith("--")]

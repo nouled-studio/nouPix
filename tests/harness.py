@@ -9,7 +9,7 @@ class FakeNode:
         self.s.bind((ip, 6454)); self.s.settimeout(0.2)
         self.lock = threading.Lock(); self.log = []   # (t, op, uni, seq, data)
         self.alive = True
-        threading.Thread(target=self.loop, daemon=True).start()
+        self.t = threading.Thread(target=self.loop, daemon=True); self.t.start()
     def loop(self):
         while self.alive:
             try: d, a = self.s.recvfrom(2048)
@@ -24,7 +24,38 @@ class FakeNode:
         with self.lock:
             for e in reversed(self.log):
                 if e[1] == 0x5000 and e[2] == uni: return e[4]
-    def close(self): self.alive = False; self.s.close()
+    def close(self):   # its reader stopped first: the port is free once this returns
+        self.alive = False; self.t.join(1); self.s.close()
+
+class Response:
+    def __init__(self, status, headers, body):
+        self.status, self.code, self.headers, self.body = status, status, headers, body
+    def read(self): return self.body
+    def text(self): return self.body.decode("utf-8", "replace")
+
+_conns = {}
+def fetch(url, data=None, headers=None, method=None, timeout=15):
+    """Asks the bridge for url as a browser does: HTTP/1.1 on a connection kept open (one per address, used again).
+    urllib asks the server to close every connection, the one thing some firewalls on Windows (Avast's) break.
+    Returns a Response (status, headers, body) whatever the status; a connection that broke is opened again once."""
+    import http.client, urllib.parse
+    u = urllib.parse.urlsplit(url)
+    key = (u.hostname, u.port or 80)
+    path = (u.path or "/") + ("?" + u.query if u.query else "")
+    for attempt in (0, 1):
+        c = _conns.get(key)
+        if c is None:
+            c = _conns[key] = http.client.HTTPConnection(u.hostname, u.port or 80, timeout=timeout)
+        try:
+            c.request(method or ("POST" if data is not None else "GET"), path, body=data, headers=headers or {})
+            r = c.getresponse()
+            body = r.read()
+            if r.will_close:
+                c.close(); _conns.pop(key, None)
+            return Response(r.status, r.headers, body)
+        except (OSError, http.client.HTTPException):
+            c.close(); _conns.pop(key, None)
+            if attempt: raise
 
 def bridge_script(build):
     """noupix.py, or openledmapper.py or weft.py in builds from before the names changed"""

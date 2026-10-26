@@ -1,20 +1,15 @@
-# The bridge serves the interface's files (index.html, css/, js/, js/vendor/) and nothing else
-import os, sys, socket
+# The bridge serves the interface's files (index.html, css/, js/, js/vendor/) and nothing else; its errors keep their
+# connection open, as every reply does (some firewalls on Windows turn a connection the server ends into a reset)
+import os, sys, http.client
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import start_bridge
+from harness import start_bridge, fetch
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8156
 fails = []
 def check(name, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + name + ("  " + str(detail)[:300] if detail != "" else ""), flush=True); ok or fails.append(name)
 def get(p):
-    s = socket.create_connection(('127.0.0.1', PORT)); s.sendall(f'GET {p} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n'.encode())
-    d = b''
-    while True:
-        c = s.recv(65536)
-        if not c: break
-        d += c
-    head, _, body = d.partition(b'\r\n\r\n'); lines = head.decode(errors='replace').split('\r\n')
-    return int(lines[0].split()[1]), next((l.split(':', 1)[1].strip() for l in lines if l.lower().startswith('content-type')), ''), body
+    r = fetch(f'http://127.0.0.1:{PORT}{p}')
+    return r.status, r.headers.get('Content-Type', ''), r.body
 b = start_bridge(PORT)
 try:
     page = get('/')[2].decode()
@@ -29,6 +24,18 @@ try:
         check(f"/css/{f} is served as a font", st == 200 and ct == 'font/woff2' and len(body) > 5000)
     for p in ['/js/nope.js', '/js/../noupix.py', '/js/%2e%2e/noupix.py', '/js/vendor/../../noupix.py', '/js/app.js.bak', '/tests/harness.py', '/examples/01-led-bars.json', '//etc/passwd', '/openledmapper.py', '/js/', '/css/app.css/', '/css/OFL.txt', '/icons/noupix.svg']:
         check(f"{p} is not served", get(p)[0] == 404)
+    # errors on one connection that stays open: a 404, a 403 to a post with a body (read, so the next request is
+    # clean), a 404 to a HEAD, and a page each time between them
+    c = http.client.HTTPConnection('127.0.0.1', PORT, timeout=10)
+    seen = []
+    for method, path, body, headers in [('GET', '/js/nope.js', None, {}), ('GET', '/', None, {}),
+                                        ('POST', '/media?name=x.webm', b'x' * 5000, {'Origin': 'https://example.com'}), ('GET', '/', None, {}),
+                                        ('HEAD', '/nope', None, {}), ('GET', '/css/app.css', None, {})]:
+        c.request(method, path, body=body, headers=headers); r = c.getresponse(); r.read()
+        seen.append((r.status, r.will_close, c.sock is not None))
+    check("errors keep their connection: 404, 403 to a post with a body, 404 to a HEAD, each followed by a page on the same connection",
+          [s for s, *_ in seen] == [404, 200, 403, 200, 404, 200] and not any(w for _, w, _ in seen) and all(k for *_, k in seen), seen)
+    c.close()
 finally:
     b.terminate()
 print("FAILED:", fails or "none")
