@@ -32,6 +32,7 @@ const curveParam = f => (fxCurve(f) === 'gamma' ? f.gamma : f.strength);
 const DEFAULT_SETTINGS = {
   compW: 1000, compH: 640, fps: 40, gamma: 1, master: 1, whiteMode: 'off',
   artSync: false, grid: 10, broadcast: '', bridgeUrl: '', transition: 0.5, fade: 2,
+  protocol: 'artnet', sacnPriority: 100, sacnMulticast: false,   // what goes out: Art-Net, or sACN (E1.31) instead
 };
 // Blend modes, in the order the mixer shader numbers them
 const BLENDS = [['alpha', 'Alpha'], ['add', 'Add'], ['screen', 'Screen'], ['multiply', 'Multiply'], ['subtract', 'Subtract'], ['lighten', 'Lighten'], ['darken', 'Darken'], ['difference', 'Difference']];
@@ -72,7 +73,9 @@ let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
 const markPatch = () => { patchDirty = true; };
 function blankProject(name = 'Untitled') {
-  const settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  // a new project gives RGBW fixtures their white from the colour (W = min(RGB), taken off RGB); a file without the
+  // setting keeps it off (DEFAULT_SETTINGS), as it was made
+  const settings = Object.assign(JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), { whiteMode: 'sub' });
   return {
     format: 'noupix-project', version: 4, name, settings,
     fixtures: [], groups: [], controllers: [], sources: builtinSources(), zones: [newZone({ w: settings.compW, h: settings.compH, layers: [newLayer('b-rainbow')] })], guide: null,

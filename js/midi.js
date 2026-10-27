@@ -155,18 +155,22 @@ function midiIn(m) {
   const entry = { time: (performance.now() - midi.t0) / 1000, port: m.port, key, val: m.val, to: [], note: '',
     text: m.type === 'cc' ? `CC ${m.num} · ch${m.ch}` : `Note ${m.type === 'off' ? 'off' : 'on'} ${m.num} · ch${m.ch}` };
   if (!midiPortOn(m.port)) { entry.note = 'port off'; midiLog(entry); return; }
-  if (m.type !== 'off') {
-    const was = midi.controls.get(key);
-    midi.controls.set(key, { last: m.type === 'on' ? 1 : c, t: performance.now(), range: !!(was && was.range) || (m.type === 'cc' && m.val > 0 && m.val < 127) });
-  }
+  const was = midi.controls.get(key);
+  if (m.type !== 'off') midi.controls.set(key, { last: m.type === 'on' ? 1 : c, t: performance.now(), range: !!(was && was.range) || (m.type === 'cc' && m.val > 0 && m.val < 127) });
+  else if (was) was.last = 0;   // a pad let go: its bar goes down
   if (midi.learn.on) {
     // A note off or a CC at 0 (a button let go, a fader at its bottom) never starts learning. The control learnt last
     // is done: its release or the rest of its move doesn't start it again, so the next click waits for a new control.
     // It goes to something clicked first, though.
     const start = m.type !== 'off' && !(m.type === 'cc' && m.val === 0);
-    if (start && midi.learn.target) { midiConnect(key, midi.learn.target); entry.note = 'learnt'; }
+    if (start && midi.learn.target) { midiConnect(key, midi.learn.target, midi.learn.only); entry.note = 'learnt'; }
     else if (start && midi.learnt !== key) { midi.learn.pending = key; entry.note = 'learning: choose what it should move'; }
-    else if (midi.learnt === key) entry.note = 'just learnt';
+    else if (midi.learnt === key) {
+      // the control just learnt already does what it was learnt onto, learning on or not: it is seen to work
+      const ws = midiMapsFor(key);
+      for (const w of ws) midiApply(w, c, m.type);
+      entry.to = ws.map(w => midiTargetLabel(w.to)); entry.note = 'just learnt';
+    }
   } else {
     const ws = midiMapsFor(key);
     for (const w of ws) midiApply(w, c, m.type);
@@ -192,7 +196,7 @@ function midiApply(w, c, type) {
     const press = type === 'cc' ? c >= 0.5 : type === 'on', was = !!w._down;
     w._down = press;
     if (T.kind === 'trigger') { if (press && !was) T.set(1); }
-    else if (T.kind === 'toggle' && w.mode === 'hold') { if (press !== was) T.set(press ? 1 : 0); }
+    else if (w.mode === 'hold') { if (press !== was) T.set(press ? 1 : 0); }
     else if (press && !was) T.set(T.get() > 0.5 ? 0 : 1);
     return;
   }
@@ -221,24 +225,29 @@ function midiSetLearn(on) {
   midi.learnt = null;
   updateMidiUI();
 }
-// Something touched while learning: the control moved last goes to it, or it waits for a control
-function midiLearnTarget(t) {
+// Something touched while learning: the control moved last goes to it, or it waits for a control. With Alt held, the
+// control drives only that from now on (its other mappings go); without, as well as what it drives already.
+function midiLearnTarget(t, only = false) {
   if (!midi.learn.on) return;
-  if (midi.learn.pending) midiConnect(midi.learn.pending, t);
-  else { midi.learn.target = midi.learn.target === t ? null : t; updateMidiUI(); }
+  if (midi.learn.pending) midiConnect(midi.learn.pending, t, only);
+  else { midi.learn.target = midi.learn.target === t ? null : t; midi.learn.only = only; updateMidiUI(); }
 }
 // Learning a control onto something another control drives replaces that control (two on the same thing are set in
-// the MIDI window, from a mapping's list). A fader or knob learnt onto something that is on or off follows it (Hold:
-// on while it is past the middle); a button toggles it.
-function midiConnect(key, to) {
+// the MIDI window, from a mapping's list). A control that drives something already does this as well (only this, with
+// only: Alt held on the click). A fader or knob learnt onto something that is on or off follows it (Hold: on while it
+// is past the middle); a button toggles it.
+function midiConnect(key, to, only = false) {
   midi.learn.pending = null; midi.learn.target = null;
   midi.learnt = key;
-  if (project.midi.maps.some(w => w.key === key && w.to === to)) { toast(`${midiKeyLabel(key)} already does that.`); updateMidiUI(); return; }
-  const old = project.midi.maps.filter(w => w.to === to), w = midiNewMap(key, to);
-  project.midi.maps = project.midi.maps.filter(x => x.to !== to);
+  const mine = project.midi.maps.filter(w => w.key === key && w.to !== to);
+  if (project.midi.maps.some(w => w.key === key && w.to === to) && !(only && mine.length)) { toast(`${midiKeyLabel(key)} already does that.`); updateMidiUI(); return; }
+  const old = project.midi.maps.filter(w => w.to === to && w.key !== key), w = midiNewMap(key, to);
+  project.midi.maps = project.midi.maps.filter(x => x.to !== to && !(only && x.key === key));
   project.midi.maps.push(w);
   commit();
-  toast(`${midiKeyFull(key)} → ${midiTargetLabel(to)}` + (old.length ? ` (instead of ${[...new Set(old.map(w => midiKeyLabel(w.key)))].join(', ')})` : ''));
+  const also = !only && mine.length ? [...new Set(mine.map(x => midiTargetLabel(x.to)))] : [];
+  toast(`${midiKeyFull(key)} → ${midiTargetLabel(to)}` + (old.length ? ` (instead of ${[...new Set(old.map(w => midiKeyLabel(w.key)))].join(', ')})` : '')
+    + (also.length ? `, as well as ${also.join(', ')}. Alt-click replaces instead.` : only && mine.length ? ` only (instead of ${[...new Set(mine.map(x => midiTargetLabel(x.to)))].join(', ')})` : ''));
   updateMidiUI();
 }
 // A new mapping: a control that moved like a fader, onto something on or off, follows it (Hold)
@@ -264,8 +273,10 @@ function midiSetMap(id, patch) {
   commit(); updateMidiUI();
 }
 function midiDisconnect(id) {
+  const w = project.midi.maps.find(x => x.id === id);
   project.midi.maps = project.midi.maps.filter(w => w.id !== id);
   commit(); updateMidiUI();
+  if (w) toast(`Removed ${midiKeyFull(w.key)} → ${midiTargetLabel(w.to)}. ${MOD}Z brings it back.`);
 }
 // A control not wanted any more: its mappings go, and it is forgotten until it moves again
 function midiForget(key) {

@@ -14,11 +14,16 @@ function updateHighlightUI() {
 function showVersion(v) {
   $('#appVer').textContent = v ? 'v' + v : '';
   $('.brand').title = v ? 'nouPix ' + v : 'nouPix';
-  // once the version running is known, a look for a newer one a little later (once a day at most)
-  if (v && !REMOTE_CLIENT && !showVersion.looked) { showVersion.looked = true; setTimeout(() => checkUpdates(false), 4000); }
+  // once the version running is known, a look for a newer one a little later, every time nouPix starts; then once a
+  // day while it keeps running (a show computer may never be restarted)
+  if (v && !REMOTE_CLIENT && !showVersion.looked) {
+    showVersion.looked = true;
+    setTimeout(() => checkUpdates(false, true), 4000);
+    setInterval(() => checkUpdates(false), 3600e3);
+  }
 }
 // New versions: the latest release on GitHub, compared with the version running. By itself only on the main
-// computer, with Settings → Updates on, at most once a day, and never in a browser driven by tests (they check it
+// computer, with Settings → Updates on, when nouPix starts (atStart) and at most once a day while it runs, and never in a browser driven by tests (they check it
 // themselves); with no internet it says nothing. Asked for (Check now), it always answers.
 const UPDATE_URL = 'https://api.github.com/repos/nouled-studio/nouPix/releases/latest';
 const versionParts = v => (String(v || '').match(/\d+/g) || []).slice(0, 3).map(Number);
@@ -27,9 +32,9 @@ function newerVersion(a, b) {   // whether version a comes after version b
   for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
   return false;
 }
-async function checkUpdates(asked) {
+async function checkUpdates(asked, atStart) {
   const mine = bridge.hello && bridge.hello.version;
-  if (!asked && (!ui.updates || navigator.webdriver || Date.now() - ui.updateAt < 20 * 3600e3)) return;
+  if (!asked && (!ui.updates || navigator.webdriver || (!atStart && Date.now() - ui.updateAt < 20 * 3600e3))) return;
   if (!mine) { if (asked) toast('Which version this is shows once nouPix is running (the app, or noupix.py).', 'warn'); return; }
   let rel;
   try {
@@ -86,22 +91,22 @@ function updateBridgeUI() {
   const st = bridge.stats, hl = bridge.hello;
   const from = hl ? `Sending from ${hl.bindIp === '0.0.0.0' ? 'all network cards' : hl.bindIp}, port ${hl.bindPort}${hl.discovery ? '' : ' · node discovery off: ' + (hl.discoveryNote || '')}` : '';
   let show = true;
-  if (bridge.state === 'none') { pill.classList.add('warn'); txt.textContent = 'Preview only'; pill.title = 'This page can\'t send Art-Net on its own. Start nouPix (the app, or noupix.py) and use the window it opens.'; }
+  if (bridge.state === 'none') { pill.classList.add('warn'); txt.textContent = 'Preview only'; pill.title = `This page can't send ${outName()} on its own. Start nouPix (the app, or noupix.py) and use the window it opens.`; }
   else if (!bridge.connected) {
     show = Date.now() - (bridge.since || 0) > 1500;
-    pill.classList.add('warn'); txt.textContent = 'Output not connected'; pill.title = 'Reconnecting to the part of nouPix that sends Art-Net…';
+    pill.classList.add('warn'); txt.textContent = 'Output not connected'; pill.title = `Reconnecting to the part of nouPix that sends ${outName()}…`;
   }
   else if (st && st.errors && st.lastError) { pill.classList.add('err'); txt.textContent = ui.outputOn ? `Send error · ${fmtN(st.pps)} pkt/s` : 'Send error'; pill.title = 'Last send error: ' + st.lastError + (from ? '\n' + from : ''); }
-  else if (ui.outputOn) { pill.classList.add('ok'); txt.textContent = `Sending · ${fmtN(st ? st.pps : 0)} pkt/s`; pill.title = 'Art-Net packets sent per second. ' + from; }
-  else { txt.textContent = 'Art-Net off'; pill.title = 'Switched off in Settings → Art-Net connection.'; }
+  else if (ui.outputOn) { pill.classList.add('ok'); txt.textContent = `Sending · ${fmtN(st ? st.pps : 0)} pkt/s`; pill.title = `${outName()} packets sent per second${sacnMulticast() ? ', to multicast groups' : ''}. ` + from; }
+  else { txt.textContent = outName() + ' off'; pill.title = 'Switched off in Settings → Art-Net / sACN.'; }
   pill.hidden = !show;
-  const tick = $('#outputOn');   // Settings → Art-Net connection, when it is open
+  const tick = $('#outputOn');   // Settings → Art-Net / sACN, when it is open
   if (tick) tick.checked = ui.outputOn;
 }
 function setOutput(on) {
   if (REMOTE_CLIENT) return;   // only the main computer sends Art-Net
   if (on && !bridge.connected) {
-    toast(bridge.state === 'none' ? 'This page can\'t send Art-Net on its own: start nouPix (the app, or noupix.py) and use the window it opens.' : 'The Art-Net output isn\'t connected yet. Try again in a moment.', 'warn');
+    toast(bridge.state === 'none' ? `This page can't send ${outName()} on its own: start nouPix (the app, or noupix.py) and use the window it opens.` : `The ${outName()} output isn't connected yet. Try again in a moment.`, 'warn');
     return;
   }
   if (on) bridgeSend({ t: 'output', on: true });

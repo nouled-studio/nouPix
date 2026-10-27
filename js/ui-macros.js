@@ -39,6 +39,7 @@ function macroColor(id) {
   const r = row(macroSwitch(id, foldBtn(open, d.label, () => toggleMacroOpen(id), open ? 'Fold its parts' : 'Its hue, saturation and value, for MIDI faders')),
     h('span', { class: 'cswatch still', title: 'The colour the effects follow while it is on' }, fill, hex));
   r.classList.add('mcolor');
+  r.dataset.midi = `m:${id}.0`;   // learnt as its first part (Hue, or Red in RGB); opened, each part has its slider
   bind(() => { const c = toHex(macroRgb(project.macros[id])); fill.style.background = c; hex.textContent = c; r.classList.toggle('off', !project.macros[id].on); });
   if (!open) return [r];
   const mode = seg([['hsv', 'HSV'], ['rgb', 'RGB']], m.mode, v => { setMacro(id, { mode: v, on: project.macros[id].on }); renderRight(); });

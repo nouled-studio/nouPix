@@ -226,7 +226,7 @@ function outputSection(list) {
       if (p.first >= 0) lines.push(addrText(p));
       if (p.overflow) { box.className = 'addr err'; lines.push(`${p.overflow} pixels do not fit in this output's ${p.ctrl.upo} universes and are not sent.`); }
       if (p.overlap) { box.className = 'addr warn'; lines.push('Its set start overlaps the channels of the fixture before it on this output.'); }
-      if (p.outside) { box.className = 'addr warn'; lines.push(`Its set start, U ${f.addr.u}, is outside this output's universes, so it is not used.`); }
+      if (p.outside) { box.className = 'addr warn'; lines.push(`Its set start, U ${uniLabel(f.addr.u)}, is outside this output's universes, so it is not used.`); }
       box.textContent = lines.join('\n');
       box.style.whiteSpace = 'pre-wrap';
     };
@@ -246,10 +246,10 @@ function advancedPatch(f) {
     redo();
   })];
   if (f.addr) {
-    const us = Array.from({ length: c.upo }, (_, i) => [String(base + i), 'U ' + (base + i)]);
+    const us = Array.from({ length: c.upo }, (_, i) => [String(base + i), 'U ' + uniLabel(base + i)]);
     out.push(row('Universe', selectEl(us, String(f.addr.u), v => { f.addr.u = +v; redo(); }, { aria: 'Start universe' })));
     out.push(numRow('Channel', f.addr, 'ch', { int: true, min: 1, max: 512, onCommit: redo }));
-    out.push(h('p', { class: 'note' }, `Universes ${base}–${base + c.upo - 1} belong to OUT ${p.out + 1}. The fixtures after this one on the output carry on from its last channel.` +
+    out.push(h('p', { class: 'note' }, `Universes ${uniLabel(base)}–${uniLabel(base + c.upo - 1)} belong to OUT ${p.out + 1}. The fixtures after this one on the output carry on from its last channel.` +
       (c.split ? '' : ' With whole pixels, a pixel that would be split across two universes starts at the next one.')));
   }
   return out;
@@ -601,6 +601,28 @@ function videoControls(src, el) {
 }
 
 /* ---------- settings tab ---------- */
+// What goes out: Art-Net (the default) or sACN, one at a time, for the whole project. Switching changes the universes'
+// numbers shown (sACN counts from 1) and, with multicast, what counts as a conflict, so the patch is worked out again.
+function protocolRows(s) {
+  const changed = () => { markPatch(); commit(); renderRight(); updateBridgeUI(); };
+  const rows = [row('Protocol', seg([['artnet', 'Art-Net'], ['sacn', 'sACN']], s.protocol, v => { s.protocol = v; changed(); }))];
+  if (s.protocol === 'sacn') {
+    rows.push(
+      h('p', { class: 'note' }, 'sACN (E1.31) numbers universes from 1: the first universe, 0 in Art-Net, is sACN universe 1, and so on. Every universe shown is the sACN one; controllers set for both protocols usually count the same way.'),
+      numRow('Priority', s, 'sacnPriority', { min: 0, max: 200, step: 1, int: true, onCommit: commit }),
+      h('p', { class: 'note' }, 'From 0 to 200; 100 is the usual. A receiver getting the same universe from two sources takes the higher priority: give a desk more to let it take over.'),
+      row('Send to', seg([['unicast', 'Unicast'], ['multicast', 'Multicast']], s.sacnMulticast ? 'multicast' : 'unicast', v => { s.sacnMulticast = v === 'multicast'; changed(); })),
+      h('p', { class: 'note' }, s.sacnMulticast
+        ? 'Multicast: each universe goes to its multicast group (239.255.x.x), which every receiver on the network can join: a universe can then be used by one controller only.'
+        : 'Unicast: each universe goes to the IP address of its controller, as with Art-Net.'));
+  } else {
+    rows.push(checkRow('Send ArtSync after each frame', s, 'artSync', commit),
+      h('p', { class: 'note' }, 'ArtSync makes nodes that support it update all universes at the same moment. Leave it off if your controllers do not support it: some stop outputting while they wait for a sync.'));
+  }
+  if (s.protocol === 'sacn' && bridge.hello && !(bridge.hello.protocols || []).includes('sacn'))
+    rows.push(h('p', { class: 'note warn' }, 'The nouPix running on this computer is older and sends Art-Net only. Update it to send sACN.'));
+  return rows;
+}
 function renderSettings(body) {
   const s = project.settings;
   let before = [s.compW, s.compH];
@@ -619,9 +641,8 @@ function renderSettings(body) {
       project.fixtures.forEach(f => { f.gamma = s.gamma; }); commit(); toast(`Gamma ${s.gamma.toFixed(2)} set on all ${project.fixtures.length} fixtures. ${MOD}Z undoes.`); } }, 'Apply to all fixtures')),
     h('p', { class: 'note' }, 'Each fixture has its own gamma (Inspector → Pixels), as LED types differ. New fixtures start from this value.'),
     row('White (RGBW)', selectEl([['off', 'Off: W stays 0'], ['sub', 'W = min(RGB), subtract'], ['add', 'W = min(RGB), keep RGB']], s.whiteMode, v => { s.whiteMode = v; commit(); }, { aria: 'White channel mode' })),
-    h('p', { class: 'note' }, 'Colour trims and gamma are set per fixture, in the Inspector under Pixels.'),
-    checkRow('Send ArtSync after each frame', s, 'artSync', commit),
-    h('p', { class: 'note' }, 'ArtSync makes nodes that support it update all universes at the same moment. Leave it off if your controllers do not support it: some stop outputting while they wait for a sync.')));
+    h('p', { class: 'note' }, 'Colour trims and gamma are set per fixture, in the Inspector under Pixels.')));
+  body.append(sendSection(s));
   body.append(sec('Scenes',
     numRow('Fade for new scenes', s, 'fade', { min: 0, max: 60, step: 0.1, onCommit: commit }),
     h('p', { class: 'note' }, 'In seconds: the fade a scene gets when you store it (0 cuts). Each scene keeps its own, shown on its button, where you can change it.')));
@@ -649,21 +670,23 @@ function renderSettings(body) {
   if (!REMOTE_CLIENT) body.append(sec('Updates',
     checkRow('Look for a new version when nouPix starts', ui, 'updates', savePrefs),
     h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => checkUpdates(true) }, 'Check now')),
-    h('p', { class: 'note' }, `This is nouPix ${(bridge.hello && bridge.hello.version) || ''}. Once a day at most, nouPix asks GitHub for its latest release and tells you when there is a newer one, with a link to download it. It installs nothing by itself, and says nothing without internet.`)));
+    h('p', { class: 'note' }, `This is nouPix ${(bridge.hello && bridge.hello.version) || ''}. Every time it starts, and once a day while it runs, nouPix asks GitHub for its latest release and tells you when there is a newer one, with a link to download it. It installs nothing by itself, and says nothing without internet.`)));
   if (!REMOTE_CLIENT) body.append(remoteSection());
-  // Art-Net goes out from the start; it can be switched off here. Where the page finds noupix.py is only asked in a
-  // browser: the desktop app always uses its own.
-  if (!REMOTE_CLIENT) {
-    const app = /Electron/.test(navigator.userAgent), auto = bridgeUrl();
-    const sw = h('input', { type: 'checkbox', id: 'outputOn', checked: ui.outputOn });
-    sw.addEventListener('change', () => { setOutput(sw.checked); sw.checked = ui.outputOn; });
-    body.append(sec('Art-Net connection',
-      h('label', { class: 'checkrow', for: 'outputOn' }, sw, 'Send Art-Net'),
-      h('p', { class: 'note' }, 'On from the start, every time nouPix opens. Switch it off to stop sending, for example while another console drives the lights. The status bar shows what goes out.'),
-      app ? null : row('Address', textInput(s, 'bridgeUrl', { placeholder: auto || 'ws://127.0.0.1:8080/ws', aria: 'Art-Net connection address', onCommit: () => { commit(); connectBridge(); } })),
-      app ? null : h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: connectBridge }, 'Reconnect')),
-      app ? null : h('p', { class: 'note', html: 'Art-Net is sent by <code>noupix.py</code> running on this computer. Leave the address empty to use the one this page was opened from.' })));
-  }
+}
+// What goes out to the lights, in one place: sending on or off, the protocol and its options, and (in a browser) where
+// the page finds noupix.py; the app always uses its own. Output is on from the start. A device sees the protocol only.
+function sendSection(s) {
+  if (REMOTE_CLIENT) return sec('Art-Net / sACN', ...protocolRows(s));
+  const app = /Electron/.test(navigator.userAgent), auto = bridgeUrl();
+  const sw = h('input', { type: 'checkbox', id: 'outputOn', checked: ui.outputOn });
+  sw.addEventListener('change', () => { setOutput(sw.checked); sw.checked = ui.outputOn; });
+  return sec('Art-Net / sACN',
+    h('label', { class: 'checkrow', for: 'outputOn' }, sw, 'Send ' + outName()),
+    h('p', { class: 'note' }, 'On from the start, every time nouPix opens. Switch it off to stop sending, for example while another console drives the lights. The status bar shows what goes out.'),
+    ...protocolRows(s),
+    app ? null : row('Address', textInput(s, 'bridgeUrl', { placeholder: auto || 'ws://127.0.0.1:8080/ws', aria: 'Output connection address', onCommit: () => { commit(); connectBridge(); } })),
+    app ? null : h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: connectBridge }, 'Reconnect')),
+    app ? null : h('p', { class: 'note', html: outName() + ' is sent by <code>noupix.py</code> running on this computer. Leave the address empty to use the one this page was opened from.' }));
 }
 
 /* ---------- selection ---------- */

@@ -74,7 +74,7 @@ const scenesDoc = () => (scenesWinOpen() ? scenesWin.document : null);
 // Where the scenes are drawn now: the bottom panel's, the Scenes window's
 const scenesRoots = () => [$('#dockBody'), scenesDoc() && $('#dockBody', scenesDoc())].filter(Boolean);
 function openScenesWindow() {
-  if (scenesWinOpen()) { scenesWin.focus(); return; }
+  if (scenesWinOpen()) { raiseWindow(scenesWin); return; }
   const w = window.open('', 'olm-scenes', 'popup,width=1180,height=460');
   if (!w) { toast('The Scenes window could not open: allow pop-up windows for this page.', 'err'); return; }
   scenesWin = w;
@@ -401,7 +401,7 @@ function renderCtrlEditor(edit, c) {
   };
   // Output on or off: a switch, as it is a state rather than a setting
   const en = h('button', { class: 'onsw' + (c.enabled ? ' on' : ''), type: 'button', role: 'switch', 'aria-checked': String(!!c.enabled),
-    title: c.enabled ? 'This controller gets Art-Net. Click to stop sending to it.' : 'Nothing is sent to this controller. Click to send to it again.',
+    title: c.enabled ? `This controller gets ${outName()}. Click to stop sending to it.` : 'Nothing is sent to this controller. Click to send to it again.',
     onclick: () => { c.enabled = !c.enabled; markPatch(); commit(); } }, h('i'), c.enabled ? 'ON' : 'OFF');
   // Whole pixels: a universe ends at channel 510 for RGB, so no pixel is split between two universes
   const skip = h('input', { type: 'checkbox', checked: !c.split, id: 'ctrlSkip' });
@@ -418,7 +418,10 @@ function renderCtrlEditor(edit, c) {
     f('IP address', small(ipIn, 120)),
     f('Outputs', small(numInput(c, 'outputs', { int: true, min: 1, max: 128, aria: 'Outputs', onCommit: onStruct }), 64)),
     f('Unis / output', small(numInput(c, 'upo', { int: true, min: 1, max: 64, aria: 'Universes per output', onCommit: onStruct }), 64), 'Universes per output'),
-    f('First uni', small(numInput(c, 'startUniverse', { int: true, min: 0, max: 32767, aria: 'First universe', onCommit: onStruct }), 64), 'First universe: the universe of output 1'),
+    // with sACN the first universe is typed and shown as sACN counts it, from 1 (kept from 0 inside, as Art-Net counts)
+    f('First uni', small(isSacn()
+      ? numInput({ get v() { return c.startUniverse + 1; }, set v(x) { c.startUniverse = x - 1; } }, 'v', { int: true, min: 1, max: 32768, aria: 'First universe', onCommit: onStruct })
+      : numInput(c, 'startUniverse', { int: true, min: 0, max: 32767, aria: 'First universe', onCommit: onStruct }), 64), 'First universe: the universe of output 1'),
     c.discovered && c.discovered.length ? f('ArtPoll', h('span', { class: 'reported' }, 'U ' + universeList(c.discovered)),
       `Universes this device reported when discovered (${c.discovered.length}). Set Outputs and Unis / output to how the device is set up.`) : null,
     h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
@@ -442,7 +445,7 @@ function renderCtrlEditor(edit, c) {
     const head = h('div', { class: 'outhead', title: 'Click to fold or unfold. Drop fixtures here to add them at the end.' },
       h('span', { class: 'fold' }, folds.has(key) ? '▸' : '▾'),
       h('span', { class: 'on' }, 'OUT ' + (o + 1)),
-      h('span', { class: 'ur' }, c.upo > 1 ? `U ${info.base}–${info.base + c.upo - 1}` : `U ${info.base}`),
+      h('span', { class: 'ur' }, c.upo > 1 ? `U ${uniLabel(info.base)}–${uniLabel(info.base + c.upo - 1)}` : `U ${uniLabel(info.base)}`),
       h('span', { class: 'sum' }, n ? `${n} fixture${n === 1 ? '' : 's'} · ${fmtN(info.ch)} ch` : 'empty'),
       usage);
     head.addEventListener('click', () => { folds.has(key) ? folds.delete(key) : folds.add(key); renderDock(); });
@@ -454,7 +457,7 @@ function renderCtrlEditor(edit, c) {
       let ad = '—';
       if (p && p.first >= 0) {
         const a = addrOf(p.base, p.first), b = addrOf(p.base, p.last);
-        ad = a.u === b.u ? `U${a.u} · ch ${a.ch}–${b.ch}` : `U${a.u}.${a.ch} – U${b.u}.${b.ch}`;
+        ad = a.u === b.u ? `U${uniLabel(a.u)} · ch ${a.ch}–${b.ch}` : `U${uniLabel(a.u)}.${a.ch} – U${uniLabel(b.u)}.${b.ch}`;
       }
       if (p && p.overflow) ad = p.first >= 0 ? `${ad} · ${p.overflow} px over` : `${p.overflow} px don't fit`;
       const mv = (txt, d, off, label) => h('button', { type: 'button', disabled: off, title: label, 'aria-label': `${label}: ${fx.name}`, onclick: e => { e.stopPropagation(); moveOnOutput([fid], d); } }, txt);
@@ -583,7 +586,9 @@ function renderNodes(body) {
   const bar = h('div', { class: 'bar' },
     h('button', { class: 'btn primary', type: 'button', disabled: !bridge.connected, onclick: discover }, 'Discover'),
     nets.length ? h('span', null, 'on') : null, ...nets.map(chip),
-    h('span', null, nets.length ? 'Also' : 'Send to'), bc, info);
+    h('span', null, nets.length ? 'Also' : 'Send to'), bc, info,
+    // sACN has no way to find controllers: discovery is Art-Net's, which controllers that speak both answer
+    isSacn() ? h('span', { class: 'muted', title: 'Discovery uses Art-Net (ArtPoll), which most sACN controllers also answer. The universes they report are Art-Net\'s: universe 0 there is sACN universe 1 here.' }, 'Found through Art-Net') : null);
   // Nodes on a network turned off for scans are left out; the network column shows where each one answered
   const all = nodeDevices(), nodes = all.filter(n => { const k = netOf(n.ip, nets); return !k || !off.has(k.ip); });
   const scroll = h('div', { class: 'scroll' });
@@ -595,7 +600,7 @@ function renderNodes(body) {
       : 'Node discovery needs nouPix running on this computer (the app, or noupix.py): a web page on its own cannot send or receive Art-Net.'));
   } else {
     scroll.append(h('table', { class: 'table' },
-      h('thead', null, h('tr', null, ['IP', 'Name', 'Network', 'Universes', 'MAC', 'Status', ''].map(t => h('th', null, t)))),   // ArtPoll tells the universes, not the outputs
+      h('thead', null, h('tr', null, ['IP', 'Name', 'Network', isSacn() ? 'Art-Net universes' : 'Universes', 'MAC', 'Status', ''].map(t => h('th', null, t)))),   // ArtPoll tells the universes, not the outputs
       h('tbody', null, nodes.map(n => {
         const known = project.controllers.find(c => c.ip === n.ip);
         return withRightClick(h('tr', null,
@@ -665,7 +670,7 @@ function renderMonitor(body) {
   ensurePatch();
   if (!universes.find(u => u.key === ui.monitorKey)) ui.monitorKey = universes[0] ? universes[0].key : null;
   const ul = h('div', { class: 'ulist' }, universes.length ? universes.map(u => h('div', { class: u.key === ui.monitorKey ? 'sel' : '', onclick: () => { ui.monitorKey = u.key; renderDock(); } },
-    h('span', null, `${u.ip} · U ${u.uni}`), h('span', { class: 'muted' }, u.used + ' ch'))) : h('div', { class: 'empty', style: { fontFamily: 'var(--ui)', cursor: 'default' } }, 'No universes yet. Patch fixtures to a controller.'));
+    h('span', null, `${sacnMulticast() ? 'sACN' : u.ip} · U ${uniLabel(u.uni)}`), h('span', { class: 'muted' }, u.used + ' ch'))) : h('div', { class: 'empty', style: { fontFamily: 'var(--ui)', cursor: 'default' } }, 'No universes yet. Patch fixtures to a controller.'));
   monCanvas = h('canvas', { width: 32 * 26, height: 16 * 20, 'aria-label': 'DMX channel values' });
   const read = h('div', { class: 'readout' }, 'Hover a channel to see what drives it.');
   monCanvas.addEventListener('mousemove', e => {
@@ -679,9 +684,12 @@ function renderMonitor(body) {
     read.textContent = `ch ${ch + 1} = ${U.data[ch]}` + (m ? ` · ${m.f.name} · pixel ${m.i + 1} · ${m.c}${m.coarse ? ' coarse' : m.fine ? ' fine' : ''}` : ' · unused');
   });
   const U = universes.find(u => u.key === ui.monitorKey);
-  const bar = h('div', { class: 'bar' }, U ? h('span', { class: 'mono' }, `${U.ip} · universe ${U.uni} (net ${U.uni >> 8}, subnet ${(U.uni >> 4) & 15}, universe ${U.uni & 15}) · ${U.ctrl.name} OUT ${U.out + 1}`) : h('span', null, 'DMX values being sent'),
+  const where = !U ? '' : isSacn()
+    ? `${sacnMulticast() ? 'multicast ' + sacnGroup(U.uni + 1) : U.ip} · sACN universe ${U.uni + 1}`
+    : `${U.ip} · universe ${U.uni} (net ${U.uni >> 8}, subnet ${(U.uni >> 4) & 15}, universe ${U.uni & 15})`;
+  const bar = h('div', { class: 'bar' }, U ? h('span', { class: 'mono' }, `${where} · ${U.ctrl.name} OUT ${U.out + 1}`) : h('span', null, 'DMX values being sent'),
     U && !U.enabled ? h('span', { class: 'badge warn' }, 'not sent: controller off or IP invalid') : null,
-    h('span', { class: 'muted' }, ui.outputOn ? '' : 'Art-Net output is off; values shown are what would be sent.'));
+    h('span', { class: 'muted' }, ui.outputOn ? '' : `${outName()} output is off; values shown are what would be sent.`));
   body.append(h('div', { class: 'monitor' }, bar, h('div', { class: 'mbody' }, ul, h('div', { class: 'grid' }, monCanvas, read))));
 }
 function monitorMap(U) {

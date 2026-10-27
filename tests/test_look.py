@@ -2,9 +2,9 @@
 # bar's button and Settings, kept on this computer, the MIDI and Scenes windows and the stage follow), colours only
 # on groups and zones (none at first, chosen by the user; fixtures and scenes show them), sliders filled up to their
 # value, the scene tiles' cuts, the name, the file format, and what openLedMapper kept carried over.
-import os, sys, time, json, urllib.request
+import os, sys, time, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import CHROME_ARGS, start_bridge, app_error, FAKE_MIDI
+from harness import CHROME_ARGS, start_bridge, app_error, FAKE_MIDI, fetch
 from playwright.sync_api import sync_playwright
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8192
 fails = []
@@ -14,9 +14,9 @@ def check(name, ok, detail=""):
 bridge = start_bridge(PORT)
 try:
   # ---------- the fonts are the app's own: served from css/, nothing from the internet
-  r = urllib.request.urlopen(f"http://127.0.0.1:{PORT}/css/saira-latin.woff2")
+  r = fetch(f"http://127.0.0.1:{PORT}/css/saira-latin.woff2")
   check("the bridge serves the fonts kept in css/", r.status == 200 and r.headers["Content-Type"] == "font/woff2" and len(r.read()) > 10000)
-  page = urllib.request.urlopen(f"http://127.0.0.1:{PORT}/").read().decode()
+  page = fetch(f"http://127.0.0.1:{PORT}/").text()
   check("the page asks nothing of Google Fonts", "fonts.googleapis" not in page and 'href="css/fonts.css"' in page)
   with sync_playwright() as pw:
     br = pw.chromium.launch(args=CHROME_ARGS); ctx = br.new_context(viewport={"width": 1440, "height": 900})
@@ -48,7 +48,7 @@ try:
           and css("#btnBlackout", "color") == "rgb(255, 59, 59)" and pg.locator("#btnBlackout svg").count() == 1)
     ev("(() => { ui.rightTab = 'settings'; renderRight(); })()"); settle(0.3)
     pg.click("label[for=outputOn]"); settle(0.3)
-    check("Settings → Art-Net connection switches it off, and the status bar says so", not ev("ui.outputOn") and "Art-Net off" in pg.text_content("#bridgePill") and pg.is_visible("#bridgePill"))
+    check("Settings → Art-Net / sACN switches it off, and the status bar says so", not ev("ui.outputOn") and "Art-Net off" in pg.text_content("#bridgePill") and pg.is_visible("#bridgePill"))
     pg.click("label[for=outputOn]"); settle(0.3)
     check("and on again", ev("ui.outputOn") and "Sending" in pg.text_content("#bridgePill"))
     ev("toggleBlackout()"); settle(0.3)

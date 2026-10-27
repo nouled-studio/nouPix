@@ -1,7 +1,8 @@
 # OMT in (Open Media Transport): the bridge's binding of libomt checked against a stand-in library built from the real
 # libomt.h (omt_fake.c, with a C compiler): the source found, chosen, its BGRA frames (rows padded past their width)
 # turned into RGBA on the fixtures, the 1/8 preview for Light and the whole picture for Full, following its colours,
-# the source stopping and coming back, and the window naming what isn't installed (NDI, here).
+# the source stopping and coming back, the window naming what isn't installed (NDI, here), and libomt ending its process
+# (only OMT's helper stops; the bridge says why and starts a new one).
 import os, sys, time, subprocess, tempfile, shutil
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -28,7 +29,8 @@ subprocess.run([cc, "-shared", "-fPIC", "-O2", "-o", lib, os.path.join(HERE, "om
 colors = os.path.join(tmp, "colors")
 def put(*c): open(colors + ".new", "w").write(" ".join(map(str, c))); os.replace(colors + ".new", colors)
 put(255, 0, 0, 0, 0, 255)
-os.environ.update(NOUPIX_OMT_LIB=lib, FAKE_OMT_COLORS=colors, NOUPIX_NDI_LIB="/nowhere/libndi.so")
+abort = os.path.join(tmp, "abort")
+os.environ.update(NOUPIX_OMT_LIB=lib, FAKE_OMT_COLORS=colors, FAKE_OMT_ABORT=abort, NOUPIX_NDI_LIB="/nowhere/libndi.so")
 
 bridge = start_bridge(PORT)
 try:
@@ -62,6 +64,21 @@ try:
     check("when it stops the source shows OFF", wait(lambda: ev(f"streamState(srcById('{sid}'))") == "waiting"))
     put(0, 0, 255, 0, 0, 255)
     check("and it comes back by itself", wait(lambda: (lambda c: c[2] > 240 and c[5] > 240)(col()), 15), col())
+    # ---------- libomt ending its process: only OMT's helper stops, the bridge goes on and says why
+    open(abort, "w").close()
+    pg.click("#btnAddSrc"); pg.get_by_text("NDI or OMT stream…").click()
+    modal = lambda: pg.locator(".vmodal").inner_text() if pg.locator(".vmodal").count() else ""
+    check("libomt failing while looking for sources: the window says OMT's library stopped, and why",
+          wait(lambda: "OMT's library stopped" in modal() and "asked to fail" in modal()), modal())
+    check("the bridge goes on (no new connection, the output still running)", ev("olm.bridge.connected") and bridge.poll() is None)
+    check("the stream waits", wait(lambda: ev(f"streamState(srcById('{sid}'))") == "waiting"))
+    pg.get_by_role("button", name="Cancel").click()
+    os.remove(abort); time.sleep(11)
+    pg.click("#btnAddSrc"); pg.get_by_text("NDI or OMT stream…").click()
+    check("a few seconds later a new helper finds the source again", wait(lambda: pg.locator(".vrow", has_text="nouPix OMT").count() == 1), modal())
+    pg.get_by_role("button", name="Cancel").click()
+    put(255, 255, 0, 0, 255, 255)
+    check("and the stream comes back by itself", wait(lambda: (lambda c: c[0] > 240 and c[1] > 240 and c[4] > 240)(col()), 20), col())
     saved = ev("JSON.parse(serialize())")
     check("saved as an OMT stream", any(s.get("proto") == "omt" and s.get("hq") is True for s in saved["sources"]))
     check("no errors", not errs, errs[:3])

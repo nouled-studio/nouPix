@@ -9,7 +9,7 @@ class WS:
     def __init__(s, port):
         s.s = socket.create_connection(("127.0.0.1", port))
         s.s.sendall(("GET /ws HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\n\r\n" % (port, base64.b64encode(os.urandom(16)).decode())).encode())
-        s.msgs = []; s.closed = False
+        s.msgs = []; s.closed = False; s.lock = threading.Lock()
         hdr = b""
         while b"\r\n\r\n" not in hdr: hdr += s.s.recv(1)
         threading.Thread(target=s.reader, daemon=True).start()
@@ -24,12 +24,13 @@ class WS:
                 elif n == 127: n = struct.unpack(">Q", f.read(8))[0]
                 d = f.read(n)
                 if b0 & 0x0f == 1: s.msgs.append(json.loads(d))
+                elif b0 & 0x0f == 9: s.send(d, 0xA)   # answers the bridge's pings, as browsers do
             except Exception: s.closed = True; return
     def send(s, payload, op=2):
         if isinstance(payload, str): payload, op = payload.encode("utf-8", "surrogatepass"), 1
         mask = os.urandom(4); n = len(payload)
         hdr = bytes((0x80 | op,)) + (bytes((0x80 | n,)) if n < 126 else bytes((0x80 | 126,)) + struct.pack(">H", n))
-        s.s.sendall(hdr + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(payload)))
+        with s.lock: s.s.sendall(hdr + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(payload)))
 ok = True
 def check(name, cond):
     global ok
@@ -82,4 +83,10 @@ check("no network ticked: nothing sent", poll({"t": "poll", "ifaces": [], "broad
 check("a typed address is used too", poll({"t": "poll", "ifaces": [], "broadcast": " 2.255.255.255 "})[0] == ["2.255.255.255"])
 check("a typed address must be an IPv4 address", poll({"t": "poll", "ifaces": [], "broadcast": "example.com"})[0] == [])
 check("a page from before network choice: 255.255.255.255", poll({"t": "poll", "broadcast": ""})[0] == ["255.255.255.255"])
+# each ArtPoll goes out twice, a moment apart: some firewalls on Windows drop the first packet between two addresses
+node = FakeNode("127.0.0.1")
+art = olm.ArtNet("0.0.0.0", 0)
+t0 = time.time(); err = art.poll("127.0.0.1"); time.sleep(0.8)
+check("an ArtPoll goes out twice, a moment apart", err is None and node.count(t0, time.time(), 0x2000) == 2)
+node.close()
 print("ALL PASS" if ok else "SOME FAILED")

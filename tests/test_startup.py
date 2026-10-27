@@ -86,7 +86,7 @@ try:
     pg2 = page(br, PORT)
     check("another window (not the first since the bridge started) doesn't open it by itself", pg2.evaluate("!olm.bridge.hello.startupProject") and pg2.evaluate("olm.bridge.hello.startup.id") == pid)
     pg2.close(); pg.close()
-    bridge.kill(); bridge = start_bridge(PORT)
+    bridge.kill(); bridge.wait(); bridge = start_bridge(PORT)   # the old one gone first, its port free
     pg = page(br, PORT); ev = pg.evaluate
     check("after a restart the first window opens it", wait(lambda: ev("project.id") == pid and ev("project.name") == "Show A2"), ev("project.name"))
     check("playing the scene set to play on open", ev("project.zones[0].scene") == "s2")
@@ -103,7 +103,7 @@ try:
     bridge = start_bridge(PORT, ("--project", given))
     pg = page(br, PORT); ev = pg.evaluate
     open(given, "w").write(ev(f"(() => {{ const p = {PROJ}; p.name = 'From the command line'; return JSON.stringify(p); }})()"))
-    pg.close(); bridge.kill(); bridge = start_bridge(PORT, ("--project", given))
+    pg.close(); bridge.kill(); bridge.wait(); bridge = start_bridge(PORT, ("--project", given))
     pg = page(br, PORT); ev = pg.evaluate
     check("noupix.py --project FILE opens that file in the first window", wait(lambda: ev("project.name") == "From the command line"), ev("project.name"))
 

@@ -1,7 +1,7 @@
 {
   "name": "noupix-desktop",
   "productName": "nouPix",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "nouPix desktop app: the interface in its own window, with the Art-Net bridge inside",
   "license": "AGPL-3.0-only",
   "author": "nouled studio",

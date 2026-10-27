@@ -101,6 +101,9 @@ function buildOutput() {
 }
 // The frame sent to the bridge: [u8 type=1][u8 flags][u16 count], then per universe [4 ip][u16 universe][u16 512][512 channels].
 // It is laid out once per patch, and the channels of each universe that is sent live in it, so a frame is sent as is.
+// Its flags say how the bridge sends it: 1 ArtSync after it (Art-Net), 2 sACN instead of Art-Net, 4 sACN to multicast
+// groups. Each frame says so itself: a protocol switched, an undo or another project never leaves the bridge sending
+// the old way. The sACN priority goes as a message when it changes (frameFlags).
 let outFrame = null;
 function layoutFrame() {
   const list = universes.filter(u => u.enabled);
@@ -116,10 +119,16 @@ function layoutFrame() {
   outFrame = { buf, u8, count: list.length };
 }
 const outStats = { frames: 0, fps: 0, lastT: performance.now(), lastFrames: 0, dropped: 0, universes: 0 };
+function frameFlags() {
+  const s = project.settings;
+  if (!isSacn()) return s.artSync ? 1 : 0;
+  if (bridge.priority !== s.sacnPriority) { bridge.priority = s.sacnPriority; bridgeSend({ t: 'sacn', priority: s.sacnPriority }); }
+  return 2 | (s.sacnMulticast ? 4 : 0);
+}
 function sendFrame(black = false) {
   if (!bridge.connected || !outFrame) return;
   if (bridge.ws.bufferedAmount > 2e6) { outStats.dropped++; return; }
-  outFrame.u8[1] = project.settings.artSync ? 1 : 0;
+  outFrame.u8[1] = frameFlags();
   let buf = outFrame.buf;
   if (black) { const b = outFrame.u8.slice(); for (let off = 4; off < b.length; off += 520) b.fill(0, off + 8, off + 520); buf = b.buffer; }
   outStats.universes = outFrame.count;
@@ -188,7 +197,7 @@ function startClock() {
 }
 
 /* ---------- bridge (WebSocket to noupix.py) ---------- */
-const bridge = { ws: null, connected: false, started: false, state: 'idle', hello: null, stats: null, nodes: new Map(), retry: null, lastError: '' };
+const bridge = { ws: null, connected: false, started: false, state: 'idle', hello: null, stats: null, nodes: new Map(), retry: null, lastError: '', priority: null };
 function bridgeUrl() {
   if (project.settings.bridgeUrl) return project.settings.bridgeUrl.trim();
   if (/^https?:$/.test(location.protocol) && /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(location.hostname)) return `ws://${location.host}/ws`;
@@ -210,7 +219,7 @@ function connectBridge() {
   ws.binaryType = 'arraybuffer';
   bridge.ws = ws;
   ws.onopen = () => {
-    bridge.connected = true; bridge.state = 'ok'; bridgeSend({ t: 'output', on: ui.outputOn }); updateBridgeUI();
+    bridge.connected = true; bridge.state = 'ok'; bridge.priority = null; bridgeSend({ t: 'output', on: ui.outputOn }); updateBridgeUI();
     // Art-Net is on from the start: the first time this page reaches its bridge, it starts sending
     if (!bridge.started && !REMOTE_CLIENT) { bridge.started = true; setOutput(true); }
   };
@@ -227,13 +236,13 @@ function connectBridge() {
     }
     else if (m.t === 'error') { toast(m.msg, 'warn'); }
     else if (m.t === 'vin') streamMessage(m);
-    else if (m.t === 'takeover' && ui.outputOn) { ui.outputOn = false; keepAwake(false); updateBridgeUI(); toast('Art-Net was switched on in another nouPix window, so this window stopped sending.', 'warn'); }
+    else if (m.t === 'takeover' && ui.outputOn) { ui.outputOn = false; keepAwake(false); updateBridgeUI(); toast(`${outName()} was switched on in another nouPix window, so this window stopped sending.`, 'warn'); }
     else remoteHostMessage(m);
   };
   ws.onclose = () => {
     const was = bridge.connected;
     bridge.connected = false; bridge.state = 'connecting'; bridge.ws = null;
-    if (was) toast('Lost the connection to the Art-Net output. Retrying…', 'warn');
+    if (was) toast(`Lost the connection to the ${outName()} output. Retrying…`, 'warn');
     remote.status = null; remote.clients.clear();
     updateBridgeUI(); updateRemoteUI();
     bridge.retry = setTimeout(connectBridge, 2000);

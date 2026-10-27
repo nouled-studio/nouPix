@@ -28,6 +28,7 @@ import argparse
 import base64
 import hashlib
 import hmac
+import html
 import http.client
 import http.server
 import json
@@ -42,9 +43,10 @@ import sys
 import threading
 import time
 import urllib.parse
+import uuid
 import webbrowser
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 HERE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 ARTNET_PORT = 6454
 WS_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -52,6 +54,41 @@ ARTNET_ID = b"Art-Net\x00"
 OP_POLL, OP_POLL_REPLY, OP_DMX, OP_SYNC = 0x2000, 0x2100, 0x5000, 0x5200
 HOLD_AFTER = 1.0   # seconds without frames from the page before the bridge starts repeating the last one
 HOLD_EVERY = 0.5   # how often the held frame is repeated, so controllers don't time out
+POLL_AGAIN = 0.25  # seconds before each ArtPoll goes out a second time
+WS_SILENT = 10.0   # seconds a window may not answer the bridge's pings before it is taken as gone
+
+# sACN (ANSI E1.31), sent instead of Art-Net when the project says so: the same universes, numbered from 1 (the page's
+# universe 0 is sACN universe 1), to each controller's address or to the universe's multicast group (239.255.hi.lo).
+SACN_PORT = 5568
+SACN_ROOT = b"\x00\x10\x00\x00ASC-E1.17\x00\x00\x00"   # preamble size, post-amble size, ACN packet identifier
+SACN_MAX_UNIVERSE = 63999
+SACN_DISCOVERY = "239.255.250.214"   # universe 64214: where sources list the universes they send, every 10 s
+SACN_DISCOVERY_EVERY = 10.0
+# who sends: the same on this computer every time (E1.31 asks a source to keep its CID), and a name desks can show
+SACN_CID = uuid.uuid5(uuid.NAMESPACE_DNS, "noupix." + socket.gethostname()).bytes
+SACN_SOURCE = ("nouPix " + socket.gethostname()).encode("utf-8")[:63].decode("utf-8", "ignore").encode("utf-8").ljust(64, b"\x00")
+
+
+def sacn_group(universe):
+    """The multicast address of an sACN universe."""
+    return "239.255.%d.%d" % (universe >> 8, universe & 0xFF)
+
+
+def sacn_packet(universe, data, seq, priority=100, options=0):
+    """An E1.31 data packet: root, framing and DMP layers, then the start code (0) and the channels."""
+    n = len(data)
+    return (SACN_ROOT + struct.pack(">HI", 0x7000 | (110 + n), 0x04) + SACN_CID
+            + struct.pack(">HI", 0x7000 | (88 + n), 0x02) + SACN_SOURCE
+            + struct.pack(">BHBBH", priority, 0, seq, options, universe)
+            + struct.pack(">HBBHHH", 0x7000 | (11 + n), 0x02, 0xA1, 0, 1, n + 1) + b"\x00" + bytes(data))
+
+
+def sacn_discovery(universes, page=0, last=0):
+    """An E1.31 universe discovery packet: the universes this source sends (at most 512 on a page)."""
+    n = len(universes)
+    return (SACN_ROOT + struct.pack(">HI", 0x7000 | (104 + 2 * n), 0x08) + SACN_CID
+            + struct.pack(">HI", 0x7000 | (82 + 2 * n), 0x02) + SACN_SOURCE + b"\x00" * 4
+            + struct.pack(">HIBB", 0x7000 | (8 + 2 * n), 0x01, page, last) + b"".join(struct.pack(">H", u) for u in universes))
 
 
 def log(msg):
@@ -81,11 +118,17 @@ class ArtNet:
             self.bind_error = "port %d unavailable (%s) - is another Art-Net app running?" % (bind_port, e.strerror or e)
             self.sock.bind((bind_ip, 0))
         self.bind_ip, self.bind_port = self.sock.getsockname()
+        if self.bind_ip not in ("0.0.0.0", ""):   # sACN's multicast goes out of the network card chosen, too
+            try:
+                self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.bind_ip))
+            except OSError:
+                pass
         # Replies to ArtPoll arrive on 6454, so discovery only works when we own that port.
         self.discovery = self.bind_port == ARTNET_PORT
         self.discovery_note = "" if self.discovery else (
             self.bind_error or "listening on UDP %d instead of %d (--bind-port)" % (self.bind_port, ARTNET_PORT))
         self.seq = {}
+        self.sacn_seq, self.sacn_streams, self.sacn_priority, self.sacn_listed = {}, {}, 100, 0.0
         # Frames come from the page's connection, and from the hold loop when the page stalls: one at a time
         self.send_lock = threading.Lock()
         self.packets = 0
@@ -107,24 +150,32 @@ class ArtNet:
                 self.owner.send_json({"t": "takeover"})  # two windows must not fight over the same universes
             self.owner, self.held, self.last_frame = ws, None, time.time()
         elif self.owner is ws:
+            self.release(ws)
+
+    def release(self, ws):
+        """The window stops driving the lights (output off, closed, gone): sACN receivers are told at once."""
+        if self.owner is ws:
             self.owner = None
+            self.end_sacn()
 
     def frame_from(self, ws, payload):
         if ws is not self.owner:
             return
-        self.send_frame(payload)
+        self.send_frame(payload, getattr(ws, "sacn_priority", 100))
         self.frames += 1
-        self.held, self.last_frame = payload, time.time()
+        self.held, self.held_priority, self.last_frame = payload, getattr(ws, "sacn_priority", 100), time.time()
         if self.holding:
             self.holding = False
             log("Frames from the nouPix window resumed.")
 
-    def send_frame(self, p):
+    def send_frame(self, p, priority=100):
         # [u8 type=1][u8 flags][u16 count] then count x ([4 ip][u16 universe][u16 length][data])
+        # flags: 1 ArtSync after the frame (Art-Net), 2 sACN instead of Art-Net, 4 sACN to multicast groups
         if len(p) < 4 or p[0] != 1:
             return
         flags, count = p[1], struct.unpack_from("<H", p, 2)[0]
-        off, ips = 4, []
+        sacn = bool(flags & 2)
+        off, ips, streams = 4, [], {}
         with self.send_lock:
             for _ in range(count):
                 if off + 8 > len(p):
@@ -132,12 +183,28 @@ class ArtNet:
                 ip = socket.inet_ntoa(p[off:off + 4])
                 uni, n = struct.unpack_from("<HH", p, off + 4)
                 off += 8
-                self.send_dmx(ip, uni, p[off:off + min(n, 512)])  # ArtDmx carries at most 512 channels
+                data = p[off:off + min(n, 512)]   # a universe carries at most 512 channels
                 off += n
+                if sacn:
+                    u = uni + 1
+                    if u <= SACN_MAX_UNIVERSE:
+                        key = (sacn_group(u) if flags & 4 else ip, u)
+                        streams[key] = data
+                        self.send_sacn(key, data, priority)
+                    continue
+                self.send_dmx(ip, uni, data)
                 if ip not in ips:
                     ips.append(ip)
-            if flags & 1:
+            if flags & 1 and not sacn:
                 self.send_sync(ips)
+            # sACN streams no longer sent (a universe unpatched, multicast switched, back to Art-Net) are ended
+            self.sacn_priority = priority
+            for key in [k for k in self.sacn_streams if k not in streams]:
+                self._end_stream(key)
+            self.sacn_streams = streams
+            if streams and time.monotonic() - self.sacn_listed >= SACN_DISCOVERY_EVERY:
+                self.sacn_listed = time.monotonic()
+                self.send_sacn_discovery(sorted({u for _, u in streams}))
 
     def _hold_loop(self):
         # If the page stops sending (window minimised, asleep, busy) keep repeating its last frame,
@@ -146,7 +213,7 @@ class ArtNet:
         while True:
             time.sleep(0.1)
             now = time.time()
-            if self.owner is None or self.held is None or now - self.last_frame < HOLD_AFTER:
+            if self.owner is None or not self.owner.alive or self.held is None or now - self.last_frame < HOLD_AFTER:
                 continue
             if not self.holding:
                 self.holding = True
@@ -154,7 +221,7 @@ class ArtNet:
                     "Is the window minimised, or the computer asleep?" % HOLD_AFTER)
             if now - last >= HOLD_EVERY:
                 last = now
-                self.send_frame(self.held)
+                self.send_frame(self.held, getattr(self, "held_priority", 100))
 
     def send_dmx(self, ip, universe, data):
         key = (ip, universe)
@@ -173,6 +240,40 @@ class ArtNet:
             self.errors += 1
             self.last_error = "%s: %s" % (ip, e.strerror or e)
 
+    def send_sacn(self, key, data, priority, options=0):
+        dest, universe = key
+        seq = (self.sacn_seq.get(key, -1) + 1) & 0xFF
+        self.sacn_seq[key] = seq
+        try:
+            self.sock.sendto(sacn_packet(universe, data, seq, priority, options), (dest, SACN_PORT))
+            self.packets += 1
+        except OSError as e:
+            self.errors += 1
+            self.last_error = "%s: %s" % (dest, e.strerror or e)
+
+    def _end_stream(self, key):
+        # E1.31 6.2.6: three packets with Stream_Terminated, so receivers let go now instead of after 2.5 s
+        data = self.sacn_streams.get(key, b"")
+        for _ in range(3):
+            self.send_sacn(key, data, self.sacn_priority, 0x40)
+        self.sacn_seq.pop(key, None)
+
+    def end_sacn(self):
+        with self.send_lock:
+            for key in list(self.sacn_streams):
+                self._end_stream(key)
+            self.sacn_streams = {}
+
+    def send_sacn_discovery(self, universes):
+        pages = [universes[i:i + 512] for i in range(0, len(universes), 512)] or [[]]
+        for i, page in enumerate(pages):
+            try:
+                self.sock.sendto(sacn_discovery(page, i, len(pages) - 1), (SACN_DISCOVERY, SACN_PORT))
+                self.packets += 1
+            except OSError as e:
+                self.errors += 1
+                self.last_error = "%s: %s" % (SACN_DISCOVERY, e.strerror or e)
+
     def send_sync(self, ips):
         pkt = ARTNET_ID + struct.pack("<H", OP_SYNC) + bytes((0, 14, 0, 0))
         for ip in ips:
@@ -183,13 +284,19 @@ class ArtNet:
                 self.errors += 1
                 self.last_error = "%s: %s" % (ip, e.strerror or e)
 
-    def poll(self, address):
+    def poll(self, address, again=True):
         pkt = ARTNET_ID + struct.pack("<H", OP_POLL) + bytes((0, 14, 0, 0))
         try:
             self.sock.sendto(pkt, (address, ARTNET_PORT))
-            return None
         except OSError as e:
             return "ArtPoll to %s failed: %s" % (address, e.strerror or e)
+        # Once more shortly after: some firewalls on Windows (Avast's) drop the first packet between two addresses,
+        # which can be this poll or a node's first reply. Nodes answer each poll; a node found twice is kept once.
+        if again:
+            t = threading.Timer(POLL_AGAIN, self.poll, (address, False))
+            t.daemon = True
+            t.start()
+        return None
 
     def _recv_loop(self):
         while True:
@@ -245,16 +352,28 @@ def unmask(data, mask):
 
 
 class WebSocket:
-    def __init__(self, rfile, wfile):
-        self.r, self.w = rfile, wfile
+    def __init__(self, rfile, wfile, sock=None):
+        self.r, self.w, self.sock = rfile, wfile, sock
         self.lock = threading.Lock()
         self.alive = True
+        self.heard = time.monotonic()   # when the other end last sent anything (a pong too)
 
     def _read(self, n):
         b = self.r.read(n)
         if not b or len(b) < n:
             raise ConnectionError("closed")
+        self.heard = time.monotonic()
         return b
+
+    def drop(self):
+        """Ends the connection from here: for the other end gone though its close never came (a firewall on Windows,
+        Avast's, can lose it). The reader stops waiting, and the window is let go (its Art-Net among it)."""
+        self.alive = False
+        if self.sock:
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
 
     def recv(self):
         op0, buf = None, b""
@@ -301,7 +420,7 @@ class WebSocket:
             try:
                 self.w.write(hdr + data)
             except OSError:
-                self.alive = False
+                self.drop()
 
     def send_json(self, obj):
         self.send(json.dumps(obj))
@@ -573,6 +692,201 @@ def bgra_to_rgba(data):
     return bytes(b)
 
 
+# --------------------------------------------------------------------------- OMT in its own process
+# libomt is .NET compiled to native code: when its runtime can't start, or meets an error it doesn't catch, it ends the
+# whole process (abort). So the bridge never loads it: a helper process does (this program again, with --omt-helper),
+# and the bridge talks to it through its input and output. If the helper dies, the bridge says why (the last lines it
+# wrote) and goes on, with NDI and everything else; the next time a window asks, a new helper is tried.
+#   to the helper: one JSON object a line: {op: 'find'} | {op: 'open', rid, name, hq} | {op: 'close', rid}
+#   from it: length (4 bytes) | 'J' and a JSON object (its note when it starts, the sources found, whether a receiver
+#   opened) or 'F' | rid, width, height (4 bytes each) | RGBA pixels, already cut down to size
+
+def omt_helper_command(path):
+    me = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, os.path.abspath(__file__)]
+    return me + ["--omt-helper"] + (["--omt-lib", path] if path else [])
+
+
+class OmtProcess:
+    """The bridge's side of OMT: the same parts as Omt (sources, open), with libomt in the helper process."""
+    proto, bgra = "omt", False
+    RETRY = 10.0   # seconds before a helper that died is started again
+
+    def __init__(self, path=None):
+        self.path, self.lock, self.p, self.died_at = path, threading.RLock(), None, 0.0
+        self.lib, self.note, self.rx, self.replies, self.rid = None, "", {}, {}, 0
+        self.tail = []   # the last lines the helper wrote to its error output
+        self.changed = threading.Condition(self.lock)
+        self._start()
+
+    def _start(self):
+        try:
+            p = subprocess.Popen(omt_helper_command(self.path), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        except OSError as e:
+            self.lib, self.note = None, "OMT's helper couldn't start: %s" % e
+            return
+        self.p, self.tail = p, []
+        threading.Thread(target=self._errors, args=(p,), daemon=True).start()
+        threading.Thread(target=self._read, args=(p,), daemon=True).start()
+        first = self._reply(p, "hello", 15.0)
+        if first is None:
+            return
+        self.lib, self.note = (True if first.get("ok") else None), first.get("note", "")
+
+    def _errors(self, p):
+        for line in p.stderr:
+            line = line.decode("utf-8", "replace").rstrip()
+            if line:
+                self.tail = (self.tail + [line])[-12:]
+
+    def _read(self, p):
+        out = p.stdout
+        try:
+            while True:
+                head = out.read(4)
+                if len(head) < 4:
+                    break
+                body = out.read(struct.unpack(">I", head)[0])
+                if body[:1] == b"F":
+                    rid, w, h = struct.unpack(">III", body[1:13])
+                    r = self.rx.get(rid)
+                    if r:
+                        with self.changed:
+                            r.frame, r.seq = (w, h, w * 4, body[13:]), r.seq + 1
+                            self.changed.notify_all()
+                elif body[:1] == b"J":
+                    m = json.loads(body[1:].decode("utf-8"))
+                    with self.changed:
+                        self.replies[m.get("re", "")] = m
+                        self.changed.notify_all()
+        except (OSError, ValueError):
+            pass
+        p.wait()
+        time.sleep(0.2)   # its last words, from the error output
+        with self.changed:
+            if self.p is p:
+                self.p, self.lib, self.died_at = None, None, time.monotonic()
+                said = [l for l in self.tail if l.strip()][-3:]
+                self.note = ("OMT's library stopped (exit code %s)%s. nouPix goes on without it, and tries again in a few seconds."
+                             % (p.returncode, ": " + " / ".join(said)[:400] if said else ""))
+                log(self.note)
+            self.changed.notify_all()
+
+    def _send(self, msg):
+        p = self.p
+        if not p:
+            return False
+        try:
+            p.stdin.write((json.dumps(msg) + "\n").encode("utf-8"))
+            p.stdin.flush()
+            return True
+        except (OSError, ValueError):
+            return False
+
+    def _reply(self, p, re_, timeout):
+        end = time.monotonic() + timeout
+        with self.changed:
+            while re_ not in self.replies and self.p is p and time.monotonic() < end:
+                self.changed.wait(max(0.0, end - time.monotonic()))
+            return self.replies.pop(re_, None)
+
+    def _alive(self):
+        with self.lock:
+            if self.p is None and time.monotonic() - self.died_at > self.RETRY:
+                self._start()
+            return self.p if self.lib else None
+
+    def sources(self):
+        p = self._alive()
+        if not p or not self._send({"op": "find"}):
+            return []
+        m = self._reply(p, "find", 5.0)
+        return [n for n in (m or {}).get("sources", []) if isinstance(n, str)]
+
+    def open(self, name, hq):
+        p = self._alive()
+        if not p:
+            return None
+        with self.lock:
+            self.rid += 1
+            rid = self.rid
+            r = self.rx[rid] = OmtProcessReceiver(self, p, rid)
+        m = self._send({"op": "open", "rid": rid, "name": name, "hq": bool(hq)}) and self._reply(p, "open%d" % rid, 10.0)
+        if not (m and m.get("ok")):
+            r.close()
+            return None
+        return r
+
+
+class OmtProcessReceiver:
+    def __init__(self, omt, p, rid):
+        self.omt, self.p, self.rid, self.frame, self.seq, self.taken = omt, p, rid, None, 0, 0
+
+    def capture(self, timeout_ms):
+        o = self.omt
+        end = time.monotonic() + timeout_ms / 1000.0
+        with o.changed:
+            while self.seq == self.taken and o.p is self.p and time.monotonic() < end:
+                o.changed.wait(max(0.0, end - time.monotonic()))
+            if self.seq == self.taken:
+                return None
+            self.taken = self.seq
+            return self.frame
+
+    def close(self):
+        o = self.omt
+        if o.rx.pop(self.rid, None) and o.p is self.p:
+            o._send({"op": "close", "rid": self.rid})
+
+
+def omt_helper(path):
+    """The helper process: loads libomt, and answers the bridge (see OmtProcess)."""
+    out = os.fdopen(os.dup(1), "wb")   # the answers; whatever else writes to the output goes to the error output
+    os.dup2(2, 1)
+    wlock = threading.Lock()
+
+    def put(kind, body):
+        with wlock:
+            out.write(struct.pack(">I", len(body) + 1) + kind + body)
+            out.flush()
+
+    def say(m):
+        put(b"J", json.dumps(m).encode("utf-8"))
+
+    omt = Omt(path)
+    say({"re": "hello", "ok": bool(omt.lib), "note": omt.note})
+    rxs = {}
+
+    def receive(rid, rx, hq):
+        while rid in rxs:
+            f = rx.capture(250)
+            if f is None:
+                continue
+            w, h, data = shrink_rgba(*f, VIN_MAX_W_HQ if hq else VIN_MAX_W)
+            put(b"F", struct.pack(">III", rid, w, h) + bgra_to_rgba(data))
+        rx.close()
+
+    for line in sys.stdin.buffer:
+        try:
+            m = json.loads(line.decode("utf-8"))
+        except ValueError:
+            continue
+        op = m.get("op")
+        if op == "find":
+            say({"re": "find", "sources": omt.sources() if omt.lib else []})
+        elif op == "open":
+            rid = int(m.get("rid", 0))
+            rx = omt.open(str(m.get("name", "")), m.get("hq") is True) if omt.lib else None
+            if rx:
+                rxs[rid] = True
+                threading.Thread(target=receive, args=(rid, rx, m.get("hq") is True), daemon=True).start()
+            say({"re": "open%d" % rid, "ok": bool(rx)})
+        elif op == "close":
+            rxs.pop(int(m.get("rid", 0)), None)
+    # the bridge has gone: stop at once
+    os._exit(0)
+
+
 def shrink_rgba(w, h, stride, data, max_w):
     """Takes every n-th pixel of every n-th row, so the frame is at most max_w wide, the rows packed tightly."""
     import array
@@ -642,7 +956,7 @@ class VideoIn:
         # loaded when a window first asks, so starting nouPix never waits for them
         with self.lock:
             if self._backends is None:
-                self._backends = {"ndi": Ndi(self.ndi_path), "omt": Omt(self.omt_path)}
+                self._backends = {"ndi": Ndi(self.ndi_path), "omt": OmtProcess(self.omt_path)}
             return self._backends
 
     def info(self):
@@ -818,6 +1132,27 @@ def media_store(read, length, ext, chunk=1 << 20):
             os.remove(tmp)
 
 
+class ChunkedWriter:
+    """A response body written as HTTP/1.1 chunks (Transfer-Encoding: chunked), for a body whose size isn't known."""
+
+    def __init__(self, out):
+        self.out = out
+
+    def write(self, b):
+        n = memoryview(b).nbytes
+        if n:
+            self.out.write(b"%x\r\n" % n)
+            self.out.write(b)
+            self.out.write(b"\r\n")
+        return n
+
+    def flush(self):
+        self.out.flush()
+
+    def end(self):
+        self.out.write(b"0\r\n\r\n")
+
+
 class MediaHandler:
     """The local server's part for the library and packages (mixed into Handler)."""
 
@@ -926,6 +1261,20 @@ class MediaHandler:
                 return self.reply_json(200, {"token": token})
             if u.path == "/package/open":   # a package opened: its media into the library, its project back
                 return self.package_open(n)
+            if u.path == "/save-path":   # Save in the app: the project written over the file it came from or went to
+                msg = json.loads(self.rfile.read(n).decode("utf-8"))
+                fn, text = msg.get("path", ""), msg.get("project", "")
+                if (not isinstance(fn, str) or not isinstance(text, str) or not re.search(r"\.(noupix|json)$", fn, re.I)
+                        or not os.path.isabs(fn) or not os.path.isdir(os.path.dirname(fn))):
+                    return self.reply_json(400, {"error": "not a place for a nouPix project"})
+                saved = json.loads(text)
+                if not isinstance(saved, dict) or not isinstance(saved.get("fixtures"), list):
+                    return self.reply_json(400, {"error": "not a nouPix project"})
+                tmp = fn + ".saving"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    f.write(text)
+                os.replace(tmp, fn)   # whole or not at all: a project cut short never replaces the one there
+                return self.reply_json(200, {"saved": fn})
             if u.path == "/open-path":   # a project or package by its path: one double-clicked, passed on by the app
                 fn = json.loads(self.rfile.read(n).decode("utf-8")).get("path", "")
                 if not isinstance(fn, str) or not re.search(r"\.(noupix|noupixpkg|json)$", fn, re.I) or not os.path.isfile(fn):
@@ -945,21 +1294,31 @@ class MediaHandler:
         if not job:
             return self.send_error(404, "That package was already fetched, or is too old")
         text, media, _ = job
+        # Its size isn't known before it is written: it goes in chunks, so its end is marked in the stream and the
+        # connection stays open. A body that ends when the server closes the connection breaks where a firewall
+        # turns that close into a reset (Avast's, on Windows), and a package cut short there would look complete.
+        chunked = self.request_version != "HTTP/1.0"
         self.send_response(200)
         self.send_header("Content-Type", "application/zip")
         self.send_header("Content-Disposition", "attachment")
-        self.send_header("Connection", "close")
+        if chunked:
+            self.send_header("Transfer-Encoding", "chunked")
+        else:
+            self.send_header("Connection", "close")
+            self.close_connection = True
         self.send_header("X-Package-Size", str(sum(os.path.getsize(media_path(m)) for m in media) + len(text.encode("utf-8"))))
         self.end_headers()
-        self.close_connection = True
+        out = ChunkedWriter(self.wfile) if chunked else self.wfile
         try:
-            with zipfile.ZipFile(self.wfile, "w", zipfile.ZIP_STORED) as z:
+            with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as z:
                 z.writestr("project.noupix", text)
                 for m in media:
                     with open(media_path(m), "rb") as src, z.open("media/" + m, "w", force_zip64=True) as dst:
                         shutil.copyfileobj(src, dst, 1 << 20)
+            if chunked:
+                out.end()
         except (ConnectionError, OSError):
-            pass
+            self.close_connection = True   # unfinished: without its last chunk the browser knows it is cut short
 
     @staticmethod
     def package_read(fn):
@@ -1143,6 +1502,40 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
+    def send_error(self, code, message=None, explain=None):
+        # Python's own error reply says "Connection: close" and the server then ends the connection. Some firewalls
+        # on Windows (Avast's) turn a connection ended by the server into a reset, and the browser gets no reply at
+        # all instead of the error. So an error goes like any other reply, on a connection kept open, once the
+        # request is read in full. A malformed request, one that asked to close, or a large body unread still closes.
+        if not self.command or self.close_connection or self.headers.get("Transfer-Encoding") or not self.drain_body():
+            return super().send_error(code, message, explain)
+        short, long = self.responses.get(code, ("???", "???"))
+        body = (self.error_message_format % {"code": code, "message": html.escape(message or short, quote=False),
+                                             "explain": html.escape(explain or long, quote=False)}).encode("utf-8", "replace")
+        self.send_response(code, message or short)
+        self.send_header("Content-Type", self.error_content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def drain_body(self):
+        """Reads the body of a request refused before it was read (64 kB at most), so the connection can carry
+        the next request. False when it can't: too big, or not all there within a second."""
+        n = self.body_length()
+        if n == 0:
+            return True
+        if n > 65536:
+            return False
+        was = self.connection.gettimeout()
+        try:
+            self.connection.settimeout(1)
+            return len(self.rfile.read(n)) == n
+        except OSError:
+            return False
+        finally:
+            self.connection.settimeout(was)
+
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
         if path == "/ws" and self.headers.get("Upgrade", "").lower() == "websocket":
@@ -1201,14 +1594,14 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
         self.close_connection = True
 
         art = self.server.artnet
-        ws = WebSocket(self.rfile, self.wfile)
+        ws = WebSocket(self.rfile, self.wfile, self.connection)
         first = not self.server.seen_window   # the first window since the bridge started opens the startup project
         self.server.window_count(+1)
         on_node = lambda node: ws.send_json({"t": "node", "node": node})
         art.listeners.add(on_node)
         vin_message, vin_closed = self.server.vin.window(ws)
         ws.send_json({
-            "t": "hello", "version": VERSION, "bindIp": art.bind_ip, "bindPort": art.bind_port,
+            "t": "hello", "version": VERSION, "bindIp": art.bind_ip, "bindPort": art.bind_port, "protocols": ["artnet", "sacn"],
             "discovery": art.discovery, "discoveryNote": art.discovery_note, "interfaces": local_ips(),
             "nets": network_interfaces(),
             "nodes": list(art.nodes.values()),
@@ -1221,6 +1614,13 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
             last_p, last_f, last_t = art.packets, art.frames, time.time()
             while ws.alive:
                 time.sleep(1.0)
+                # A ping every second, which browsers answer by themselves (minimised or busy too). A window silent
+                # for WS_SILENT is gone though its close never came: the bridge must not drive the lights for it.
+                if time.monotonic() - ws.heard > WS_SILENT:
+                    log("The nouPix window stopped answering: let go.")
+                    ws.drop()
+                    break
+                ws.send(b"", 9)
                 now = time.time()
                 dt = max(1e-3, now - last_t)
                 ws.send_json({"t": "stats", "pps": round((art.packets - last_p) / dt), "fps": round((art.frames - last_f) / dt, 1),
@@ -1243,8 +1643,8 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
             self.server.window_count(-1)
             art.listeners.discard(on_node)
             if art.owner is ws:
-                art.owner = None
-                log("The nouPix window closed or disconnected while Art-Net was on.")
+                art.release(ws)
+                log("The nouPix window closed or disconnected while its output was on.")
             self.server.remote.host_gone(ws)
 
     @staticmethod
@@ -1257,6 +1657,11 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
             return
         if msg.get("t") == "output":
             art.set_output(ws, bool(msg.get("on")))
+        elif msg.get("t") == "sacn":   # the window's sACN priority (0 to 200), for the frames it sends with sACN
+            try:
+                ws.sacn_priority = max(0, min(200, int(msg.get("priority"))))
+            except (TypeError, ValueError, OverflowError):
+                ws.sacn_priority = 100
         elif msg.get("t") == "remote" and remote:
             remote.configure(ws, msg)
         elif msg.get("t") == "vin" and vin:
@@ -1559,7 +1964,7 @@ class RemoteHandler(Handler):
         self.send_header("Sec-WebSocket-Accept", accept)
         self.end_headers()
         self.close_connection = True
-        ws = WebSocket(self.rfile, self.wfile)
+        ws = WebSocket(self.rfile, self.wfile, self.connection)
         remote = self.server.remote
         c = remote.join(token, ws, self.connection, self.client_address[0])
         if not c:
@@ -1752,8 +2157,12 @@ def main():
     ap.add_argument("--project", help="a .noupix project to open when the first window opens (instead of the one chosen in Settings)")
     ap.add_argument("--ndi-lib", help="the NDI library to use (found automatically where NDI Tools installs it)")
     ap.add_argument("--omt-lib", help="the OMT library, libomt (looked for in ~/.noupix/omt, next to nouPix, and the usual places)")
+    ap.add_argument("--omt-helper", action="store_true", help=argparse.SUPPRESS)   # OMT's own process (OmtProcess)
     ap.add_argument("--parent-pid", type=int, help="with --embedded: also stop if this process (the app) disappears")
     args = ap.parse_args()
+    if args.omt_helper:
+        omt_helper(args.omt_lib)
+        return
     if args.embedded:
         args.no_browser, args.background = True, False
     background = args.background

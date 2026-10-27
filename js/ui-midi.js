@@ -55,7 +55,7 @@ let midiWin = null;
 const midiWinOpen = () => !!(midiWin && !midiWin.closed);
 const midiDoc = () => (midiWinOpen() ? midiWin.document : null);
 function openMidiWindow() {
-  if (midiWinOpen()) { midiWin.focus(); return; }
+  if (midiWinOpen()) { raiseWindow(midiWin); return; }
   const w = window.open('', 'olm-midi', 'popup,width=1180,height=760');
   if (!w) { toast('The MIDI window could not open: allow pop-up windows for this page.', 'err'); return; }
   midiWin = w;
@@ -104,7 +104,7 @@ function midiHint() {
   return !L.on ? ['Press Learn, move a control on your controller, then choose what it should move.']
     : L.pending ? [h('b', null, midiKeyFull(L.pending)), ' moved: choose what it should move in its list, or click it here or in the main window.']
       : L.target ? ['Now move the control for ', h('b', null, midiTargetLabel(L.target)), '.']
-        : ['Move a control on your controller, then choose what it should move: in its list, a macro here, or anything in the main window (Master, Blackout, a zone\'s level, a scene, a playlist, an effect\'s control). Or the other way round.'];
+        : ['Move a control on your controller, then choose what it should move: in its list, a macro here, or anything in the main window (Master, Blackout, a zone\'s level, a scene, a playlist, an effect\'s control). Or the other way round. While learning, controls learn instead of playing, but the one just learnt plays; Esc stops learning.'];
 }
 function midiRedraw() {
   if (!project || REMOTE_CLIENT) return;
@@ -153,9 +153,13 @@ function renderMidiWindow(D) {
       h('p', { class: 'note' }, 'The browser may ask whether nouPix can use your MIDI devices.')));
   } else if (ui.midiView === 'bay') body = bayView();
   else body = h('div', { class: 'midipanel' + (ui.midiMon ? '' : ' monshut') }, midiPorts(), midiMaps(), midiMonitor());
-  const scrolled = $$('.bcol', D).map(c => [c.classList[1], c.scrollTop]);   // the bay's columns keep where they were
-  D.body.replaceChildren(head, body, ui.midiOn ? midiVc() : '', h('div', { class: 'toasts', id: 'toasts' }));
-  for (const [k, top] of scrolled) { const c = $('.bcol.' + k, D); if (c) c.scrollTop = top; }
+  // every column keeps where it was scrolled to (the list, the bay's columns, the monitor): built again after a
+  // change or a message, the row under the pointer stays under it
+  const where = c => (c.id ? '#' + c.id : '.' + [...c.classList].join('.'));
+  const scrolled = $$('.bcol, .mcol, .mmon', D).map(c => [where(c), c.scrollTop]);
+  // the messages showing stay: one said just now (Removed…, a mapping learnt) isn't lost to the change it tells of
+  D.body.replaceChildren(head, body, ui.midiOn ? midiVc() : '', $('#toasts', D) || h('div', { class: 'toasts', id: 'toasts' }));
+  for (const [k, top] of scrolled) { const c = $(k, D); if (c) c.scrollTop = top; }
   midiTabUpdate(D);
   if (ui.midiView === 'bay') midiWin.requestAnimationFrame(() => bayWires());   // once it is laid out
 }
@@ -202,21 +206,30 @@ function midiTargetSelect(w, pick = to => midiSetMap(w.id, { to })) {
       z.playlists.map(pl => opt(`pl:${z.id}:${pl.id}`, `${z.name} · ${pl.name} (playlist)`)))),
     fx.map(src => h('optgroup', { label: src.name + ' (effect)' }, controlsOf(src).map(i => `p:${src.id}:${i.NAME}`).filter(t => midiTarget(t)).map(t => opt(t, midiTargetLabel(t))))));
 }
+// How a mapping moves what it drives, as buttons: Pickup or Jump for a fader or knob on a fader; Toggle (full, then
+// off) or Hold (full while held) for a pad on a fader, and for anything on or off (Follow for a fader or knob); for
+// what a press plays, nothing to choose. Null for a mapping whose target is gone.
+function midiHow(w) {
+  const T = midiTarget(w.to), k = midiKeyParts(w.key);
+  if (!T) return null;
+  const seg = (key, opts) => h('span', { class: 'seg mini' }, opts.map(([v, label, tip]) => h('button', { type: 'button', class: w[key] === v ? 'on' : '', title: tip, onclick: () => midiSetMap(w.id, { [key]: v }) }, label)));
+  if (T.kind === 'fader' && k.type === 'cc') return seg('takeover', [['pickup', 'Pickup', 'It follows once the fader reaches it'], ['jump', 'Jump', 'It goes where the fader is at once']]);
+  if (T.kind === 'fader') return seg('mode', [['toggle', 'Toggle', 'Each press: full, then off'], ['hold', 'Hold', 'Full while held, off when let go']]);
+  if (T.kind === 'toggle') return seg('mode', [['toggle', 'Toggle', 'Each press turns it on or off'], k.type === 'cc' ? ['hold', 'Follow', 'On while the control is up: a fader past the middle, a button held or latched'] : ['hold', 'Hold', 'On while held']]);
+  return h('span', { class: 'muted', title: 'A press plays it' }, 'On a press');
+}
 function midiMaps() {
   const maps = project.midi.maps;
   const ports = new Set(maps.map(w => midiKeyParts(w.key).port));
   const keyAt = new Map(midiKeyOrder(maps.map(w => w.key)).map((k, i) => [k, i]));   // in the controls' order
   const rows = maps.slice().sort((a, b) => keyAt.get(a.key) - keyAt.get(b.key)).map(w => {
     const k = midiKeyParts(w.key), T = midiTarget(w.to);
-    const seg = (key, opts) => h('span', { class: 'seg mini' }, opts.map(([v, label, tip]) => h('button', { type: 'button', class: w[key] === v ? 'on' : '', title: tip, onclick: () => midiSetMap(w.id, { [key]: v }) }, label)));
-    const how = !T ? h('span') : T.kind === 'fader' ? seg('takeover', [['pickup', 'Pickup', 'It follows once the fader reaches it'], ['jump', 'Jump', 'It goes where the fader is at once']])
-      : T.kind === 'toggle' ? seg('mode', [['toggle', 'Toggle', 'Each press turns it on or off'], k.type === 'cc' ? ['hold', 'Follow', 'On while the control is up: a fader past the middle, a button held or latched'] : ['hold', 'Hold', 'On while held']])
-        : h('span', { class: 'muted', title: 'A press plays it' }, 'On a press');
     return h('div', { class: 'mmap' + (T ? '' : ' missing'), 'data-map': w.id, title: k.port },
       h('span', { class: 'mk' }, midiKeyFull(w.key), ports.size > 1 ? h('small', null, k.port) : null),
       midiTargetSelect(w),
-      how,
-      h('span', { class: 'cval' }, h('i', { class: 'cbar' })),
+      midiHow(w) || h('span'),
+      // the control's value, and on Pickup, until it has picked up: the mark it has to reach
+      h('span', { class: 'cval' }, h('i', { class: 'cbar' }), h('i', { class: 'cpick', hidden: true })),
       h('button', { class: 'x', type: 'button', title: 'Remove this mapping', 'aria-label': `Remove ${midiKeyFull(w.key)} to ${T ? T.label : 'missing'}`, onclick: () => midiDisconnect(w.id) }, icon('x')));
   });
   // learning: the control just moved, at the top, with its list to choose what it moves
@@ -247,8 +260,14 @@ function midiTabUpdate(D) {
   for (const b of macroBinders) b();
   if ($('.bay', D)) bayUpdate(D);
   for (const el of $$('.mmap', D)) {
-    const w = project.midi.maps.find(x => x.id === el.dataset.map), c = w && midiControlOf(w), bar = el.querySelector('.cbar');
+    const w = project.midi.maps.find(x => x.id === el.dataset.map), c = w && midiControlOf(w), bar = el.querySelector('.cbar'), pick = el.querySelector('.cpick');
     if (bar) bar.style.width = c ? c.last * 100 + '%' : '0';
+    if (pick) {
+      const T = w && midiTarget(w.to), wait = !!(T && T.kind === 'fader' && w.takeover === 'pickup' && midiKeyParts(w.key).type === 'cc' && !midiPicked(w));
+      pick.hidden = !wait;
+      if (wait) { pick.style.left = T.get() * 100 + '%'; el.title = `Pickup: ${T.label} is at ${Math.round(T.get() * 100)} %. Move the control to the white mark and it follows from there.`; }
+      else if (el.title.startsWith('Pickup')) el.title = midiKeyParts(w.key).port;
+    }
     el.style.setProperty('--heat', w ? midiHeat(w).toFixed(2) : 0);
   }
   for (const t of $$('.vtrack', D)) {
@@ -325,7 +344,7 @@ function midiVc() {
 /* ---------- learning, the button ---------- */
 // While learning, a touch on something MIDI can drive picks it, and does nothing else (a scene doesn't play, a
 // slider doesn't move)
-const midiPickEl = e => midi.learn.on && e.target.closest && e.target.closest('[data-midi]');
+const midiPickEl = e => midi.learn.on && e.target.closest && !e.target.closest('.mfold') && e.target.closest('[data-midi]');
 // While learning, a touch on anything marked data-midi picks it, and does nothing else (a slider stays where it was)
 function midiCapture(doc) {
   doc.addEventListener('pointerdown', e => {
@@ -333,7 +352,7 @@ function midiCapture(doc) {
     if (!el) return;
     e.preventDefault(); e.stopPropagation();
     if (e.target.type === 'range') e.target._midiKeep = e.target.value;
-    midiLearnTarget(el.dataset.midi);
+    midiLearnTarget(el.dataset.midi, e.altKey);
   }, true);
   for (const t of ['click', 'dblclick', 'input', 'change']) doc.addEventListener(t, e => {
     if (!midiPickEl(e)) return;

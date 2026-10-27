@@ -1,8 +1,8 @@
-# nouPix 1.2.1
+# nouPix 1.2.2
 
 <img src="icons/noupix-256.png" alt="" width="96" align="right">
 
-A pixel-mapping tool for LED installations, by nouled studio. It was called openLedMapper until 1.0. Draw or import your LED fixtures, play generators, shaders, images, video or a screen capture on them, store looks as scenes, play them in playlists, and send it all out over Art-Net.
+A pixel-mapping tool for LED installations, by nouled studio. It was called openLedMapper until 1.0. Draw or import your LED fixtures, play generators, shaders, images, video or a screen capture on them, store looks as scenes, play them in playlists, and send it all out over Art-Net or sACN.
 
 ## Download
 
@@ -42,7 +42,7 @@ New to nouPix? The **[Getting started guide (PDF)](docs/nouPix-getting-started.p
 2. **Patch:** add your controller in the Patch panel (IP, outputs, universes per output), or find it with **Nodes → Discover**. Drag fixtures onto its outputs; ↑ ↓ (or Alt ↑ ↓) change their order, which sets their addresses.
 3. **Content:** click a source to play it. Use zones and layers (Content tab) to play different things on different parts.
 4. **Scenes:** press **+ Store** to save a look, and click it to fade back to it. Drag its fade time to change it. The playlist button next to **+ Store** makes a playlist of scenes that plays by itself. With two zones over the whole canvas, **X-Fader** (bottom left of the Scenes panel) mixes one into the other with a single fader.
-5. Art-Net goes out from the start; the status bar shows it. **Settings → Art-Net connection** switches it off.
+5. Art-Net goes out from the start; the status bar shows it. **Settings → Art-Net / sACN** switches it off and chooses the protocol.
 
 Right-click anything for its options.
 
@@ -56,10 +56,10 @@ To see it working before you build anything, open one of the [examples](examples
 - Scenes per zone, with crossfades; the fade time is on each scene's button. A scene or a playlist can play when the project opens, and a project can open when nouPix starts (Settings → Startup, or `noupix.py --project FILE`): for computers that run a show by themselves.
 - **X-Fader:** one fader between two zones, A and B, like the crossfader of a DJ or video mixer. Turn it on at the bottom left of the Scenes panel; its strip shows a live preview of each zone (even the one faded out, so you see what comes next) and lists to choose them. Three modes, each drawn as a small graph: **Mix** fades A into B, as bright in the middle as at the ends where both cover the same lights; **Dip** goes through black; **Cut** switches at the middle. While it is on it alone sets A's and B's levels. Give it a fader on your MIDI controller, and, for special occasions, put it on the phones' Remote page too.
 - **Playlists:** several per zone, each a list of scenes with play times, played by itself in a loop, once, or followed by another playlist. Fades come from each scene, one for the whole playlist, or a step's own.
-- Art-Net output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
+- Art-Net or sACN (E1.31, unicast or multicast) output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
 - The output keeps running when the window is minimised or covered.
 - **Black or white:** the interface is black, so the light on the stage is the brightest thing on screen; one click in the top bar (or Settings → Interface) turns it white for daylight. Groups and zones can be given a colour, which their fixtures and scenes show; nothing gets one unless you choose it.
-- Works offline: the fonts and everything else come with the app. Online, it tells you when a new version is out (once a day, from GitHub; Settings → Updates turns it off).
+- Works offline: the fonts and everything else come with the app. Online, it tells you when a new version is out (when it starts, from GitHub; Settings → Updates turns it off).
 - **Macros:** in the MIDI window, Speed, Intensity, Saturation, Color 1 and 2, and the controls most effects share (Angle, Width, Softness…), for every effect at once, over each one's own values: scenes keep theirs. Each effect can take a control out of its macro, or have it follow another.
 - **MIDI:** the faders, knobs and pads of a MIDI controller move the master, blackout, the X-Fader, the groups' dimmers, the zones' levels, the macros and any control of an effect, and play scenes and playlists. Press Learn, move a control, then choose what it should move from its list, or click it. Faders pick up where the slider is, and a thin yellow line on the slider shows where the fader is. See every mapping as wires in the patch bay (draw new ones by dragging; see and change which effects follow each macro), or as a list. No controller at hand? The MIDI window has a virtual one on screen.
 - **Remote control:** phones, tablets and other computers on the network log in as Programmer (everything, with a password), Operator (content, scenes and playlists; the mapping is locked) or Remote, a simple page that plays the playlists and scenes of each zone and dims the zones (and, when you choose, moves the X-Fader).
@@ -83,7 +83,7 @@ To see it working before you build anything, open one of the [examples](examples
 
 - **Full reference:** every feature in detail is in [docs/user-guide.md](docs/user-guide.md); the [Getting started guide (PDF)](docs/nouPix-getting-started.pdf) is the short way in.
 - **Media library and packages:** images and videos are copied once into nouPix's library, so projects open with them without relinking; **Export package…** writes one `.noupixpkg` file with the project and its media, to open on another computer.
-- **Limits:** Art-Net only (no sACN yet). No Syphon or Spout; use NDI, OMT or window capture instead.
+- **Limits:** one protocol at a time (Art-Net or sACN, for the whole project). No Syphon or Spout; use NDI, OMT or window capture instead.
 
 ## For developers
 

@@ -28,17 +28,17 @@ order by `<script src>` tags at the end of `index.html`:
 | `model.js` | The project and its parts: constants (`CURVES`, `CURVE_STRENGTH`, `TAGS`: the colours a group or zone can be given), defaults, the `project` and `ui` state, factories, groups, selection, look-ups by id, a fixture's colour (its group's), the crossfader's two zones | `project` `ui` `blankProject` `newFixture` `fxBits` `fxCurve` `curveParam` `newZone` `newLayer` `newPlaylist` `newStep` `newController` `selected` `selUnits` `fxById` `fxTag` `isTag` `markGeom` `markPatch` `xfZones` `xfDriven` |
 | `macros.js` | Macros: their list (`MACROS`: Speed, Intensity, Saturation, Color 1 and 2, the shared controls), defaults and repair, which control of an effect follows which (by name, or as chosen for that effect in `project.macroLinks`), a value with its macro on it, colour parts | `MACROS` `macroDef` `defaultMacros` `fixMacros` `macroRoles` `macroChoices` `macroRolesOf` `fixMacroLinks` `macroActive` `macroOver` `macroPart` `macroPartPatch` |
 | `geometry.js` | Mapping math: each fixture's pixel positions, lengths, bounds, distances; moving, turning, scaling a fixture and the frame around several | `computePoints` `rebuildGeometry` `computeBB` `rotateFixture` `scaleFixture` `frameOf` `snap45` |
-| `patch.js` | Addressing: universe and channels of every pixel on its controller output (`BPP`: channels per pixel, doubled on 16-bit fixtures), conflicts | `computePatch` `ensurePatch` `universes` `addrOf` `BPP` `assign` `unassign` |
+| `patch.js` | Addressing: universe and channels of every pixel on its controller output (`BPP`: channels per pixel, doubled on 16-bit fixtures), conflicts; the protocol out (`isSacn`, `outName`) and universes as it counts them (`uniLabel`: sACN's one higher; with multicast, `sacnMulticast`, a universe is one for every controller) | `computePatch` `ensurePatch` `universes` `addrOf` `BPP` `assign` `unassign` `isSacn` `uniLabel` `outName` |
 | `sources.js` | Content sources (images and videos played from the bridge's media library, `src.media`, `loadLibraryMedia`, `libraryPut`): WebGL canvas, ISF runtimes (compiled when first played or drawn as a thumbnail; `headerOf` reads a header without compiling, `controlsOf` an effect's controls from it, `effectRt` what `macroRolesOf` needs from it), parameters and speeds, images and videos (trim, loop, sound), the media format check, source thumbnails | `runtimeOf` `effectRt` `headerOf` `controlsOf` `isSpeedInput` `renderSource` `applyParams` `probeMedia` `attachMedia` `syncMedia` `videoTick` |
 | `render.js` | The GPU mixer (zones, layers, blend modes; the crossfader's even mix; a zone's picture made small for a preview, `mixer.thumb`, read back on WebGL2 through a buffer and a fence so the page never waits for the GPU), looks and fades, recalling a scene, sampling the composition at every pixel, highlight and test patterns | `mixer` `renderContent` `loadSource` `startFade` `recallScene` `sampleMix` `testPattern` `setHighlight` |
 | `streams.js` | NDI and OMT in: the streams the project's stream sources want (`syncStreams`, asked of the bridge), frames from the bridge into a canvas per stream that `mediaEls` holds for its sources (`streamFrame`), the sources found and each stream's state | `streams` `syncStreams` `findStreams` `streamFrame` `streamMessage` `streamState` `streamKey` `isStream` `STREAM_PROTOS` |
-| `output.js` | Gamma, sampled colours to DMX channels (each fixture's dimmer × its group's (`groupLevel`) × the master; 8-bit; 16-bit through `output16`: dimming curves shaped by gamma or strength, coarse then fine), the outgoing frame, the clock, the bridge connection | `buildOutput` `output16` `curveValue` `layoutFrame` `sendFrame` `tick` `startClock` `connectBridge` `bridge` |
+| `output.js` | Gamma, sampled colours to DMX channels (each fixture's dimmer × its group's (`groupLevel`) × the master; 8-bit; 16-bit through `output16`: dimming curves shaped by gamma or strength, coarse then fine), the outgoing frame (its flags say Art-Net or sACN, `frameFlags`), the clock, the bridge connection | `buildOutput` `output16` `curveValue` `layoutFrame` `sendFrame` `frameFlags` `tick` `startClock` `connectBridge` `bridge` |
 | `project-io.js` | Project files: repairing what is opened, undo history, autosave, open/save, packages (`exportPackage`, `openPackage`), CSV, SVG import, the demo | `hydrate` `serialize` `commit` `commitSoft` `undo` `redo` `loadProject` `importSvg` `demoProject` |
 | `remote.js` | Remote control: the host side (configure the bridge, send the project and the phones' state, apply devices' changes by role) and the client side (this page opened on a device at `/app`) | `remote` `REMOTE_CLIENT` `mappingLocked` `remoteChanged` `remoteFromDevice` `contentOf` `connectRemote` `remoteOp` |
 | `playlists.js` | Playlists: a zone plays some of its scenes in turn on the frame clock; which fade a step uses; play, pause, next, the end; the state devices see | `playlistTick` `playPlaylist` `togglePlaylist` `pausePlaylist` `resumePlaylist` `stepPlaylist` `playlistManual` `stepFade` `playingList` `playElapsed` `playState` |
 | `midi.js` | MIDI in: Web MIDI and its ports, messages, the mappings' targets (master, blackout, the crossfader `xf`, group dimmer `gr:<group>`, zone level, scene, next scene, playlist, macro, a control of an effect), pickup and jump, toggle and hold (Follow for a fader, the default when one is learnt onto something on or off), learn | `midi` `startMidi` `setMidiOn` `midiMessage` `midiIn` `midiTarget` `effectTarget` `midiApply` `midiSetLearn` `midiLearnTarget` `midiConnect` `midiSetMap` `midiDisconnect` |
 | `actions.js` | What the user can do, whichever button, key or menu asks: fixtures, selection, align/turn/resize, copy and paste, zones and their levels, the crossfader, layers, scenes, playlists, controllers, macros and what an effect follows, an effect's control set everywhere it plays, adding sources from files | `addFixture` `deleteSel` `duplicateSel` `groupSel` `alignSel` `rotateSel` `pasteFixtures` `addZone` `setZoneOpacity` `setXfade` `setXfadeOn` `setXfadeZone` `addLayer` `goScene` `storeScene` `playlistDo` `addPlaylist` `addToPlaylist` `moveStep` `deleteController` `setMacro` `setMacroLink` `setEffectControl` |
-| `ui-forms.js` | Building blocks for the panels: rows, inputs, sliders (a value typed on double-click, Shift + scroll in notches; the track filled up to the value, `rangeFill`, kept by the value setter and input events), a group's or zone's colour (`tagSwatches`), segmented buttons, lists that reorder by dragging and their move animation, rows that scroll sideways with ‹ › (`hscroller`), scroll positions kept when a panel is drawn anew (`keepScroll`, `data-keep`), a window this page draws into dressed like it (`dressWindow`), a short explanation under anything marked `data-tip` ("Title|What it does", `initTips`) | `row` `numRow` `sliderRow` `shiftWheel` `notchFrom` `seg` `checkRow` `reorderable` `flipRows` `hscroller` `keepScroll` `dressWindow` `initTips` |
+| `ui-forms.js` | Building blocks for the panels: rows, inputs, sliders (a value typed on double-click, Shift + scroll in notches; the track filled up to the value, `rangeFill`, kept by the value setter and input events), a group's or zone's colour (`tagSwatches`), segmented buttons, lists that reorder by dragging and their move animation, rows that scroll sideways with ‹ › (`hscroller`), scroll positions kept when a panel is drawn anew (`keepScroll`, `data-keep`), a window this page draws into dressed like it (`dressWindow`) and brought to the front (`raiseWindow`: focus, and `#raise…` for the app to restore it), a short explanation under anything marked `data-tip` ("Title|What it does", `initTips`) | `row` `numRow` `sliderRow` `shiftWheel` `notchFrom` `seg` `checkRow` `reorderable` `flipRows` `hscroller` `keepScroll` `dressWindow` `initTips` |
 | `ui-color.js` | The colour picker for shader colour controls: wheel and intensity, RGB, HSV, hex, lighting presets, recent colours | `colorRow` `openColorPicker` `hsvToRgb` `rgbToHsv` |
 | `ui-stage.js` | The stage canvas: view and zoom, drawing (its fonts and colours read from the page's, `stageLook`, again when the look changes; the pixels, with 800 or more on screen, as the content seen through a mask of their circles, `dotsMasked`, else each dot in its colour, `drawDots`), zones on the stage, hit testing, handles, tools, pointer, pixel finder, guide image | `drawView` `stageLook` `dotsMasked` `drawDots` `fitView` `setTool` `hitFixture` `dragHandle` `endDrag` `defaultFixtureAt` |
 | `ui-lists.js` | The left column: fixture list (groups, badges, drag and drop) and source list (categories, search; its height, `ui.srcH`, dragged on its top edge, `#srcGrip` in app.js) | `renderFxList` `renderSrcList` |
@@ -48,9 +48,9 @@ order by `<script src>` tags at the end of `index.html`:
 | `ui-menus.js` | The menu system and every menu, the SVG import dialog, copy/cut/paste keys | `menu` `fixtureMenu` `canvasMenu` `projectMenu` … |
 | `ui-remote.js` | Remote control in the interface: the top-bar button and menu, the Settings section, the waiting screen on devices, `lockPanel` for operators | `updateRemoteUI` `remoteMenu` `remoteSection` `remoteOverlay` `lockPanel` |
 | `ui-macros.js` | The macros panel of the MIDI window (colour parts in HSV or RGB, the shared controls folded; its own binders, `macroBinders`), the "Follows Speed" note under an effect's control, "Macros it follows" in an effect's Parameters (what each control follows, for that effect), the Content tab's values and an open colour picker refreshed once a frame | `macrosPanel` `macroFollows` `macroLinksFold` `syncContentSoon` `updateMacrosUI` |
-| `ui-midi.js` | MIDI in the interface: the top-bar button, the MIDI window (a popup this page draws into: Learn, controllers and the macros under them, mappings (while learning, the control just moved at the top with a list to choose its target), monitor, the virtual controller: on-screen faders and pads sent through `midiIn` as port `MIDI_VIRTUAL`), the learn bar, learning by touching anything marked `data-midi` in either window (`midiCapture`), the yellow line and tags on what a control drives | `updateMidiUI` `openMidiWindow` `renderMidiWindow` `midiSlot` `midiButton` `markMidi` `initMidiUI` |
+| `ui-midi.js` | MIDI in the interface: the top-bar button, the MIDI window (a popup this page draws into: Learn, controllers and the macros under them, mappings (while learning, the control just moved at the top with a list to choose its target), monitor, the virtual controller: on-screen faders and pads sent through `midiIn` as port `MIDI_VIRTUAL`), the learn bar, learning by touching anything marked `data-midi` in either window (`midiCapture`; Alt: only that; never a group's arrow), the yellow line and tags on what a control drives, how a mapping moves its target (`midiHow`: Pickup or Jump, Toggle or Hold), the mark a fader on Pickup has to reach | `updateMidiUI` `openMidiWindow` `renderMidiWindow` `midiHow` `midiSlot` `midiButton` `markMidi` `initMidiUI` |
 | `ui-bay.js` | The patch bay, the MIDI window's second view (`ui.midiView`: 'list' or 'bay'): controls, targets (output, zones, macros) and effects' controls (colours too) in three columns, a yellow wire per mapping and aluminium wires from a macro to the effect controls that follow it (`bayLinks`, shown for the macro pointed at or pinned; SVG over the columns; dashed into a folded group or past a column's edge), wires drawn by dragging from a dot (`bayDrawStart`, `bayDropAt`: `midiAddMap`, `setMacroLink`), a wire picked with its settings and Remove (Delete, `bayRemoveSel`), rows that move their target, folding (`ui.bayOpen`), controls forgotten (×, `midiForget`) and put in order by dragging (`project.midi.order`, `midiSetOrder`; the list follows) | `bay` `bayView` `bayWires` `bayUpdate` `bayKeys` `bayLinks` `bayDrawStart` |
-| `app.js` | Top bar and status bar, the look (black or white: `ui.theme`, the top bar's button and Settings), wiring buttons and keys, the frame loop, `boot()`, and `window.olm`; looking for a new version (the latest release on GitHub, once a day, a window with Download, Later, Skip this version) | `initUI` `setTheme` `applyTheme` `onKey` `renderAll` `boot` `checkUpdates` `newerVersion` |
+| `app.js` | Top bar and status bar, the look (black or white: `ui.theme`, the top bar's button and Settings), wiring buttons and keys, the frame loop, `boot()`, and `window.olm`; looking for a new version (the latest release on GitHub, at every start and once a day, a window with Download, Later, Skip this version) | `initUI` `setTheme` `applyTheme` `onKey` `renderAll` `boot` `checkUpdates` `newerVersion` |
 
 ### How the files fit together
 
@@ -133,20 +133,26 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   cover the canvas (`xfFitAdvice`); turning it on or off and choosing a zone are steps of undo. `renderContent`
   lays the lower of the two on whole where the upper covers it, so the upper's level alone mixes them there and the
   light stays even, and draws both even when one is faded out, for their previews.
+- What goes out is the project's: `settings.protocol` (`'artnet'`, the default, or `'sacn'`), `sacnPriority` (0 to 200,
+  100) and `sacnMulticast`; one protocol at a time. Universes are counted from 0 inside, as Art-Net counts them; with sACN
+  every number the interface shows or takes is one higher (`uniLabel`; First uni is typed from 1) and the bridge adds the
+  one on the wire, so switching never moves the patch. Each frame says how to send it in its flags (1 ArtSync, 2 sACN,
+  4 multicast), so an undo or another project can't leave the bridge on the old protocol; the priority goes as
+  `{t: 'sacn', priority}` when it changes. Switching protocol or multicast is `markPatch` (multicast changes what clashes).
 - A group's dimmer is `g.level` (0 to 1; absent at 1, so files without dimmed groups don't change): `setGroupLevel`
   sets it and every slider showing it; `buildOutput` multiplies it in.
 - Colours: a group (`g.tag`), a zone (`z.tag`) or a scene (`sc.tag`) may have one, a hex from `TAGS`; none (`''`, or no
   `tag` on a scene) is the default: nothing gets one unless the user gives it. Fixtures show their group's (`fxTag`);
   a zone's is its scenes' edge, a scene's its corner mark (`--mark`; red without one), dim and bright while it plays. `hydrate` drops fixtures' colours, and
   the others from files before version 4 (they were given automatically then).
-- Files: `{ format: 'noupix-project', version: 4, id, … }`, saved as `.noupix` (JSON; `.json` opens too). Save writes over the file opened or saved (`projectFile`, where the browser lets pages write files), Save as asks, and `ui.autosave` writes every change to it. The project's name follows its file (`nameFromFile` on Save as, the file's name on opening). A scene with `onOpen` (one per zone) is recalled by `loadProject` where no playlist plays on open. The project that opens when nouPix starts (Settings → Startup, `setStartupProject`) is kept by the bridge (`Startup`, `~/.noupix/startup.noupix`, `NOUPIX_STARTUP_FILE`), kept current while it is open (`keepStartupProject`), and sent in `hello` as `startupProject` to the first window after the bridge starts (`--project FILE` gives another); `openStartupProject` opens it. Images and videos are copied into the bridge's media library when added (`storeMedia`, actions.js) and refer to it by name (`src.media`); a package (`.noupixpkg`) is the project and those files, made and read by the bridge. A video with `volFollow` plays at its volume × its zone's level × its layer's opacity (`videoVolume`). `hydrate` (project-io.js) repairs
+- Files: `{ format: 'noupix-project', version: 4, id, … }`, saved as `.noupix` (JSON; `.json` opens too). Save writes over the file opened or saved (`projectFile`, where the browser lets pages write files; in the app `projectPath`: the file opened by its path, or the place a project download went, which the app tells, `savedToPath`; written by the bridge, `POST /save-path`, only a project, only to a `.noupix` or `.json`; `setProjectFile` sets one and forgets the other), Save as asks, and `ui.autosave` writes every change to it. The project's name follows its file (`nameFromFile` on Save as, the file's name on opening). A scene with `onOpen` (one per zone) is recalled by `loadProject` where no playlist plays on open. The project that opens when nouPix starts (Settings → Startup, `setStartupProject`) is kept by the bridge (`Startup`, `~/.noupix/startup.noupix`, `NOUPIX_STARTUP_FILE`), kept current while it is open (`keepStartupProject`), and sent in `hello` as `startupProject` to the first window after the bridge starts (`--project FILE` gives another); `openStartupProject` opens it. Images and videos are copied into the bridge's media library when added (`storeMedia`, actions.js) and refer to it by name (`src.media`); a package (`.noupixpkg`) is the project and those files, made and read by the bridge. A video with `volFollow` plays at its volume × its zone's level × its layer's opacity (`videoVolume`). `hydrate` (project-io.js) repairs
   anything opened (older versions, openLedMapper and Weft files, hand edits) so the rest of the code can trust the
   project. A new field gets its default there.
 - `ui` holds view and selection state; the part listed in `UI_PREFS` is kept between sessions (`savePrefs`, under
   `noupix.ui`; that includes `ui.theme`, which a script in `index.html`'s head applies before anything is drawn).
   What the browser kept under `openledmapper.*` (or `weft.*`) moves to `noupix.*` once (`carryOverStorage`).
 - New versions: once the bridge says which version runs (`showVersion`), the main window asks GitHub's API for the latest
-  release (`checkUpdates`, from the page, so the browser's own certificates are used), at most once a day (`ui.updateAt`),
+  release (`checkUpdates`, from the page, so the browser's own certificates are used), every time it starts (`checkUpdates(false, true)`) and at most once a day while it runs (`ui.updateAt`),
   with Settings → Updates on (`ui.updates`); a version skipped (`ui.updateSkip`) isn't told of again by itself. A browser
   driven by tests (`navigator.webdriver`) never looks by itself, so the suites stay offline.
 
@@ -187,16 +193,26 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
 Python standard library only. Serves `/` and `/index.html`, plain-named `.css`, `.js` and `.woff2` files in `css/`,
 `js/` and `js/vendor/` (nothing else), and the WebSocket at `/ws`; with remote control on, the network server described above. The
 page sends binary frames (`layoutFrame` in output.js describes the layout) that the bridge turns into Art-Net
-packets, plus JSON messages (discovery polls, settings, remote control). **NDI and OMT in** (`VideoIn`, `Ndi`, `Omt`): the bridge loads
+packets, or sACN ones (`sacn_packet`, port 5568, universe + 1, to the controller or to `sacn_group`; the sequence per stream,
+the CID the same on this computer, `SACN_SOURCE`; `send_sacn_discovery` every 10 s; a stream that ends gets three
+Stream_Terminated packets, `_end_stream`, also when its window lets go, `ArtNet.release`), plus JSON messages (discovery polls, settings, remote control). **NDI and OMT in** (`VideoIn`, `Ndi`, `Omt`): the bridge loads
 the library the user installed (NDI Tools, `--ndi-lib` or `NOUPIX_NDI_LIB`; libomt with libvmx, in `~/.noupix/omt`, `--omt-lib`
 or `NOUPIX_OMT_LIB`; nothing bundled) with ctypes, lists the sources (`{t: 'vin', op: 'find'}`) and receives the ones a window asks for (`op: 'sub'`), each on its
 own thread, frames cut down to 640 wide (Light, the preview stream) or 1920 (Full) by `shrink_rgba` (OMT's BGRA turned to RGBA), sent to the window
-as binary messages starting `VIN1`, newest frame only. **Media library and packages** (`MediaHandler`, mixed into the local
+as binary messages starting `VIN1`, newest frame only. libomt is .NET compiled to native code and ends its process when its runtime fails, so the bridge never loads it:
+`OmtProcess` runs it in a helper process (this program with `--omt-helper`, `omt_helper`; frames come back cut down and in RGBA), and if
+the helper dies the bridge says why in the stream window (its last error lines) and starts a new one 10 s later. **Media library and packages** (`MediaHandler`, mixed into the local
 `Handler` only): `POST /media?name=` stores a file in `MEDIA_DIR` (`~/.noupix/media`, `NOUPIX_MEDIA_DIR`) named by its content
 (32 hex digits of SHA-256 and its extension, `MEDIA_NAME`), `GET /media/<name>` serves it with ranges, `/media-info` gives
-sizes, `POST /media/clean` keeps a list; `POST /package` then `GET /package/<token>/<file>` streams a zip (stored, zip64) of
-`project.noupix` and `media/<name>`, and `POST /package/open` takes one back into the library. Posts from another
-site's page are refused (`origin_ok`). A stream source is `{ kind: 'stream', proto: 'ndi' | 'omt', stream:
+sizes, `POST /media/clean` keeps a list; `POST /package` then `GET /package/<token>/<file>` streams a zip (stored, zip64,
+in chunks: `ChunkedWriter`) of `project.noupix` and `media/<name>`, and `POST /package/open` takes one back into the library. Posts from another
+site's page are refused (`origin_ok`). **The bridge never ends a connection it could keep:** some firewalls on Windows
+(Avast's) turn a connection the server closes into a reset, and the reply is lost. Every reply has a `Content-Length` or
+comes in chunks; errors go through `Handler.send_error`, which keeps the connection (Python's own closes it; a body not
+read yet is read first, `drain_body`); each ArtPoll goes out twice (`POLL_AGAIN`), as those firewalls also drop the first
+UDP packet between two addresses. They can lose a window's close too, so the bridge pings each window every second
+(browsers answer by themselves) and lets go of one silent for `WS_SILENT` (`WebSocket.drop`): it never drives the lights
+for a window that is gone. A stream source is `{ kind: 'stream', proto: 'ndi' | 'omt', stream:
 its name on the network, name, hq, fit }`. `VERSION`
 is the app's version; it shows next to the name in the top bar. `noupix.spec` packs the bridge and the
 interface files for the desktop apps; `.github/workflows/release.yml` builds them when a `v<VERSION>` tag is
@@ -229,7 +245,7 @@ pushed.
 ## Tests
 
 `python3 tests/run_tests.py --quick` before every push (about 10 minutes); for a change to MIDI, the macros or the
-MIDI window only, `python3 tests/run_tests.py --midi` (static, midi, macros, links, bay: about 5 minutes) before a push,
+MIDI window only, `python3 tests/run_tests.py --midi` (static, midi, macros, links, bay, midirep: about 6 minutes) before a push,
 and `--quick` (plus `golden`) before merging into main; `python3 tests/run_tests.py` for
 everything, including `golden` (the Art-Net bytes of fixed projects must stay identical), the soak test and the UI
 fuzzer. Tests drive the page with Playwright through the bridge, and use the global functions and `window.olm`
@@ -256,7 +272,7 @@ panel (button at the bottom left that stays put, the modes, strip in the middle,
 choosing zones, the zone menu), the fade for new scenes in Settings, undo, files, the advice to make both zones full size, and the
 Remote page (the option, the card, moving it both ways).
 `test_update.py` checks looking for a new version, with GitHub's answer simulated (never asked for real): versions compared,
-the window (notes as plain text, Download, Later, Skip this version), once a day, nothing by itself in a test browser, when off or
+the window (notes as plain text, Download, Later, Skip this version), at every start and once a day, nothing by itself in a test browser, when off or
 offline, Settings → Updates and Check now.
 `test_effects.py` checks the 21 effects added after 1.1.0: they compile, Speed −1..1 on the Speed macro (still at 0, moving at 1, reverse the same
 movement backwards), nothing moving but by speed, colours on Color 1 and 2, the filters, a lit thumbnail; and Rainbow's and Plasma's
@@ -273,15 +289,24 @@ the upright frame of a turned selection. `test_profile_move.py` checks the windo
 `test_scenes_window.py` checks the Scenes window (opening, playing, levels both ways, menus,
 dialogs and messages there, keys, MIDI learn and tags, closing every way). `test_bay.py` checks the patch bay
 (the switch, columns, wires, folding, a wire's settings, Remove and Delete, undo, learn, the rows, forgetting and ordering
-controls, drawing wires either way, the macros' aluminium wires: pointed at, pinned, picked, removed, drawn, refused). The simulated Web MIDI
+controls, drawing wires either way, the macros' aluminium wires: pointed at, pinned, picked, removed, drawn, refused). `test_midi_report.py` checks the findings of a MIDI test session, fixed: the MIDI window raised (#raise), the list and bay
+keeping their scroll, an effect's control showing where its macro takes it, Ctrl+S writing the file by its path, a colour's
+swatch following live, the control just learnt playing, as well or (Alt) instead, a group's arrow, a colour's row learnt
+as its first part, the Pickup mark, a pad on a fader (Toggle, Hold), removing with undo, a pad's bar let go. The simulated Web MIDI
 is `FAKE_MIDI` in `harness.py`. `test_ndi.py` checks NDI in with a test source sent through the NDI library (`ndi_sender.py`; skipped where the
 library isn't installed, `NOUPIX_NDI_LIB` points at one): found, chosen, its picture on the fixtures and following,
 about 30 frames a second, Light and Full, files and undo, the source stopping and coming back, choosing another,
 removing it, a bridge without NDI. `test_omt.py` checks OMT in against `omt_fake.c`, a stand-in library built from the real
 `libomt.h` (needs a C compiler): found, BGRA rows padded past their width arriving as RGBA, preview and full, following,
-stopping and coming back. `test_startup.py` checks the name following the file, the scene that plays on open, the startup
+stopping and coming back, and the library ending its process (`FAKE_OMT_ABORT`: the bridge goes on, says why, and starts a new helper). `test_sacn.py` checks sACN out against a receiver that reads E1.31 by the standard (every layer, CID, name, priority,
+sequence, universe + 1, unicast and multicast, the discovery packets, three Stream_Terminated packets whenever a stream
+ends), one packet byte for byte, and the interface's numbers (Patch, First uni from 1, menus, monitor, CSV), multicast
+clashes, undo, files and their repair. `test_startup.py` checks the name following the file, the scene that plays on open, the startup
 project (Settings, kept by the bridge, only the first window, following changes, `--project`) and a video's volume following
-its zone. The harness gives each test bridge its own (empty) startup project and media library. `test_media.py` checks the media
+its zone. The harness gives each test bridge its own (empty) startup project and media library. Tests ask the bridge for
+files with `fetch` (harness.py), a kept-open connection as the browser uses, never `urllib` (it asks the server to close
+the connection); their WebSocket clients answer the bridge's pings, as browsers do. `test_bridge` checks a window that goes
+silent being let go, `test_static` errors keeping their connection, `test_media` the package coming in chunks. `test_media.py` checks the media
 library and packages (copied once by content, ranges and seeking, a new session without relinking, the export window and its
 sizes, the package streamed or downloaded, opened with an empty library, a project alone asking to relink, cleaning, refusing
 other sites). `test_playlist.py` checks playlists
