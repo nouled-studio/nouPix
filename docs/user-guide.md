@@ -1,6 +1,6 @@
 # nouPix: detailed reference
 
-Everything nouPix 1.2.2 does, in detail (the version shows next to the app name, top left). Up to 0.9 it was called openLedMapper. This is the source text for the PDF guide; the [README](../README.md) has the essentials.
+Everything nouPix 1.3.0 does, in detail (the version shows next to the app name, top left). Up to 0.9 it was called openLedMapper. This is the source text for the PDF guide; the [README](../README.md) has the essentials.
 
 A basic pixel-mapping tool: draw or import LED fixtures (lines, matrices, circles, free paths), split the canvas into zones, layer generators, ISF shaders, images, video or a screen capture in each zone, store looks as scenes to play live or in playlists, patch the fixtures to Art-Net controller outputs, and send it out.
 
