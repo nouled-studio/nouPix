@@ -107,11 +107,13 @@ function fixtureLength(f) {
   return 0;
 }
 function pixelCount(f) {
+  if (f.type === 'dot') return 1;
   return f.type === 'matrix' ? Math.max(1, f.cols | 0) * Math.max(1, f.rows | 0) : Math.max(1, f.pixels | 0);
 }
 function computePoints(f) {
   const n = pixelCount(f);
   let pts = new Float32Array(n * 2);
+  if (f.type === 'dot') { pts[0] = f.cx; pts[1] = f.cy; return pts; }
   if (f.type === 'line') {
     for (let i = 0; i < n; i++) {
       const t = n === 1 ? 0.5 : i / (n - 1);
@@ -154,6 +156,7 @@ function computePoints(f) {
   return pts;
 }
 function fixturePitch(f) {
+  if (f.type === 'dot') return Math.max(1, f.size);   // its size: it is drawn that big
   if (f.type === 'matrix') return Math.min(f.w / Math.max(1, f.cols), f.h / Math.max(1, f.rows));
   const n = pixelCount(f);
   const L = fixtureLength(f);
@@ -231,6 +234,7 @@ function setLineLength(f, L) {
 function fixtureBounds(f) {
   let xs, ys;
   if (f.type === 'line') { xs = [f.x1, f.x2]; ys = [f.y1, f.y2]; }
+  else if (f.type === 'dot') { xs = [f.cx - f.size / 2, f.cx + f.size / 2]; ys = [f.cy - f.size / 2, f.cy + f.size / 2]; }
   else if (f.type === 'circle' && ovalRot(f)) { const o = ovalSamples(f); xs = Array.from(o.xs); ys = Array.from(o.ys); }
   else if (f.type === 'circle') { xs = [f.cx - f.r, f.cx + f.r]; ys = [f.cy - ryOf(f), f.cy + ryOf(f)]; }
   else if (f.type === 'matrix') { const c = matrixCorners(f); xs = c.map(p => p[0]); ys = c.map(p => p[1]); }
@@ -282,6 +286,7 @@ function distSeg(px, py, ax, ay, bx, by) {
 }
 function distFixture(f, x, y, tol) {
   if (f.type === 'line') return distSeg(x, y, f.x1, f.y1, f.x2, f.y2);
+  if (f.type === 'dot') return Math.max(0, Math.hypot(x - f.cx, y - f.cy) - f.size / 2);
   if (f.type === 'circle') {
     const t = -rad(ovalRot(f)), ux = (x - f.cx) * Math.cos(t) - (y - f.cy) * Math.sin(t), uy = (x - f.cx) * Math.sin(t) + (y - f.cy) * Math.cos(t);
     const rx = f.r, ry = ryOf(f), d = Math.abs(Math.hypot(ux / rx, uy / ry) - 1) * Math.min(rx, ry);
@@ -332,6 +337,7 @@ function rotateFixture(f, o, px, py, deg) {
     if (o.ctl) f.ctl = o.ctl.map((v, i, H) => i % 2 ? r3(H[i - 1] * s + v * c) : r3(v * c - H[i + 1] * s));   // handles are relative
   } else {
     [f.cx, f.cy] = P(o.cx, o.cy);
+    if (f.type === 'dot') return;
     if (f.type === 'matrix') f.rot = turn(numOr(o.rot, 0));
     else if (isOval(o)) { const r = turn(numOr(o.rot, 0)); if (r) f.rot = r; else delete f.rot; }
     else f.start = turn(numOr(o.start, 0));
@@ -353,7 +359,8 @@ function scaleFixture(f, o, F, ax, ay, sx, sy) {
     for (let i = 0; i < o.pts.length; i += 2) pts.push(...P(o.pts[i], o.pts[i + 1]));
     f.pts = pts;
     if (o.ctl) { const H = []; for (let i = 0; i < o.ctl.length; i += 2) H.push(...V(o.ctl[i], o.ctl[i + 1]).map(r3)); f.ctl = H; }
-  } else if (f.type === 'matrix') {
+  } else if (f.type === 'dot') [f.cx, f.cy] = P(o.cx, o.cy);   // its light stays the size it is
+  else if (f.type === 'matrix') {
     [f.cx, f.cy] = P(o.cx, o.cy);
     const r = numOr(o.rot, 0), [kw, a] = axis(r), [kh] = axis(r + 90);
     f.w = r3(Math.max(1, o.w * kw)); f.h = r3(Math.max(1, o.h * kh)); f.rot = r3(wrap180(a));
@@ -373,6 +380,7 @@ function scaleFixture(f, o, F, ax, ay, sx, sy) {
 // Points around a fixture's outline, for the frame around a selection
 function outlinePts(f) {
   if (f.type === 'line') return [[f.x1, f.y1], [f.x2, f.y2]];
+  if (f.type === 'dot') { const r = f.size / 2; return [[f.cx - r, f.cy - r], [f.cx + r, f.cy - r], [f.cx + r, f.cy + r], [f.cx - r, f.cy + r]]; }
   if (f.type === 'matrix') return matrixCorners(f);
   if (f.type === 'circle') {
     if (isOval(f)) { const o = ovalSamples(f), out = []; for (let k = 0; k <= o.M; k += Math.max(1, o.M >> 6)) out.push([o.xs[k], o.ys[k]]); return out; }

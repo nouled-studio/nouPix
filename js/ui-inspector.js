@@ -85,6 +85,10 @@ function renderInspector(body) {
     G.push(row('First pixel', wiring));
     G.push(row('Runs along', seg([['H', 'Rows'], ['V', 'Columns']], f.dir, v => { f.dir = v; markGeom(); commit(); })));
     G.push(checkRow('Zigzag (snake) wiring', f, 'snake', () => { markGeom(); commit(); }));
+  } else if (f.type === 'dot') {
+    G.push(row('Centre', numInput(f, 'cx', geo({ prefix: 'X' })), numInput(f, 'cy', geo({ prefix: 'Y' }))));
+    G.push(numRow('Size', f, 'size', geo({ min: 1, max: 10000, step: 1 })));
+    G.push(h('p', { class: 'note' }, 'One pixel, drawn as big as the light it stands for: a PAR, a wall washer, a big pixel module. It takes the colour at its centre.'));
   } else if (f.type === 'path') {
     G.push(row('Shape', h('span', { class: 'readonly' }, `${f.pts.length / 2} points${f.ctl ? ', curved' : ''} · drag them on the stage`)));
     G.push(h('p', { class: 'note' }, 'Double-click a point on the stage to make it smooth (with handles) or a corner. Drag a handle to shape the curve; hold Alt to move it on its own.'));
@@ -92,7 +96,7 @@ function renderInspector(body) {
   }
   // strips and round circles have the pitch as a field of its own (under Pixels), and a strip its length
   const pitched = f.type === 'line' || (f.type === 'circle' && !isOval(f));
-  if (f.type !== 'line') {
+  if (f.type !== 'line' && f.type !== 'dot') {
     const lenTxt = h('span', { class: 'readonly' });
     const upd = () => { lenTxt.textContent = f.type === 'matrix' ? `${f.cols} × ${f.rows} · pitch ${fmtV(fixturePitch(f))}` : `length ${fmtV(fixtureLength(f))}` + (pitched ? '' : ` · pitch ${fmtV(fixturePitch(f))}`); };
     upd(); binders.push(upd);
@@ -102,13 +106,13 @@ function renderInspector(body) {
 
   const P = [];
   // A locked fixture's pixel count sets its length; otherwise the pixels spread over the same length
-  if (f.type !== 'matrix') P.push(numRow('Pixels', f, 'pixels', geo({ int: true, min: 1, max: MAX_FX_PIXELS, onInput: v => { if (lockedPitch(f)) setPixelsAtPitch(f, v); markGeom(); syncInspector(); } })));
+  if (f.type !== 'matrix' && f.type !== 'dot') P.push(numRow('Pixels', f, 'pixels', geo({ int: true, min: 1, max: MAX_FX_PIXELS, onInput: v => { if (lockedPitch(f)) setPixelsAtPitch(f, v); markGeom(); syncInspector(); } })));
   if (pitched) P.push(...pitchRows(f));
   else if (f.pitchLock > 0 && f.type === 'circle') P.push(h('p', { class: 'note' }, 'The pitch lock works on round circles: as an oval it keeps its pixel count. Make it round to use the lock again.'));
   P.push(row('Color order', selectEl(ORDERS.map(o => [o, o + (o.length === 4 ? '  (RGBW)' : o === 'W' ? '  (mono)' : '')]), f.order, v => { f.order = v; markPatch(); commit(); renderRight(); }, { aria: 'Color order' })));
   P.push(...trimRows([f]));
   P.push(...dimmingRows([f]));
-  if (f.type !== 'matrix') P.push(checkRow('Reverse direction', f, 'reverse', () => { markGeom(); commit(); }));
+  if (f.type !== 'matrix' && f.type !== 'dot') P.push(checkRow('Reverse direction', f, 'reverse', () => { markGeom(); commit(); }));
   P.push(sliderRow('Dimmer', f, 'dimmer', { min: 0, max: 1, step: 0.01, fmt: pct, onCommit: commit }));
   body.append(sec('Pixels', P));
 
@@ -312,22 +316,23 @@ function groupSection(g, sel) {
 }
 function renderMulti(body, sel) {
   const px = sel.reduce((a, f) => a + pixelCount(f), 0), g = wholeGroup(sel);
-  const tmp = { pixels: sel.find(f => f.type !== 'matrix') ? sel.find(f => f.type !== 'matrix').pixels : 0, order: sel[0].order };
-  const pxIn = numInput(tmp, 'pixels', { int: true, min: 1, max: 20000, aria: 'Pixels for all', onCommit: () => { sel.forEach(f => { if (f.type === 'matrix') return; if (lockedPitch(f)) setPixelsAtPitch(f, tmp.pixels); else f.pixels = tmp.pixels; }); markGeom(); commit(); renderRight(); } });
+  const strung = f => f.type !== 'matrix' && f.type !== 'dot';   // fixtures with a pixel count and a direction
+  const tmp = { pixels: sel.find(strung) ? sel.find(strung).pixels : 0, order: sel[0].order };
+  const pxIn = numInput(tmp, 'pixels', { int: true, min: 1, max: 20000, aria: 'Pixels for all', onCommit: () => { sel.forEach(f => { if (!strung(f)) return; if (lockedPitch(f)) setPixelsAtPitch(f, tmp.pixels); else f.pixels = tmp.pixels; }); markGeom(); commit(); renderRight(); } });
   body.append(...[
     g ? groupSection(g, sel) : null,
     sec(null,
       g ? h('h3', null, `All ${sel.length} fixtures`)
         : h('h3', null, `${sel.length} fixtures selected`),
       h('p', { class: 'note' }, g ? 'Changes here apply to each of them.' : `${fmtN(px)} pixels in total. Changes below apply to all of them.`),
-      sel.some(f => f.type !== 'matrix') ? row('Pixels each', pxIn) : null,
+      sel.some(strung) ? row('Pixels each', pxIn) : null,
       row('Color order', selectEl([['', 'Mixed / keep'], ...ORDERS.map(o => [o, o])], sel.every(f => f.order === sel[0].order) ? sel[0].order : '', v => { if (!v) return; sel.forEach(f => { f.order = v; }); markPatch(); commit(); renderRight(); }, { aria: 'Color order for all' })),
       ...trimRows(sel),
       ...dimmingRows(sel),
       h('div', { class: 'actions' },
         h('button', { class: 'btn', type: 'button', onclick: () => { sel.forEach(f => { f.enabled = true; }); commit(); } }, 'Enable all'),
         h('button', { class: 'btn', type: 'button', onclick: () => { sel.forEach(f => { f.enabled = false; }); commit(); } }, 'Disable all'),
-        h('button', { class: 'btn', type: 'button', onclick: () => { sel.forEach(f => { if (f.type !== 'matrix') f.reverse = !f.reverse; }); markGeom(); commit(); } }, 'Flip direction'),
+        h('button', { class: 'btn', type: 'button', onclick: () => { sel.forEach(f => { if (strung(f)) f.reverse = !f.reverse; }); markGeom(); commit(); } }, 'Flip direction'),
         h('button', { class: 'btn', type: 'button', title: `${MOD}L, or the lock button above the fixture list`, onclick: toggleLockSel }, lockAction(sel) === 'unlock' ? (g ? 'Unlock group' : 'Unlock all') : (g ? 'Lock group' : 'Lock all')))),
     arrangeSection(sel),
     outputSection(sel),
@@ -797,7 +802,7 @@ function arrangeSection(sel) {
       : 'Aligns to the edges of the canvas.') + (many ? ' Rotate turns them together around their middle; on the stage, drag the round handle above them.' : '') +
       (free < units.length ? (blocks ? ' Locked fixtures, and the groups they are in, stay where they are.' : ' Locked fixtures stay where they are.') : '');
   return sec('Arrange',
-    ...rotateRow(sel),
+    ...(sel.length === 1 && sel[0].type === 'dot' ? [] : rotateRow(sel)),   // one dot has nothing to turn
     many ? [h('div', { class: 'arrange' }, align),   // aligning on the first row, spacing and centring on the second
       h('div', { class: 'arrange' }, h('div', { class: 'grp' },
         b('distH', 'Distribute horizontally: the same spacing between centres', () => distributeSel('x'), free < 3),

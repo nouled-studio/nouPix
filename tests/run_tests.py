@@ -108,6 +108,7 @@ SUITES = [   # name, function, part of --quick
     ("16bit", simple("test_16bit.py", 8174, 600), True),
     ("values", simple("test_values.py", 8178, 300), True),
     ("pitch", simple("test_pitch.py", 8224, 300), True),
+    ("dot", simple("test_dot.py", 8228, 300), True),
     ("midi", simple("test_midi.py", 8182, 400), True),
     ("macros", simple("test_macros.py", 8184, 400), True),
     ("links", simple("test_links.py", 8186, 400), True),

@@ -284,7 +284,7 @@ function onKey(e) {
     if (e.key === 'Escape') { pathDraft = null; setTool('select'); return; }
   }
   if (k === 'r' && ui.sel.size) { rotateSel(e.shiftKey ? -90 : 90); return; }
-  const tools = { v: 'select', l: 'line', m: 'matrix', c: 'circle', p: 'path', n: 'pen', z: 'zone' };
+  const tools = { v: 'select', l: 'line', m: 'matrix', c: 'circle', d: 'dot', p: 'path', n: 'pen', z: 'zone' };
   if (tools[k]) { setTool(tools[k]); return; }
   if (e.key === 'Escape') { if (ui.tool !== 'select') setTool('select'); else if (ui.sel.size) { ui.sel.clear(); onSelection(); } return; }
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); if (ui.tool === 'zone') deleteZone(selZone()); else deleteSel(); return; }
