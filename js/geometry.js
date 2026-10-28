@@ -159,6 +159,75 @@ function fixturePitch(f) {
   const L = fixtureLength(f);
   return n > 1 ? L / (f.type === 'circle' && f.sweep >= 359.99 ? n : n - 1) : 20;
 }
+// A fixture with its pitch locked keeps the spacing between its pixels (f.pitchLock): its pixel count follows its
+// length, and its length snaps to whole pixels. Strips, circles and arcs; on an oval the lock waits, unused.
+const MAX_FX_PIXELS = 20000;
+function lockedPitch(f) {
+  return f.pitchLock > 0 && (f.type === 'line' || (f.type === 'circle' && !isOval(f))) ? f.pitchLock : 0;
+}
+// After a locked fixture's shape changed: its pixel count from its length, then its length snapped to that count.
+// A strip keeps its start ('start', the default), its end ('end') or its middle ('mid') and its direction; a circle
+// its radius, but a full one snaps its radius so the ring closes evenly; an arc keeps its radius and snaps its sweep.
+function fitPitch(f, keep = 'start') {
+  const p = lockedPitch(f);
+  if (!p) return;
+  if (f.type === 'line') {
+    const dx = f.x2 - f.x1, dy = f.y2 - f.y1, L = Math.hypot(dx, dy), ux = L ? dx / L : 1, uy = L ? dy / L : 0;
+    const n = clamp(Math.round(L / p) + 1, 2, MAX_FX_PIXELS), L2 = p * (n - 1);
+    if (keep === 'end') { f.x1 = r3(f.x2 - ux * L2); f.y1 = r3(f.y2 - uy * L2); }
+    else if (keep === 'mid') {
+      const mx = (f.x1 + f.x2) / 2, my = (f.y1 + f.y2) / 2;
+      f.x1 = r3(mx - ux * L2 / 2); f.y1 = r3(my - uy * L2 / 2); f.x2 = r3(mx + ux * L2 / 2); f.y2 = r3(my + uy * L2 / 2);
+    } else { f.x2 = r3(f.x1 + ux * L2); f.y2 = r3(f.y1 + uy * L2); }
+    f.pixels = n;
+  } else if (clamp(f.sweep, 1, 360) >= 359.99) {
+    const n = clamp(Math.round(2 * Math.PI * f.r / p), 3, MAX_FX_PIXELS);
+    f.r = r3(n * p / (2 * Math.PI));
+    f.pixels = n;
+  } else {
+    // an arc reaches at most 359°: past that it would be a ring
+    const most = Math.max(2, Math.floor(2 * Math.PI * f.r * 359 / 360 / p) + 1);
+    const n = clamp(Math.round(fixtureLength(f) / p) + 1, 2, Math.min(most, MAX_FX_PIXELS));
+    f.sweep = r3(clamp((n - 1) * p / f.r * 180 / Math.PI, 1, 359));
+    f.pixels = n;
+  }
+}
+// n pixels at the fixture's pitch (locked or not): a strip's end moves along its direction, a full circle's radius
+// changes, an arc's sweep grows or shrinks from its end. A locked fixture then snaps to whole pixels.
+function setPixelsAtPitch(f, n, p = lockedPitch(f) || fixturePitch(f)) {
+  n = clamp(Math.round(n), 1, MAX_FX_PIXELS);
+  if (!(p > 0)) return;
+  if (f.type === 'line') {
+    const a = Math.atan2(f.y2 - f.y1, f.x2 - f.x1), L = p * Math.max(1, n - 1);
+    f.x2 = r3(f.x1 + Math.cos(a) * L); f.y2 = r3(f.y1 + Math.sin(a) * L);
+  } else if (f.type === 'circle' && !isOval(f)) {
+    if (clamp(f.sweep, 1, 360) >= 359.99) f.r = r3(Math.max(0.5, Math.max(3, n) * p / (2 * Math.PI)));
+    else f.sweep = r3(clamp(Math.max(1, n - 1) * p / f.r * 180 / Math.PI, 1, 359));
+  } else return;
+  f.pixels = n;
+  fitPitch(f);
+}
+// A new pitch, keeping the pixel count: the strip's end, the ring's radius or the arc's sweep moves. A locked
+// fixture keeps the new pitch.
+function setPitch(f, p) {
+  if (!(p > 0)) return;
+  if (f.pitchLock > 0) f.pitchLock = p;
+  setPixelsAtPitch(f, pixelCount(f), p);
+}
+// A strip's direction in degrees, 0 to the right and clockwise on the stage (y grows downwards), from 0 to 360
+function lineAngle(f) { return f.x2 === f.x1 && f.y2 === f.y1 ? 0 : wrap360(Math.atan2(f.y2 - f.y1, f.x2 - f.x1) * 180 / Math.PI); }
+// Turns a strip around its start to deg degrees, keeping its length
+function setLineAngle(f, deg) {
+  const L = fixtureLength(f);
+  f.x2 = r3(f.x1 + Math.cos(rad(deg)) * L); f.y2 = r3(f.y1 + Math.sin(rad(deg)) * L);
+}
+// Moves a strip's end along its direction to make it L long (a locked strip snaps to whole pixels)
+function setLineLength(f, L) {
+  const a = rad(lineAngle(f));
+  L = Math.max(0, L);
+  f.x2 = r3(f.x1 + Math.cos(a) * L); f.y2 = r3(f.y1 + Math.sin(a) * L);
+  fitPitch(f);
+}
 function fixtureBounds(f) {
   let xs, ys;
   if (f.type === 'line') { xs = [f.x1, f.x2]; ys = [f.y1, f.y2]; }
@@ -269,7 +338,8 @@ function rotateFixture(f, o, px, py, deg) {
   }
 }
 // Stretches a fixture by sx, sy along the axes of frame F (turned by F.angle), away from the point ax, ay of the
-// frame (from its centre, along its axes); o is its geometry before. Pixel counts stay: the pixels spread out.
+// frame (from its centre, along its axes); o is its geometry before. Pixel counts stay: the pixels spread out, but a
+// fixture with its pitch locked keeps its spacing and gets more or fewer pixels.
 // A matrix or an oval stretched across its own axes keeps its shape as near as it can (no slanting).
 function scaleFixture(f, o, F, ax, ay, sx, sy) {
   const t = rad(F.angle), c = Math.cos(t), s = Math.sin(t);
@@ -298,6 +368,7 @@ function scaleFixture(f, o, F, ax, ay, sx, sy) {
       f.start = r3(wrap180(numOr(o.start, 0) + r0 - r1));
     }
   }
+  fitPitch(f, 'mid');   // a locked fixture gets more or fewer pixels, not a new spacing
 }
 // Points around a fixture's outline, for the frame around a selection
 function outlinePts(f) {
