@@ -460,9 +460,31 @@ function storeScene(z) {
   while (z.scenes.some(s => s.name === 'Scene ' + n)) n++;
   const sc = { id: uid(), name: 'Scene ' + n, fade: project.settings.fade, layers: snapshotLayers(z) };
   z.scenes.push(sc);
+  if (project.settings.sceneShots) sceneShot(z, sc);
   z.scene = sc.id; ui.zone = z.id;
   commit();
   toast(`Stored ${sc.name} in ${z.name}. Use ⋯ on its button to rename it or change its fade time.`);
+}
+// A scene's picture: its zone as it looks now, small (160 wide), kept with the scene and shown on its button.
+// False when the zone shows nothing yet.
+function sceneShot(z, sc) {
+  const w = 160, hh = clamp(Math.round(w * z.h / Math.max(1, z.w)), 24, 160);
+  const c = zonePicture(z, w, hh);
+  if (!c) return false;
+  sc.thumb = c.toDataURL('image/jpeg', 0.8);
+  return true;
+}
+function takeSceneShot(z, sc) {
+  if (!sceneShot(z, sc)) { toast(`${z.name} shows nothing yet: no picture taken.`); return; }
+  commit();
+  toast(`${sc.name} has a picture of ${z.name} now.`);
+}
+// Updating a scene with the zone's layers (and its picture, with Settings → Scenes → Pictures on)
+function updateScene(z, sc) {
+  sc.layers = snapshotLayers(z); z.scene = sc.id;
+  if (project.settings.sceneShots) sceneShot(z, sc);
+  commit();
+  toast(`${sc.name} updated`);
 }
 // Move a scene ('zoneId:sceneId') into a zone: onto a scene it takes that scene's place, onto the row it goes last
 function moveScene(d, z, to = z.scenes.length) {

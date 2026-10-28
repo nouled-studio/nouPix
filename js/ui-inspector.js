@@ -690,7 +690,9 @@ function renderSettings(body) {
   body.append(sendSection(s));
   body.append(sec('Scenes',
     numRow('Fade for new scenes', s, 'fade', { min: 0, max: 60, step: 0.1, onCommit: commit }),
-    h('p', { class: 'note' }, 'In seconds: the fade a scene gets when you store it (0 cuts). Each scene keeps its own, shown on its button, where you can change it.')));
+    h('p', { class: 'note' }, 'In seconds: the fade a scene gets when you store it (0 cuts). Each scene keeps its own, shown on its button, where you can change it.'),
+    checkRow('Pictures on scenes', s, 'sceneShots', () => commit()),
+    h('p', { class: 'note' }, 'When on, storing or updating a scene also takes a picture of its zone, shown on the scene\'s button. Any scene can get one from its ⋯ menu.')));
   body.append(sec('Stage',
     numRow('Grid', s, 'grid', { min: 1, max: 500, step: 1, onCommit: commit }),
     checkRow('Snap to grid (hold Alt to override)', ui, 'snap', () => { $('#vSnap').checked = ui.snap; savePrefs(); }),

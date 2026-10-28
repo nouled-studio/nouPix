@@ -187,6 +187,21 @@ void main() {
       show(c, raw, w, hh);
       return true;
     },
+    // The zone's picture now, w × hh, in a new 2D canvas: read at once (the page waits for the GPU this once), for a
+    // scene's picture. Null when the zone has no picture yet.
+    grab(z, w, hh) {
+      const Z = zones.get(z.id);
+      if (!Z || !Z.out.w) return null;
+      if (!small) small = target();
+      size(small, w, hh);
+      pass(small.fb, 0, 0, w, hh, mixP, u => { bindTex(0, Z.out.tex, u.a); bindTex(1, Z.out.tex, u.b); g.uniform2f(u.sa, 1, 1); g.uniform2f(u.sb, 1, 1); g.uniform1f(u.t, 1); });
+      const raw = new Uint8Array(w * hh * 4);
+      g.readPixels(0, 0, w, hh, g.RGBA, g.UNSIGNED_BYTE, raw);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = hh;
+      show(c, raw, w, hh);
+      return c;
+    },
     // Preview canvases that are gone from the page (the panel drawn anew): their buffers go too
     forgetGone() {
       for (const [c, R] of [...reads]) if (!c.isConnected) { if (R.fence) g.deleteSync(R.fence); g.deleteBuffer(R.buf); reads.delete(c); }
@@ -296,6 +311,14 @@ function drawPreview(c, z) {
   const p = preview.canvas;
   if (!p.isConnected) { preview = null; return; }
   p.getContext('2d').drawImage(c, 0, c.height - z.h, z.w, z.h, 0, 0, p.width, p.height);
+}
+// A zone's picture now, w × hh, in a 2D canvas (a scene's picture). A zone the output doesn't draw (hidden under
+// another, or at level 0) is drawn first, its layers as they are.
+function zonePicture(z, w, hh) {
+  if (!mixer.ok || mixer.lost()) return null;
+  const i = project.zones.indexOf(z);
+  if (i >= 0 && hiddenZone(i)) { renderLook(z.layers, 0, z); mixer.zone(z, null, 1); }
+  return mixer.grab(z, w, hh);
 }
 function renderContent() {
   if (!mixer.ok) { for (const f of project.fixtures) f._col.fill(0); return; }

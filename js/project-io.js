@@ -4,6 +4,8 @@
 
 /* ---------- opening project files ---------- */
 const uniqueId = (v, seen) => { const id = isId(v) && !seen.has(v) ? v : uid(); seen.add(id); return id; };
+// A scene's picture: a small image, as a data URL
+const SHOT_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 function fixSettings(given) {
   const s = Object.assign(JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), isObj(given) ? given : {});
   for (const [k, d] of Object.entries(DEFAULT_SETTINGS)) {
@@ -16,6 +18,7 @@ function fixSettings(given) {
   if (!['artnet', 'sacn'].includes(s.protocol)) s.protocol = 'artnet';
   s.sacnPriority = clamp(Math.round(s.sacnPriority), 0, 200);
   s.sacnMulticast = s.sacnMulticast === true;
+  s.sceneShots = s.sceneShots === true;
   // 255.255.255.255 was the default address for ArtPoll; discovery now goes to the networks chosen in Nodes
   if (s.broadcast.trim() === '255.255.255.255') s.broadcast = '';
   delete s.trim;   // the colour trims are per fixture now (see hydrate)
@@ -165,7 +168,7 @@ function hydrate(p) {
     L.on = L.on !== false;
     return L;
   };
-  const fixScenes = list => (Array.isArray(list) ? list : []).filter(isObj).map((sc, i) => { const o = Object.assign({ id: uid(), name: 'Scene ' + (i + 1), fade: 2 }, sc, { layers: (Array.isArray(sc.layers) ? sc.layers : []).map(fixLayer) }); if (tagOf(o.tag)) o.tag = tagOf(o.tag); else delete o.tag; return o; });   // its colour, if the user gave it one
+  const fixScenes = list => (Array.isArray(list) ? list : []).filter(isObj).map((sc, i) => { const o = Object.assign({ id: uid(), name: 'Scene ' + (i + 1), fade: 2 }, sc, { layers: (Array.isArray(sc.layers) ? sc.layers : []).map(fixLayer) }); if (tagOf(o.tag)) o.tag = tagOf(o.tag); else delete o.tag; if (!SHOT_RE.test(o.thumb) || o.thumb.length > 400000) delete o.thumb; return o; });   // its colour, if the user gave it one; its picture, if it has one
   const zoneIds = new Set();
   out.zones = out.zones.map((zn, i) => {
     const z = Object.assign(newZone({ name: 'Zone ' + (i + 1) }), zn);

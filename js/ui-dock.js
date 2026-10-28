@@ -126,7 +126,9 @@ function sceneMenu(anchor, z, sc) {
       z.playlists.length && '-',
       ['New playlist with it…', () => newPlaylistDialog(z, sc.id)],
     ] }],
-    [`Update with ${z.name}'s current layers`, () => { sc.layers = snapshotLayers(z); z.scene = sc.id; commit(); toast(`${sc.name} updated`); }],
+    [`Update with ${z.name}'s current layers`, () => updateScene(z, sc)],
+    [sc.thumb ? `New picture of ${z.name} as it looks now` : `Picture of ${z.name} as it looks now`, () => takeSceneShot(z, sc), { title: 'Shown on the scene\'s button' }],
+    sc.thumb && ['Remove its picture', () => { delete sc.thumb; commit(); }],
     ['Rename, fade time, colour…', () => editScene(sc)],
     [(sc.onOpen ? '✓ ' : '') + 'Play when the project opens', () => setSceneOnOpen(z, sc, !sc.onOpen), { title: 'One scene per zone; a playlist set to play on open goes first' }],
     ['Duplicate', () => { const c = Object.assign(JSON.parse(JSON.stringify(sc)), { id: uid(), name: nextCopyName(sc.name, new Set(z.scenes.map(x => x.name))) }); z.scenes.splice(z.scenes.indexOf(sc) + 1, 0, c); commit(); }],
@@ -221,6 +223,7 @@ function sceneTile(z, sc, i, keys, look) {
   tile.querySelector('.s').prepend(fadeControl(tile, { name: sc.name, get: () => sc.fade, set: v => { sc.fade = v; } }));
   if (z.tag) tile.style.setProperty('--tag', z.tag);   // its zone's colour, when it has one
   if (sc.tag) tile.style.setProperty('--mark', sc.tag);   // its own, on its mark while it plays
+  if (sc.thumb) { tile.classList.add('shot'); tile.style.setProperty('--shot', `url("${sc.thumb}")`); }   // its picture, behind its name
   midiButton(tile, `sc:${z.id}:${sc.id}`);   // a MIDI pad can play it
   tile.querySelector('.t').insertBefore(tile.querySelector(':scope > .ftag'), tile.querySelector('.t > .x'));   // its tag on the top line, before ⋯
   tile.addEventListener('click', e => goScene(z, sc, e.shiftKey));

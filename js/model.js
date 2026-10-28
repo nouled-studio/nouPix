@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS = {
   compW: 1000, compH: 640, fps: 40, gamma: 1, master: 1, whiteMode: 'off',
   artSync: false, grid: 10, broadcast: '', bridgeUrl: '', transition: 0.5, fade: 2,
   protocol: 'artnet', sacnPriority: 100, sacnMulticast: false,   // what goes out: Art-Net, or sACN (E1.31) instead
+  sceneShots: false,   // a picture of the zone on each scene stored or updated
 };
 // Blend modes, in the order the mixer shader numbers them
 const BLENDS = [['alpha', 'Alpha'], ['add', 'Add'], ['screen', 'Screen'], ['multiply', 'Multiply'], ['subtract', 'Subtract'], ['lighten', 'Lighten'], ['darken', 'Darken'], ['difference', 'Difference']];

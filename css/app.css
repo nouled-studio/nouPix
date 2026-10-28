@@ -481,6 +481,10 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 /* every scene's small mark, in its colour (red unless the user gives it another): dim, and bright while it plays */
 .scene::after { --mk: color-mix(in srgb, var(--mark, var(--accent)) 40%, transparent); background: linear-gradient(var(--mk), var(--mk)) right 3px top 3px / 4px 4px no-repeat, var(--fill, var(--bg3)); }
 .scene.live::after { --mk: var(--mark, var(--accent)); }
+/* a scene with a picture: the picture behind its name, darkened at the top and bottom so the text stays readable */
+.scene.shot::after { background: linear-gradient(var(--mk), var(--mk)) right 3px top 3px / 4px 4px no-repeat,
+  linear-gradient(color-mix(in srgb, var(--bg0) 72%, transparent), color-mix(in srgb, var(--bg0) 20%, transparent) 50%, color-mix(in srgb, var(--bg0) 72%, transparent)),
+  var(--shot) center / cover no-repeat, var(--fill, var(--bg3)); }
 .scene .t { display: flex; align-items: center; gap: 6px; font-weight: 600; min-width: 0; }
 .scene .t .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scene .k { font-family: var(--mono); font-size: 10px; color: var(--muted); }

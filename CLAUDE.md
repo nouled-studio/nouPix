@@ -107,6 +107,9 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   (`replacer` leaves them out of every file and copy).
 - A Dot (`type: 'dot'`: `cx`, `cy`, `size`) is a fixture of one pixel, drawn as big as its size (`fixturePitch` is its size, so
   `dotRadius` draws it that big); no pixel count, direction or pitch lock. The Dot tool (D) stays on after each click.
+- A scene may have a picture (`sc.thumb`: a small JPEG as a data URL, `SHOT_RE` in `hydrate`): `sceneShot` reads its zone as it
+  looks now (`zonePicture` in render.js, which draws a zone the output leaves out first; `mixer.grab`), from the scene's ⋯
+  menu, or on storing and updating with `settings.sceneShots` (off by default). The scene's button shows it (`.scene.shot`).
 - Playlists live in each zone (`z.playlists`, steps pointing at the zone's scenes); where one plays is `z._play`, never
   saved. Steps that play by themselves change `z.layers`/`z.scene` without an undo step; `restore` keeps a playing
   zone's step over an older copy (an undo, a device a step behind).
@@ -266,7 +269,7 @@ simulated in the page (Web MIDI replaced): turning it on, the MIDI window, ports
 hold, scenes, next scene, playlists, ignored ports, another port name, saving, undo, missing targets, the line and tags,
 the virtual controller. `test_macros.py` checks the macros: what follows what, Speed through the clocks, Intensity,
 Saturation, the colours, the shared controls, scenes and thumbnails, files and undo, the Macros section, MIDI onto a
-macro and a colour's part, devices. `test_flash.py` checks Flash: a scene while held with its fade and what played before back (its layers as they were, a playlist carrying on), the next scene, levels, master and blackout, a CC button, the MIDI window's choices, undo and files. `test_dot.py` checks the Dot (the tool, the stage, the Inspector, turning and scaling with others, patching, files). `test_links.py` checks what an effect follows as chosen (engine, files, undo, the
+macro and a colour's part, devices. `test_flash.py` checks Flash: a scene while held with its fade and what played before back (its layers as they were, a playlist carrying on), the next scene, levels, master and blackout, a CC button, the MIDI window's choices, undo and files. `test_dot.py` checks the Dot (the tool, the stage, the Inspector, turning and scaling with others, patching, files). `test_shots.py` checks pictures on scenes (the menu, the button, the setting, a hidden zone, undo, files). `test_links.py` checks what an effect follows as chosen (engine, files, undo, the
 fold, the operator's lock), MIDI onto an effect's controls (learn, pickup and jump, every layer, scenes, speed, lists,
 ticks, events, the MIDI window's list) and Follow for a fader learnt onto something on or off. `test_look.py` checks the look and the name: the fonts served and nothing fetched from outside, black by default,
 white from the top bar and Settings (kept, from the start, the windows and the stage following), colours only on
