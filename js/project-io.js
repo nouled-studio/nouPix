@@ -196,7 +196,7 @@ function fixMidi(m) {
   const maps = (isObj(m) && Array.isArray(m.maps) ? m.maps : []).filter(w => isObj(w) && typeof w.key === 'string' && MIDI_KEY.test(w.key) && typeof w.to === 'string' && w.to && w.to.length < 300);
   // order: the controls in the order the user put them (the others follow, by port, type and number)
   const order = [...new Set((isObj(m) && Array.isArray(m.order) ? m.order : []).filter(k => typeof k === 'string' && MIDI_KEY.test(k)))];
-  return { maps: maps.map(w => ({ id: uniqueId(isId(w.id) ? String(w.id) : null, ids), key: w.key, to: w.to, takeover: w.takeover === 'jump' ? 'jump' : 'pickup', mode: w.mode === 'hold' ? 'hold' : 'toggle' })), order };
+  return { maps: maps.map(w => ({ id: uniqueId(isId(w.id) ? String(w.id) : null, ids), key: w.key, to: w.to, takeover: w.takeover === 'jump' ? 'jump' : 'pickup', mode: w.mode === 'hold' || w.mode === 'flash' ? w.mode : 'toggle' })), order };
 }
 
 /* ---------- history + persistence ---------- */

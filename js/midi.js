@@ -52,9 +52,9 @@ function midiTarget(t) {
     set: v => { if (xfDriven(z)) return; setZoneOpacity(z, v); remoteChanged(); commitSoft(); } };
   if (k === 'sc') {
     const sc = z.scenes.find(s => s.id === id);
-    return sc ? { kind: 'trigger', label: `${z.name} · ${sc.name}`, get: () => (z.scene === sc.id ? 1 : 0), set: () => goScene(z, sc) } : null;
+    return sc ? { kind: 'trigger', label: `${z.name} · ${sc.name}`, get: () => (z.scene === sc.id ? 1 : 0), set: () => goScene(z, sc), flash: () => zoneBack(z) } : null;
   }
-  if (k === 'nx') return { kind: 'trigger', label: z.name + ' · next scene', get: () => 0, set: () => midiNextScene(z) };
+  if (k === 'nx') return { kind: 'trigger', label: z.name + ' · next scene', get: () => 0, set: () => midiNextScene(z), flash: () => zoneBack(z) };
   if (k === 'pl') {
     const pl = z.playlists.find(p => String(p.id) === id);
     return pl ? { kind: 'toggle', label: `${z.name} · ${pl.name}`, get: () => (playingList(z) === pl && z._play.on ? 1 : 0), set: v => { if (pl.steps.length) playlistDo(z, pl, v ? 'start' : 'pause'); } } : null;
@@ -90,6 +90,18 @@ function effectTarget(t) {
   const lo = inp.MIN ?? 0, hi = inp.MAX ?? 1;
   return { kind: 'fader', label, get: () => (hi > lo ? clamp((now() - lo) / (hi - lo), 0, 1) : 0),
     set: x => { const v = lo + x * (hi - lo); put(inp.TYPE === 'int' ? Math.round(v) : v); } };
+}
+// What a zone plays now, to go back to after a flash: the function it returns brings it back, over the fade of the
+// scene flashed. A playlist that was playing carries on; otherwise the layers come back as they were, with their scene.
+function zoneBack(z) {
+  const playing = !!(z._play && z._play.on), scene = z.scene, layers = cloneLayers(z.layers);
+  return () => {
+    const cur = z.scenes.find(s => s.id === z.scene), fade = cur ? cur.fade : project.settings.transition;
+    if (playing && z._play) resumePlaylist(z);
+    else recallScene(z, { id: z.scenes.some(s => s.id === scene) ? scene : null, layers }, fade);
+    syncMedia(); renderSrcList(); renderDock();
+    commitSoft();
+  };
 }
 function midiSetMaster(v) {
   project.settings.master = v;
@@ -186,7 +198,7 @@ function midiLog(e) {
 }
 // One message on one mapping. A button (a note, or a control mapped to something that is on or off) plays a trigger
 // on a press; turns a toggle over on each press, or with Hold keeps it on while held; sends a fader from one end to
-// the other. A fader or knob on a fader: with Pickup, nothing happens until it reaches the value (or passes it);
+// the other. With Flash, anything is on while held and back as it was when let go. A fader or knob on a fader: with Pickup, nothing happens until it reaches the value (or passes it);
 // with Jump, the value goes where it is at once.
 function midiApply(w, c, type) {
   const T = midiTarget(w.to);
@@ -195,6 +207,12 @@ function midiApply(w, c, type) {
   if (T.kind !== 'fader' || type !== 'cc') {
     const press = type === 'cc' ? c >= 0.5 : type === 'on', was = !!w._down;
     w._down = press;
+    // Flash: on while held (a scene plays, a fader goes full), and back to how it was when let go
+    if (w.mode === 'flash') {
+      if (press && !was) { const v = T.get(); w._back = T.flash ? T.flash() : () => T.set(v); T.set(1); }
+      else if (!press && was && w._back) { const back = w._back; w._back = null; back(); }
+      return;
+    }
     if (T.kind === 'trigger') { if (press && !was) T.set(1); }
     else if (w.mode === 'hold') { if (press !== was) T.set(press ? 1 : 0); }
     else if (press && !was) T.set(T.get() > 0.5 ? 0 : 1);

@@ -214,9 +214,10 @@ function midiHow(w) {
   if (!T) return null;
   const seg = (key, opts) => h('span', { class: 'seg mini' }, opts.map(([v, label, tip]) => h('button', { type: 'button', class: w[key] === v ? 'on' : '', title: tip, onclick: () => midiSetMap(w.id, { [key]: v }) }, label)));
   if (T.kind === 'fader' && k.type === 'cc') return seg('takeover', [['pickup', 'Pickup', 'It follows once the fader reaches it'], ['jump', 'Jump', 'It goes where the fader is at once']]);
-  if (T.kind === 'fader') return seg('mode', [['toggle', 'Toggle', 'Each press: full, then off'], ['hold', 'Hold', 'Full while held, off when let go']]);
-  if (T.kind === 'toggle') return seg('mode', [['toggle', 'Toggle', 'Each press turns it on or off'], k.type === 'cc' ? ['hold', 'Follow', 'On while the control is up: a fader past the middle, a button held or latched'] : ['hold', 'Hold', 'On while held']]);
-  return h('span', { class: 'muted', title: 'A press plays it' }, 'On a press');
+  if (T.kind === 'fader') return seg('mode', [['toggle', 'Toggle', 'Each press: full, then off'], ['hold', 'Hold', 'Full while held, off when let go'], ['flash', 'Flash', 'Full while held, back where it was when let go']]);
+  if (T.kind === 'toggle') return seg('mode', [['toggle', 'Toggle', 'Each press turns it on or off'], k.type === 'cc' ? ['hold', 'Follow', 'On while the control is up: a fader past the middle, a button held or latched'] : ['hold', 'Hold', 'On while held'],
+    ['flash', 'Flash', 'On while held, back as it was when let go']]);
+  return seg('mode', [['toggle', 'Press', 'A press plays it'], ['flash', 'Flash', 'Plays while held (with its fade); let go and what played before comes back']]);
 }
 function midiMaps() {
   const maps = project.midi.maps;
