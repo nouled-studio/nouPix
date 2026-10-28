@@ -41,7 +41,7 @@ try:
     check("and it is remembered that it looked", abs(ev("Date.now() - ui.updateAt")) < 5000 and ev("JSON.parse(localStorage.getItem('noupix.ui')).updateAt") == ev("ui.updateAt"))
     ev("(() => { window._opened = []; window.open = (u, t) => { window._opened.push(u); return null; }; })()")
     dlg.locator("button", has_text="Download").click(); time.sleep(0.2)
-    check("Download opens the release's page", ev("window._opened") == ["https://github.com/nouled-studio/nouPix/releases/tag/v9.0.0"] and dlg.count() == 0, ev("window._opened"))
+    check("Download opens the latest release's page (the newest, even if one came out after the window was shown)", ev("window._opened") == ["https://github.com/nouled-studio/nouPix/releases/latest"] and dlg.count() == 0, ev("window._opened"))
     h0 = gh["hits"]
     ev("checkUpdates(false)"); time.sleep(0.5)
     check("not again the same day", gh["hits"] == h0 and dlg.count() == 0)
