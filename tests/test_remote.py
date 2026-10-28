@@ -62,7 +62,7 @@ try:
     check("Settings shows the address to open on the other devices", until(host, f"document.querySelector('#remoteSec') && document.querySelector('#remoteSec').innerText.includes(':{RP}/')"), st)
     check("the address is this computer's network address", any(not u.startswith("http://127.") for u in st["urls"]) or not st["urls"], st["urls"])
     check("the top-bar button shows it is on", "on" in host.get_attribute("#btnRemote", "class"))
-    check("the setting is kept in this browser", H("JSON.parse(localStorage.getItem('noupix.remote'))") == {"on": True, "port": RP, "password": "open sesame"})
+    check("the setting is kept in this browser", H("JSON.parse(localStorage.getItem('noupix.remote'))") == {"on": True, "port": RP, "password": "open sesame", "http": False})
 
     # ---------- what the network server serves
     for path, kind in [("/", "html"), ("/app", "html"), ("/remote", "html"), ("/css/remote.css", "css"), ("/css/app.css", "css"), ("/js/remote-app.js", "javascript"), ("/js/app.js", "javascript"), ("/js/vendor/isf.js", "javascript")]:

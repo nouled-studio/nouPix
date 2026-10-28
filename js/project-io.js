@@ -4,6 +4,8 @@
 
 /* ---------- opening project files ---------- */
 const uniqueId = (v, seen) => { const id = isId(v) && !seen.has(v) ? v : uid(); seen.add(id); return id; };
+// A scene's picture: a small image, as a data URL
+const SHOT_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 function fixSettings(given) {
   const s = Object.assign(JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), isObj(given) ? given : {});
   for (const [k, d] of Object.entries(DEFAULT_SETTINGS)) {
@@ -16,6 +18,7 @@ function fixSettings(given) {
   if (!['artnet', 'sacn'].includes(s.protocol)) s.protocol = 'artnet';
   s.sacnPriority = clamp(Math.round(s.sacnPriority), 0, 200);
   s.sacnMulticast = s.sacnMulticast === true;
+  s.sceneShots = s.sceneShots === true;
   // 255.255.255.255 was the default address for ArtPoll; discovery now goes to the networks chosen in Nodes
   if (s.broadcast.trim() === '255.255.255.255') s.broadcast = '';
   delete s.trim;   // the colour trims are per fixture now (see hydrate)
@@ -36,9 +39,10 @@ function fixFixture(f, i, ids) {
     f.cols = Math.min(f.cols, 4096); f.rows = Math.min(f.rows, Math.floor(1e6 / Math.max(1, f.cols | 0)));
     if (!['TL', 'TR', 'BL', 'BR'].includes(f.start)) f.start = 'TL';
     if (f.dir !== 'H' && f.dir !== 'V') f.dir = 'H';
-  } else f.pixels = Math.min(f.pixels, 1e6);
+  } else if (f.type === 'dot') { f.size = clamp(f.size, 1, 10000); delete f.pixels; }
+  else f.pixels = Math.min(f.pixels, 1e6);
   // the spacing a fixture keeps when its pitch is locked: a positive number, or no lock
-  if ('pitchLock' in f) { const p = numOr(f.pitchLock, 0); if (p > 0 && f.type !== 'matrix' && f.type !== 'path') f.pitchLock = p; else delete f.pitchLock; }
+  if ('pitchLock' in f) { const p = numOr(f.pitchLock, 0); if (p > 0 && (f.type === 'line' || f.type === 'circle')) f.pitchLock = p; else delete f.pitchLock; }
   if (f.type === 'circle' && 'ry' in f) { const ry = numOr(f.ry, NaN); if (ry > 0) f.ry = ry; else delete f.ry; }
   if (f.type === 'circle' && 'rot' in f) { const r = numOr(f.rot, 0); if (r) f.rot = r; else delete f.rot; }   // an oval turned
   if (f.type === 'path') {
@@ -164,7 +168,7 @@ function hydrate(p) {
     L.on = L.on !== false;
     return L;
   };
-  const fixScenes = list => (Array.isArray(list) ? list : []).filter(isObj).map((sc, i) => { const o = Object.assign({ id: uid(), name: 'Scene ' + (i + 1), fade: 2 }, sc, { layers: (Array.isArray(sc.layers) ? sc.layers : []).map(fixLayer) }); if (tagOf(o.tag)) o.tag = tagOf(o.tag); else delete o.tag; return o; });   // its colour, if the user gave it one
+  const fixScenes = list => (Array.isArray(list) ? list : []).filter(isObj).map((sc, i) => { const o = Object.assign({ id: uid(), name: 'Scene ' + (i + 1), fade: 2 }, sc, { layers: (Array.isArray(sc.layers) ? sc.layers : []).map(fixLayer) }); if (tagOf(o.tag)) o.tag = tagOf(o.tag); else delete o.tag; if (!SHOT_RE.test(o.thumb) || o.thumb.length > 400000) delete o.thumb; return o; });   // its colour, if the user gave it one; its picture, if it has one
   const zoneIds = new Set();
   out.zones = out.zones.map((zn, i) => {
     const z = Object.assign(newZone({ name: 'Zone ' + (i + 1) }), zn);
@@ -196,7 +200,7 @@ function fixMidi(m) {
   const maps = (isObj(m) && Array.isArray(m.maps) ? m.maps : []).filter(w => isObj(w) && typeof w.key === 'string' && MIDI_KEY.test(w.key) && typeof w.to === 'string' && w.to && w.to.length < 300);
   // order: the controls in the order the user put them (the others follow, by port, type and number)
   const order = [...new Set((isObj(m) && Array.isArray(m.order) ? m.order : []).filter(k => typeof k === 'string' && MIDI_KEY.test(k)))];
-  return { maps: maps.map(w => ({ id: uniqueId(isId(w.id) ? String(w.id) : null, ids), key: w.key, to: w.to, takeover: w.takeover === 'jump' ? 'jump' : 'pickup', mode: w.mode === 'hold' ? 'hold' : 'toggle' })), order };
+  return { maps: maps.map(w => ({ id: uniqueId(isId(w.id) ? String(w.id) : null, ids), key: w.key, to: w.to, takeover: w.takeover === 'jump' ? 'jump' : 'pickup', mode: w.mode === 'hold' || w.mode === 'flash' ? w.mode : 'toggle' })), order };
 }
 
 /* ---------- history + persistence ---------- */

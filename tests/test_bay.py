@@ -94,7 +94,7 @@ try:
     check("a click elsewhere lets it go", pop.is_hidden() and W.locator(".bwires path.wire.sel").count() == 0)
     bid = ev("project.midi.maps.find(w => w.to === 'blackout').id")
     pick(bid)
-    check("a pad on Blackout: Toggle or Hold", [x.strip() for x in pop.locator(".seg button").all_inner_texts()] == ["Toggle", "Hold"], pop.locator(".seg button").all_inner_texts())
+    check("a pad on Blackout: Toggle, Hold or Flash", [x.strip() for x in pop.locator(".seg button").all_inner_texts()] == ["Toggle", "Hold", "Flash"], pop.locator(".seg button").all_inner_texts())
     W.keyboard.press("Delete"); settle()
     check("Delete removes the wire picked, and it is a step of undo", not ev("project.midi.maps.some(w => w.to === 'blackout')") and W.locator(".bwires path.wire").count() == 6)
     W.keyboard.press("Control+z"); settle(0.5)

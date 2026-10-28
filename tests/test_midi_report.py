@@ -150,7 +150,7 @@ try:
     cc(9, 100); settle(0.3)
     check("once it has picked up, the mark goes", pick()[0] is True and abs(ev("project.settings.master") - 100 / 127) < 0.01, (pick(), ev("project.settings.master")))
     how = W.evaluate(f"[...{row('Note 44')}.querySelectorAll('.seg button')].map(b => b.textContent)")
-    check("a pad on a zone's level offers Toggle and Hold, not Pickup and Jump", how == ["Toggle", "Hold"], how)
+    check("a pad on a zone's level offers Toggle, Hold and Flash, not Pickup and Jump", how == ["Toggle", "Hold", "Flash"], how)
     lvl = lambda: ev(f"zoneById('{Z}').opacity")
     ev(f"setZoneOpacity(zoneById('{Z}'), 0.3)")
     on(44); settle(0.15); a = lvl(); off(44); settle(0.15); b = lvl()

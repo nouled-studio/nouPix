@@ -156,7 +156,7 @@ function fixtureMenu(e, f, pick) {
   if (!ui.sel.has(f.id)) { ui.sel = new Set(pick); onSelection(); }
   const sel = selected(), one = sel.length === 1 ? sel[0] : null, ga = groupAction(sel);
   const allOn = sel.every(x => x.enabled), allLocked = sel.every(x => x.locked);
-  const patched = sel.filter(x => x._patch), lines = sel.filter(x => x.type !== 'matrix'), g = wholeGroup(sel);
+  const patched = sel.filter(x => x._patch), lines = sel.filter(x => x.type !== 'matrix' && x.type !== 'dot'), g = wholeGroup(sel);
   menu(at(e), [
     { head: one ? one.name : g ? `${groupName(g)} · ${sel.length} fixtures` : `${sel.length} fixtures` },
     one && ['Rename…', () => focusName('fxName'), { key: 'double-click' }],
@@ -267,6 +267,7 @@ function canvasMenu(e, x, y) {
     ['Add a strip here', add('line')],
     ['Add a matrix here', add('matrix')],
     ['Add a ring here', add('circle')],
+    ['Add a dot here', add('dot')],
     ['Draw a path', () => setTool('path'), { key: 'P' }],
     ['Draw with the pen', () => setTool('pen'), { key: 'N' }],
     '-',
@@ -398,7 +399,7 @@ function addFixtureMenu(anchor) {
     f.name = nextName(type);
     addFixture(f);
   };
-  menu(anchor, [['Line / strip', mk('line')], ['Matrix', mk('matrix')], ['Circle / ring', mk('circle')], ['Path (draw on stage)', () => setTool('path')], '-', ['Import from SVG…', () => $('#fileSvg').click()]]);
+  menu(anchor, [['Line / strip', mk('line')], ['Matrix', mk('matrix')], ['Circle / ring', mk('circle')], ['Dot (one big pixel)', mk('dot')], ['Path (draw on stage)', () => setTool('path')], '-', ['Import from SVG…', () => $('#fileSvg').click()]]);
 }
 function addSourceMenu(anchor) {
   // files and screens play on the main computer: a device can't hand it a file of its own

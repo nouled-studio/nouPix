@@ -36,7 +36,7 @@ order by `<script src>` tags at the end of `index.html`:
 | `project-io.js` | Project files: repairing what is opened, undo history, autosave, open/save, packages (`exportPackage`, `openPackage`), CSV, SVG import, the demo | `hydrate` `serialize` `commit` `commitSoft` `undo` `redo` `loadProject` `importSvg` `demoProject` |
 | `remote.js` | Remote control: the host side (configure the bridge, send the project and the phones' state, apply devices' changes by role) and the client side (this page opened on a device at `/app`) | `remote` `REMOTE_CLIENT` `mappingLocked` `remoteChanged` `remoteFromDevice` `contentOf` `connectRemote` `remoteOp` |
 | `playlists.js` | Playlists: a zone plays some of its scenes in turn on the frame clock; which fade a step uses; play, pause, next, the end; the state devices see | `playlistTick` `playPlaylist` `togglePlaylist` `pausePlaylist` `resumePlaylist` `stepPlaylist` `playlistManual` `stepFade` `playingList` `playElapsed` `playState` |
-| `midi.js` | MIDI in: Web MIDI and its ports, messages, the mappings' targets (master, blackout, the crossfader `xf`, group dimmer `gr:<group>`, zone level, scene, next scene, playlist, macro, a control of an effect), pickup and jump, toggle and hold (Follow for a fader, the default when one is learnt onto something on or off), learn | `midi` `startMidi` `setMidiOn` `midiMessage` `midiIn` `midiTarget` `effectTarget` `midiApply` `midiSetLearn` `midiLearnTarget` `midiConnect` `midiSetMap` `midiDisconnect` |
+| `midi.js` | MIDI in: Web MIDI and its ports, messages, the mappings' targets (master, blackout, the crossfader `xf`, group dimmer `gr:<group>`, zone level, scene, next scene, playlist, macro, a control of an effect), pickup and jump, toggle and hold (Follow for a fader, the default when one is learnt onto something on or off), Flash (`mode: 'flash'`: on while held, back as it was when let go; a scene comes back through `zoneBack`, its playlist carrying on), learn | `midi` `startMidi` `setMidiOn` `midiMessage` `midiIn` `midiTarget` `effectTarget` `midiApply` `midiSetLearn` `midiLearnTarget` `midiConnect` `midiSetMap` `midiDisconnect` |
 | `actions.js` | What the user can do, whichever button, key or menu asks: fixtures, selection, align/turn/resize, copy and paste, zones and their levels, the crossfader, layers, scenes, playlists, controllers, macros and what an effect follows, an effect's control set everywhere it plays, adding sources from files | `addFixture` `deleteSel` `duplicateSel` `groupSel` `alignSel` `rotateSel` `pasteFixtures` `addZone` `setZoneOpacity` `setXfade` `setXfadeOn` `setXfadeZone` `addLayer` `goScene` `storeScene` `playlistDo` `addPlaylist` `addToPlaylist` `moveStep` `deleteController` `setMacro` `setMacroLink` `setEffectControl` |
 | `ui-forms.js` | Building blocks for the panels: rows, inputs, sliders (a value typed on double-click, Shift + scroll in notches; the track filled up to the value, `rangeFill`, kept by the value setter and input events), a group's or zone's colour (`tagSwatches`), segmented buttons, lists that reorder by dragging and their move animation, rows that scroll sideways with ‹ › (`hscroller`), scroll positions kept when a panel is drawn anew (`keepScroll`, `data-keep`), a window this page draws into dressed like it (`dressWindow`) and brought to the front (`raiseWindow`: focus, and `#raise…` for the app to restore it), a short explanation under anything marked `data-tip` ("Title|What it does", `initTips`) | `row` `numRow` `sliderRow` `shiftWheel` `notchFrom` `seg` `checkRow` `reorderable` `flipRows` `hscroller` `keepScroll` `dressWindow` `initTips` |
 | `ui-color.js` | The colour picker for shader colour controls: wheel and intensity, RGB, HSV, hex, lighting presets, recent colours | `colorRow` `openColorPicker` `hsvToRgb` `rgbToHsv` |
@@ -105,6 +105,11 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   (debounced) while dragging or typing. Redraw the panel you changed (`renderRight()`, …) yourself.
 - Keys starting with `_` (`f._pts`, `f._patch`, `f._out`, `f._col`…) are worked out at run time and never saved
   (`replacer` leaves them out of every file and copy).
+- A Dot (`type: 'dot'`: `cx`, `cy`, `size`) is a fixture of one pixel, drawn as big as its size (`fixturePitch` is its size, so
+  `dotRadius` draws it that big); no pixel count, direction or pitch lock. The Dot tool (D) stays on after each click.
+- A scene may have a picture (`sc.thumb`: a small JPEG as a data URL, `SHOT_RE` in `hydrate`): `sceneShot` reads its zone as it
+  looks now (`zonePicture` in render.js, which draws a zone the output leaves out first; `mixer.grab`), from the scene's ⋯
+  menu, or on storing and updating with `settings.sceneShots` (off by default). The scene's button shows it (`.scene.shot`).
 - Playlists live in each zone (`z.playlists`, steps pointing at the zone's scenes); where one plays is `z._play`, never
   saved. Steps that play by themselves change `z.layers`/`z.scene` without an undo step; `restore` keeps a playing
   zone's step over an older copy (an undo, a device a step behind).
@@ -179,6 +184,11 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   (`remoteOp`), so the main window fades and dims live; so do play, pause and next of playlists (`playlistDo`), which
   only the main window plays: devices show where they are from the `live` message (`play`). A device never sends
   Art-Net (`setOutput` does nothing), and can't add files or screen capture.
+- **HTTP triggers:** with remote control on and `remote.cfg.http` (this computer's, sent with the rest of the config), the
+  network server answers `GET /trigger/...` (`Remote.trigger`): the bridge asks the main window (`{t: 'rhttp', id, path}`),
+  which carries it out through `remoteFromDevice` as the role `http` (`httpTrigger`: scenes, zone levels, master, blackout)
+  and answers (`{t: 'rhttp', id, status, body}`, JSON to the caller; no answer in 3 s is a 504). `httpTriggers()` lists
+  them, for `/trigger` and the window (`httpDialog`, ui-remote.js).
 - **The remote as an app:** `remote.html` links `remote.webmanifest` (start `/remote`, standalone, icons
   `icons/remote-*.png` made from `icons/noupix.svg`) and registers `remote-sw.js` (network first, a cached copy
   of the page and its files when the computer can't be reached). The network server serves them (`REMOTE_FILES`).
@@ -249,7 +259,7 @@ pushed.
 ## Tests
 
 `python3 tests/run_tests.py --quick` before every push (about 10 minutes); for a change to MIDI, the macros or the
-MIDI window only, `python3 tests/run_tests.py --midi` (static, midi, macros, links, bay, midirep: about 6 minutes) before a push,
+MIDI window only, `python3 tests/run_tests.py --midi` (static, midi, macros, links, bay, midirep, flash: about 6 minutes) before a push,
 and `--quick` (plus `golden`) before merging into main; `python3 tests/run_tests.py` for
 everything, including `golden` (the Art-Net bytes of fixed projects must stay identical), the soak test and the UI
 fuzzer. Tests drive the page with Playwright through the bridge, and use the global functions and `window.olm`
@@ -264,7 +274,7 @@ simulated in the page (Web MIDI replaced): turning it on, the MIDI window, ports
 hold, scenes, next scene, playlists, ignored ports, another port name, saving, undo, missing targets, the line and tags,
 the virtual controller. `test_macros.py` checks the macros: what follows what, Speed through the clocks, Intensity,
 Saturation, the colours, the shared controls, scenes and thumbnails, files and undo, the Macros section, MIDI onto a
-macro and a colour's part, devices. `test_links.py` checks what an effect follows as chosen (engine, files, undo, the
+macro and a colour's part, devices. `test_flash.py` checks Flash: a scene while held with its fade and what played before back (its layers as they were, a playlist carrying on), the next scene, levels, master and blackout, a CC button, the MIDI window's choices, undo and files. `test_dot.py` checks the Dot (the tool, the stage, the Inspector, turning and scaling with others, patching, files). `test_shots.py` checks pictures on scenes (the menu, the button, the setting, a hidden zone, undo, files). `test_http.py` checks HTTP triggers (off by default, the menu and window, scenes by name or id with fade or cut, levels, master, blackout, errors, the X-Fader, the phones following, Settings, the main window gone). `test_links.py` checks what an effect follows as chosen (engine, files, undo, the
 fold, the operator's lock), MIDI onto an effect's controls (learn, pickup and jump, every layer, scenes, speed, lists,
 ticks, events, the MIDI window's list) and Follow for a fader learnt onto something on or off. `test_look.py` checks the look and the name: the fonts served and nothing fetched from outside, black by default,
 white from the top bar and Settings (kept, from the start, the windows and the stage following), colours only on

@@ -103,16 +103,20 @@ SUITES = [   # name, function, part of --quick
     ("color", simple("test_color.py", 8157, 300), True),
     ("remote", simple("test_remote.py", 8160, 1200), True),
     ("rapp", simple("test_remote_app.py", 8164, 400), True),
+    ("http", simple("test_http.py", 8234, 300), True),
     ("rsoak", simple("test_remote_soak.py", 8162, 2400), False),
     ("playlist", simple("test_playlist.py", 8170, 600), True),
     ("16bit", simple("test_16bit.py", 8174, 600), True),
     ("values", simple("test_values.py", 8178, 300), True),
     ("pitch", simple("test_pitch.py", 8224, 300), True),
+    ("dot", simple("test_dot.py", 8228, 300), True),
+    ("shots", simple("test_shots.py", 8232, 300), True),
     ("midi", simple("test_midi.py", 8182, 400), True),
     ("macros", simple("test_macros.py", 8184, 400), True),
     ("links", simple("test_links.py", 8186, 400), True),
     ("bay", simple("test_bay.py", 8188, 400), True),
     ("midirep", simple("test_midi_report.py", 8222, 400), True),
+    ("flash", simple("test_flash.py", 8226, 300), True),
     ("sceneswin", simple("test_scenes_window.py", 8190, 400), True),
     ("look", simple("test_look.py", 8192, 400), True),
     ("frames", simple("test_frames.py", 8201, 300), True),
@@ -136,7 +140,7 @@ if __name__ == "__main__":
     quick = "--quick" in args
     names = [a for a in args if not a.startswith("--")]
     if "--midi" in args:   # a change to MIDI, the macros or the MIDI window only: their suites, and the page's files
-        names = names or ["static", "midi", "macros", "links", "bay", "midirep"]
+        names = names or ["static", "midi", "macros", "links", "bay", "midirep", "flash"]
     todo = [s for s in SUITES if (s[0] in names if names else (s[2] or not quick))]
     print("Logs in", OUT)
     bad = 0

@@ -1670,6 +1670,8 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
             startup.message(msg)
         elif msg.get("t") == "rout" and remote:
             remote.route(ws, msg)
+        elif msg.get("t") == "rhttp" and remote:
+            remote.answer(ws, msg)
         elif msg.get("t") == "poll":
             if not art.discovery:
                 ws.send_json({"t": "error", "msg": "Discovery unavailable: " + art.discovery_note})
@@ -1760,6 +1762,9 @@ class Remote:
         self.lock = threading.Lock()
         self.tries = {}       # address -> [wrong passwords, waiting until]
         self.next_cid = 1
+        self.http = False     # HTTP triggers (GET /trigger/...) answered, as the main window asks
+        self.asked = {}       # an HTTP trigger waiting for the main window: its number -> [Event, (status, reply)]
+        self.next_ask = 1
 
     # ---- from the main window
     def configure(self, ws, msg):
@@ -1777,6 +1782,7 @@ class Remote:
         with self.lock:
             changed = password != self.password
             self.password, self.host = password, ws
+            self.http = msg.get("http") is True
         if changed:   # a new password: whoever logged in with the old one logs in again
             self.forget("programmer", "The programmer password changed on the main computer. Log in again.")
         if self.server and self.port != port:
@@ -1808,6 +1814,39 @@ class Remote:
             targets = [c for c in self.clients.values() if (to is None or c.cid == to) and (not isinstance(roles, list) or c.role in roles)]
         for c in targets:
             c.ws.send(data)
+
+    def trigger(self, path):
+        """An HTTP trigger (GET /trigger/..., from show control software, a Stream Deck, a script): the main window
+        carries it out, as it does a device's messages, and says how it went. Returns (http status, reply)."""
+        with self.lock:
+            if not self.http:
+                return 404, {"error": "HTTP triggers are off. Turn them on in nouPix: the Remote control menu, HTTP triggers."}
+            host = self.host
+            if host is None:
+                return 503, {"error": "The main nouPix window is not open."}
+            n = self.next_ask
+            self.next_ask += 1
+            waiting = self.asked[n] = [threading.Event(), None]
+        host.send_json({"t": "rhttp", "id": n, "path": path})
+        waiting[0].wait(3)
+        with self.lock:
+            self.asked.pop(n, None)
+        return waiting[1] or (504, {"error": "The main nouPix window did not answer."})
+
+    def answer(self, ws, msg):
+        """The main window's answer to an HTTP trigger"""
+        if ws is not self.host:
+            return
+        with self.lock:
+            waiting = self.asked.get(msg.get("id"))
+        if waiting:
+            try:
+                status = min(599, max(200, int(msg.get("status"))))
+            except (TypeError, ValueError):
+                status = 500
+            body = msg.get("body")
+            waiting[1] = (status, body if isinstance(body, dict) else {})
+            waiting[0].set()
 
     def host_gone(self, ws):
         with self.lock:
@@ -1913,6 +1952,9 @@ class RemoteHandler(Handler):
             return self.remote_socket()
         if path == "/favicon.ico":
             return self.send_file(os.path.join(HERE, "icons", "noupix.ico"), "image/x-icon")
+        if path == "/trigger" or path.startswith("/trigger/"):
+            status, reply = self.server.remote.trigger(self.path)
+            return self.send_json(status, reply)
         if path == "/info":
             r = self.server.remote
             return self.send_json(200, {"version": VERSION, "hasPassword": bool(r.password), "host": r.host is not None})

@@ -92,6 +92,7 @@ function zoomAt(sx, sy, factor) {
 function outlinePath(f, c) {
   c.beginPath();
   if (f.type === 'line') { c.moveTo(...toS(f.x1, f.y1)); c.lineTo(...toS(f.x2, f.y2)); }
+  else if (f.type === 'dot') { const [sx, sy] = toS(f.cx, f.cy); c.arc(sx, sy, Math.max(3, f.size / 2 * ui.view.zoom), 0, Math.PI * 2); }
   else if (f.type === 'circle') {
     const [sx, sy] = toS(f.cx, f.cy), rx = f.r * ui.view.zoom, ry = ryOf(f) * ui.view.zoom, t = rad(ovalRot(f));
     if (f.sweep >= 359.99) c.ellipse(sx, sy, rx, ry, t, 0, Math.PI * 2);
@@ -105,10 +106,11 @@ function outlinePath(f, c) {
     if (f.closed) c.closePath();
   }
 }
-// How big a fixture's dots are on screen: about a third of the pixel pitch, at least 1.1 px so a sparse fixture far
+// How big a fixture's dots are on screen (a Dot: its size): about a third of the pixel pitch, at least 1.1 px so a sparse fixture far
 // away stays visible, but never more than ~half the pitch, so dense pixels zoomed out make a thin line, not a thick band
 function dotRadius(f, zoom = ui.view.zoom) {
   const s = f._pitch * zoom;
+  if (f.type === 'dot') return Math.max(1.5, s * 0.45);   // a big light: as big as its size, however close
   return clamp(s * 0.36, clamp(s * 0.45, 0.6, 1.1), 10);
 }
 function drawDots(f, dispOverride) {
@@ -294,7 +296,7 @@ function drawDataLinks() {
 }
 function handlesOf(f) {
   if (f.type === 'line') return [{ id: 'p1', x: f.x1, y: f.y1 }, { id: 'p2', x: f.x2, y: f.y2 }];
-  if (f.type === 'circle') return [];   // resized and turned with the frame around it (selHandles)
+  if (f.type === 'circle' || f.type === 'dot') return [];   // resized and turned with the frame around it (selHandles); a dot only moves
   if (f.type === 'matrix') {
     const hs = matrixCorners(f).map((p, i) => ({ id: 'k' + i, x: p[0], y: p[1] }));
     const up = 22 / ui.view.zoom, a = rad(f.rot);
@@ -622,7 +624,7 @@ function hitFixture(x, y) {
 function selHandles() {
   if (ui.tool !== 'select') return [];
   const list = rotatable();
-  if (!list.length || (list.length === 1 && (list[0].type === 'matrix' || list[0].type === 'line'))) return [];
+  if (!list.length || (list.length === 1 && (list[0].type === 'matrix' || list[0].type === 'line' || list[0].type === 'dot'))) return [];
   const F = selFrame(list), z = ui.view.zoom, pad = 10 / z, hw = F.w / 2 + pad, hh = F.h / 2 + pad, hs = [];
   if (list.length > 1 || framed(list[0])) [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]].forEach(([gx, gy], k) => {
     if ((gx && F.w < 1e-6) || (gy && F.h < 1e-6)) return;   // nothing to stretch that way (fixtures in one line)
@@ -707,6 +709,7 @@ function dragHandle(f, o, hd, x, y, e) {
 function draftFrom(type, x0, y0, x1, y1, e) {
   const d = newFixture(type);
   if (type === 'line') Object.assign(d, { x1: x0, y1: y0, x2: x1, y2: y1, pixels: Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / 10) + 1) });
+  if (type === 'dot') Object.assign(d, { cx: x1, cy: y1 });   // it follows the pointer while dragging
   if (type === 'circle') { const r = Math.max(4, Math.hypot(x1 - x0, y1 - y0)); Object.assign(d, { cx: x0, cy: y0, r, pixels: Math.max(3, Math.round(2 * Math.PI * r / 10)) }); }
   if (type === 'matrix') {
     let w = Math.abs(x1 - x0), hh = Math.abs(y1 - y0);
@@ -715,8 +718,9 @@ function draftFrom(type, x0, y0, x1, y1, e) {
   }
   return d;
 }
-// A fixture of the default size centred on x, y: a line 200 long, a circle of radius 60, a 160 × 160 matrix
+// A fixture of the default size centred on x, y: a line 200 long, a circle of radius 60, a 160 × 160 matrix, a dot
 function defaultFixtureAt(type, x, y) {
+  if (type === 'dot') return draftFrom('dot', x, y, x, y);
   return type === 'line' ? draftFrom('line', x - 100, y, x + 100, y) : type === 'circle' ? draftFrom('circle', x, y, x + 60, y) : draftFrom('matrix', x - 80, y - 80, x + 80, y + 80);
 }
 
@@ -746,7 +750,7 @@ cv.addEventListener('pointerdown', e => {
     drag = { kind: 'zoneNew', x0: snapV(x, e), y0: snapV(y, e), sx, sy, pick: hitZone(x, y) };
     return;
   }
-  if (tool === 'line' || tool === 'circle' || tool === 'matrix') {
+  if (tool === 'line' || tool === 'circle' || tool === 'matrix' || tool === 'dot') {
     const px = snapV(x, e), py = snapV(y, e);
     drag = { kind: 'create', type: tool, x0: px, y0: py, moved: false };
     draft = draftFrom(tool, px, py, px, py, e);
@@ -888,7 +892,7 @@ function endDrag(e) {
     }
     f.name = nextName(f.type);
     addFixture(f);
-    setTool('select');
+    if (f.type !== 'dot') setTool('select');   // dots are placed one after another, until Esc or another tool
     toast(`${f.name} added: ${pixelCount(f)} pixels`);
   } else if (d.kind === 'handle' || d.kind === 'move' || d.kind === 'rotsel' || d.kind === 'scalesel' || d.kind === 'zoneMove' || d.kind === 'zoneSize') {
     // fixtures moved, turned or resized: the fixture list and the dock show nothing of that (zones: the dock does),

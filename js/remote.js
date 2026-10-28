@@ -10,7 +10,7 @@ const remote = {
   role: null,        // as a client: 'programmer' or 'operator'
   token: null, cid: null, hostOn: false, loaded: false, applying: false, bye: '',
   // as the host: what the user set (kept in this browser) and what the bridge reports
-  cfg: { on: false, port: REMOTE_PORT, password: '' },
+  cfg: { on: false, port: REMOTE_PORT, password: '', http: false },   // http: HTTP triggers answered
   status: null,      // { on, port, urls, error, clients, hasPassword }
   clients: new Map(),   // cid -> { role, addr }
   acks: {},             // cid -> the number of the last project change from that device that was applied here
@@ -21,7 +21,7 @@ const mappingLocked = () => remote.role === 'operator';
 const isRemoteClient = () => REMOTE_CLIENT;
 function remoteLoadCfg() {
   const c = store.get('noupix.remote', {});
-  remote.cfg = { on: !!(c && c.on), port: clamp(Math.round(numOr(c && c.port, REMOTE_PORT)), 1024, 65535), password: typeof (c && c.password) === 'string' ? c.password : '' };
+  remote.cfg = { on: !!(c && c.on), port: clamp(Math.round(numOr(c && c.port, REMOTE_PORT)), 1024, 65535), password: typeof (c && c.password) === 'string' ? c.password : '', http: !!(c && c.http) };
 }
 function remoteSaveCfg() { store.set('noupix.remote', remote.cfg); }
 
@@ -52,6 +52,7 @@ function remoteHostMessage(m) {
     remote.clients.delete(m.cid); delete remote.acks[m.cid];
     updateRemoteUI();
   } else if (m.t === 'rmsg') { remoteFromDevice(m.cid, m.role, m.m); return true; }
+  else if (m.t === 'rhttp') { const r = httpTrigger(m.path); bridgeSend({ t: 'rhttp', id: m.id, status: r.status, body: r.body }); return true; }
   else return false;
   if (ui.rightTab === 'settings' && !document.activeElement.closest?.('#rightBody')) renderRight();   // its address and devices
   return true;
@@ -137,6 +138,60 @@ function remoteFromDevice(cid, role, m) {
     try { restore(data); } catch (e) { report('a change from a remote device', e); remoteWelcome(cid, role); return; }
     pushHistory(); remoteChanged();   // the others get it, and that device hears its change is in
   }
+}
+/* ---------- HTTP triggers ---------- */
+// While remote control and its HTTP triggers are on, show control software, a Stream Deck or a script on the network
+// plays scenes and sets levels with a plain GET on the remote control's address:
+//   /trigger/scene/<zone>/<scene>[/cut]   /trigger/level/<zone>/<0–100>   /trigger/master/<0–100>
+//   /trigger/blackout/on|off|toggle       /trigger (the list, in JSON)
+// Zones and scenes go by name (any case) or id. Each is carried out as a device's message is (remoteFromDevice, as the
+// role 'http': what an operator may play, never the project), and answered in JSON.
+const byNameOrId = (list, key) => list.find(x => x.id === key) || list.find(x => String(x.name).trim().toLowerCase() === key.trim().toLowerCase());
+const percentOf = s => (/^\d+(\.\d+)?%?$/.test(s) ? clamp(parseFloat(s), 0, 100) / 100 : NaN);
+function httpTrigger(url) {
+  let parts;
+  try { parts = new URL(url, 'http://x').pathname.split('/').filter(Boolean).map(decodeURIComponent); } catch (e) { return { status: 400, body: { error: 'Not a trigger address.' } }; }
+  const [, what, a, b, c] = parts, ok = did => ({ status: 200, body: { ok: true, did } }), no = (status, error) => ({ status, body: { error } });
+  if (!what) return { status: 200, body: { triggers: httpTriggers().map(t => ({ path: t.path, does: t.does })) } };
+  const run = m => remoteFromDevice(0, 'http', m);
+  if (what === 'master') {
+    const v = percentOf(a || '');
+    if (!isFinite(v)) return no(400, 'Give the master level from 0 to 100: /trigger/master/50');
+    run({ op: 'master', value: v });
+    return ok(`Master ${pct(v)}`);
+  }
+  if (what === 'blackout') {
+    const on = a === 'on' ? true : a === 'off' ? false : a === 'toggle' ? !ui.blackout : null;
+    if (on === null) return no(400, 'Blackout on, off or toggle: /trigger/blackout/on');
+    run({ op: 'blackout', on });
+    return ok(on ? 'Blackout on' : 'Blackout off');
+  }
+  if (what !== 'scene' && what !== 'level') return no(404, `No trigger called ${what}. GET /trigger lists them.`);
+  const z = a ? byNameOrId(project.zones, a) : null;
+  if (!z) return no(404, a ? `No zone called ${a}.` : 'Give a zone.');
+  if (what === 'level') {
+    const v = percentOf(b || '');
+    if (!isFinite(v)) return no(400, `Give ${z.name}'s level from 0 to 100: /trigger/level/${encodeURIComponent(z.name)}/50`);
+    if (xfDriven(z)) return no(409, `${z.name}'s level follows the X-Fader while it is on.`);
+    run({ op: 'opacity', zone: z.id, value: v });
+    return ok(`${z.name} level ${pct(v)}`);
+  }
+  const sc = b ? byNameOrId(z.scenes, b) : null;
+  if (!sc) return no(404, b ? `${z.name} has no scene called ${b}.` : 'Give a scene.');
+  run({ op: 'scene', zone: z.id, scene: sc.id, cut: c === 'cut' });
+  return ok(`${z.name} · ${sc.name}` + (c === 'cut' ? ' (cut)' : ''));
+}
+// Every trigger of this project, with what it does: by name, or by id where two have the same name
+function httpTriggers() {
+  const key = (x, list) => encodeURIComponent(list.filter(y => String(y.name).trim().toLowerCase() === String(x.name).trim().toLowerCase()).length > 1 || !String(x.name).trim() ? x.id : x.name);
+  const out = [{ path: '/trigger/master/100', does: 'Master to 100 % (any level from 0 to 100)' },
+    { path: '/trigger/blackout/toggle', does: 'Blackout on or off (or /on, /off)' }];
+  for (const z of project.zones.slice().reverse()) {   // top first, as the Scenes panel shows them
+    const zk = key(z, project.zones);
+    out.push({ path: `/trigger/level/${zk}/100`, does: `${z.name}: level to 100 % (any level from 0 to 100)`, zone: z.name });
+    for (const sc of z.scenes) out.push({ path: `/trigger/scene/${zk}/${key(sc, z.scenes)}`, does: `${z.name}: play ${sc.name}` + (sc.fade > 0 ? ` (fade ${fmtV(sc.fade)} s; add /cut to cut)` : ''), zone: z.name });
+  }
+  return out;
 }
 // Where this window finds its Art-Net bridge stays this window's own, whatever a device sends
 function keepLocal(data) {

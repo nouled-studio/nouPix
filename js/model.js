@@ -9,7 +9,7 @@
 const TAGS = ['#2f7bff', '#00c2ff', '#00d68f', '#8fe000', '#ff8a00', '#ff2fd1', '#9b5cff', '#ff5c8a'];
 const isTag = c => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
 const ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR', 'RGBW', 'GRBW', 'WRGB', 'W'];
-const TYPE_LABEL = { line: 'Line', circle: 'Circle', matrix: 'Matrix', path: 'Path' };
+const TYPE_LABEL = { line: 'Line', circle: 'Circle', matrix: 'Matrix', path: 'Path', dot: 'Dot' };
 // Dimming curves: how a pixel's level (its content after the fixture's dimmer and trims and the master) becomes its
 // DMX value. Gamma works on every fixture; the others need 16-bit fixtures, whose fine channel keeps the low end
 // smooth where 8 bits would jump between the first few levels.
@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS = {
   compW: 1000, compH: 640, fps: 40, gamma: 1, master: 1, whiteMode: 'off',
   artSync: false, grid: 10, broadcast: '', bridgeUrl: '', transition: 0.5, fade: 2,
   protocol: 'artnet', sacnPriority: 100, sacnMulticast: false,   // what goes out: Art-Net, or sACN (E1.31) instead
+  sceneShots: false,   // a picture of the zone on each scene stored or updated
 };
 // Blend modes, in the order the mixer shader numbers them
 const BLENDS = [['alpha', 'Alpha'], ['add', 'Add'], ['screen', 'Screen'], ['multiply', 'Multiply'], ['subtract', 'Subtract'], ['lighten', 'Lighten'], ['darken', 'Darken'], ['difference', 'Difference']];
@@ -166,6 +167,7 @@ const FIXTURE_FIELDS = {
   circle: { cx: 0, cy: 0, r: 60, pixels: 36, start: 0, sweep: 360, ccw: false },
   matrix: { cx: 0, cy: 0, w: 160, h: 160, rot: 0, cols: 16, rows: 16, start: 'TL', dir: 'H', snake: true },
   path: { pts: [0, 0, 100, 0], closed: false, pixels: 20 },
+  dot: { cx: 0, cy: 0, size: 24 },   // one big pixel (a PAR, a big pixel module): size is how big it is drawn
 };
 function newFixture(type, props = {}) {
   const f = {
