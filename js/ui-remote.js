@@ -37,6 +37,7 @@ function remoteMenu(anchor) {
     ...(on ? [...remote.clients.values()].map(c => ({ head: `${ROLE_NAMES[c.role] || c.role} · ${c.addr}` })) : []),
     '-',
     [on ? 'Switch remote control off' : 'Switch remote control on', () => { remote.cfg.on = !on; remoteConfigure(); if (ui.rightTab === 'settings') renderRight(); }, { disabled: !bridge.connected }],
+    [(remote.cfg.http ? '✓ ' : '') + 'HTTP triggers…', httpDialog, { title: 'Play scenes and set levels from show control software with a plain GET' }],
     ['Remote control settings…', () => { showRight(true); ui.rightTab = 'settings'; renderRight(); const s = $('#remoteSec'); if (s) s.scrollIntoView({ block: 'start' }); }],
   ]);
 }
@@ -57,6 +58,9 @@ function remoteSection() {
     row('Port', numInput(port, 'v', { int: true, min: 1024, max: 65535, aria: 'Remote control port', onCommit: () => { cfg.port = port.v; if (cfg.on) remoteConfigure(); else remoteSaveCfg(); renderRight(); } })),
     row('Password', h('div', { class: 'pwrow' }, pw, show)),
     h('p', { class: 'note' }, 'Phones, tablets and computers on the same network open the address below and choose who they are: a Programmer (everything, with this password), an Operator (content, layers, scenes and zone levels; the mapping is locked), or Remote, a page for phones that plays the scenes of each zone and dims the zones. Without a password nobody can log in as a programmer.'),
+    checkRow('HTTP triggers', cfg, 'http', () => { if (cfg.on) remoteConfigure(); else remoteSaveCfg(); renderRight(); }),
+    h('p', { class: 'note' }, 'Show control software, a Stream Deck or a script on the network can play scenes and set levels, the master and blackout with a plain GET on the address below. ',
+      h('a', { href: '#', onclick: e => { e.preventDefault(); httpDialog(); } }, 'See the triggers')),
     checkRow('X-Fader on the Remote page', project.xfade, 'phone', () => commit()),
     h('p', { class: 'note' }, 'For special occasions: the Remote page shows the X-Fader above the zones, and while it is on (here, in the Scenes panel), phones can move it.'),
   ];
@@ -71,6 +75,35 @@ function remoteSection() {
   const s = sec('Remote control', parts);
   s.id = 'remoteSec';
   return s;
+}
+
+/* ---------- HTTP triggers: the window that lists them ---------- */
+function httpDialog() {
+  const D = uiDocNow(), cfg = remote.cfg;
+  const close = () => bg.remove();
+  const base = () => { const st = remote.status; return (st && st.on && st.urls[0] ? st.urls[0] : `http://<this computer>:${cfg.port}/`).replace(/\/$/, ''); };
+  const copy = t => navigator.clipboard.writeText(t).then(() => toast('Copied ' + (t.includes('\n') ? 'the list' : t)), () => toast(t));
+  const body = h('div', { class: 'mb' });
+  const draw = () => {
+    const st = remote.status, live = !!(st && st.on), list = httpTriggers();
+    const set = on => { cfg.http = on; if (cfg.on) remoteConfigure(); else remoteSaveCfg(); draw(); if (ui.rightTab === 'settings') renderRight(); };
+    body.replaceChildren(...[
+      h('div', { class: 'row' }, h('span', { class: 'lbl' }, 'HTTP triggers'),
+        h('button', { class: 'onsw' + (cfg.http ? ' on' : ''), type: 'button', role: 'switch', 'aria-checked': String(cfg.http), onclick: () => set(!cfg.http) }, h('i'), cfg.http ? 'ON' : 'OFF')),
+      h('p', { class: 'note' }, 'A plain GET on one of these addresses plays a scene or sets a level, from show control software (Companion, QLab), a Stream Deck or a script on the same network. They answer in JSON. Zones and scenes go by name; change the number at the end of a level to any from 0 to 100.'),
+      !live ? h('p', { class: 'note err' }, 'Remote control is off: the triggers answer once it is on. ',
+        h('button', { class: 'btn sm', type: 'button', disabled: !bridge.connected, onclick: () => { cfg.on = true; remoteConfigure(); setTimeout(draw, 400); } }, 'Switch it on')) : null,
+      !cfg.http ? null : h('div', { class: 'rurls htrig' }, list.map(t => h('div', { class: 'rurl' },
+        h('span', null, h('span', { class: 'mono' }, base() + t.path), h('small', null, t.does)),
+        h('button', { class: 'btn sm', type: 'button', onclick: () => copy(base() + t.path) }, 'Copy'))))].filter(Boolean));
+  };
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal wide', role: 'dialog', 'aria-label': 'HTTP triggers' },
+      h('header', null, 'HTTP triggers'), body,
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: () => copy(httpTriggers().map(t => `${base()}${t.path}\t${t.does}`).join('\n')) }, 'Copy all'),
+        h('button', { class: 'btn primary', type: 'button', onclick: close }, 'Done'))));
+  draw();
+  D.body.append(bg);
 }
 
 /* ---------- a device: waiting, disconnected ---------- */

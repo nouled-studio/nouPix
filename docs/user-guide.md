@@ -316,6 +316,16 @@ Phones, tablets and other computers on the same network can use nouPix too, whil
 - The devices render the content too, to show it: an old phone is happier on the Remote page than with the whole interface.
 - Anyone on the network can open the Operator and Remote pages. Use it on a network you trust (the show network, not public Wi-Fi).
 
+**HTTP triggers.** Show control software (Companion, QLab), a Stream Deck or a script on the same network can play scenes and set levels with a plain GET on the remote control's address. Turn them on in the Remote control menu (the phone icon in the top bar) → **HTTP triggers…**, or in **Settings → Remote control**; remote control has to be on too. The window lists every trigger of the project with its address and a **Copy** button (**Copy all** for the whole list):
+
+- `/trigger/scene/<zone>/<scene>` plays a scene with its fade; add `/cut` to cut to it.
+- `/trigger/level/<zone>/<0–100>` sets a zone's level (not while the X-Fader drives it).
+- `/trigger/master/<0–100>` sets the master.
+- `/trigger/blackout/on`, `/off` or `/toggle`.
+- `/trigger` lists them all.
+
+Zones and scenes go by name, in any case (spaces as `%20`), or by id where two have the same name. Each answers in JSON: `{"ok": true, "did": "…"}`, or an error and why. Triggers do what a phone on the Remote page does, plus the master and blackout, and the phones and other devices follow. Anyone on the network can use them while they are on, as with the Remote page.
+
 ## Macros
 
 Macros move the same kind of control in every effect at once. They are in the **MIDI window** (the MIDI button in the top bar), under the controllers, where a controller's faders are learnt onto them; their sliders work with the mouse too.

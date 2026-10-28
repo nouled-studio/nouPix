@@ -184,6 +184,11 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   (`remoteOp`), so the main window fades and dims live; so do play, pause and next of playlists (`playlistDo`), which
   only the main window plays: devices show where they are from the `live` message (`play`). A device never sends
   Art-Net (`setOutput` does nothing), and can't add files or screen capture.
+- **HTTP triggers:** with remote control on and `remote.cfg.http` (this computer's, sent with the rest of the config), the
+  network server answers `GET /trigger/...` (`Remote.trigger`): the bridge asks the main window (`{t: 'rhttp', id, path}`),
+  which carries it out through `remoteFromDevice` as the role `http` (`httpTrigger`: scenes, zone levels, master, blackout)
+  and answers (`{t: 'rhttp', id, status, body}`, JSON to the caller; no answer in 3 s is a 504). `httpTriggers()` lists
+  them, for `/trigger` and the window (`httpDialog`, ui-remote.js).
 - **The remote as an app:** `remote.html` links `remote.webmanifest` (start `/remote`, standalone, icons
   `icons/remote-*.png` made from `icons/noupix.svg`) and registers `remote-sw.js` (network first, a cached copy
   of the page and its files when the computer can't be reached). The network server serves them (`REMOTE_FILES`).
@@ -269,7 +274,7 @@ simulated in the page (Web MIDI replaced): turning it on, the MIDI window, ports
 hold, scenes, next scene, playlists, ignored ports, another port name, saving, undo, missing targets, the line and tags,
 the virtual controller. `test_macros.py` checks the macros: what follows what, Speed through the clocks, Intensity,
 Saturation, the colours, the shared controls, scenes and thumbnails, files and undo, the Macros section, MIDI onto a
-macro and a colour's part, devices. `test_flash.py` checks Flash: a scene while held with its fade and what played before back (its layers as they were, a playlist carrying on), the next scene, levels, master and blackout, a CC button, the MIDI window's choices, undo and files. `test_dot.py` checks the Dot (the tool, the stage, the Inspector, turning and scaling with others, patching, files). `test_shots.py` checks pictures on scenes (the menu, the button, the setting, a hidden zone, undo, files). `test_links.py` checks what an effect follows as chosen (engine, files, undo, the
+macro and a colour's part, devices. `test_flash.py` checks Flash: a scene while held with its fade and what played before back (its layers as they were, a playlist carrying on), the next scene, levels, master and blackout, a CC button, the MIDI window's choices, undo and files. `test_dot.py` checks the Dot (the tool, the stage, the Inspector, turning and scaling with others, patching, files). `test_shots.py` checks pictures on scenes (the menu, the button, the setting, a hidden zone, undo, files). `test_http.py` checks HTTP triggers (off by default, the menu and window, scenes by name or id with fade or cut, levels, master, blackout, errors, the X-Fader, the phones following, Settings, the main window gone). `test_links.py` checks what an effect follows as chosen (engine, files, undo, the
 fold, the operator's lock), MIDI onto an effect's controls (learn, pickup and jump, every layer, scenes, speed, lists,
 ticks, events, the MIDI window's list) and Follow for a fader learnt onto something on or off. `test_look.py` checks the look and the name: the fonts served and nothing fetched from outside, black by default,
 white from the top bar and Settings (kept, from the start, the windows and the stage following), colours only on

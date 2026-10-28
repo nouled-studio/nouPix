@@ -804,6 +804,7 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .modal-bg { position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; z-index: 50; padding: 16px; }
 /* never taller than its window: the middle scrolls, the title and the buttons stay in view */
 .modal { width: min(420px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--bg1); border: 1px solid var(--line2); border-radius: 0; }
+.modal.wide { width: min(640px, 100%); }
 .modal header { padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px; }
 .modal .mb { padding: 12px 16px; display: grid; gap: 10px; min-height: 0; overflow: auto; }
 .updmodal { width: min(520px, 100%); }
@@ -869,6 +870,10 @@ body.ro-map #rail button:not([data-tool=select]), body.ro-map #rail hr { display
 .rurls { display: grid; gap: 4px; margin: 4px 0; }
 .rurl { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid var(--line2); border-radius: var(--r); background: var(--bg2); }
 .rurl .mono { font-size: 12.5px; color: var(--text); overflow-wrap: anywhere; }
+.htrig { margin: 0; }
+.htrig .rurl > span { display: grid; gap: 2px; min-width: 0; }
+.htrig .rurl .mono { font-size: 11.5px; }
+.htrig small { color: var(--muted); }
 .note.err { color: var(--danger); }
 .rwait { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg1) 92%, transparent); }
 .rwbox { max-width: 360px; display: grid; justify-items: center; gap: 14px; text-align: center; color: var(--text2); font-size: 14px; }

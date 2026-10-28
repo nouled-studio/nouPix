@@ -103,6 +103,7 @@ SUITES = [   # name, function, part of --quick
     ("color", simple("test_color.py", 8157, 300), True),
     ("remote", simple("test_remote.py", 8160, 1200), True),
     ("rapp", simple("test_remote_app.py", 8164, 400), True),
+    ("http", simple("test_http.py", 8234, 300), True),
     ("rsoak", simple("test_remote_soak.py", 8162, 2400), False),
     ("playlist", simple("test_playlist.py", 8170, 600), True),
     ("16bit", simple("test_16bit.py", 8174, 600), True),
