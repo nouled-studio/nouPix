@@ -26,6 +26,9 @@ function showVersion(v) {
 // computer, with Settings → Updates on, when nouPix starts (atStart) and at most once a day while it runs, and never in a browser driven by tests (they check it
 // themselves); with no internet it says nothing. Asked for (Check now), it always answers.
 const UPDATE_URL = 'https://api.github.com/repos/nouled-studio/nouPix/releases/latest';
+// Download goes to the newest release, whatever it is by then: a window shown before a newer one came out never
+// leads to the older one
+const LATEST_PAGE = 'https://github.com/nouled-studio/nouPix/releases/latest';
 const versionParts = v => (String(v || '').match(/\d+/g) || []).slice(0, 3).map(Number);
 function newerVersion(a, b) {   // whether version a comes after version b
   const x = versionParts(a), y = versionParts(b);
@@ -61,7 +64,7 @@ function updateDialog(latest, mine, rel) {
       h('footer', null,
         h('button', { class: 'btn', type: 'button', title: "Don't tell me about this version again", onclick: () => { ui.updateSkip = latest; savePrefs(); close(); } }, 'Skip this version'),
         h('button', { class: 'btn', type: 'button', onclick: close }, 'Later'),
-        h('button', { class: 'btn primary', type: 'button', onclick: () => { window.open(rel.html_url || 'https://github.com/nouled-studio/nouPix/releases/latest', '_blank'); close(); } }, 'Download'))));
+        h('button', { class: 'btn primary', type: 'button', onclick: () => { window.open(LATEST_PAGE, '_blank'); close(); } }, 'Download'))));
   uiDocNow().body.append(bg);
 }
 // The look: black (the default) or white, one click away in the top bar and in Settings. It is this computer's

@@ -425,6 +425,11 @@ function rotateSel(deg) {
   setSelAngle(list, a + deg);
   markGeom(); commit(); renderRight();
 }
+// Locks a strip's or circle's pitch at its spacing now (snapped to whole pixels), or unlocks it
+function setPitchLock(f, on) {
+  if (on) { f.pitchLock = r3(fixturePitch(f)); fitPitch(f); } else delete f.pitchLock;
+  markGeom(); commit(); renderRight();
+}
 // Resizes the selection to w × h along its frame, from its centre
 function resizeSel(w, h) {
   const list = rotatable();

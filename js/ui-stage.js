@@ -670,12 +670,13 @@ function dragHandle(f, o, hd, x, y, e) {
     let px = snapV(x, e), py = snapV(y, e);
     if (e.shiftKey) [px, py] = snap45(ox, oy, x, y);
     if (hd.id === 'p1') { f.x1 = px; f.y1 = py; } else { f.x2 = px; f.y2 = py; }
+    fitPitch(f, hd.id === 'p1' ? 'end' : 'start');   // with the pitch locked, the end lands on a whole pixel
   } else if (f.type === 'circle') {
     const t = rad(ovalRot(f)), lx = (x - f.cx) * Math.cos(t) + (y - f.cy) * Math.sin(t), ly = -(x - f.cx) * Math.sin(t) + (y - f.cy) * Math.cos(t);   // along its own axes
     if (hd.id === 'c') { f.cx = snapV(x, e); f.cy = snapV(y, e); }
     else if (hd.id === 'ry') f.ry = Math.max(1, snapV(Math.abs(ly), e));   // the top handle stretches it into an oval
     else if (isOval(f)) f.r = Math.max(1, snapV(Math.abs(lx), e));        // an oval's side handle: its width only
-    else f.r = Math.max(1, snapV(Math.hypot(x - f.cx, y - f.cy), e));
+    else { f.r = Math.max(1, snapV(Math.hypot(x - f.cx, y - f.cy), e)); fitPitch(f); }
   } else if (f.type === 'matrix') {
     if (hd.rot) {
       let a = Math.atan2(y - o.cy, x - o.cx) * 180 / Math.PI + 90;
@@ -890,8 +891,11 @@ function endDrag(e) {
     setTool('select');
     toast(`${f.name} added: ${pixelCount(f)} pixels`);
   } else if (d.kind === 'handle' || d.kind === 'move' || d.kind === 'rotsel' || d.kind === 'scalesel' || d.kind === 'zoneMove' || d.kind === 'zoneSize') {
-    // fixtures moved, turned or resized: the fixture list and the dock show nothing of that (zones: the dock does)
-    if (d.changed) { commit({ lists: d.kind === 'zoneMove' || d.kind === 'zoneSize' ? true : false }); renderRight(); }
+    // fixtures moved, turned or resized: the fixture list and the dock show nothing of that (zones: the dock does),
+    // unless a fixture with its pitch locked got more or fewer pixels
+    const counted = d.kind === 'handle' ? d.o.pixels !== d.f.pixels
+      : d.kind === 'scalesel' && [...d.origs].some(([id, o]) => { const f = fxById(id); return f && o.pixels !== f.pixels; });
+    if (d.changed) { commit({ lists: d.kind === 'zoneMove' || d.kind === 'zoneSize' || counted }); renderRight(); }
   } else if (d.kind === 'zoneNew') {
     const r = zoneDraft; zoneDraft = null;
     if (r && r.w * ui.view.zoom >= 8 && r.h * ui.view.zoom >= 8) addZone(r);

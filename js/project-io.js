@@ -37,6 +37,8 @@ function fixFixture(f, i, ids) {
     if (!['TL', 'TR', 'BL', 'BR'].includes(f.start)) f.start = 'TL';
     if (f.dir !== 'H' && f.dir !== 'V') f.dir = 'H';
   } else f.pixels = Math.min(f.pixels, 1e6);
+  // the spacing a fixture keeps when its pitch is locked: a positive number, or no lock
+  if ('pitchLock' in f) { const p = numOr(f.pitchLock, 0); if (p > 0 && f.type !== 'matrix' && f.type !== 'path') f.pitchLock = p; else delete f.pitchLock; }
   if (f.type === 'circle' && 'ry' in f) { const ry = numOr(f.ry, NaN); if (ry > 0) f.ry = ry; else delete f.ry; }
   if (f.type === 'circle' && 'rot' in f) { const r = numOr(f.rot, 0); if (r) f.rot = r; else delete f.rot; }   // an oval turned
   if (f.type === 'path') {
