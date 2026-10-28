@@ -2,7 +2,7 @@
 
 <img src="icons/noupix-256.png" alt="" width="96" align="right">
 
-A pixel-mapping tool for LED installations, by nouled studio. Draw or import your LED fixtures, play effects, shaders, images, video or live streams on them, store looks as scenes and playlists, and send it all out over Art-Net or sACN. It was called openLedMapper until 1.0.
+A pixel-mapping tool for LED installations, by nouled studio. Draw or import your LED fixtures, play effects, shaders, images, video or live streams on them, store looks as scenes and playlists, and send it all out over Art-Net or sACN.
 
 ![nouPix playing a geometric show: rings, triangles and a diamond matrix in four zones; the fixture list, the stage, the scenes with their playlists and the X-Fader, and the Content panel](docs/images/app-hero.webp)
 
