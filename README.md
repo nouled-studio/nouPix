@@ -4,9 +4,19 @@
 
 A pixel-mapping tool for LED installations, by nouled studio. It was called openLedMapper until 1.0. Draw or import your LED fixtures, play generators, shaders, images, video or a screen capture on them, store looks as scenes, play them in playlists, and send it all out over Art-Net or sACN.
 
+![nouPix with a 512-universe project: zones of effects on the stage, the fixture list on the left and the Patch panel below](docs/screenshots/stage-and-patch.png)
+
+## What's new
+
+- **1.2.2: sACN (E1.31).** Send sACN instead of Art-Net, to each controller or to multicast groups, with a priority so a lighting desk can take over (**Settings → Art-Net / sACN**). MIDI got easier to learn (Toggle or Hold for pads, a pickup mark on faders, Color 1 and 2 in the patch bay), Ctrl+S saves straight to the project's file, and OMT runs in its own process so a failing stream can't stop the output.
+- **1.2.1: a much faster stage.** Projects with thousands of pixels stay smooth, and `.noupix` files and packages have their own icons: double-click one to open it.
+- **1.2.0: projects that travel.** A media library, **Export package…** (`.noupixpkg`, the project with all its media), shows that start by themselves, NDI and OMT streams as sources, and 21 new effects.
+
+The full notes for each version are in [docs/releases](docs/releases/).
+
 ## Download
 
-Get the app from the [Releases](https://github.com/nouled-studio/openLEDmapper/releases) page. Nothing else to install.
+Get the app from the [Releases](https://github.com/nouled-studio/noupix/releases) page. Nothing else to install.
 
 | Computer | File | Needs |
 |---|---|---|
@@ -54,6 +64,8 @@ To see it working before you build anything, open one of the [examples](examples
 - Content: 53 built-in generators, from very smooth ones for architecture (Color drift, Soft clouds, Color wash, Cascade, Marble, Embers) and ambient ones (Caustics, Nebula, Fireflies, Bokeh) to disco ones (Disco dots, Kaleidoscope, Laser fan, Tunnel, Lightning, Mirror ball), and a set after light artists, plus your own ISF shaders, images, video (play, pause, trim with the mouse, loop or once, with or without its sound) window capture and **NDI or OMT streams** from other programs and computers (Resolume, TouchDesigner, OBS…; NDI needs NDI Tools installed, OMT its libomt), in zones with layers and blend modes. Colours are picked on a colour wheel, with RGB or HSV sliders, lighting presets and recent colours. Any slider's value can be typed (double-click it) or stepped with Shift + scroll, and angles have buttons for 0°, 45°, 90°… Sources are sorted by **mood, use, look and motion** (Calm · Architectural · Organic · Drift, Party · Show · Particles · Beat…), with a search box.
 - **16-bit fixtures** (a coarse and a fine channel per colour) and **dimming curves**: gamma, linear, square law, inverse square and S curve (each but linear with its own slider: gamma, or strength), with a graph of the curve in the Inspector that moves as you drag it. 8-bit and 16-bit fixtures mix freely.
 - Scenes per zone, with crossfades; the fade time is on each scene's button. A scene or a playlist can play when the project opens, and a project can open when nouPix starts (Settings → Startup, or `noupix.py --project FILE`): for computers that run a show by themselves.
+![The Scenes panel with the X-Fader on: live previews of zones A and B, and the stage halfway between them](docs/screenshots/scenes-and-x-fader.png)
+
 - **X-Fader:** one fader between two zones, A and B, like the crossfader of a DJ or video mixer. Turn it on at the bottom left of the Scenes panel; its strip shows a live preview of each zone (even the one faded out, so you see what comes next) and lists to choose them. Three modes, each drawn as a small graph: **Mix** fades A into B, as bright in the middle as at the ends where both cover the same lights; **Dip** goes through black; **Cut** switches at the middle. While it is on it alone sets A's and B's levels. Give it a fader on your MIDI controller, and, for special occasions, put it on the phones' Remote page too.
 - **Playlists:** several per zone, each a list of scenes with play times, played by itself in a loop, once, or followed by another playlist. Fades come from each scene, one for the whole playlist, or a step's own.
 - Art-Net or sACN (E1.31, unicast or multicast) output with automatic addressing, node discovery and a DMX monitor. **Highlight** (💡) lights fixtures on site to check them: Trace, Flood, Color check, Spotlight, and Pixel finder for single pixels. Gamma and colour trims are set per fixture, and RGBW is supported.
@@ -62,6 +74,8 @@ To see it working before you build anything, open one of the [examples](examples
 - Works offline: the fonts and everything else come with the app. Online, it tells you when a new version is out (when it starts, from GitHub; Settings → Updates turns it off).
 - **Macros:** in the MIDI window, Speed, Intensity, Saturation, Color 1 and 2, and the controls most effects share (Angle, Width, Softness…), for every effect at once, over each one's own values: scenes keep theirs. Each effect can take a control out of its macro, or have it follow another.
 - **MIDI:** the faders, knobs and pads of a MIDI controller move the master, blackout, the X-Fader, the groups' dimmers, the zones' levels, the macros and any control of an effect, and play scenes and playlists. Press Learn, move a control, then choose what it should move from its list, or click it. Faders pick up where the slider is, and a thin yellow line on the slider shows where the fader is. See every mapping as wires in the patch bay (draw new ones by dragging; see and change which effects follow each macro), or as a list. No controller at hand? The MIDI window has a virtual one on screen.
+![The MIDI window's patch bay with the on-screen virtual controller](docs/screenshots/midi-patch-bay.png)
+
 - **Remote control:** phones, tablets and other computers on the network log in as Programmer (everything, with a password), Operator (content, scenes and playlists; the mapping is locked) or Remote, a simple page that plays the playlists and scenes of each zone and dims the zones (and, when you choose, moves the X-Fader).
 - Projects save to a file. You can also export a CSV patch list for the install crew.
 
