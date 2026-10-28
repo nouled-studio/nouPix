@@ -4,25 +4,36 @@
 
 A pixel-mapping tool for LED installations, by nouled studio. Draw or import your LED fixtures, play effects, shaders, images, video or live streams on them, store looks as scenes and playlists, and send it all out over Art-Net or sACN. It was called openLedMapper until 1.0.
 
-![nouPix: fixtures on the stage, the scenes with their pictures, the Inspector](docs/images/main.png)
+![nouPix playing a geometric show: rings, triangles and a diamond matrix in four zones; the fixture list, the stage, the scenes with their playlists and the X-Fader, and the Content panel](docs/images/app-hero.webp)
 
 ## What it does
 
-- **Map your LEDs:** strips, matrices, rings, ovals, curved paths and big single lights (Dot), drawn on the stage or imported from SVG. Lock a strip's pitch and its length sets its pixels, as on a real strip.
-- **Play content:** 53 built-in effects, your own ISF shaders, images, video, window capture and NDI or OMT streams, in zones with layers and blend modes.
-- **Scenes and playlists:** store looks per zone, fade between them, play them in playlists, mix two zones with the X-Fader.
-- **Control it live:** MIDI controllers (with Learn, a patch bay and Flash pads), phones and tablets on the network, and HTTP triggers for show control software.
-- **Send it out:** Art-Net or sACN, automatic addressing, node discovery, 8 or 16-bit fixtures with dimming curves, a DMX monitor and test patterns to check the installation on site.
+**Map your LEDs.** Strips, matrices, rings, ovals, curved paths and big single lights (Dot), drawn on the stage or imported from SVG. Lock a strip's pitch and its length sets its pixels, as on a real strip.
+
+![The stage with rings, triangles and a diamond matrix turned 45°, one ring selected, the Inspector open](docs/images/feature-map.webp)
+
+**Play content.** 53 built-in effects, your own ISF shaders, images, video, window capture and NDI or OMT streams, in zones with layers and blend modes.
+
+**Scenes and playlists.** Store looks per zone, with a picture of each on its button; fade between them, play them in playlists, mix two zones with the X-Fader.
+
+![The Scenes panel: two zones with their scenes, each showing a picture of what it plays, a playlist under each, and the X-Fader between them](docs/images/feature-scenes.webp)
+
+**Send it out.** Art-Net or sACN, automatic addressing, node discovery, 8 or 16-bit fixtures with dimming curves, a DMX monitor and test patterns to check the installation on site.
+
+![The Patch panel: two controllers with their outputs, fixtures, universes and channels](docs/images/feature-patch.webp)
+
+**Control it live.** MIDI controllers (with Learn, a patch bay and Flash pads), phones and tablets on the network, and HTTP triggers for show control software.
 
 <table>
 <tr>
-<td width="62%"><img src="docs/images/midi.png" alt="The MIDI window's patch bay: a controller's faders and pads wired to the master, zones, scenes and macros"><br><sub>MIDI: every mapping as a wire in the patch bay</sub></td>
-<td width="38%"><img src="docs/images/remote.png" alt="The Remote page on a phone: each zone with its level and its scenes"><br><sub>The Remote page on a phone</sub></td>
+<td width="68%"><img src="docs/images/feature-midi.webp" alt="The MIDI patch bay: controller faders and pads wired to the master, blackout, zone levels, scenes and an effect's control"></td>
+<td width="32%"><img src="docs/images/feature-phone.webp" alt="The Remote page on a phone: each zone with its level, its playlist and its scenes"></td>
 </tr>
 </table>
 
-![nouPix in its white look, for daylight](docs/images/light.png)
-<sub>Black by default, so the light on the stage is the brightest thing on screen; white for daylight, in one click.</sub>
+**Black or white.** Black by default, so the light on the stage is the brightest thing on screen; white for daylight, in one click.
+
+![nouPix in its white look, with the same show on the black stage](docs/images/app-white.webp)
 
 ## Download
 
