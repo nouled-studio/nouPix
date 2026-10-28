@@ -124,7 +124,17 @@ function pitchRows(f) {
   const lock = h('button', { class: 'btn icon pitchlock' + (locked ? ' on' : ''), type: 'button', 'aria-label': 'Lock the pitch', 'aria-pressed': String(locked),
     'data-tip': locked ? 'Pitch locked|More length means more pixels, at this spacing. Click to unlock.' : 'Lock the pitch|Keep this spacing: dragging or typing a longer length adds pixels, a shorter one removes them.',
     onclick: () => setPitchLock(f, !locked) }, icon(locked ? 'lock' : 'unlock'));
-  return [row(scrub('Pitch', Pt, 'pitch', o), h('div', { class: 'pitchrow' }, numInput(Pt, 'pitch', o), lock)),
+  // ▴ ▾ beside the field, and the arrow keys in it, step the pitch half a unit (Shift: five)
+  const inp = numInput(Pt, 'pitch', o);
+  const nudge = (n, done) => { setPitch(f, Math.max(0.01, notchFrom(Pt.pitch, n, 0.5))); inp.value = fmtV(Pt.pitch); markGeom(); syncInspector(); done(); };
+  inp.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    nudge((e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1), commitSoft);
+  });
+  const arrow = (n, txt, label) => h('button', { class: 'btn', type: 'button', 'aria-label': label, title: label + ' (Shift: ×10)', onclick: e => nudge(n * (e.shiftKey ? 10 : 1), commit) }, txt);
+  const spin = h('div', { class: 'spin' }, arrow(1, '▴', 'Pitch up'), arrow(-1, '▾', 'Pitch down'));
+  return [row(scrub('Pitch', Pt, 'pitch', o), h('div', { class: 'pitchrow' }, inp, spin, lock)),
     h('p', { class: 'note' }, locked ? (f.type === 'line' ? 'Pitch locked: dragging an end adds or removes pixels, at this spacing.'
       : 'Pitch locked: a bigger radius or sweep adds pixels, at this spacing.')
       : 'The space between pixels. Lock it to keep it: the length then sets the number of pixels.')];
