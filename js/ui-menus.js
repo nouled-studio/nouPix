@@ -37,7 +37,7 @@ function streamPicker(src) {
     h('div', { class: 'modal vmodal', role: 'dialog', 'aria-label': 'Stream' },
       h('header', null, src ? 'Stream for ' + src.name : 'Add an NDI or OMT stream'),
       h('div', { class: 'mb' }, list,
-        h('p', { class: 'note' }, 'Any program that sends NDI or OMT shows here: Resolume, TouchDesigner, OBS, vMix, NDI Tools’ Screen Capture…')),
+        h('p', { class: 'note' }, 'Programs sending NDI or OMT show here.')),
       h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'))));
   streams.onFound = draw;
   draw(); findStreams();
@@ -86,11 +86,9 @@ function importSvgDialog(file) {
     h('div', { class: 'modal', role: 'dialog', 'aria-label': 'Import SVG' },
       h('header', null, 'Import ' + file.name),
       h('div', { class: 'mb' },
-        h('p', { class: 'note' }, 'The drawing is fitted into the composition. Every circle, arc, line and path becomes a fixture; circles keep the start point and direction they were drawn with.'),
         checkRow('Create fixtures from the shapes', opt, 'fixtures'),
         checkRow('Also use the SVG as the guide image', opt, 'guide'),
-        numRow('Pixel pitch', opt, 'pitch', { min: 0.5, max: 500, step: 0.5 }),
-        h('p', { class: 'note' }, 'Pitch is the spacing between LEDs in composition units; it sets each fixture\'s starting pixel count. You can set exact counts afterwards (select several fixtures to set them all at once).')),
+        tipRow(numRow('Pixel pitch', opt, 'pitch', { min: 0.5, max: 500, step: 0.5 }), 'The spacing between LEDs: it sets each fixture\'s pixel count, which you can change afterwards.')),
       h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'), h('button', { class: 'btn primary', type: 'button', onclick: go }, 'Import'))));
   document.body.append(bg);
 }

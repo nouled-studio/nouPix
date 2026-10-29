@@ -238,7 +238,7 @@ function midiMaps() {
   const fresh = key ? h('div', { class: 'mmap new', title: midiKeyParts(key).port }, h('span', { class: 'mk' }, midiKeyFull(key), h('small', null, 'new')),
     midiTargetSelect({ key, to: '' }, to => midiConnect(key, to)), h('span', { class: 'muted' }, 'or click it')) : null;
   return h('div', { class: 'mcol mmaps' }, h('h3', null, maps.length ? `Mappings · ${maps.length}` : 'Mappings'),
-    h('div', { class: 'mlist' }, fresh, ...rows, maps.length || key ? null : h('p', { class: 'note' }, 'None yet. Press Learn, move a fader, knob or pad, then choose what it should move.')));
+    h('div', { class: 'mlist' }, fresh, ...rows, maps.length || key ? null : h('p', { class: 'note' }, 'None yet: press Learn, move a control, then choose what it moves.')));
 }
 // The monitor folds to its heading
 function midiMonitor() {
@@ -285,7 +285,7 @@ function midiTabUpdate(D) {
   mon.replaceChildren(...(midi.log.length ? midi.log.slice(0, 60).map(e => h('div', { class: 'mrow' },
     h('span', { class: 't' }, e.time.toFixed(2)), h('span', { class: 'm', title: e.port }, e.text), h('span', { class: 'v' }, e.val),
     h('span', { class: 'd' + (e.to.length ? ' go' : e.note === 'learnt' ? ' learnt' : '') }, e.to.length ? '→ ' + e.to.join(', ') : e.note)))
-    : [h('p', { class: 'note' }, 'Every message from your controllers shows here, with what it moves.')]));
+    : [h('p', { class: 'note' }, 'No messages yet.')]));
 }
 
 /* ---------- the virtual controller ---------- */
@@ -312,7 +312,7 @@ function midiVc() {
   const head = h('div', { class: 'vchead' },
     h('button', { class: 'mfold' + (open ? ' open' : ''), type: 'button', 'aria-expanded': String(open), title: open ? 'Fold the virtual controller' : 'Show the virtual controller',
       onclick: () => { ui.midiVc = !open; savePrefs(); updateMidiUI(); } }, icon('chev'), 'Virtual controller'),
-    h('span', { class: 'note' }, open ? 'Faders send CC 21 to 28, pads notes 36 to 43 (keys 1 to 8). Learn them like a real controller.' : 'Faders and pads on screen, to try MIDI without a controller.'));
+    h('span', { class: 'note' }, open ? 'CC 21–28 · notes 36–43 (keys 1–8)' : 'To try MIDI without a controller'));
   if (!open) return h('section', { class: 'vc' }, head);
   const faders = VC_FADERS.map((n, i) => {
     const track = h('div', { class: 'vtrack', tabindex: 0, role: 'slider', 'aria-label': `Fader ${i + 1}, CC ${n}`, 'aria-valuemin': 0, 'aria-valuemax': 127, 'data-cc': n },

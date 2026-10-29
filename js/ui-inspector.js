@@ -24,20 +24,8 @@ function renderInspector(body) {
   const sel = selected();
   if (!sel.length) {
     const px = project.fixtures.reduce((a, f) => a + pixelCount(f), 0);
-    body.append(
-      sec('Nothing selected',
-        h('p', { class: 'note' }, `${project.fixtures.length} fixtures · ${fmtN(px)} pixels · ${project.controllers.length} controller${project.controllers.length === 1 ? '' : 's'}.`),
-        h('p', { class: 'note' }, 'Click a fixture on the stage or in the list to edit it. Drag fixtures from the list onto a controller output in the Patch panel to address them.')),
-      sec('Shortcuts', h('div', { class: 'note', html:
-        '<code>V</code> select · <code>L</code> line · <code>M</code> matrix · <code>C</code> circle · <code>P</code> path · <code>N</code> pen<br>' +
-        '<code>Space</code>-drag or right-drag to pan · wheel to zoom · <code>F</code> fit<br>' +
-        '<code>Alt</code> while dragging turns snapping off · <code>Shift</code> constrains<br>' +
-        '<code>Ctrl C</code> / <code>Ctrl X</code> / <code>Ctrl V</code> copy, cut, paste fixtures (also into another project) · <code>Ctrl D</code> duplicate · <code>Del</code> delete · arrows nudge (<code>Shift</code> ×10) · <code>R</code> / <code>Shift R</code> rotate 90°<br>' +
-        'Right-click anything for its options: patch to an output, paste here, delete a zone or a scene…<br>' +
-        '<code>H</code> hides this panel · <code>Ctrl G</code> group · <code>Ctrl Shift G</code> ungroup · <code>Ctrl L</code> lock or unlock · double-click a fixture of a group to select just it<br>' +
-        '<code>Ctrl Z</code> undo · <code>Ctrl S</code> save · <code>B</code> blackout · <code>I</code> highlight on/off (💡 in the top bar picks the mode)<br>' +
-        '<code>Z</code> zones · <code>1</code>–<code>9</code> scenes of the selected zone (<code>Shift</code> cuts)<br>' +
-        'Double-click a slider\'s value to type one · <code>Shift</code> + scroll over a slider or a number to step it' })));
+    body.append(sec('Nothing selected',
+      h('p', { class: 'note' }, `${project.fixtures.length} fixtures · ${fmtN(px)} pixels · ${project.controllers.length} controller${project.controllers.length === 1 ? '' : 's'}`)));
     return;
   }
   if (sel.length > 1) return renderMulti(body, sel);
@@ -68,11 +56,10 @@ function renderInspector(body) {
     G.push(row('Centre', numInput(f, 'cx', geo({ prefix: 'X' })), numInput(f, 'cy', geo({ prefix: 'Y' }))));
     const oval = isOval(f), R = { get ry() { return ryOf(f); }, set ry(v) { f.ry = v; } };
     const live = () => { fitPitch(f); markGeom(); syncInspector(); };   // a circle's Y follows its X; a locked one snaps
-    G.push(row('Radius', numInput(f, 'r', geo({ prefix: 'X', min: 1, step: 0.5, aria: 'Horizontal radius', onInput: live })),
-      numInput(R, 'ry', geo({ prefix: 'Y', min: 1, step: 0.5, aria: 'Vertical radius', onInput: live, onCommit: () => { commit(); renderRight(); } }))));
+    G.push(tipRow(row('Radius', numInput(f, 'r', geo({ prefix: 'X', min: 1, step: 0.5, aria: 'Horizontal radius', onInput: live })),
+      numInput(R, 'ry', geo({ prefix: 'Y', min: 1, step: 0.5, aria: 'Vertical radius', onInput: live, onCommit: () => { commit(); renderRight(); } }))), 'A different Y, or a side handle of its frame on the stage, stretches it into an oval.'));
     if (oval) G.push(numRow('Rotation °', f, 'rot', geo({ min: -180, max: 180, step: 1 })));
-    G.push(oval ? h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => { f.start = numOr(f.start, 0) + numOr(f.rot, 0); delete f.rot; delete f.ry; fitPitch(f); markGeom(); commit(); renderRight(); } }, 'Make it round'))
-      : h('p', { class: 'note' }, 'Give Y a different value, or drag a side handle of its frame on the stage, to stretch it into an oval.'));
+    if (oval) G.push(h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => { f.start = numOr(f.start, 0) + numOr(f.rot, 0); delete f.rot; delete f.ry; fitPitch(f); markGeom(); commit(); renderRight(); } }, 'Make it round')));
     G.push(numRow('Start °', f, 'start', geo({ min: -360, max: 360, step: 1 })));
     G.push(numRow('Sweep °', f, 'sweep', geo({ min: 1, max: 360, step: 1, onInput: live })));
     G.push(row('Direction', seg([[false, 'Clockwise'], [true, 'Counter-CW']], f.ccw, v => { f.ccw = v === true || v === 'true'; markGeom(); commit(); })));
@@ -87,11 +74,9 @@ function renderInspector(body) {
     G.push(checkRow('Zigzag (snake) wiring', f, 'snake', () => { markGeom(); commit(); }));
   } else if (f.type === 'dot') {
     G.push(row('Centre', numInput(f, 'cx', geo({ prefix: 'X' })), numInput(f, 'cy', geo({ prefix: 'Y' }))));
-    G.push(numRow('Size', f, 'size', geo({ min: 1, max: 10000, step: 1 })));
-    G.push(h('p', { class: 'note' }, 'One pixel, drawn as big as the light it stands for: a PAR, a wall washer, a big pixel module. It takes the colour at its centre.'));
+    G.push(tipRow(numRow('Size', f, 'size', geo({ min: 1, max: 10000, step: 1 })), 'One pixel, drawn as big as the light it stands for: a PAR, a wall washer, a big pixel module. It takes the colour at its centre.'));
   } else if (f.type === 'path') {
-    G.push(row('Shape', h('span', { class: 'readonly' }, `${f.pts.length / 2} points${f.ctl ? ', curved' : ''} · drag them on the stage`)));
-    G.push(h('p', { class: 'note' }, 'Double-click a point on the stage to make it smooth (with handles) or a corner. Drag a handle to shape the curve; hold Alt to move it on its own.'));
+    G.push(tipRow(row('Shape', h('span', { class: 'readonly' }, `${f.pts.length / 2} points${f.ctl ? ', curved' : ''}`)), 'Drag the points on the stage. Double-click a point to make it smooth or a corner; drag a handle to shape the curve, with Alt to move it on its own.'));
     G.push(checkRow('Closed loop', f, 'closed', () => { markGeom(); commit(); }));
   }
   // strips and round circles have the pitch as a field of its own (under Pixels), and a strip its length
@@ -108,7 +93,7 @@ function renderInspector(body) {
   // A locked fixture's pixel count sets its length; otherwise the pixels spread over the same length
   if (f.type !== 'matrix' && f.type !== 'dot') P.push(numRow('Pixels', f, 'pixels', geo({ int: true, min: 1, max: MAX_FX_PIXELS, onInput: v => { if (lockedPitch(f)) setPixelsAtPitch(f, v); markGeom(); syncInspector(); } })));
   if (pitched) P.push(...pitchRows(f));
-  else if (f.pitchLock > 0 && f.type === 'circle') P.push(h('p', { class: 'note' }, 'The pitch lock works on round circles: as an oval it keeps its pixel count. Make it round to use the lock again.'));
+  else if (f.pitchLock > 0 && f.type === 'circle') P.push(h('p', { class: 'note' }, 'Pitch lock: round circles only.'));
   P.push(row('Color order', selectEl(ORDERS.map(o => [o, o + (o.length === 4 ? '  (RGBW)' : o === 'W' ? '  (mono)' : '')]), f.order, v => { f.order = v; markPatch(); commit(); renderRight(); }, { aria: 'Color order' })));
   P.push(...trimRows([f]));
   P.push(...dimmingRows([f]));
@@ -138,10 +123,7 @@ function pitchRows(f) {
   });
   const arrow = (n, txt, label) => h('button', { class: 'btn', type: 'button', 'aria-label': label, title: label + ' (Shift: ×10)', onclick: e => nudge(n * (e.shiftKey ? 10 : 1), commit) }, txt);
   const spin = h('div', { class: 'spin' }, arrow(1, '▴', 'Pitch up'), arrow(-1, '▾', 'Pitch down'));
-  return [row(scrub('Pitch', Pt, 'pitch', o), h('div', { class: 'pitchrow' }, inp, spin, lock)),
-    h('p', { class: 'note' }, locked ? (f.type === 'line' ? 'Pitch locked: dragging an end adds or removes pixels, at this spacing.'
-      : 'Pitch locked: a bigger radius or sweep adds pixels, at this spacing.')
-      : 'The space between pixels. Lock it to keep it: the length then sets the number of pixels.')];
+  return [tipRow(row(scrub('Pitch', Pt, 'pitch', o), h('div', { class: 'pitchrow' }, inp, spin, lock)), 'The space between pixels. Locked, the length sets how many pixels there are.')];
 }
 // Red, green and blue trims (and white, for colour orders with W) scale that colour of the fixture's output, to
 // match fixtures that look different. With several fixtures, moving a slider sets it for all of them.
@@ -165,17 +147,13 @@ function strengthRow(list, onChange) {
 function dimmingRows(list) {
   const one = list.length === 1, f = list[0], all16 = list.every(x => x.bits === 16);
   const bitsMixed = list.some(x => fxBits(x) !== fxBits(f)), curveMixed = list.some(x => fxCurve(x) !== fxCurve(f));
-  const out = [row('Resolution', seg([[8, '8-bit'], [16, '16-bit']], bitsMixed ? '' : fxBits(f), v => { list.forEach(x => { x.bits = +v; }); markPatch(); commit(); renderRight(); }))];
-  const per = BPP(f);
-  out.push(h('p', { class: 'note' }, bitsMixed ? 'Mixed: some are 8-bit, some 16-bit.'
-    : fxBits(f) === 16 ? `${per} channels per pixel: each colour has a coarse channel and then its fine one. Only for fixtures and controllers that take 16-bit colour.`
-      : `${per} channel${per === 1 ? '' : 's'} per pixel, one per colour.`));
+  const out = [tipRow(row('Resolution', seg([[8, '8-bit'], [16, '16-bit']], bitsMixed ? '' : fxBits(f), v => { list.forEach(x => { x.bits = +v; }); markPatch(); commit(); renderRight(); })),
+    '16-bit sends two channels per colour, coarse then fine, for smoother dimming. Only for fixtures and controllers that take it.')];
   const curve = selectEl([...(curveMixed ? [['', 'Mixed / keep']] : []), ...CURVES], curveMixed ? '' : fxCurve(f),
     v => { if (!v) return; list.forEach(x => { x.curve = v; }); commit(); renderRight(); }, { aria: 'Dimming curve' });
   if (!all16) { curve.disabled = true; curve.title = 'Gamma only: the other curves need 16-bit'; }
-  out.push(row('Curve', curve));
-  out.push(h('p', { class: 'note' }, !all16 ? (one ? 'The other curves (linear, square law, inverse square, S curve) need 16-bit: switch Resolution to 16-bit.' : 'The other curves need all of them to be 16-bit.')
-    : curveMixed ? '' : CURVE_NOTES[fxCurve(f)] + (CURVE_STRENGTH.has(fxCurve(f)) ? ' Strength: 100\u00a0% is the classic curve, 0\u00a0% a straight line, 200\u00a0% stronger.' : '')));
+  out.push(tipRow(row('Curve', curve), !all16 ? 'The curves other than gamma need 16-bit.'
+    : curveMixed ? 'How the light follows the level.' : CURVE_NOTES[fxCurve(f)] + (CURVE_STRENGTH.has(fxCurve(f)) ? ' Strength: 100\u00a0% is the classic curve, 0\u00a0% a straight line.' : '')));
   const graph = one ? curveGraph(f) : null, redraw = () => graph && graph._draw();
   if (list.some(x => fxCurve(x) === 'gamma')) out.push(gammaRow(list.filter(x => fxCurve(x) === 'gamma'), redraw));
   if (list.some(x => CURVE_STRENGTH.has(fxCurve(x)))) out.push(strengthRow(list.filter(x => CURVE_STRENGTH.has(fxCurve(x))), redraw));
@@ -207,8 +185,7 @@ function curveGraph(f) {
     const steps8 = new Set();
     for (let i = 0; i <= 25; i++) steps8.add(Math.round(curveValue(curve, k, i / 255) * 255));
     const steps16 = fmtN(Math.round(curveValue(curve, k, 0.1) * 65535) + 1), n8 = `${steps8.size} step${steps8.size === 1 ? '' : 's'}`;
-    cap.textContent = bits === 16 ? `Bottom 10 % of the level: ${steps16} output steps. At 8-bit this curve would have ${n8} there.`
-      : `Bottom 10 % of the level: ${n8} at 8-bit. At 16-bit the same curve has ${steps16}.`;
+    cap.textContent = bits === 16 ? `Lowest 10 %: ${steps16} steps (8-bit: ${n8})` : `Lowest 10 %: ${n8} (16-bit: ${steps16} steps)`;
   };
   draw();
   const zoom = seg([['full', 'Full range'], ['low', 'Low end (0–10 %)']], low ? 'low' : 'full', v => { ui.curveZoom = v; renderRight(); });
@@ -285,16 +262,15 @@ function outputSection(list) {
 function advancedPatch(f) {
   const p = f._patch, c = p.ctrl, base = c.startUniverse + p.out * c.upo, on = { v: !!f.addr };
   const redo = () => { markPatch(); commit(); renderRight(); };
-  const out = [checkRow('Advanced patch: set where it starts', on, 'v', v => {
+  const out = [tipRow(checkRow('Advanced patch: set where it starts', on, 'v', v => {
     if (v) { const a = p.first >= 0 ? addrOf(p.base, p.first) : { u: base, ch: 1 }; f.addr = { u: a.u, ch: a.ch }; } else delete f.addr;
     redo();
-  })];
+  }), 'To leave a gap of channels on purpose. The fixtures after it on the output carry on from its last channel.')];
   if (f.addr) {
     const us = Array.from({ length: c.upo }, (_, i) => [String(base + i), 'U ' + uniLabel(base + i)]);
     out.push(row('Universe', selectEl(us, String(f.addr.u), v => { f.addr.u = +v; redo(); }, { aria: 'Start universe' })));
     out.push(numRow('Channel', f.addr, 'ch', { int: true, min: 1, max: 512, onCommit: redo }));
-    out.push(h('p', { class: 'note' }, `Universes ${uniLabel(base)}–${uniLabel(base + c.upo - 1)} belong to OUT ${p.out + 1}. The fixtures after this one on the output carry on from its last channel.` +
-      (c.split ? '' : ' With whole pixels, a pixel that would be split across two universes starts at the next one.')));
+    out.push(h('p', { class: 'note' }, `OUT ${p.out + 1}: universes ${uniLabel(base)}–${uniLabel(base + c.upo - 1)}`));
   }
   return out;
 }
@@ -311,8 +287,7 @@ function groupSection(g, sel) {
   return sec(null,
     h('h3', null, h('span', { class: 'ty', style: { display: 'flex', color: g.tag || 'var(--text2)' } }, icon('group')), 'Group'),
     row('Name', nameIn), row('Colour', sw), dim,
-    h('p', { class: 'note' }, sel.length === 1 ? `1 fixture · ${fmtN(px)} pixels. Drop fixtures on the group's name in the list to add them.`
-      : `${sel.length} fixtures · ${fmtN(px)} pixels. To edit just one of them, double-click it on the stage or click it in the list.`));
+    h('p', { class: 'note' }, `${sel.length} fixture${sel.length === 1 ? '' : 's'} · ${fmtN(px)} pixels`));
 }
 function renderMulti(body, sel) {
   const px = sel.reduce((a, f) => a + pixelCount(f), 0), g = wholeGroup(sel);
@@ -324,7 +299,7 @@ function renderMulti(body, sel) {
     sec(null,
       g ? h('h3', null, `All ${sel.length} fixtures`)
         : h('h3', null, `${sel.length} fixtures selected`),
-      h('p', { class: 'note' }, g ? 'Changes here apply to each of them.' : `${fmtN(px)} pixels in total. Changes below apply to all of them.`),
+      h('p', { class: 'note' }, `${fmtN(px)} pixels`),
       sel.some(strung) ? row('Pixels each', pxIn) : null,
       row('Color order', selectEl([['', 'Mixed / keep'], ...ORDERS.map(o => [o, o])], sel.every(f => f.order === sel[0].order) ? sel[0].order : '', v => { if (!v) return; sel.forEach(f => { f.order = v; }); markPatch(); commit(); renderRight(); }, { aria: 'Color order for all' })),
       ...trimRows(sel),
@@ -373,10 +348,8 @@ function renderZoneInspector(body) {
   const inside = fixturesInZone(z), over = zoneAbove(i);
   body.append(sec('Lights in this zone',
     inside.list.length ? h('div', { class: 'chipsline' }, inside.list.map(f => h('span', { class: 'badge' }, f.name))) : h('p', { class: 'note' }, 'No fixtures inside this zone yet.'),
-    h('p', { class: 'note' }, (inside.px ? `${fmtN(inside.px)} pixels take their color from this zone` + (over ? `, except where ${over.name} covers it (${over.name} is above it, at ${pct(over.opacity)}).` : '.') : '') +
-      ' Content is drawn to fit the zone, so a shader\'s centre is the zone\'s centre.')));
+    over && inside.px ? h('p', { class: 'note' }, `${over.name} covers it at ${pct(over.opacity)}`) : null));
   body.append(sec('Content and order',
-    h('p', { class: 'note' }, `${z.layers.length} layer${z.layers.length === 1 ? '' : 's'}, ${z.scenes.length} scene${z.scenes.length === 1 ? '' : 's'}. Zones higher in the list cover the ones below.`),
     h('div', { class: 'actions' },
       h('button', { class: 'btn', type: 'button', onclick: () => { ui.rightTab = 'content'; renderRight(); } }, 'Edit layers'),
       h('button', { class: 'btn', type: 'button', disabled: i === project.zones.length - 1, onclick: () => moveZone(z, 1) }, 'Move up'),
@@ -401,7 +374,7 @@ function zonesSection() {
     onRightClick(li, e => zoneMenu(e, z));
     list.append(li);
   }
-  if (!project.zones.length) list.append(emptyRow('No zones, so the output is black. Add one to play content.'));
+  if (!project.zones.length) list.append(emptyRow('No zones yet.'));
   return sec(null, h('h3', null, 'Zones', h('span', { class: 'fill' }),
     h('button', { class: 'btn sm map-only', type: 'button', title: 'Add a zone around the selected fixtures (or the whole canvas), under the others', onclick: newZoneFromUI }, '+ Zone')), list);
 }
@@ -426,7 +399,7 @@ function layersSection(z) {
     onRightClick(li, e => layerMenu(e, z, L));
     list.append(li);
   }
-  if (!z.layers.length) list.append(emptyRow('No layers, so this zone is black. Add a layer, or click a source.'));
+  if (!z.layers.length) list.append(emptyRow('No layers: click a source to play one.'));
   return sec(null, h('h3', null, 'Layers', h('span', { style: { color: z.tag || 'var(--text2)', letterSpacing: '.06em' } }, '· ' + z.name), h('span', { class: 'fill' }),
     h('button', { class: 'btn sm', type: 'button', title: 'Add an empty layer above the selected one', onclick: () => addLayer(z) }, '+ Layer')), list);
 }
@@ -444,7 +417,7 @@ function renderContentTab(body) {
     row('Source', selectEl([['', 'Empty'], ...project.sources.map(s => [s.id, s.name])], L.src || '', v => { loadSource(v || null, L); commit(); renderRight(); renderSrcList(); }, { aria: 'Layer source' })),
     Object.assign(row('Blend', selectEl(BLENDS, L.blend, v => { L.blend = v; commit(); renderRight(); }, { aria: 'Blend mode' })), { title: BLEND_NOTES[L.blend] }),   // what the blend does, on pointing
     sliderRow('Opacity', L, 'opacity', { fmt: pct, onInput: () => syncInspector(), onCommit: lookEdited })));
-  if (!src) { body.append(sec(null, h('p', { class: 'note' }, 'This layer is empty. Click a source in the Sources list to play it here.'))); return; }
+  if (!src) { body.append(sec(null, h('p', { class: 'note' }, 'Empty: click a source to play it here.'))); return; }
 
   // live picture of this layer, in the zone's proportions
   const ar = z.w / z.h, ph = clamp(Math.round(276 / ar), 36, 110), pw = Math.min(276, Math.round(ph * ar));
@@ -452,10 +425,9 @@ function renderContentTab(body) {
   preview = { layer: L, canvas: pv };
   const rt = src.kind === 'isf' ? runtimeOf(src) : null;
   const head = [pv];
-  if (!L.on) head.push(h('p', { class: 'note' }, 'The layer is hidden, so the preview is paused.'));
   if (!src.builtin) head.push(row('Name', textInput(src, 'name', { aria: 'Source name', onInput: renderSrcList, onCommit: commit })));
   const desc = rt && rt.hdr && rt.hdr.DESCRIPTION;
-  head.push(h('p', { class: 'note' }, (src.kind === 'isf' ? (src.builtin ? 'Built-in generator. ' : 'ISF shader. ') : '') + (desc ? desc.replace(/\.?$/, '.') : '')));
+  if (desc) head.push(h('p', { class: 'note' }, desc.replace(/\.?$/, '.')));
   body.append(sec(src.name, head));
 
   if (rt && rt.error) body.append(sec('Shader error', h('div', { class: 'errbox' }, rt.error)));
@@ -519,7 +491,7 @@ function renderContentTab(body) {
   if (src.kind === 'image' || src.kind === 'video') {
     const el = mediaEls.get(src.id);
     const k = [];
-    if (!el) k.push(h('p', { class: 'note' }, 'This file is not loaded in this session (browsers do not keep file access between visits).'));
+    if (!el) k.push(h('p', { class: 'note warn' }, 'Not loaded: load the file again.'));
     k.push(h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => pickMedia(src) }, el ? 'Replace file…' : 'Load file…')));
     k.push(row('Fit', seg(FIT_OPTIONS, src.fit || 'fit', v => { src.fit = v; markThumb(src); commit(); })));
     if (src.kind === 'video') k.push(...videoControls(src, el));
@@ -528,7 +500,6 @@ function renderContentTab(body) {
   if (src.kind === 'screen') {
     const el = mediaEls.get(src.id);
     body.append(sec('Screen capture',
-      h('p', { class: 'note' }, 'Captures a window or screen, for example the output window of Resolume or TouchDesigner, and maps it onto the fixtures.'),
       h('div', { class: 'actions' }, el ? h('button', { class: 'btn', type: 'button', onclick: () => stopCapture(src) }, 'Stop capture') : h('button', { class: 'btn primary', type: 'button', onclick: () => startCapture(src) }, 'Choose window…')),
       row('Fit', seg(FIT_OPTIONS, src.fit || 'stretch', v => { src.fit = v; commit(); }))));
   }
@@ -545,8 +516,8 @@ function renderContentTab(body) {
         src.hq ? 'full' : 'light', v => setStreamQuality(src, v === 'full'))),
       row('Fit', seg(FIT_OPTIONS, src.fit || 'fit', v => { src.fit = v; markThumb(src); commit(); }))));
   }
-  body.append(sec('Transition', sliderRow('Crossfade', project.settings, 'transition', { min: 0, max: 5, step: 0.1, fmt: v => v.toFixed(1) + ' s', onCommit: commit }),
-    h('p', { class: 'note' }, 'Fade time when you click a source to play it in a layer. Scenes have their own fade time.')));
+  body.append(sec('Transition', tipRow(sliderRow('Crossfade', project.settings, 'transition', { min: 0, max: 5, step: 0.1, fmt: v => v.toFixed(1) + ' s', onCommit: commit }),
+    'The fade when you click a source to play it in a layer. Scenes have their own.')));
 }
 // A shader control that is an angle in degrees: a float named or labelled angle or rotation, with a range of 45° to 360°
 // (one in radians, 0 to 6.28, stays a plain slider)
@@ -635,9 +606,8 @@ function videoControls(src, el) {
   k.push(sliderRow('Speed', src, 'rate', { min: 0.1, max: 4, step: 0.05, fmt: v => v.toFixed(2) + '×', onInput: v => { if (el) el.playbackRate = v; }, onCommit: commit }));
   k.push(checkRow('Play its sound', src, 'audio', () => { apply(); if (el && src.audio && !el.paused) playVideo(src, el); commit(); renderRight(); }));
   if (src.audio) k.push(sliderRow('Volume', src, 'volume', { min: 0, max: 1, step: 0.01, fmt: pct, onInput: apply, onCommit: commit }),
-    checkRow('Volume follows its zone’s level', src, 'volFollow', () => { apply(); commit(); }),
-    h('p', { class: 'note' }, 'Fading the zone (its fader, the X-Fader) or the layer fades the sound with the picture.'));
-  if (el && el._done) k.push(h('p', { class: 'note' }, src.endHold !== false ? 'Played once: holding its last frame. Restart plays it again.' : 'Played once: black now. Restart plays it again.'));
+    tipRow(checkRow('Volume follows its zone’s level', src, 'volFollow', () => { apply(); commit(); }), 'Fading the zone (its fader, the X-Fader) or the layer fades the sound with the picture.'));
+  if (el && el._done) k.push(h('p', { class: 'note' }, src.endHold !== false ? 'Ended: holding its last frame.' : 'Ended: black.'));
   return k;
 }
 
@@ -646,90 +616,81 @@ function videoControls(src, el) {
 // numbers shown (sACN counts from 1) and, with multicast, what counts as a conflict, so the patch is worked out again.
 function protocolRows(s) {
   const changed = () => { markPatch(); commit(); renderRight(); updateBridgeUI(); };
-  const rows = [row('Protocol', seg([['artnet', 'Art-Net'], ['sacn', 'sACN']], s.protocol, v => { s.protocol = v; changed(); }))];
+  const rows = [tipRow(row('Protocol', seg([['artnet', 'Art-Net'], ['sacn', 'sACN']], s.protocol, v => { s.protocol = v; changed(); })),
+    'One at a time, for the whole project. sACN numbers universes from 1: Art-Net\'s universe 0 is sACN universe 1, and every universe shown follows.')];
   if (s.protocol === 'sacn') {
     rows.push(
-      h('p', { class: 'note' }, 'sACN (E1.31) numbers universes from 1: the first universe, 0 in Art-Net, is sACN universe 1, and so on. Every universe shown is the sACN one; controllers set for both protocols usually count the same way.'),
-      numRow('Priority', s, 'sacnPriority', { min: 0, max: 200, step: 1, int: true, onCommit: commit }),
-      h('p', { class: 'note' }, 'From 0 to 200; 100 is the usual. A receiver getting the same universe from two sources takes the higher priority: give a desk more to let it take over.'),
-      row('Send to', seg([['unicast', 'Unicast'], ['multicast', 'Multicast']], s.sacnMulticast ? 'multicast' : 'unicast', v => { s.sacnMulticast = v === 'multicast'; changed(); })),
-      h('p', { class: 'note' }, s.sacnMulticast
-        ? 'Multicast: each universe goes to its multicast group (239.255.x.x), which every receiver on the network can join: a universe can then be used by one controller only.'
-        : 'Unicast: each universe goes to the IP address of its controller, as with Art-Net.'));
+      tipRow(numRow('Priority', s, 'sacnPriority', { min: 0, max: 200, step: 1, int: true, onCommit: commit }), '0 to 200, 100 by default. A receiver getting a universe from two sources takes the higher priority: give a desk more to let it take over.'),
+      tipRow(row('Send to', seg([['unicast', 'Unicast'], ['multicast', 'Multicast']], s.sacnMulticast ? 'multicast' : 'unicast', v => { s.sacnMulticast = v === 'multicast'; changed(); })),
+        'Unicast: to each controller\'s address. Multicast: to the universe\'s group (239.255.x.x), so each universe can be used by one controller only.'));
   } else {
-    rows.push(checkRow('Send ArtSync after each frame', s, 'artSync', commit),
-      h('p', { class: 'note' }, 'ArtSync makes nodes that support it update all universes at the same moment. Leave it off if your controllers do not support it: some stop outputting while they wait for a sync.'));
+    rows.push(tipRow(checkRow('Send ArtSync after each frame', s, 'artSync', commit), 'Nodes that support it update all universes at the same moment. Leave it off otherwise: some stop outputting while they wait for a sync.'));
   }
   if (s.protocol === 'sacn' && bridge.hello && !(bridge.hello.protocols || []).includes('sacn'))
-    rows.push(h('p', { class: 'note warn' }, 'The nouPix running on this computer is older and sends Art-Net only. Update it to send sACN.'));
+    rows.push(h('p', { class: 'note warn' }, 'This computer\'s nouPix is older and sends Art-Net only: update it to send sACN.'));
   return rows;
 }
+// Settings in six sections: the first five are saved with the project, the last one is this computer's
 function renderSettings(body) {
   const s = project.settings;
   let before = [s.compW, s.compH];
   const onSize = () => { fitZonesToCanvas(...before); before = [s.compW, s.compH]; markGeom(); commit(); };
-  body.append(sec('Interface',
-    row('Look', seg([['dark', 'Black'], ['light', 'White']], ui.theme === 'light' ? 'light' : 'dark', v => setTheme(v))),
-    h('p', { class: 'note' }, 'Black keeps the light on the stage the brightest thing on screen. White is for daylight. It is kept on this computer, not in the project.')));
-  body.append(sec('Composition',
-    row('Size', numInput(s, 'compW', { prefix: 'W', int: true, min: 16, max: 8192, onCommit: onSize }), numInput(s, 'compH', { prefix: 'H', int: true, min: 16, max: 8192, onCommit: onSize })),
-    h('p', { class: 'note' }, 'The canvas content is rendered at this size and sampled at each pixel position. Fixture coordinates are in these units.')));
-  body.append(sec('Output',
-    sliderRow('Frame rate', s, 'fps', { min: 1, max: 100, step: 1, int: true, fmt: v => v + ' fps', onCommit: () => { startClock(); commit(); } }),
-    h('p', { class: 'note' }, 'Up to 100 frames a second; 40 is the default. Above 44, frames come faster than a DMX line can refresh: pixel controllers take them, but some DMX nodes skip frames.'),
-    sliderRow('Gamma for new fixtures', s, 'gamma', { min: 1, max: 3, step: 0.05, fmt: v => v.toFixed(2), onCommit: commit }),
+  body.append(sendSection(s));
+  body.append(sec('Pixels',
+    tipRow(sliderRow('Gamma', s, 'gamma', { min: 1, max: 3, step: 0.05, fmt: v => v.toFixed(2), onCommit: commit }),
+      'For new fixtures. Each fixture has its own (Inspector → Pixels), as LED types differ; Apply to all sets it on every one.'),
     h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', disabled: !project.fixtures.length, onclick: () => {
       project.fixtures.forEach(f => { f.gamma = s.gamma; }); commit(); toast(`Gamma ${s.gamma.toFixed(2)} set on all ${project.fixtures.length} fixtures. ${MOD}Z undoes.`); } }, 'Apply to all fixtures')),
-    h('p', { class: 'note' }, 'Each fixture has its own gamma (Inspector → Pixels), as LED types differ. New fixtures start from this value.'),
-    row('White (RGBW)', selectEl([['off', 'Off: W stays 0'], ['sub', 'W = min(RGB), subtract'], ['add', 'W = min(RGB), keep RGB']], s.whiteMode, v => { s.whiteMode = v; commit(); }, { aria: 'White channel mode' })),
-    h('p', { class: 'note' }, 'Colour trims and gamma are set per fixture, in the Inspector under Pixels.')));
-  body.append(sendSection(s));
-  body.append(sec('Scenes',
-    numRow('Fade for new scenes', s, 'fade', { min: 0, max: 60, step: 0.1, onCommit: commit }),
-    h('p', { class: 'note' }, 'In seconds: the fade a scene gets when you store it (0 cuts). Each scene keeps its own, shown on its button, where you can change it.'),
-    checkRow('Pictures on scenes', s, 'sceneShots', () => commit()),
-    h('p', { class: 'note' }, 'When on, storing or updating a scene also takes a picture of its zone, shown on the scene\'s button. Any scene can get one from its ⋯ menu.')));
-  body.append(sec('Stage',
+    tipRow(row('White', selectEl([['off', 'Off: W stays 0'], ['sub', 'W = min(RGB), subtract'], ['add', 'W = min(RGB), keep RGB']], s.whiteMode, v => { s.whiteMode = v; commit(); }, { aria: 'White channel mode' })),
+      'For RGBW fixtures: how the white channel is made from the colour.')));
+  body.append(sec('Canvas',
+    tipRow(row('Size', numInput(s, 'compW', { prefix: 'W', int: true, min: 16, max: 8192, onCommit: onSize }), numInput(s, 'compH', { prefix: 'H', int: true, min: 16, max: 8192, onCommit: onSize })),
+      'Content is drawn at this size and sampled at each pixel. Fixture positions are in these units.'),
     numRow('Grid', s, 'grid', { min: 1, max: 500, step: 1, onCommit: commit }),
-    checkRow('Snap to grid (hold Alt to override)', ui, 'snap', () => { $('#vSnap').checked = ui.snap; savePrefs(); }),
+    tipRow(checkRow('Snap to grid', ui, 'snap', () => { $('#vSnap').checked = ui.snap; savePrefs(); }), 'Hold Alt while dragging to place freely.'),
     h('div', { class: 'actions' },
-      h('button', { class: 'btn', type: 'button', onclick: () => $('#fileGuide').click() }, 'Load guide image…'),
+      h('button', { class: 'btn', type: 'button', title: 'An image (your layout SVG, a plan) drawn over the stage, to trace fixtures on', onclick: () => $('#fileGuide').click() }, 'Load guide image…'),
       project.guide ? h('button', { class: 'btn', type: 'button', onclick: () => { project.guide = null; guideImg = null; commit(); renderRight(); } }, 'Remove guide') : null),
-    project.guide ? sliderRow('Guide opacity', ui, 'guideOp', { fmt: pct, onInput: savePrefs }) : null,
-    h('p', { class: 'note' }, 'A guide image (for example your layout SVG) is drawn over the stage, fitted to the composition, so you can trace fixtures over it.')));
-  if (!REMOTE_CLIENT) {
-    const box = h('input', { type: 'checkbox', checked: isStartupProject(), disabled: !bridge.connected, onchange: e => { setStartupProject(e.target.checked); renderRight(); } });
-    const other = bridge.hello && bridge.hello.startup && !isStartupProject() ? bridge.hello.startup.name : '';
-    body.append(sec('Startup',
-      h('label', { class: 'checkrow' }, box, 'Open this project when nouPix starts'),
-      h('p', { class: 'note' }, (other ? `Now ${other} opens when nouPix starts. ` : '') + 'For a computer that starts nouPix by itself: it opens this project, with its scenes and playlists set to play when the project opens. Changes to it are kept as you work. To play a scene at the start: ⋯ on the scene → Play when the project opens.')));
+    project.guide ? sliderRow('Guide opacity', ui, 'guideOp', { fmt: pct, onInput: savePrefs }) : null));
+  body.append(sec('Scenes',
+    tipRow(numRow('Fade', s, 'fade', { min: 0, max: 60, step: 0.1, onCommit: commit }), 'The fade new scenes get, in seconds (0 cuts). Each scene keeps its own, on its button.'),
+    tipRow(checkRow('Pictures on scenes', s, 'sceneShots', () => commit()), 'Storing or updating a scene also takes a picture of its zone, shown on its button. Any scene can get one from its ⋯ menu.')));
+  if (REMOTE_CLIENT) return;
+  body.append(remoteSection());
+  // this computer's: not in the project
+  const parts = [row('Look', seg([['dark', 'Black'], ['light', 'White']], ui.theme === 'light' ? 'light' : 'dark', v => setTheme(v)))];
+  const box = h('input', { type: 'checkbox', checked: isStartupProject(), disabled: !bridge.connected, onchange: e => { setStartupProject(e.target.checked); renderRight(); } });
+  const other = bridge.hello && bridge.hello.startup && !isStartupProject() ? bridge.hello.startup.name : '';
+  parts.push(tipRow(h('label', { class: 'checkrow' }, box, 'Open this project when nouPix starts'),
+    'For a computer that starts nouPix by itself: it opens this project, playing its scenes and playlists set to play on open.'));
+  if (other) parts.push(h('p', { class: 'note' }, `Now ${other} opens at start.`));
+  if (libraryOk()) {
+    const info = h('span', { class: 'readonly' }, '…');
+    parts.push(tipRow(row('Media library', info), 'Images and videos are copied here once, so projects open with them on this computer. Export package (Project menu) takes them to another.'),
+      h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', title: 'Remove the files this project doesn’t use from the library', onclick: () => cleanLibraryDialog() }, 'Clean up…')));
+    fetch('/media-info').then(r => r.json()).then(r => { info.textContent = fmtBytes(r.library); info.title = r.dir; }).catch(() => {});
   }
-  if (!REMOTE_CLIENT && libraryOk()) {
-    const info = h('p', { class: 'note' }, 'Images and videos you add are copied here once, so projects open with them on this computer without relinking.');
-    const clean = h('button', { class: 'btn', type: 'button', onclick: () => cleanLibraryDialog() }, 'Remove what this project doesn’t use…');
-    body.append(sec('Media library', info, h('div', { class: 'actions' }, clean)));
-    fetch('/media-info').then(r => r.json()).then(r => { info.textContent = `${fmtBytes(r.library)} in ${r.dir}. Images and videos you add are copied there once, so projects open with them on this computer without relinking. Export package (Project menu) takes a project and its media to another computer.`; }).catch(() => {});
-  }
-  if (!REMOTE_CLIENT) body.append(sec('Updates',
-    checkRow('Look for a new version when nouPix starts', ui, 'updates', savePrefs),
-    h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => checkUpdates(true) }, 'Check now')),
-    h('p', { class: 'note' }, `This is nouPix ${(bridge.hello && bridge.hello.version) || ''}. Every time it starts, and once a day while it runs, nouPix asks GitHub for its latest release and tells you when there is a newer one, with a link to download it. It installs nothing by itself, and says nothing without internet.`)));
-  if (!REMOTE_CLIENT) body.append(remoteSection());
+  parts.push(tipRow(checkRow('Look for new versions', ui, 'updates', savePrefs), 'When nouPix starts and once a day, it asks GitHub for its latest release and tells you if there is a newer one. It installs nothing by itself.'),
+    h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => checkUpdates(true) }, 'Check now')));
+  body.append(sec('This computer', parts));
 }
-// What goes out to the lights, in one place: sending on or off, the protocol and its options, and (in a browser) where
-// the page finds noupix.py; the app always uses its own. Output is on from the start. A device sees the protocol only.
+// What goes out to the lights: sending on or off, the protocol and its options, the frame rate, and (in a browser)
+// where the page finds noupix.py; the app always uses its own. Output is on from the start. A device sees the protocol
+// only.
 function sendSection(s) {
-  if (REMOTE_CLIENT) return sec('Art-Net / sACN', ...protocolRows(s));
+  const fps = tipRow(sliderRow('Frame rate', s, 'fps', { min: 1, max: 100, step: 1, int: true, fmt: v => v + ' fps', onCommit: () => { startClock(); commit(); } }),
+    '40 by default. Above 44, some DMX nodes skip frames; pixel controllers take them.');
+  if (REMOTE_CLIENT) return sec('Output', ...protocolRows(s), fps);
   const app = /Electron/.test(navigator.userAgent), auto = bridgeUrl();
   const sw = h('input', { type: 'checkbox', id: 'outputOn', checked: ui.outputOn });
   sw.addEventListener('change', () => { setOutput(sw.checked); sw.checked = ui.outputOn; });
-  return sec('Art-Net / sACN',
-    h('label', { class: 'checkrow', for: 'outputOn' }, sw, 'Send ' + outName()),
-    h('p', { class: 'note' }, 'On from the start, every time nouPix opens. Switch it off to stop sending, for example while another console drives the lights. The status bar shows what goes out.'),
+  return sec('Output',
+    tipRow(h('label', { class: 'checkrow', for: 'outputOn' }, sw, 'Send ' + outName()), 'On every time nouPix opens. Switch it off while another console drives the lights.'),
     ...protocolRows(s),
-    app ? null : row('Address', textInput(s, 'bridgeUrl', { placeholder: auto || 'ws://127.0.0.1:8080/ws', aria: 'Output connection address', onCommit: () => { commit(); connectBridge(); } })),
-    app ? null : h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: connectBridge }, 'Reconnect')),
-    app ? null : h('p', { class: 'note', html: outName() + ' is sent by <code>noupix.py</code> running on this computer. Leave the address empty to use the one this page was opened from.' }));
+    fps,
+    app ? null : tipRow(row('Address', textInput(s, 'bridgeUrl', { placeholder: auto || 'ws://127.0.0.1:8080/ws', aria: 'Output connection address', onCommit: () => { commit(); connectBridge(); } })),
+      'Where noupix.py runs. Empty: the address this page was opened from.'),
+    app ? null : h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: connectBridge }, 'Reconnect')));
 }
 
 /* ---------- selection ---------- */
@@ -794,11 +755,7 @@ function arrangeSection(sel) {
     h('div', { class: 'grp' }, b('alignL', 'Align left', () => alignSel('l')), b('alignCX', 'Align centres horizontally', () => alignSel('cx')), b('alignR', 'Align right', () => alignSel('r'))),
     h('div', { class: 'grp' }, b('alignT', 'Align top', () => alignSel('t')), b('alignCY', 'Align centres vertically', () => alignSel('cy')), b('alignB', 'Align bottom', () => alignSel('b')))];
   const centre = h('div', { class: 'grp' }, b('centre', many ? 'Centre them together on the canvas' : 'Centre on the canvas', centreSel));
-  const note = !free ? (many ? 'These are all locked. Unlock them to move them.' : 'Locked. Unlock it to move it.')
-    : (g ? `Lines up the fixtures of ${groupName(g)} with each other. Centre moves the whole group to the middle of the canvas.`
-      : many ? `Aligns to the edges of the selection${blocks ? ', each group as one block' : ''}. Distribute (3 or more) keeps the outermost two and spaces the centres evenly between them.`
-      : 'Aligns to the edges of the canvas.') + (many ? ' Rotate turns them together around their middle; on the stage, drag the round handle above them.' : '') +
-      (free < units.length ? (blocks ? ' Locked fixtures, and the groups they are in, stay where they are.' : ' Locked fixtures stay where they are.') : '');
+  const note = !free ? (many ? 'All locked.' : 'Locked.') : '';   // only what stops the buttons; they say what they do on pointing
   return sec('Arrange',
     ...(sel.length === 1 && sel[0].type === 'dot' ? [] : rotateRow(sel)),   // one dot has nothing to turn
     many ? [h('div', { class: 'arrange' }, align),   // aligning on the first row, spacing and centring on the second
@@ -806,5 +763,5 @@ function arrangeSection(sel) {
         b('distH', 'Distribute horizontally: the same spacing between centres', () => distributeSel('x'), free < 3),
         b('distV', 'Distribute vertically: the same spacing between centres', () => distributeSel('y'), free < 3)), centre)]
       : h('div', { class: 'arrange' }, align, centre),
-    h('p', { class: 'note' }, note));
+    note ? h('p', { class: 'note' }, note) : null);
 }

@@ -51,26 +51,23 @@ function remoteSection() {
   const show = h('label', { class: 'checkrow' }, h('input', { type: 'checkbox', onchange: e => { pw.type = e.target.checked ? 'text' : 'password'; } }), 'Show');
   const port = { v: cfg.port };
   const parts = [
-    h('div', { class: 'row' }, h('span', { class: 'lbl' }, 'Remote control'),
+    tipRow(h('div', { class: 'row' }, h('span', { class: 'lbl' }, 'Remote'),
       h('button', { class: 'onsw' + (cfg.on ? ' on' : ''), type: 'button', role: 'switch', 'aria-checked': String(cfg.on), disabled: !bridge.connected,
         title: bridge.connected ? '' : 'Needs nouPix running on this computer (the app, or noupix.py)',
         onclick: () => { cfg.on = !cfg.on; apply(); } }, h('i'), cfg.on ? 'ON' : 'OFF')),
+      'Phones, tablets and computers on the same network open the address below and log in as Programmer (everything, with the password), Operator (the content; the mapping is locked) or Remote (the phone page: scenes and zone levels).'),
     row('Port', numInput(port, 'v', { int: true, min: 1024, max: 65535, aria: 'Remote control port', onCommit: () => { cfg.port = port.v; if (cfg.on) remoteConfigure(); else remoteSaveCfg(); renderRight(); } })),
-    row('Password', h('div', { class: 'pwrow' }, pw, show)),
-    h('p', { class: 'note' }, 'Phones, tablets and computers on the same network open the address below and choose who they are: a Programmer (everything, with this password), an Operator (content, layers, scenes and zone levels; the mapping is locked), or Remote, a page for phones that plays the scenes of each zone and dims the zones. Without a password nobody can log in as a programmer.'),
-    checkRow('HTTP triggers', cfg, 'http', () => { if (cfg.on) remoteConfigure(); else remoteSaveCfg(); renderRight(); }),
-    h('p', { class: 'note' }, 'Show control software, a Stream Deck or a script on the network can play scenes and set levels, the master and blackout with a plain GET on the address below. ',
-      h('a', { href: '#', onclick: e => { e.preventDefault(); httpDialog(); } }, 'See the triggers')),
-    checkRow('X-Fader on the Remote page', project.xfade, 'phone', () => commit()),
-    h('p', { class: 'note' }, 'For special occasions: the Remote page shows the X-Fader above the zones, and while it is on (here, in the Scenes panel), phones can move it.'),
+    tipRow(row('Password', h('div', { class: 'pwrow' }, pw, show)), 'For programmers. Without one, nobody can log in as a programmer.'),
+    h('div', { class: 'checkline' }, tipRow(checkRow('HTTP triggers', cfg, 'http', () => { if (cfg.on) remoteConfigure(); else remoteSaveCfg(); renderRight(); }),
+      'Show control software, a Stream Deck or a script on the network play scenes and set levels, the master and blackout with a plain GET.'),
+      h('button', { class: 'btn sm', type: 'button', onclick: httpDialog }, 'Triggers…')),
+    tipRow(checkRow('X-Fader on the Remote page', project.xfade, 'phone', () => commit()), 'The phones show the X-Fader above the zones, and can move it while it is on.'),
   ];
   if (on) {
-    parts.push(h('div', { class: 'rurls' }, st.urls.map(u => h('div', { class: 'rurl' }, h('span', { class: 'mono' }, u),
+    parts.push(h('div', { class: 'rurls', title: /Mac/.test(navigator.platform) ? 'If macOS asks whether nouPix may accept incoming connections, allow it.' : '' }, st.urls.map(u => h('div', { class: 'rurl' }, h('span', { class: 'mono' }, u),
       h('button', { class: 'btn sm', type: 'button', onclick: () => navigator.clipboard.writeText(u).then(() => toast('Copied ' + u), () => toast(u)) }, 'Copy')))));
     const list = [...remote.clients.values()];
-    parts.push(h('p', { class: 'note' }, list.length ? 'Connected: ' + list.map(c => `${ROLE_NAMES[c.role] || c.role} (${c.addr})`).join(', ') : 'No device connected yet.'));
-    if (/Mac/.test(navigator.platform)) parts.push(h('p', { class: 'note' }, 'If macOS asks whether nouPix may accept incoming connections, allow it, or devices cannot reach it.'));
-    parts.push(h('p', { class: 'note' }, 'The Remote page installs as an app on phones (LED Remote). On Android, Chrome first needs this address in chrome://flags, "Insecure origins treated as secure"; without it, the page\'s full screen button hides the browser\'s bars. The user guide has the steps.'));
+    parts.push(h('p', { class: 'note' }, list.length ? 'Connected: ' + list.map(c => `${ROLE_NAMES[c.role] || c.role} (${c.addr})`).join(', ') : 'No device connected.'));
   } else if (st && st.error) parts.push(h('p', { class: 'note err' }, st.error));
   const s = sec('Remote control', parts);
   s.id = 'remoteSec';
@@ -90,7 +87,7 @@ function httpDialog() {
     body.replaceChildren(...[
       h('div', { class: 'row' }, h('span', { class: 'lbl' }, 'HTTP triggers'),
         h('button', { class: 'onsw' + (cfg.http ? ' on' : ''), type: 'button', role: 'switch', 'aria-checked': String(cfg.http), onclick: () => set(!cfg.http) }, h('i'), cfg.http ? 'ON' : 'OFF')),
-      h('p', { class: 'note' }, 'A plain GET on one of these addresses plays a scene or sets a level, from show control software (Companion, QLab), a Stream Deck or a script on the same network. They answer in JSON. Zones and scenes go by name; change the number at the end of a level to any from 0 to 100.'),
+      h('p', { class: 'note' }, 'A GET on an address plays a scene or sets a level (any number from 0 to 100). Zones and scenes go by name.'),
       !live ? h('p', { class: 'note err' }, 'Remote control is off: the triggers answer once it is on. ',
         h('button', { class: 'btn sm', type: 'button', disabled: !bridge.connected, onclick: () => { cfg.on = true; remoteConfigure(); setTimeout(draw, 400); } }, 'Switch it on')) : null,
       !cfg.http ? null : h('div', { class: 'rurls htrig' }, list.map(t => h('div', { class: 'rurl' },

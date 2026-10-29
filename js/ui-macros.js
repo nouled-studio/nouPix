@@ -58,7 +58,6 @@ function macrosPanel() {
   const nOn = h('span', { class: 'msum' });
   bind(() => { const n = abs.filter(d => project.macros[d.id].on).length; nOn.textContent = n ? `${n} on` : ''; });
   const el = h('div', { class: 'mmacros' },
-    h('p', { class: 'note' }, 'For every effect at once, over each one\'s own values: scenes keep theirs.'),
     macroSlider('speed'), macroSlider('intensity'), macroSlider('saturation'),
     ...macroColor('color1'), ...macroColor('color2'),
     h('div', { class: 'row mshared' }, foldBtn(shared, 'Shared controls', () => toggleMacroOpen('shared'), shared ? 'Fold them' : 'Angle, Softness, Scale, Count, Size, Width, Density, Fade'), nOn),
