@@ -224,7 +224,7 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .sources .phead h2 { flex: none; }
 .sec h3 svg { width: 14px; height: 14px; flex: none; }
 .layers { padding: 2px 0 0; margin: 0 -4px; }
-.layers li { grid-template-columns: 6px 20px 12px minmax(0,1fr) auto auto 56px; padding: 0 4px; gap: 6px; cursor: grab; }
+.layers li { grid-template-columns: 6px 20px 12px minmax(0,1fr) auto auto 56px 18px; padding: 0 4px; gap: 6px; cursor: grab; }
 .layers li .pgrip { width: 6px; height: 12px; opacity: .4; background-image: radial-gradient(currentColor 1px, transparent 1.2px); background-size: 3px 3px; color: var(--text2); }
 .layers li:hover .pgrip { opacity: .9; }
 .layers li.dragging { opacity: .4; }
@@ -431,7 +431,11 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .zhead input[type=range] { height: 16px; }
 .rowhint { color: var(--muted); font-size: 12px; padding: 0 6px; white-space: nowrap; }
 .ztag { flex: none; width: 10px; height: 10px; box-sizing: border-box; border-radius: 0; border: 1.5px dashed; }
-.zones li { grid-template-columns: 10px minmax(0,1fr) 64px; height: 36px; padding: 0 4px; gap: 8px; margin: 0 -4px; }
+.zones li { grid-template-columns: 10px minmax(0,1fr) 64px 18px; height: 36px; padding: 0 4px; gap: 8px; margin: 0 -4px; }
+/* a row's trash button, on the row pointed at or selected */
+.zones .del, .layers .del { visibility: hidden; color: var(--muted); }
+.zones li:hover .del, .zones li.sel .del, .layers li:hover .del, .layers li.sel .del, .zones .del:focus-visible, .layers .del:focus-visible { visibility: visible; }
+.zones .del:hover, .layers .del:hover { color: var(--accent); }
 .zones .zn { display: flex; flex-direction: column; min-width: 0; }
 .zones .zn .nm { font-weight: 500; }
 .zones li.sel .zn .nm { font-weight: 600; }

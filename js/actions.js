@@ -240,9 +240,11 @@ function duplicateLayer(z, L) {
   commit(); renderRight(); renderSrcList();
 }
 function removeLayer(z, L) {
+  const src = srcById(L.src);
   z.layers = z.layers.filter(x => x !== L);
   ui.layer = null;
   syncMedia(); commit(); renderRight(); renderSrcList();
+  toast(`${src ? src.name + ' layer' : 'Empty layer'} removed from ${z.name}. ${MOD}Z brings it back.`);
 }
 
 /* ---------- controllers ---------- */

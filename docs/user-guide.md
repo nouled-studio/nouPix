@@ -121,7 +121,7 @@ A zone is a rectangle of the canvas with its own layers, its own scenes and one 
 
 ## Layers
 
-The Content tab lists the zones, then the layers of the selected zone (top layer first, each with an opacity slider and an eye to hide it). Change their order as in the Patch panel: drag a layer by its grip, or use its **↑ ↓** buttons; a moved layer slides into its new place, then the selected layer's settings with a live preview above its parameters. Clicking a source plays it in the selected layer, crossfading over the Crossfade time. Each layer has its own parameters, so two layers can run the same generator with different settings.
+The Content tab lists the zones, then the layers of the selected zone (top layer first, each with an opacity slider and an eye to hide it). Change their order as in the Patch panel: drag a layer by its grip, or use its **↑ ↓** buttons; a moved layer slides into its new place. The trash icon on a layer (or a zone), shown on the one selected or pointed at, removes it, and **Ctrl Z** brings it back; **Ctrl D** duplicates the selected layer while the Content tab is open. Then come the selected layer's settings with a live preview above its parameters. Clicking a source plays it in the selected layer, crossfading over the Crossfade time. Each layer has its own parameters, so two layers can run the same generator with different settings.
 
 **Speed** goes from 0 to 100 % of a generator's full speed, with **Reverse** next to it. Each layer keeps its own clock for it, so dragging the slider speeds the animation up or down smoothly instead of making it jump. (Custom ISF shaders get this too when they have a float input named `speed` used as `TIME * speed`.)
 

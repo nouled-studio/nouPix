@@ -387,6 +387,8 @@ function renderZoneInspector(body) {
 }
 
 /* ---------- content tab ---------- */
+// A row's trash button: shown on the row pointed at or selected; Ctrl Z brings back what it removes
+const trashBtn = (label, fn, cls = '') => h('button', { class: 'x del ' + cls, type: 'button', title: label, 'aria-label': label, onclick: e => { e.stopPropagation(); fn(); } }, icon('trash'));
 function zonesSection() {
   const cur = selZone();
   const list = h('ul', { class: 'list zones' });
@@ -394,7 +396,7 @@ function zonesSection() {
     const names = z.layers.filter(L => L.on && L.src && srcById(L.src)).map(L => srcById(L.src).name);
     const li = h('li', { class: z === cur ? 'sel' : '', 'data-id': z.id, title: `${z.name} · ${z.w} × ${z.h} at ${z.x}, ${z.y}\nDrag to change the order: zones higher in the list cover the ones below`, onclick: () => selectZone(z) },
       zoneTag(z), h('span', { class: 'zn' }, h('span', { class: 'nm' }, z.name), h('span', { class: 'sub' }, names.join(' · ') || 'Empty')),
-      zoneOpacityInput(z, 64));
+      zoneOpacityInput(z, 64), trashBtn(`Delete ${z.name}`, () => deleteZone(z), 'map-only'));
     reorderable(li, li, 'zone', () => [z.id], ([id], after) => moveZoneTo(id, z, after));
     onRightClick(li, e => zoneMenu(e, z));
     list.append(li);
@@ -416,10 +418,10 @@ function layersSection(z) {
     const eye = h('button', { class: 'x eye', type: 'button', title: L.on ? 'Hide layer' : 'Show layer', 'aria-label': (L.on ? 'Hide' : 'Show') + ' layer ' + i,
       onclick: e => { e.stopPropagation(); L.on = !L.on; syncMedia(); commit(); renderRight(); renderSrcList(); } }, icon(L.on ? 'eye' : 'eyeOff'));
     const mv = (txt, d, off, label) => h('button', { type: 'button', disabled: off, title: label, 'aria-label': `${label}: layer ${i}`, onclick: e => { e.stopPropagation(); moveLayer(z, L, d); } }, txt);
-    const li = h('li', { class: (L === cur ? 'sel ' : '') + (L.on ? '' : 'off ') + (src ? '' : 'nosrc'), 'data-id': L.id, title: 'Drag, or ↑ ↓, to change the order: layers higher in the list cover the ones below', onclick: () => { ui.layer = L.id; renderRight(); renderSrcList(); } },
+    const li = h('li', { class: (L === cur ? 'sel ' : '') + (L.on ? '' : 'off ') + (src ? '' : 'nosrc'), 'data-id': L.id, title: `Drag, or ↑ ↓, to change the order: layers higher in the list cover the ones below. ${MOD}D duplicates the selected layer`, onclick: () => { ui.layer = L.id; renderRight(); renderSrcList(); } },
       h('span', { class: 'pgrip', 'aria-hidden': 'true' }), eye, h('span', { class: 'meta' }, i), h('span', { class: 'nm' }, src ? src.name : 'Empty'),
       h('span', { class: 'meta' }, L.blend === 'alpha' ? '' : BLENDS[BLEND_IDX[L.blend]][1]),
-      h('span', { class: 'mv' }, mv('↑', 1, i === z.layers.length, 'Move up'), mv('↓', -1, i === 1, 'Move down')), op);
+      h('span', { class: 'mv' }, mv('↑', 1, i === z.layers.length, 'Move up'), mv('↓', -1, i === 1, 'Move down')), op, trashBtn(`Remove layer ${i}`, () => removeLayer(z, L)));
     reorderable(li, li, 'layer', () => [L.id], ([id], after) => moveLayerTo(z, id, L, after));
     onRightClick(li, e => layerMenu(e, z, L));
     list.append(li);
@@ -440,14 +442,8 @@ function renderContentTab(body) {
   const src = srcById(L.src);
   body.append(sec('Layer ' + n,
     row('Source', selectEl([['', 'Empty'], ...project.sources.map(s => [s.id, s.name])], L.src || '', v => { loadSource(v || null, L); commit(); renderRight(); renderSrcList(); }, { aria: 'Layer source' })),
-    row('Blend', selectEl(BLENDS, L.blend, v => { L.blend = v; commit(); renderRight(); }, { aria: 'Blend mode' })),
-    sliderRow('Opacity', L, 'opacity', { fmt: pct, onInput: () => syncInspector(), onCommit: lookEdited }),
-    h('p', { class: 'note' }, n === 1 && L.blend !== 'alpha' ? 'This is the bottom layer, so it blends onto black.' : BLEND_NOTES[L.blend]),
-    h('div', { class: 'actions' },
-      h('button', { class: 'btn sm', type: 'button', disabled: n === z.layers.length, onclick: () => moveLayer(z, L, 1) }, 'Move up'),
-      h('button', { class: 'btn sm', type: 'button', disabled: n === 1, onclick: () => moveLayer(z, L, -1) }, 'Move down'),
-      h('button', { class: 'btn sm', type: 'button', onclick: () => duplicateLayer(z, L) }, 'Duplicate'),
-      h('button', { class: 'btn sm danger-t', type: 'button', onclick: () => removeLayer(z, L) }, 'Remove'))));
+    Object.assign(row('Blend', selectEl(BLENDS, L.blend, v => { L.blend = v; commit(); renderRight(); }, { aria: 'Blend mode' })), { title: BLEND_NOTES[L.blend] }),   // what the blend does, on pointing
+    sliderRow('Opacity', L, 'opacity', { fmt: pct, onInput: () => syncInspector(), onCommit: lookEdited })));
   if (!src) { body.append(sec(null, h('p', { class: 'note' }, 'This layer is empty. Click a source in the Sources list to play it here.'))); return; }
 
   // live picture of this layer, in the zone's proportions

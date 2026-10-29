@@ -270,7 +270,8 @@ function onKey(e) {
   // an operator can't change the mapping: no keys that edit fixtures or switch to a drawing tool
   if (mappingLocked() && ((mod && 'dglv'.includes(k)) || (!mod && ('rlmcpnz'.includes(k) || ['Delete', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key))))) { if (mod) e.preventDefault(); return; }
   if (mod && k === 'y') { e.preventDefault(); redo(); return; }
-  if (mod && k === 'd') { e.preventDefault(); duplicateSel(); return; }
+  // with the Content tab open and a layer selected it duplicates the layer; otherwise the selected fixtures
+  if (mod && k === 'd') { e.preventDefault(); if (ui.rightTab === 'content' && !ui.rightHidden && selZone() && selLayer()) duplicateLayer(selZone(), selLayer()); else duplicateSel(); return; }
   if (mod && k === 'g') { e.preventDefault(); e.shiftKey ? ungroupSel() : groupSel(); return; }
   if (mod && k === 'l') { e.preventDefault(); toggleLockSel(); return; }
   if (mod && k === 'a') { e.preventDefault(); ui.sel = new Set(project.fixtures.filter(f => !f.locked).map(f => f.id)); onSelection(); return; }
