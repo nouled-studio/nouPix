@@ -262,10 +262,10 @@ function outputSection(list) {
 function advancedPatch(f) {
   const p = f._patch, c = p.ctrl, base = c.startUniverse + p.out * c.upo, on = { v: !!f.addr };
   const redo = () => { markPatch(); commit(); renderRight(); };
-  const out = [tipRow(checkRow('Advanced patch: set where it starts', on, 'v', v => {
+  const out = [tipRow(checkRow('Set universe and channel', on, 'v', v => {
     if (v) { const a = p.first >= 0 ? addrOf(p.base, p.first) : { u: base, ch: 1 }; f.addr = { u: a.u, ch: a.ch }; } else delete f.addr;
     redo();
-  }), 'To leave a gap of channels on purpose. The fixtures after it on the output carry on from its last channel.')];
+  }), 'Where it starts, instead of right after the fixture before it. The ones after it follow on.')];
   if (f.addr) {
     const us = Array.from({ length: c.upo }, (_, i) => [String(base + i), 'U ' + uniLabel(base + i)]);
     out.push(row('Universe', selectEl(us, String(f.addr.u), v => { f.addr.u = +v; redo(); }, { aria: 'Start universe' })));
