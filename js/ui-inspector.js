@@ -426,8 +426,6 @@ function renderContentTab(body) {
   const rt = src.kind === 'isf' ? runtimeOf(src) : null;
   const head = [pv];
   if (!src.builtin) head.push(row('Name', textInput(src, 'name', { aria: 'Source name', onInput: renderSrcList, onCommit: commit })));
-  const desc = rt && rt.hdr && rt.hdr.DESCRIPTION;
-  if (desc) head.push(h('p', { class: 'note' }, desc.replace(/\.?$/, '.')));
   body.append(sec(src.name, head));
 
   if (rt && rt.error) body.append(sec('Shader error', h('div', { class: 'errbox' }, rt.error)));
