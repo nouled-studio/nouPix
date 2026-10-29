@@ -674,23 +674,24 @@ function renderSettings(body) {
     h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => checkUpdates(true) }, 'Check now')));
   body.append(sec('This computer', parts));
 }
-// What goes out to the lights: sending on or off, the protocol and its options, the frame rate, and (in a browser)
-// where the page finds noupix.py; the app always uses its own. Output is on from the start. A device sees the protocol
+// What goes out to the lights: sending on or off, the protocol and its options, the frame rate, and, only when the
+// page can't find noupix.py by itself, its address; the app always uses its own. Output is on from the start. A device sees the protocol
 // only.
 function sendSection(s) {
   const fps = tipRow(sliderRow('Frame rate', s, 'fps', { min: 1, max: 100, step: 1, int: true, fmt: v => v + ' fps', onCommit: () => { startClock(); commit(); } }),
     '40 by default. Above 44, some DMX nodes skip frames; pixel controllers take them.');
   if (REMOTE_CLIENT) return sec('Output', ...protocolRows(s), fps);
-  const app = /Electron/.test(navigator.userAgent), auto = bridgeUrl();
+  // the bridge's address only when it can't be found by itself: the page opened from disk, or no connection
+  const app = /Electron/.test(navigator.userAgent), auto = bridgeUrl(), lost = !app && (location.protocol === 'file:' || !bridge.connected);
   const sw = h('input', { type: 'checkbox', id: 'outputOn', checked: ui.outputOn });
   sw.addEventListener('change', () => { setOutput(sw.checked); sw.checked = ui.outputOn; });
   return sec('Output',
     tipRow(h('label', { class: 'checkrow', for: 'outputOn' }, sw, 'Send ' + outName()), 'On every time nouPix opens. Switch it off while another console drives the lights.'),
     ...protocolRows(s),
     fps,
-    app ? null : tipRow(row('Address', textInput(s, 'bridgeUrl', { placeholder: auto || 'ws://127.0.0.1:8080/ws', aria: 'Output connection address', onCommit: () => { commit(); connectBridge(); } })),
-      'Where noupix.py runs. Empty: the address this page was opened from.'),
-    app ? null : h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: connectBridge }, 'Reconnect')));
+    lost ? h('p', { class: 'note warn' }, 'nouPix can’t reach noupix.py. Start it, or give its address:') : null,
+    lost ? row('Address', textInput(s, 'bridgeUrl', { placeholder: auto || 'ws://127.0.0.1:8080/ws', aria: 'Output connection address', onCommit: () => { commit(); connectBridge(); } })) : null,
+    lost ? h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: connectBridge }, 'Reconnect')) : null);
 }
 
 /* ---------- selection ---------- */

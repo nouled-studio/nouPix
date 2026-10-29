@@ -101,9 +101,14 @@ function updateBridgeUI() {
   }
   else if (st && st.errors && st.lastError) { pill.classList.add('err'); txt.textContent = ui.outputOn ? `Send error · ${fmtN(st.pps)} pkt/s` : 'Send error'; pill.title = 'Last send error: ' + st.lastError + (from ? '\n' + from : ''); }
   else if (ui.outputOn) { pill.classList.add('ok'); txt.textContent = `Sending · ${fmtN(st ? st.pps : 0)} pkt/s`; pill.title = `${outName()} packets sent per second${sacnMulticast() ? ', to multicast groups' : ''}. ` + from; }
-  else { txt.textContent = outName() + ' off'; pill.title = 'Switched off in Settings → Art-Net / sACN.'; }
+  else { txt.textContent = outName() + ' off'; pill.title = 'Switched off in Settings → Output.'; }
   pill.hidden = !show;
-  const tick = $('#outputOn');   // Settings → Art-Net / sACN, when it is open
+  // Settings shows the bridge's address only while it can't be reached: drawn again when that changes
+  if (bridge.connected !== updateBridgeUI.was) {
+    updateBridgeUI.was = bridge.connected;
+    if (ui.rightTab === 'settings' && !document.activeElement.closest?.('#rightBody')) renderRight();
+  }
+  const tick = $('#outputOn');   // Settings → Output, when it is open
   if (tick) tick.checked = ui.outputOn;
 }
 function setOutput(on) {
