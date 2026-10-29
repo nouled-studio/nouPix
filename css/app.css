@@ -259,8 +259,6 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .tip { position: fixed; z-index: 1000; max-width: 240px; padding: 6px 9px 7px; background: var(--bg3); border: 1px solid var(--line2); color: var(--text2); font: 300 12px/1.35 var(--ui); pointer-events: none; }
 .tip b { display: block; margin-bottom: 2px; font: 600 10px var(--label); letter-spacing: .12em; text-transform: uppercase; color: var(--text); }
 .tip[hidden] { display: none; }
-/* a label with an explanation on pointing (tipRow): faintly underlined */
-.hastip { text-decoration: underline dotted color-mix(in srgb, var(--muted) 60%, transparent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .stagebar input[type=range] { width: 70px; margin: 0 8px 0 4px; }
 .stagebar .zoom { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .stage { position: relative; min-height: 0; overflow: hidden; }

@@ -89,11 +89,10 @@ function selectEl(options, value, onChange, o = {}) {
   s.addEventListener('change', () => onChange(s.value));
   return s;
 }
-// A short explanation of a row, shown on pointing at its label (faintly underlined), instead of text in the panel
+// A short explanation of a row, shown on pointing at its label, instead of text in the panel
 function tipRow(el, text) {
   const lab = el.classList.contains('checkrow') ? el : el.firstElementChild;
   lab.dataset.tip = `${lab.textContent.trim()}|${text}`;
-  lab.classList.add('hastip');
   return el;
 }
 function checkRow(text, obj, key, onChange) {
