@@ -477,9 +477,9 @@ function sceneShot(z, sc) {
   return true;
 }
 function takeSceneShot(z, sc) {
-  if (!sceneShot(z, sc)) { toast(`${z.name} shows nothing yet: no picture taken.`); return; }
+  if (!sceneShot(z, sc)) { toast(`${z.name} shows nothing yet: no snapshot taken.`); return; }
   commit();
-  toast(`${sc.name} has a picture of ${z.name} now.`);
+  toast(`${sc.name} has a snapshot now.`);
 }
 // Updating a scene with the zone's layers (and its picture, with Settings → Scenes → Pictures on)
 function updateScene(z, sc) {
