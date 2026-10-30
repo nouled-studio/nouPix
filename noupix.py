@@ -329,6 +329,9 @@ def parse_poll_reply(d, addr):
     for i in range(nports):
         if d[174 + i] & 0x80:  # port can output DMX
             outs.append((net << 8) | (sub << 4) | (d[190 + i] & 0x0F))
+    # Art-Net 4: an output port set to receive sACN instead of Art-Net (GoodOutputA bit 0), and a node that can switch
+    # between the two (Status2 bit 4). Older nodes leave both clear: Art-Net.
+    status2 = d[212] if len(d) >= 213 else 0
     return {
         "ip": socket.inet_ntoa(d[10:14]) if d[10:14] != b"\x00\x00\x00\x00" else addr[0],
         "from": addr[0],
@@ -339,6 +342,8 @@ def parse_poll_reply(d, addr):
         "outUniverses": outs,
         "mac": ":".join("%02x" % b for b in d[201:207]) if len(d) >= 207 else "",
         "bindIndex": d[211] if len(d) >= 212 else 0,
+        "sacn": any(d[182 + i] & 0x01 for i in range(nports)),
+        "canSwitch": bool(status2 & 0x10),
         "seen": time.time(),
     }
 

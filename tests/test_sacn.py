@@ -207,6 +207,28 @@ try:
     E("ui.dockTab = 'patch'; renderDock()"); time.sleep(0.2)
     check("the Patch panel counts from 0 again", pg.eval_on_selector_all(".outs .ur", "els => els.map(e => e.textContent)") == ["U 0", "U 1"])
 
+    # ---------- found devices: what each is set to receive
+    def reply(ip, sacn=False, switch=False, ports=1, out=True):
+        d = bytearray(239); d[0:8] = b"Art-Net\x00"; d[8:10] = (0x2100).to_bytes(2, "little"); d[10:14] = socket.inet_aton(ip)
+        d[26:31] = b"Node1"; d[173] = ports
+        for i in range(ports):
+            d[174 + i] = 0x80 if out else 0; d[182 + i] = 0x01 if sacn else 0; d[190 + i] = i
+        d[212] = 0x10 if switch else 0
+        return noupix.parse_poll_reply(bytes(d), (ip, 6454))
+    a, s_, old = reply("10.0.0.61"), reply("10.0.0.62", sacn=True, switch=True, out=False), reply("10.0.0.63")
+    check("the bridge reads what a device receives: Art-Net, or sACN and that it can switch", a["sacn"] is False and a["canSwitch"] is False and s_["sacn"] is True and s_["canSwitch"] is True and s_["outUniverses"] == [], (a, s_))
+    E("nodes => { olm.bridge.nodes.clear(); nodes.forEach(n => olm.bridge.nodes.set(n.ip + '#0', n)); olm.project.controllers = olm.project.controllers.filter(c => !c.ip.startsWith('10.0.0.6')); olm.ui.scanOff = []; olm.ui.dockTab = 'nodes'; renderDock(); }", [a, s_])
+    time.sleep(0.2)
+    rows = lambda: pg.eval_on_selector_all(".nodes tbody tr", "rs => rs.map(r => [r.cells[0].textContent, r.cells[3].textContent, r.querySelector('button').disabled])")
+    check("on Art-Net: each device says what it receives; only the Art-Net one can be added", rows() == [["10.0.0.61", "Art-Net", False], ["10.0.0.62", "sACNcan switch", True]], rows())
+    seg("sACN").click(); time.sleep(0.4); E("ui.dockTab = 'nodes'; renderDock()"); time.sleep(0.2)
+    check("on sACN: the sACN one can be added, even with no Art-Net universes", rows() == [["10.0.0.61", "Art-Net", True], ["10.0.0.62", "sACNcan switch", False]], rows())
+    E("addNodeAsController(nodeDevices().find(n => n.ip === '10.0.0.62'))"); time.sleep(0.2)
+    c = E("olm.project.controllers.find(c => c.ip === '10.0.0.62')")
+    check("added: one output of one universe, to set as the device is", c and c["outputs"] == 1 and c["upo"] == 1, c)
+    E("olm.project.controllers = olm.project.controllers.filter(c => c.ip !== '10.0.0.62'); markPatch(); commit()")
+    seg("Art-Net").click(); time.sleep(0.6)
+
     # ---------- output off, and the window closing
     seg("sACN").click(); time.sleep(0.6)
     t0 = time.time(); E("olm.setOutput(false)"); time.sleep(0.5)

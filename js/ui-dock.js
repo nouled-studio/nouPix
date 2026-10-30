@@ -602,17 +602,24 @@ function renderNodes(body) {
       : 'Discovery needs nouPix running on this computer (the app, or noupix.py).'));
   } else {
     scroll.append(h('table', { class: 'table' },
-      h('thead', null, h('tr', null, ['IP', 'Name', 'Network', isSacn() ? 'Art-Net universes' : 'Universes', 'MAC', 'Status', ''].map(t => h('th', null, t)))),   // ArtPoll tells the universes, not the outputs
+      h('thead', null, h('tr', null, ['IP', 'Name', 'Network', 'Receives', isSacn() ? 'Art-Net universes' : 'Universes', 'MAC', 'Status', ''].map(t => h('th', null, t)))),   // ArtPoll tells the universes, not the outputs
       h('tbody', null, nodes.map(n => {
         const known = project.controllers.find(c => c.ip === n.ip);
+        // what the device is set to receive, against what the project sends: only a device that matches can be added
+        const fits = n.sacn === isSacn(), takes = n.sacn ? 'sACN' : 'Art-Net';
+        const why = !fits ? `It receives ${takes}, and this project sends ${outName()}. ` + (n.canSwitch ? `Switch the device to ${outName()} in its own settings, ` : 'Choose ') + `or the project's protocol in Settings → Output.`
+          : !n.universes.length && !isSacn() ? 'This device reports no universes'
+          : known ? `Refresh the universes ${known.name} shows as reported by the device, in the Patch tab` : '';
         return withRightClick(h('tr', null,
           h('td', { class: 'mono' }, n.ip),
           h('td', null, h('div', null, n.shortName || '—'), h('div', { class: 'muted', style: { fontSize: '11px' } }, n.longName)),
           h('td', { class: 'mono muted' }, (k => k ? k.name || k.ip : '—')(netOf(n.ip, nets))),
+          h('td', null, h('span', { class: 'badge' + (fits ? ' ok' : ''), title: fits ? `Set to receive ${takes}, as this project sends` : why }, takes),
+            n.canSwitch ? h('span', { class: 'muted', style: { fontSize: '11px', marginLeft: '6px' } }, 'can switch') : null),
           h('td', { class: 'mono' }, n.universes.length ? n.universes.join(', ') : '—'),
           h('td', { class: 'mono' }, n.mac || '—'),
           h('td', { class: 'muted', style: { fontSize: '11px', maxWidth: '260px' } }, n.report || ''),
-          h('td', null, h('button', { class: 'btn sm', type: 'button', disabled: !n.universes.length, title: n.universes.length ? (known ? `Refresh the universes ${known.name} shows as reported by the device, in the Patch tab` : '') : 'This device reports no universes',
+          h('td', null, h('button', { class: 'btn sm', type: 'button', disabled: !fits || (!n.universes.length && !isSacn()), title: why,
             onclick: () => addNodeAsController(n) }, known ? 'Refresh universes' : 'Add as controller'))), e => nodeMenu(e, n));
       }))));
   }
@@ -629,7 +636,8 @@ function nodeDevices() {
   return [...byIp].map(([ip, list]) => {
     list.sort((a, b) => (a.bindIndex || 0) - (b.bindIndex || 0));
     const universes = [...new Set(list.flatMap(n => Array.isArray(n.outUniverses) ? n.outUniverses : []))].sort((a, b) => a - b);
-    return { ip, replies: list.length, universes, shortName: pick(list, 'shortName'), longName: pick(list, 'longName'), mac: pick(list, 'mac'), report: pick(list, 'report') };
+    return { ip, replies: list.length, universes, shortName: pick(list, 'shortName'), longName: pick(list, 'longName'), mac: pick(list, 'mac'), report: pick(list, 'report'),
+      sacn: list.some(n => n.sacn), canSwitch: list.some(n => n.canSwitch) };
   }).sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true }));
 }
 // ArtPoll says which universes a device listens on, not how they are split over its physical outputs (2 outputs
@@ -638,9 +646,19 @@ function nodeDevices() {
 // starting point. Adding a device that is already a controller only refreshes that reminder.
 function addNodeAsController(n) {
   const u = n.universes;
-  if (!u.length) return;
-  const range = universeList(u);
+  if (!u.length && !isSacn()) return;
   const same = project.controllers.find(c => c.ip === n.ip);
+  // a device set to sACN may report no Art-Net universes: it comes in with one output of one universe, to set as it is
+  if (!u.length) {
+    if (same) { ui.selCtrl = same.id; ui.dockTab = 'patch'; renderDock(); return; }
+    const c = newController({ name: n.shortName || n.ip, ip: n.ip, outputs: 1, upo: 1, startUniverse: 0 });
+    project.controllers.push(c);
+    ui.selCtrl = c.id; ui.dockTab = 'patch';
+    markPatch(); commit();
+    toast(`Added ${c.name}. Set its outputs and universes to match how the device is set up.`);
+    return;
+  }
+  const range = universeList(u);
   if (same) {
     same.discovered = u.slice();
     ui.selCtrl = same.id; ui.dockTab = 'patch';

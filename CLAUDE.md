@@ -209,7 +209,7 @@ Python standard library only. Serves `/` and `/index.html`, plain-named `.css`, 
 page sends binary frames (`layoutFrame` in output.js describes the layout) that the bridge turns into Art-Net
 packets, or sACN ones (`sacn_packet`, port 5568, universe + 1, to the controller or to `sacn_group`; the sequence per stream,
 the CID the same on this computer, `SACN_SOURCE`; `send_sacn_discovery` every 10 s; a stream that ends gets three
-Stream_Terminated packets, `_end_stream`, also when its window lets go, `ArtNet.release`), plus JSON messages (discovery polls, settings, remote control). **NDI and OMT in** (`VideoIn`, `Ndi`, `Omt`): the bridge loads
+Stream_Terminated packets, `_end_stream`, also when its window lets go, `ArtNet.release`), plus JSON messages (discovery polls, settings, remote control). A node's ArtPollReply says what it receives (`parse_poll_reply`: `sacn` from GoodOutputA bit 0, `canSwitch` from Status2 bit 4); the Nodes panel tags each device with it and adds only those that match the project's protocol (a device on sACN even with no Art-Net universes). **NDI and OMT in** (`VideoIn`, `Ndi`, `Omt`): the bridge loads
 the library the user installed (NDI Tools, `--ndi-lib` or `NOUPIX_NDI_LIB`; libomt with libvmx, in `~/.noupix/omt`, `--omt-lib`
 or `NOUPIX_OMT_LIB`; nothing bundled) with ctypes, lists the sources (`{t: 'vin', op: 'find'}`) and receives the ones a window asks for (`op: 'sub'`), each on its
 own thread, frames cut down to 640 wide (Light, the preview stream) or 1920 (Full) by `shrink_rgba` (OMT's BGRA turned to RGBA), sent to the window
