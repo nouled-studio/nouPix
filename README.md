@@ -14,9 +14,9 @@ A pixel-mapping tool for LED installations, by nouled studio. Draw or import you
 
 **Play content.** 53 built-in effects, your own ISF shaders, images, video, window capture and NDI or OMT streams, in zones with layers and blend modes.
 
-**Scenes and playlists.** Store looks per zone, with a picture of each on its button; fade between them, play them in playlists, mix two zones with the X-Fader.
+**Scenes and playlists.** Store looks per zone, with a snapshot of each on its button; fade between them, play them in playlists, mix two zones with the X-Fader.
 
-![The Scenes panel: two zones with their scenes, each showing a picture of what it plays, a playlist under each, and the X-Fader between them](docs/images/feature-scenes.webp)
+![The Scenes panel: two zones with their scenes, each showing a snapshot of what it plays, a playlist under each, and the X-Fader between them](docs/images/feature-scenes.webp)
 
 **Send it out.** Art-Net or sACN, automatic addressing, node discovery, 8 or 16-bit fixtures with dimming curves, a DMX monitor and test patterns to check the installation on site.
 
