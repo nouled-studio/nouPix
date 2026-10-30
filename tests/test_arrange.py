@@ -106,8 +106,8 @@ with sync_playwright() as p:
         Object.assign(F('a'), { x1: 20, y1: 50, x2: 120, y2: 50 }); Object.assign(F('b'), { x1: 250, y1: 150, x2: 380, y2: 150, locked: true });
         Object.assign(F('c'), { x1: 150, y1: 100, x2: 200, y2: 100 }); markGeom(); olm.ui.sel = new Set(['a', 'b', 'c']); onSelection(); }"""); time.sleep(0.3)
     geo = lambda: pg.evaluate("Object.fromEntries(olm.project.fixtures.map(f => { const b = fixtureBounds(f); return [f.id, [b.x0, b.y0, b.x1, b.y1]]; }))")
-    note = lambda: pg.evaluate("[...document.querySelectorAll('#rightBody h3')].find(h => h.textContent.trim() === 'Arrange').parentElement.querySelector('.note').textContent")
-    check("the note says locked fixtures stay", "Locked fixtures stay where they are" in note(), note())
+    note = lambda: pg.evaluate("[...document.querySelectorAll('#rightBody h3')].find(h => h.textContent.trim() === 'Arrange').parentElement.querySelector('.note')?.textContent || ''")
+    check("with some free, Arrange shows no explanation (its buttons say what they do on pointing)", note() == "", note())
     pg.click("button[aria-label='Align right']"); time.sleep(0.2)
     g = geo(); check("align right with a locked fixture: the others line up with it, it stays", g["a"][2] == 380 and g["c"][2] == 380 and g["b"] == [250, 150, 380, 150], g)
     pg.evaluate("() => { olm.ui.sel = new Set(['b', 'd']); onSelection(); }"); time.sleep(0.3)

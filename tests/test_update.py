@@ -75,23 +75,22 @@ try:
 
     # ---------- Settings → Updates: the switch and Check now
     ev("(() => { ui.rightTab = 'settings'; showRight(true); renderRight(); })()"); time.sleep(0.2)
-    sec = pg.locator("#rightBody .sec:has-text('Look for a new version')")
-    cb = sec.locator("input[type=checkbox]")
-    check("Settings → Updates: on at first, with the version running", cb.count() == 1 and cb.is_checked() and f"This is nouPix {mine}" in sec.inner_text())
+    cb = pg.locator("#rightBody label.checkrow:has-text('Look for new versions') input[type=checkbox]")
+    check("Settings → This computer → Look for new versions: on at first", cb.count() == 1 and cb.is_checked())
     cb.uncheck(); time.sleep(0.2)
     check("turning it off is kept", ev("ui.updates") is False and ev("JSON.parse(localStorage.getItem('noupix.ui')).updates") is False)
     cb.check()
     gh["tag"] = "v" + mine
-    sec.locator("button", has_text="Check now").click(); time.sleep(0.6)
+    pg.locator("#rightBody button", has_text="Check now").click(); time.sleep(0.6)
     check("Check now with the latest: says so", pg.locator(".toast").filter(has_text=f"nouPix {mine} is the latest version").count() >= 1)
     gh["tag"] = "v9.0.0"
-    sec.locator("button", has_text="Check now").click()
+    pg.locator("#rightBody button", has_text="Check now").click()
     try: dlg.first.wait_for(timeout=5000)   # the answer comes when it comes: on a busy machine, later than a moment
     except Exception: pass
     check("Check now tells of a skipped version too", dlg.count() == 1)
     dlg.locator("button", has_text="Later").click()
     gh["mode"] = "error"
-    sec.locator("button", has_text="Check now").click(); time.sleep(0.6)
+    pg.locator("#rightBody button", has_text="Check now").click(); time.sleep(0.6)
     check("Check now when GitHub can't be reached: says so", pg.locator(".toast").filter(has_text="Couldn't reach GitHub").count() >= 1)
 
     # ---------- a device on the network never looks

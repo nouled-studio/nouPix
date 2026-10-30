@@ -114,8 +114,8 @@ try:
     # ---------- cleaning the library
     ev("(() => { const s = project.sources.find(s => s.kind === 'image'); project.sources = project.sources.filter(x => x !== s); commit(); })()")
     ev("(() => { ui.rightTab = 'settings'; renderRight(); })()"); time.sleep(0.5)
-    check("Settings shows the media library's size", wait(lambda: "kB in" in pg.inner_text("#rightBody") or "MB in" in pg.inner_text("#rightBody")))
-    pg.get_by_role("button", name="Remove what this project doesn’t use…").click()
+    check("Settings shows the media library's size", wait(lambda: " kB" in pg.inner_text("#rightBody") or " MB" in pg.inner_text("#rightBody")))
+    pg.get_by_role("button", name="Clean up…").click()
     pg.locator(".modal").get_by_role("button", name="Remove").click()
     check("cleaning it keeps only this project's files", wait(lambda: lib(LIB_B) == [vid]), lib(LIB_B))
     check("the video still plays", red(ev))

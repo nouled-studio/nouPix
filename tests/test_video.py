@@ -87,7 +87,7 @@ with sync_playwright() as pw:
     ev("olm.project.sources.at(-1).endHold = false")
     check("or goes black", ev("drawMedia(olm.project.sources.at(-1), 64, 36)") is False)
     ev("olm.ui.rightTab = 'content'; renderRight()")
-    check("the panel says it played once", "Played once" in pg.inner_text("#rightBody"))
+    check("the panel says it ended", "Ended:" in pg.inner_text("#rightBody"))
     pg.click("#rightBody .transport button[aria-label=Restart]"); time.sleep(0.5); v = vid()
     check("Restart plays it again from its start", not v["done"] and not v["paused"] and 4 <= v["t"] < 5.5, v)
 
