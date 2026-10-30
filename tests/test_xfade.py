@@ -118,7 +118,7 @@ try:
     b0 = pg.locator("#dockBody .xfbtn").bounding_box()
     check("no hints and no fade field at the top of the panel any more", pg.locator("#dockBody .scenepanel .bar").count() == 0 and "Shift-click" not in pg.locator("#dockBody").inner_text())
     ev("(() => { ui.rightTab = 'settings'; showRight(true); renderRight(); })()"); time.sleep(0.2)
-    fr = pg.locator("#rightBody .row:has-text('Fade for new scenes') input")
+    fr = pg.locator("#rightBody .row:has-text('Default fade') input")
     check("the fade for new scenes is in Settings, under Scenes", fr.count() == 1 and float(fr.input_value()) == 2)
     fr.fill("3.5"); fr.press("Enter"); time.sleep(0.2)
     check("and sets it", ev("project.settings.fade") == 3.5, ev("project.settings.fade"))

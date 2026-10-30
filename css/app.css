@@ -224,7 +224,7 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .sources .phead h2 { flex: none; }
 .sec h3 svg { width: 14px; height: 14px; flex: none; }
 .layers { padding: 2px 0 0; margin: 0 -4px; }
-.layers li { grid-template-columns: 6px 20px 12px minmax(0,1fr) auto auto 56px; padding: 0 4px; gap: 6px; cursor: grab; }
+.layers li { grid-template-columns: 6px 20px 12px minmax(0,1fr) auto auto 56px 18px; padding: 0 4px; gap: 6px; cursor: grab; }
 .layers li .pgrip { width: 6px; height: 12px; opacity: .4; background-image: radial-gradient(currentColor 1px, transparent 1.2px); background-size: 3px 3px; color: var(--text2); }
 .layers li:hover .pgrip { opacity: .9; }
 .layers li.dragging { opacity: .4; }
@@ -431,7 +431,11 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .zhead input[type=range] { height: 16px; }
 .rowhint { color: var(--muted); font-size: 12px; padding: 0 6px; white-space: nowrap; }
 .ztag { flex: none; width: 10px; height: 10px; box-sizing: border-box; border-radius: 0; border: 1.5px dashed; }
-.zones li { grid-template-columns: 10px minmax(0,1fr) 64px; height: 36px; padding: 0 4px; gap: 8px; margin: 0 -4px; }
+.zones li { grid-template-columns: 10px minmax(0,1fr) 64px 18px; height: 36px; padding: 0 4px; gap: 8px; margin: 0 -4px; }
+/* a row's trash button, on the row pointed at or selected */
+.zones .del, .layers .del { visibility: hidden; color: var(--muted); }
+.zones li:hover .del, .zones li.sel .del, .layers li:hover .del, .layers li.sel .del, .zones .del:focus-visible, .layers .del:focus-visible { visibility: visible; }
+.zones .del:hover, .layers .del:hover { color: var(--accent); }
 .zones .zn { display: flex; flex-direction: column; min-width: 0; }
 .zones .zn .nm { font-weight: 500; }
 .zones li.sel .zn .nm { font-weight: 600; }
@@ -439,14 +443,17 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .zones input[type=range], .layers input[type=range] { height: 16px; }
 .chipsline { display: flex; flex-wrap: wrap; gap: 4px; }
 .lpreview { display: block; max-width: 100%; border-radius: 0; background: #000; border: 1px solid var(--line2); }
-.srcfind { padding: 8px 10px 0; display: grid; gap: 6px; }
-.srcfind input { width: 100%; }
+.srcfind { padding: 8px 10px 0; display: flex; gap: 6px; }
+.srchbox { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; }
+.srchbox svg { position: absolute; left: 7px; width: 13px; height: 13px; color: var(--muted); pointer-events: none; }
+.srchbox input { width: 100%; padding-left: 26px; }
+.srchbox:focus-within svg { color: var(--text2); }
 .srcfacets { display: flex; flex-wrap: wrap; gap: 4px; }
 .srcfacets { flex-wrap: nowrap; }
 .srcfacets .chip { flex: 1 1 auto; min-width: 0; border: 1px solid var(--line2); background: var(--bg2); color: var(--text2); height: 22px; padding: 0 4px; cursor: pointer; font: 400 11px/1 var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .srcfacets .chip:hover { border-color: var(--line3); color: var(--text); }
 .srcfacets .chip.on { background: var(--bg4); color: var(--text); border-color: var(--line3); box-shadow: inset 0 -2px 0 var(--accent); }
-.srcfacets select { flex: 0 1 auto; field-sizing: content; min-width: 0; max-width: 100%; width: auto; font-size: 11px; padding: 1px 4px; height: 22px; border-radius: 0; color: var(--text2); }
+.srcfacets select { flex: none; width: 104px; font-size: 11.5px; padding: 0 4px; height: 100%; border-radius: 0; color: var(--text2); }
 .srcfacets select.on { background: var(--sel-soft); border-color: var(--accent); color: var(--accent); }
 .srcfacets button { flex: none; border: 1px solid var(--line2); background: var(--bg2); color: var(--text2); border-radius: 0; padding: 0 8px; height: 22px; font-size: 11px; cursor: pointer; }
 .srcfacets button:hover { border-color: var(--muted); }
@@ -1125,3 +1132,7 @@ body.sceneswin > .dockbody { height: 100%; }
 .row.mlinks .msum { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 .row.mchg > .lbl { color: var(--accent); }
 .note.via[hidden] { display: none; }
+/* a check row with a button at its end (Settings → Remote control → HTTP triggers) */
+.checkline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pwrow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pwrow input[type=password], .pwrow input[type=text] { flex: 1; min-width: 0; }

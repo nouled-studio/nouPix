@@ -101,9 +101,14 @@ function updateBridgeUI() {
   }
   else if (st && st.errors && st.lastError) { pill.classList.add('err'); txt.textContent = ui.outputOn ? `Send error · ${fmtN(st.pps)} pkt/s` : 'Send error'; pill.title = 'Last send error: ' + st.lastError + (from ? '\n' + from : ''); }
   else if (ui.outputOn) { pill.classList.add('ok'); txt.textContent = `Sending · ${fmtN(st ? st.pps : 0)} pkt/s`; pill.title = `${outName()} packets sent per second${sacnMulticast() ? ', to multicast groups' : ''}. ` + from; }
-  else { txt.textContent = outName() + ' off'; pill.title = 'Switched off in Settings → Art-Net / sACN.'; }
+  else { txt.textContent = outName() + ' off'; pill.title = 'Switched off in Settings → Output.'; }
   pill.hidden = !show;
-  const tick = $('#outputOn');   // Settings → Art-Net / sACN, when it is open
+  // Settings shows the bridge's address only while it can't be reached: drawn again when that changes
+  if (bridge.connected !== updateBridgeUI.was) {
+    updateBridgeUI.was = bridge.connected;
+    if (ui.rightTab === 'settings' && !document.activeElement.closest?.('#rightBody')) renderRight();
+  }
+  const tick = $('#outputOn');   // Settings → Output, when it is open
   if (tick) tick.checked = ui.outputOn;
 }
 function setOutput(on) {
@@ -270,7 +275,8 @@ function onKey(e) {
   // an operator can't change the mapping: no keys that edit fixtures or switch to a drawing tool
   if (mappingLocked() && ((mod && 'dglv'.includes(k)) || (!mod && ('rlmcpnz'.includes(k) || ['Delete', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key))))) { if (mod) e.preventDefault(); return; }
   if (mod && k === 'y') { e.preventDefault(); redo(); return; }
-  if (mod && k === 'd') { e.preventDefault(); duplicateSel(); return; }
+  // with the Content tab open and a layer selected it duplicates the layer; otherwise the selected fixtures
+  if (mod && k === 'd') { e.preventDefault(); if (ui.rightTab === 'content' && !ui.rightHidden && selZone() && selLayer()) duplicateLayer(selZone(), selLayer()); else duplicateSel(); return; }
   if (mod && k === 'g') { e.preventDefault(); e.shiftKey ? ungroupSel() : groupSel(); return; }
   if (mod && k === 'l') { e.preventDefault(); toggleLockSel(); return; }
   if (mod && k === 'a') { e.preventDefault(); ui.sel = new Set(project.fixtures.filter(f => !f.locked).map(f => f.id)); onSelection(); return; }

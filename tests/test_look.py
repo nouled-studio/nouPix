@@ -65,7 +65,7 @@ try:
     pg.reload(); pg.wait_for_function("window.olm && olm.bridge.connected"); settle(0.6)
     check("and still white after a reload, from the start", ev("document.documentElement.dataset.theme") == "light" and ev("ui.theme") == "light")
     ev("(() => { ui.rightTab = 'settings'; renderRight(); })()"); settle(0.3)
-    look = pg.locator(".sec", has_text="Interface")
+    look = pg.locator("#rightBody .sec", has_text="This computer")
     check("Settings has the same choice", look.count() == 1 and look.locator(".seg button.on").inner_text().strip().lower() == "white")
     look.locator(".seg button", has_text="Black").click(); settle(0.4)
     check("and turns it black again", ev("ui.theme") == "dark" and ev("document.documentElement.dataset.theme") == "dark" and css("body", "backgroundColor") == "rgb(0, 0, 0)")

@@ -45,7 +45,7 @@ function groupRow(g, m, whole) {
 function renderFxList() {
   const ul = $('#fxList');
   if (!project.fixtures.length) {
-    ul.replaceChildren(emptyRow('No fixtures yet. Pick a tool on the stage (L, M, C, P) and drag, or import an SVG.'));
+    ul.replaceChildren(emptyRow('No fixtures yet: pick a tool on the stage and drag.'));
     return;
   }
   const groups = new Map(project.groups.map(g => [g.id, { g, m: [], whole: false }]));
@@ -257,23 +257,23 @@ function srcMatches(s, q, skip) {
   const vals = Object.values(fs);
   return q.split(/\s+/).every(w => hay.includes(w) || vals.includes(SRC_SEARCH[w]));
 }
-// The filters are one row of buttons, by use: Architectural, Ambient, Show, Utility (click the one on again for all).
-// The other facets (mood, look, motion) stay in the search: "disco" finds the party sources.
+// The filter is one list next to the search, by use: All, Architectural, Ambient, Show, Utility, with how many each
+// shows. The other facets (mood, look, motion) stay in the search: "disco" finds the party sources.
 function renderSrcFacets() {
   const want = ui.srcFacets || (ui.srcFacets = {}), q = (ui.srcFilter || '').trim().toLowerCase();
   const use = SRC_FACETS.find(f => f.key === 'use'), n = new Map();
   for (const s of project.sources) if (srcMatches(s, q, 'use')) { const v = srcFacets(s).use; n.set(v, (n.get(v) || 0) + 1); }
-  const chips = use.values.map(([v, l]) => h('button', { type: 'button', class: 'chip' + (want.use === v ? ' on' : ''), 'aria-pressed': String(want.use === v), title: `${l}: ${n.get(v) || 0}`,
-    onclick: () => { ui.srcFacets = want.use === v ? {} : { use: v }; renderSrcList(); } }, l));
-  $('#srcFacets').replaceChildren(...chips);
+  const pick = selectEl([['', 'All'], ...use.values.map(([v, l]) => [v, `${l} · ${n.get(v) || 0}`])], want.use || '',
+    v => { ui.srcFacets = v ? { use: v } : {}; renderSrcList(); }, { aria: 'Show sources for' });
+  pick.classList.toggle('on', !!want.use);
+  pick.title = 'Show the sources for one use';
+  $('#srcFacets').replaceChildren(pick);
 }
 function renderSrcList() {
   renderSrcFacets();
   const grid = $('#srcList');
   const z = selZone(), L = selLayer(), n = z && L ? z.layers.indexOf(L) + 1 : 1;
   const where = z ? `${z.name} layer ${n}` : 'a new layer';
-  $('#srcTarget').textContent = z ? `→ ${z.name} · L${n}` : '';
-  $('#srcTarget').title = 'Clicking a source plays it in ' + where;
   const usedBy = new Map();
   for (const zz of project.zones) zz.layers.forEach((l, i) => { if (l.on && l.src && l !== L) usedBy.set(l.src, (usedBy.has(l.src) ? usedBy.get(l.src) + ', ' : '') + `${zz.name} layer ${i + 1}`); });
   const q = (ui.srcFilter || '').trim().toLowerCase();

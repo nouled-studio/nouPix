@@ -94,7 +94,7 @@ try:
     box = pg.get_by_label("Open this project when nouPix starts")
     check("and Settings shows it ticked", box.is_checked())
     ev("olm.loadProject(demoProject())"); time.sleep(0.3); ev("renderRight()")
-    check("another project: unticked, and it names the one that opens", not box.is_checked() and "Show A2 opens when nouPix starts" in pg.inner_text("#rightBody"))
+    check("another project: unticked, and it names the one that opens", not box.is_checked() and "Now Show A2 opens at start" in pg.inner_text("#rightBody"))
     box.check(); time.sleep(0.3); box.uncheck(); time.sleep(0.5)
     check("unticking it: none opens by itself", not os.path.exists(os.environ["NOUPIX_STARTUP_FILE"]))
     pg.close(); bridge.kill()

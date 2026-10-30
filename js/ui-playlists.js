@@ -311,7 +311,7 @@ function newPlaylistDialog(z, only = null) {
         row('Fades', h('div', { class: 'pair' }, seg([['scene', "Each scene's own"], ['all', 'One for all']], mode, v => { mode = v; fadeAll.disabled = v !== 'all'; paint(); }), fadeAll)),
         row('At the end', selectEl([['loop', 'Loop'], ['stop', 'Stop on the last step'], ...z.playlists.map(x => [x.id, 'Then play ' + x.name])], endV, v => { endV = v; }, { aria: 'At the end' })),
         h('label', { class: 'checkrow' }, auto, 'Play when the project opens'),
-        h('p', { class: 'note' }, 'The ticked scenes are the steps, in this order: ↑ ↓ (or Alt ↑ ↓) move a scene earlier or later. A fade typed here is the step\'s own, in this playlist only: the scene keeps its fade. Left empty, the step fades like the scene (or with One for all). A play time counts from the moment a step starts, its fade in included, until the next step starts.')),
+        h('p', { class: 'note' }, 'Tick the steps; ↑ ↓ change their order. An empty fade uses the scene\'s.')),
       h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'), h('button', { class: 'btn primary', type: 'button', onclick: save }, 'Create playlist'))));
   uiDocNow().body.append(bg);   // in the window it was asked for from
   name.focus(); name.select();

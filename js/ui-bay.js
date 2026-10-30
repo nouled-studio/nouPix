@@ -92,7 +92,7 @@ function bayControls() {
         h('span', { class: 'cval' }, h('i', { class: 'cbar', 'data-cbar': key })), bayDot('out', key));
       bayDrag(row, key);
       return row;
-    }) : h('p', { class: 'note' }, 'Press Learn and move a fader, knob or pad on your controller: it shows here. Then click what it should move, or drag from its dot.'));
+    }) : h('p', { class: 'note' }, 'Press Learn and move a control: it shows here.'));
 }
 // Dragging a control up or down puts it in another place (in the list view too): it follows the pointer, the others
 // slide out of its way, and let go, it glides into its place. Its wires follow it.
@@ -183,7 +183,7 @@ function bayEffects() {
       const g = bayGroup(key, head, inps.map(i => bayFxRow(src, i, roles)), open ? 0 : inps.length - shown.length ? `${inps.length - shown.length} more` : 0);
       if (!open && shown.length) g.insertBefore(h('div', { class: 'bsub' }, shown.map(i => bayFxRow(src, i, roles))), g.querySelector('.bmore'));
       return g;
-    }) : h('p', { class: 'note' }, 'The effects in your zones and scenes show here, with their controls.'));
+    }) : h('p', { class: 'note' }, 'No effects yet.'));
 }
 function bayView() {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');

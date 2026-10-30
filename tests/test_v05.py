@@ -77,7 +77,7 @@ with sync_playwright() as p:
     pj["controllers"][0].update({"upo": 2, "chains": [["a", "b"]]})
     load(pj)
     pg.evaluate("() => { olm.ui.sel = new Set(['a']); onSelection(); olm.ui.rightTab = 'inspector'; renderRight(); }"); time.sleep(0.2)
-    pg.locator("#rightBody label.checkrow", has_text="Advanced patch").click(); time.sleep(0.2)
+    pg.locator("#rightBody label.checkrow", has_text="Set universe and channel").click(); time.sleep(0.2)
     has = pg.evaluate("({ addr: olm.project.fixtures[0].addr, u: !!document.querySelector('#rightBody select[aria-label=\"Start universe\"]') })")
     check("Advanced patch starts from the fixture's current address", has["addr"] == {"u": 3, "ch": 1} and has["u"], has)
     opts = pg.evaluate("[...document.querySelector('#rightBody select[aria-label=\"Start universe\"]').options].map(o => o.value)")

@@ -127,8 +127,8 @@ function sceneMenu(anchor, z, sc) {
       ['New playlist with it…', () => newPlaylistDialog(z, sc.id)],
     ] }],
     [`Update with ${z.name}'s current layers`, () => updateScene(z, sc)],
-    [sc.thumb ? `New picture of ${z.name} as it looks now` : `Picture of ${z.name} as it looks now`, () => takeSceneShot(z, sc), { title: 'Shown on the scene\'s button' }],
-    sc.thumb && ['Remove its picture', () => { delete sc.thumb; commit(); }],
+    [sc.thumb ? 'Retake snapshot' : 'Take snapshot', () => takeSceneShot(z, sc), { title: `What ${z.name} shows now, on the scene's button` }],
+    sc.thumb && ['Remove snapshot', () => { delete sc.thumb; commit(); }],
     ['Rename, fade time, colour…', () => editScene(sc)],
     [(sc.onOpen ? '✓ ' : '') + 'Play when the project opens', () => setSceneOnOpen(z, sc, !sc.onOpen), { title: 'One scene per zone; a playlist set to play on open goes first' }],
     ['Duplicate', () => { const c = Object.assign(JSON.parse(JSON.stringify(sc)), { id: uid(), name: nextCopyName(sc.name, new Set(z.scenes.map(x => x.name))) }); z.scenes.splice(z.scenes.indexOf(sc) + 1, 0, c); commit(); }],
@@ -148,8 +148,7 @@ function editScene(sc) {
       h('div', { class: 'mb' },
         row('Name', nameIn),
         numRow('Fade (s)', tmp, 'fade', { min: 0, max: 60, step: 0.1 }),
-        row('Colour', tagSwatches(tmp, 'Scene colour', () => {})),
-        h('p', { class: 'note' }, 'The fade is how long the zone takes to change to this scene when you click it. 0 cuts straight to it. It can also be changed on the scene\'s button: drag its fade time sideways, or click it to type one.')),
+        row('Colour', tagSwatches(tmp, 'Scene colour', () => {}))),
       h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'), h('button', { class: 'btn primary', type: 'button', onclick: save }, 'Save'))));
   uiDocNow().body.append(bg);   // in the window it was asked for from
   nameIn.focus(); nameIn.select();
@@ -297,7 +296,7 @@ function renderScenes(body, inWindow = false) {
     if (!z.scenes.length) tiles.append(h('span', { class: 'rowhint' }, `No scenes yet. Set up ${z.name}'s layers in the Content tab, then + Store.`));
     rows.append(h('div', { class: 'zoneblock' + (z === sel ? ' sel' : ''), 'data-zone': z.id }, r, playlistArea(z)));
   }
-  if (!project.zones.length) rows.append(h('div', { class: 'empty' }, 'No zones. Add one in the Content tab, or draw one with the Zone tool (Z).'));
+  if (!project.zones.length) rows.append(h('div', { class: 'empty' }, 'No zones yet.'));
   body.append(h('div', { class: 'scenepanel' }, rows, foot));
 }
 // The crossfader, while it is on: A's preview and zone, the fader, B's zone and preview
@@ -376,14 +375,14 @@ function renderPatch(body) {
     onRightClick(item, e => controllerMenu(e, c));
     items.append(item);
   }
-  if (!project.controllers.length) items.append(h('div', { class: 'empty' }, 'No controllers yet. Add one for each Art-Net node or pixel controller on your network.'));
+  if (!project.controllers.length) items.append(h('div', { class: 'empty' }, 'No controllers yet.'));
   const list = h('div', { class: 'ctrl-list' }, items, h('div', { class: 'foot' },
     h('button', { class: 'btn sm', type: 'button', onclick: () => { const c = newController(); project.controllers.push(c); ui.selCtrl = c.id; markPatch(); commit(); renderRight(); } }, '+ Controller'),
     h('button', { class: 'btn sm', type: 'button', title: 'Put the selected fixtures (or all unpatched ones) on the outputs of this controller, filling each output in turn', onclick: autoPatch, disabled: !ui.selCtrl }, 'Auto-patch')));
   const c = ctrlById(ui.selCtrl);
   const edit = h('div', { class: 'ctrl-edit' });
   if (c) renderCtrlEditor(edit, c);
-  else edit.append(h('div', { class: 'empty' }, 'Controllers are the Art-Net devices your LEDs are wired to. Each controller has an IP address and a number of physical outputs; every output gets a block of universes, and the fixtures you chain on it are addressed automatically in order.'));
+  else edit.append(h('div', { class: 'empty' }, 'Add a controller for each Art-Net or sACN device your LEDs are wired to.'));
   body.append(h('div', { class: 'patch' }, list, edit));
 }
 function renderCtrlEditor(edit, c) {
@@ -598,9 +597,9 @@ function renderNodes(body) {
   if (!nodes.length) {
     scroll.append(h('div', { class: 'empty' }, bridge.connected
       ? (all.length ? `${all.length} node${all.length === 1 ? ' is' : 's are'} on networks turned off for scans.` : nets.length
-        ? 'No nodes found yet. Press Discover: ArtPoll goes out on the networks ticked above, and Art-Net devices on them reply. A device on a network with another address range (a 2.x.x.x node while this computer has 192.168.x.x) needs an address in its range on this computer.'
-        : 'No nodes found yet. Press Discover. Nodes reply to ArtPoll on the broadcast address of their network: 2.255.255.255 for a 2.x.x.x Art-Net network, 10.255.255.255 for 10.x.x.x.')
-      : 'Node discovery needs nouPix running on this computer (the app, or noupix.py): a web page on its own cannot send or receive Art-Net.'));
+        ? 'No nodes found yet: press Discover. A node on another address range (2.x.x.x while this computer is on 192.168.x.x) needs an address in its range on this computer.'
+        : 'No nodes found yet: press Discover.')
+      : 'Discovery needs nouPix running on this computer (the app, or noupix.py).'));
   } else {
     scroll.append(h('table', { class: 'table' },
       h('thead', null, h('tr', null, ['IP', 'Name', 'Network', isSacn() ? 'Art-Net universes' : 'Universes', 'MAC', 'Status', ''].map(t => h('th', null, t)))),   // ArtPoll tells the universes, not the outputs
