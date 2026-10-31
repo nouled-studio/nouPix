@@ -148,6 +148,7 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .master .mono { width: 38px; text-align: right; color: var(--text); }
 
 .btn { height: 26px; padding: 0 10px; border-radius: var(--r); border: 1px solid var(--line2); background: var(--bg3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font: 600 10.5px/1 var(--label); letter-spacing: .12em; text-transform: uppercase; }
+.btn[hidden] { display: none; }
 .btn:hover { background: var(--bg4); border-color: var(--line3); }
 .btn:disabled { opacity: 0.45; cursor: default; }
 .btn.icon { width: 28px; padding: 0; }
@@ -284,6 +285,12 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
 .tabs .fill { flex: 1; }
 .tabs .tabtools { display: flex; align-items: center; gap: 6px; padding-right: 8px; }
+/* the Output settings button: a square with the cog, its label beside it */
+#btnOutSet { height: 26px; padding: 0 10px 0 0; gap: 8px; border: 1px solid var(--line2); background: var(--bg3); color: var(--text2); }
+#btnOutSet:hover { background: var(--bg4); border-color: var(--line3); color: var(--text); }
+#btnOutSet .ic { display: grid; place-items: center; width: 24px; height: 24px; border-right: 1px solid var(--line2); color: var(--accent); }
+#btnOutSet:hover .ic svg { transform: rotate(45deg); }
+#btnOutSet .ic svg { transition: transform .3s; }
 .dockbody { min-height: 0; overflow: hidden; }
 
 .patch { display: grid; grid-template-columns: 230px minmax(0,1fr); height: 100%; }

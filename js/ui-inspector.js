@@ -693,7 +693,7 @@ function openOutputSettings(again) {
   const s = project.settings;
   const sw = h('input', { type: 'checkbox', id: 'outputOn', checked: ui.outputOn });
   sw.addEventListener('change', () => { setOutput(sw.checked); sw.checked = ui.outputOn; });
-  const rows = [tipRow(h('label', { class: 'checkrow', for: 'outputOn' }, sw, 'Send to the controllers'), 'On every time nouPix opens. Switch it off while another console drives the lights.'),
+  const rows = [tipRow(h('label', { class: 'checkrow', for: 'outputOn' }, sw, 'Art-Net/sACN enabled'), 'On every time nouPix opens. Switch it off while another console drives the lights.'),
     frameRateRow(s), ...protocolRows(s)];
   if (outSetEl && outSetEl.isConnected) { outSetEl.replaceChildren(...rows); return; }
   const close = () => { bg.remove(); outSetEl = null; if (ui.rightTab === 'settings') renderRight(); };
