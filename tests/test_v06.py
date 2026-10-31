@@ -241,7 +241,7 @@ with sync_playwright() as pw:
     pg.locator(".netchip").nth(1).locator("input").uncheck(); time.sleep(0.1)
     check("unticking a network hides its nodes", pg.locator(".nodes tbody tr").count() == 1)
     ev("(() => { window._sent = []; const o = olm.bridge.ws.send.bind(olm.bridge.ws); olm.bridge.ws.send = d => { window._sent.push(d); o(d); }; })()")
-    pg.click("text=Discover"); time.sleep(0.2)
+    pg.click(".modal button:text-is('Discover')"); time.sleep(0.2)
     sent = ev("window._sent.filter(d => typeof d === 'string').map(JSON.parse).filter(m => m.t === 'poll')")   # Art-Net frames go out too, as binary
     check("Discover sends only the ticked networks", sent and sent[-1]["ifaces"] == ["2.0.0.10"], sent)
     ev("olm.ui.scanOff = []; savePrefs()")
