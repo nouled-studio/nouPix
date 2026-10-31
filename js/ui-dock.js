@@ -358,10 +358,13 @@ function drawSceneProgress() {
 /* ---------- patch ---------- */
 function ctrlSummary(c) {
   const outs = c._outs || [];
-  const used = outs.reduce((a, o) => a + (o ? Math.ceil(o.ch / 512) : 0), 0);
+  // universes counted once each: in Pixels mode, two outputs can share the one where the first ends
+  const span = new Set();
+  for (const o of outs.length ? outs : ctrlOuts(c)) if (o) for (let u = 0; u < o.upo; u++) span.add(o.base + u);
+  const used = universes.filter(U => U.ctrl === c).length;
   const px = outs.reduce((a, o) => a + (o ? o.pixels : 0), 0);
   const ovf = outs.reduce((a, o) => a + (o ? o.overflow : 0), 0);
-  return { used, px, ovf, cap: outs.reduce((a, o) => a + (o ? o.upo : 0), 0) || c.outputs * c.upo };
+  return { used, px, ovf, cap: span.size };
 }
 // The controllers selected in the Patch list: the one shown (ui.selCtrl), and others added with Ctrl or Shift
 const selCtrls = () => project.controllers.filter(c => c.id === ui.selCtrl || (ui.selCtrls && ui.selCtrls.has(c.id)));

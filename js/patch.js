@@ -24,21 +24,31 @@ const uniLabel = (u, c) => u + (isSacn(c) ? 1 : 0);
 // Pixels mode an output has the universes its pixels need; in Universes mode, a set number.
 function ctrlOuts(c) {
   const out = [];
+  if (c.mode === 'pixels') {
+    // Pixels: the outputs follow each other, each starting on the channel after the last one of the output before
+    // (output 1 on the start universe and channel)
+    let abs = c.startCh - 1;   // channels from the start universe's first
+    for (let o = 0; o < c.outputs; o++) {
+      const px = c.pxOut, w = c.chPx;
+      let s = abs % 512, end;
+      if (c.split) end = s + px * w;
+      else {   // whole pixels in each universe
+        if (s + w > 512) { abs += 512 - s; s = 0; }
+        const per = Math.max(1, Math.floor(512 / w)), first = Math.floor((512 - s) / w);
+        if (px <= first) end = s + px * w;
+        else { const rem = px - first, full = Math.floor(rem / per), r = rem % per; end = r ? (1 + full) * 512 + r * w : full * 512 + per * w; }
+      }
+      const base = c.startUniverse + Math.floor(abs / 512), upo = clamp(Math.ceil(end / 512), 1, 1024);
+      out.push({ base, upo, start: s, px });
+      abs = (base - c.startUniverse) * 512 + end;
+    }
+    return out;
+  }
+  // Universes: each output its universes, the first starting at the start channel
   let base = c.startUniverse;
   for (let o = 0; o < c.outputs; o++) {
-    const start = o === 0 ? c.startCh - 1 : 0;
-    let upo = c.upo, px = 0;
-    if (c.mode === 'pixels') {
-      px = c.pxOut;
-      if (c.split) upo = Math.ceil((start + px * c.chPx) / 512);
-      else {   // whole pixels in each universe
-        const per = Math.max(1, Math.floor(512 / c.chPx)), first = Math.max(0, Math.floor((512 - start) / c.chPx));
-        upo = 1 + Math.ceil(Math.max(0, px - first) / per);
-      }
-      upo = clamp(upo, 1, 1024);
-    }
-    out.push({ base, upo, start, px });
-    base += upo;
+    out.push({ base, upo: c.upo, start: o === 0 ? c.startCh - 1 : 0, px: 0 });
+    base += c.upo;
   }
   return out;
 }
@@ -69,7 +79,8 @@ function computePatch() {
         // controller on sACN, and can be used once
         const key = (sacn ? 's|' : 'a|') + (mcast ? '*' : c.ip.trim()) + '|' + num;
         let U = byKey.get(key);
-        if (U) { if (U.ctrl !== c || U.out !== o) patchConflicts.push(`${c.name} OUT ${o + 1} and ${U.ctrl.name} OUT ${U.out + 1} both use ${mcast ? 'sACN' : c.ip} universe ${uniLabel(num, c)}`); }
+        // (in Pixels mode, one output goes on in the universe where the one before it ends)
+        if (U) { if (U.ctrl !== c || (U.out !== o && c.mode !== 'pixels')) patchConflicts.push(`${c.name} OUT ${o + 1} and ${U.ctrl.name} OUT ${U.out + 1} both use ${mcast ? 'sACN' : c.ip} universe ${uniLabel(num, c)}`); }
         else {
           U = { key, ip: c.ip.trim(), ipb, uni: num, ctrl: c, out: o, sacn, mcast, data: new Uint8Array(512), enabled: !!(c.enabled && ipb && num <= 32767), used: 0 };
           byKey.set(key, U); universes.push(U);
