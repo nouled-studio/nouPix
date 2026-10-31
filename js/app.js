@@ -162,11 +162,13 @@ function initUI() {
   for (const k of UI_PREFS) if (k in prefs) ui[k] = prefs[k];
   remoteLoadCfg();
   document.body.classList.toggle('remote-client', REMOTE_CLIENT);
-  if (ui.dockTab === 'nodes') ui.dockTab = 'patch';   // the Nodes tab is the Patch tab's Discovery window since 1.3.2
+  // the Nodes tab is the Patch tab's Discovery window, and the DMX Monitor tab its DMX monitor window, since 1.4
+  if (ui.dockTab === 'nodes' || ui.dockTab === 'monitor') ui.dockTab = 'patch';
   applyTheme();
   $('#btnTheme').addEventListener('click', () => setTheme(ui.theme === 'light' ? 'dark' : 'light'));
   $('#btnRemote').addEventListener('click', e => remoteMenu(e.currentTarget));
   $('#btnOutSet').addEventListener('click', () => openOutputSettings());
+  $('#btnMon').addEventListener('click', () => openMonitor());
   initMidiUI();
   $('#projName').addEventListener('change', e => { project.name = e.target.value.trim() || 'Untitled'; commit(); });
   $('#btnFile').addEventListener('click', e => projectMenu(e.currentTarget));
@@ -335,7 +337,7 @@ function frameLoop(now) {
     }
   } catch (e) { report('stage', e); }
   try {
-    if (ui.dockTab === 'monitor' && !ui.dockCollapsed) drawMonitor(now);
+    if (monCanvas) drawMonitor(now);
     if (ui.dockTab === 'scenes' && !ui.dockCollapsed) drawSceneProgress();
     if (project.xfade.on && !document.hidden) drawXfPreviews(now);
     if (now - (frameLoop.last || 0) > 200) { frameLoop.last = now; updateStatus(); }

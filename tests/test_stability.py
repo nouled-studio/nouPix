@@ -98,7 +98,7 @@ try:
         r = rnd.random()
         if r < 0.6: ev("h => { ui.dockH = h; document.querySelector('#dock').style.setProperty('--bottom-h', h + 'px'); }", rnd.randint(140, 500))
         elif r < 0.8: ev("showRight(!!ui.rightHidden)")   # hide it, or show it again
-        else: ev("(() => { ui.dockTab = ['scenes', 'patch', 'monitor'][Math.floor(Math.random() * 4)]; renderDock(); })()")
+        else: ev("(() => { ui.dockTab = ['scenes', 'patch'][Math.floor(Math.random() * 2)]; renderDock(); if (Math.random() < 0.3) openMonitor(); })()")
     def a_look():
         ev("setTheme(ui.theme === 'light' ? 'dark' : 'light')")
     def a_window():

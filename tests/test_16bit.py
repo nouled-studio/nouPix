@@ -191,7 +191,7 @@ try:
     E("(() => { ui.sel = new Set(['i16']); onSelection(); })()"); time.sleep(0.2)
 
     # ---------- the DMX monitor, CSV, copy and paste
-    E("(() => { ui.dockTab = 'monitor'; ui.dockCollapsed = false; ui.monitorKey = olm.universes()[0].key; renderDock(); })()"); time.sleep(0.3)
+    E("(() => { ui.monitorKey = olm.universes()[0].key; openMonitor(); })()"); time.sleep(0.3)
     r = E("(() => { const m = monitorMap(olm.universes()[0]); return [0, 1, 2, 5].map(i => m[i] && (m[i].c + (m[i].coarse ? ' coarse' : m[i].fine ? ' fine' : ''))); })()")
     check("the DMX monitor names each channel: R coarse, R fine, G coarse … B fine", r == ["R coarse", "R fine", "G coarse", "B fine"], r)
     csv = E("(() => { let out = ''; const d = window.download; window.download = (n, t) => { out = t; }; exportCSV(); window.download = d; return out; })()")

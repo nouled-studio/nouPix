@@ -145,8 +145,8 @@ try:
     first.fill("0"); first.press("Enter"); time.sleep(0.5)
     first = pg.locator("input[aria-label='Start universe']")
     check("and 0 isn't an sACN universe: it becomes 1", E(C + ".startUniverse") == 0 and first.input_value() == "1", first.input_value())
-    E("ui.dockTab = 'monitor'; ui.monitorKey = null; renderDock()"); time.sleep(0.3)
-    mon = pg.locator(".bar .mono").first.text_content()
+    E("ui.monitorKey = null; openMonitor(); updateMonitorUI()"); time.sleep(0.3)
+    mon = pg.locator(".floatwin .bar .mono").first.text_content()
     check("the DMX monitor names the sACN universe", "sACN universe 1" in mon and "127.0.0.1" in mon, mon)
     menu = E("patchToItems(olm.project.fixtures.slice(0, 1)).filter(i => Array.isArray(i)).map(i => i[0])")
     check("the Patch to menu uses the same numbers", [m.split("·")[-1].strip() for m in menu] == ["U 1", "U 2"], menu)
@@ -186,7 +186,7 @@ try:
         check("each universe goes to its multicast group", len(g1) > 5 and len(g2) > 5 and g1[-1]["data"] == art0 and not uni_rx.since(t1 + 0.2), (len(g1), len(g2)))
         disc = wait(lambda: groups["239.255.250.214"].since(t0, kind="discovery"), 11)
         check("and the universes sent are listed on the discovery group", disc and disc[-1]["universes"] == [1, 2] and disc[-1]["page"] == 0 and disc[-1]["last"] == 0, [d["universes"] for d in disc])
-        mon = (E("ui.dockTab = 'monitor'; renderDock()"), pg.locator(".bar .mono").first.text_content())[1]
+        mon = (E("openMonitor(); updateMonitorUI()"), time.sleep(0.2), pg.locator(".floatwin .bar .mono").first.text_content())[2]
         check("the DMX monitor names the group", "multicast 239.255.0.1" in mon, mon)
         E("ui.dockTab = 'patch'; renderDock()")
     else:
