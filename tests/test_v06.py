@@ -198,7 +198,7 @@ with sync_playwright() as pw:
     # ---------- controller form
     ev("olm.ui.dockTab = 'patch'; olm.ui.selCtrl = olm.project.controllers[0].id; renderDock()")
     labels = ev("[...document.querySelectorAll('.ctrl-fields .f > span')].map(e => e.textContent)")
-    check("short labels", "Unis / output" in labels and "First uni" in labels, labels)
+    check("short labels", "Universes" in labels and "Start uni" in labels and "Start ch" in labels, labels)
     check("no Find box, no discovery note", pg.locator(".pfind").count() == 0 and pg.locator(".discovered").count() == 0)
     pg.click(".onsw"); check("the switch turns a controller off", ev("olm.project.controllers[0].enabled") is False)
     settle(); check("an output that is off sends nothing", ev("olm.universes().length > 0 && olm.universes().every(u => !u.enabled)"))

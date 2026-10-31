@@ -677,7 +677,7 @@ function addNodeAsController(n) {
     same.protocol = proto;
     if (u.length) same.discovered = u.slice();
     ui.selCtrl = same.id; ui.dockTab = 'patch';
-    markPatch(); commit();
+    markPatch(); commit(); updateDiscoveryUI();
     toast(`${same.name}: ${protoName(same)}` + (u.length ? `, reporting ${u.length} universe${u.length === 1 ? '' : 's'} (${universeList(u)}).` : '.') + ' Its outputs are as you set them.');
     return;
   }
@@ -687,7 +687,7 @@ function addNodeAsController(n) {
   if (u.length) c.discovered = u.slice();
   project.controllers.push(c);
   ui.selCtrl = c.id; ui.selCtrls = new Set(); ui.dockTab = 'patch';
-  markPatch(); commit();
+  markPatch(); commit(); updateDiscoveryUI();   // its row now offers Refresh
   toast(`Added ${c.name} on ${protoName(c)}. Set its outputs to match how the device is set up.`);
 }
 // 0, 1, 2, 3, 7 → "0–3, 7"
