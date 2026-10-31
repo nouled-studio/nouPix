@@ -170,11 +170,12 @@ class ArtNet:
 
     def send_frame(self, p, priority=100):
         # [u8 type=1][u8 flags][u16 count] then count x ([4 ip][u16 universe][u16 length][data])
-        # flags: 1 ArtSync after the frame (Art-Net), 2 sACN instead of Art-Net, 4 sACN to multicast groups
+        # flags: 1 ArtSync after the frame (to the Art-Net universes' addresses), 2 every universe as sACN (pages from
+        # before 1.3.2), 4 sACN to multicast groups, 8 each universe says its protocol: the length's top bit set for sACN
         if len(p) < 4 or p[0] != 1:
             return
         flags, count = p[1], struct.unpack_from("<H", p, 2)[0]
-        sacn = bool(flags & 2)
+        mixed = bool(flags & 8)
         off, ips, streams = 4, [], {}
         with self.send_lock:
             for _ in range(count):
@@ -182,6 +183,8 @@ class ArtNet:
                     break
                 ip = socket.inet_ntoa(p[off:off + 4])
                 uni, n = struct.unpack_from("<HH", p, off + 4)
+                sacn = bool(n & 0x8000) if mixed else bool(flags & 2)
+                n &= 0x7FFF
                 off += 8
                 data = p[off:off + min(n, 512)]   # a universe carries at most 512 channels
                 off += n
@@ -195,7 +198,7 @@ class ArtNet:
                 self.send_dmx(ip, uni, data)
                 if ip not in ips:
                     ips.append(ip)
-            if flags & 1 and not sacn:
+            if flags & 1 and ips:
                 self.send_sync(ips)
             # sACN streams no longer sent (a universe unpatched, multicast switched, back to Art-Net) are ended
             self.sacn_priority = priority
@@ -1606,7 +1609,7 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
         art.listeners.add(on_node)
         vin_message, vin_closed = self.server.vin.window(ws)
         ws.send_json({
-            "t": "hello", "version": VERSION, "bindIp": art.bind_ip, "bindPort": art.bind_port, "protocols": ["artnet", "sacn"],
+            "t": "hello", "version": VERSION, "bindIp": art.bind_ip, "bindPort": art.bind_port, "protocols": ["artnet", "sacn", "mixed"],
             "discovery": art.discovery, "discoveryNote": art.discovery_note, "interfaces": local_ips(),
             "nets": network_interfaces(),
             "nodes": list(art.nodes.values()),

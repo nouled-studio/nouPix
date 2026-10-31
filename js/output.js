@@ -99,11 +99,13 @@ function buildOutput() {
     }
   }
 }
-// The frame sent to the bridge: [u8 type=1][u8 flags][u16 count], then per universe [4 ip][u16 universe][u16 512][512 channels].
-// It is laid out once per patch, and the channels of each universe that is sent live in it, so a frame is sent as is.
-// Its flags say how the bridge sends it: 1 ArtSync after it (Art-Net), 2 sACN instead of Art-Net, 4 sACN to multicast
-// groups. Each frame says so itself: a protocol switched, an undo or another project never leaves the bridge sending
-// the old way. The sACN priority goes as a message when it changes (frameFlags).
+// The frame sent to the bridge: [u8 type=1][u8 flags][u16 count], then per universe [4 ip][u16 universe][u16 length]
+// [512 channels], the length's top bit set for a universe sent as sACN (its controller's protocol). It is laid out once
+// per patch, and the channels of each universe that is sent live in it, so a frame is sent as is. Its flags say how the
+// bridge sends it: 1 ArtSync after the Art-Net universes, 4 the sACN ones to multicast groups, 8 each universe says its
+// protocol (2, every universe as sACN, was the older bridges' way). Each frame says so itself: a protocol switched, an
+// undo or another project never leaves the bridge sending the old way. The sACN priority goes as a message when it
+// changes (frameFlags).
 let outFrame = null;
 function layoutFrame() {
   const list = universes.filter(u => u.enabled);
@@ -111,26 +113,34 @@ function layoutFrame() {
   u8[0] = 1; dv.setUint16(2, list.length, true);
   let off = 4;
   for (const U of list) {
-    u8.set(U.ipb, off); dv.setUint16(off + 4, U.uni, true); dv.setUint16(off + 6, 512, true);
+    u8.set(U.ipb, off); dv.setUint16(off + 4, U.uni, true); dv.setUint16(off + 6, 512 | (U.sacn ? 0x8000 : 0), true);
     const data = new Uint8Array(buf, off + 8, 512);
     data.set(U.data); U.data = data;
     off += 520;
   }
-  outFrame = { buf, u8, count: list.length };
+  outFrame = { buf, u8, count: list.length, sacn: list.filter(U => U.sacn).length };
 }
 const outStats = { frames: 0, fps: 0, lastT: performance.now(), lastFrames: 0, dropped: 0, universes: 0 };
 function frameFlags() {
   const s = project.settings;
-  if (!isSacn()) return s.artSync ? 1 : 0;
-  if (bridge.priority !== s.sacnPriority) { bridge.priority = s.sacnPriority; bridgeSend({ t: 'sacn', priority: s.sacnPriority }); }
-  return 2 | (s.sacnMulticast ? 4 : 0);
+  if (outFrame.sacn && bridge.priority !== s.sacnPriority) { bridge.priority = s.sacnPriority; bridgeSend({ t: 'sacn', priority: s.sacnPriority }); }
+  return 8 | (s.artSync ? 1 : 0) | (s.sacnMulticast ? 4 : 0);
+}
+// A bridge from before 1.3.2 takes one protocol per frame: the universes' protocol bits off, sACN if all are sACN
+const bridgeMixed = () => !bridge.hello || (bridge.hello.protocols || []).includes('mixed');
+function oldFrame() {
+  const b = outFrame.u8.slice();
+  for (let off = 4; off < b.length; off += 520) b[off + 7] &= 0x7F;
+  b[1] = (outFrame.sacn && outFrame.sacn === outFrame.count ? 2 | (project.settings.sacnMulticast ? 4 : 0) : project.settings.artSync ? 1 : 0);
+  return b;
 }
 function sendFrame(black = false) {
   if (!bridge.connected || !outFrame) return;
   if (bridge.ws.bufferedAmount > 2e6) { outStats.dropped++; return; }
   outFrame.u8[1] = frameFlags();
   let buf = outFrame.buf;
-  if (black) { const b = outFrame.u8.slice(); for (let off = 4; off < b.length; off += 520) b.fill(0, off + 8, off + 520); buf = b.buffer; }
+  if (!bridgeMixed()) buf = oldFrame().buffer;
+  if (black) { const b = new Uint8Array(buf).slice(); for (let off = 4; off < b.length; off += 520) b.fill(0, off + 8, off + 520); buf = b.buffer; }
   outStats.universes = outFrame.count;
   try { bridge.ws.send(buf); outStats.frames++; } catch (e) { /* socket closing */ } // send copies the frame
 }
@@ -226,13 +236,13 @@ function connectBridge() {
   ws.onmessage = ev => {
     if (typeof ev.data !== 'string') { streamFrame(ev.data); return; }   // a frame of an NDI or OMT stream (streams.js)
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
-    if (m.t === 'hello') { bridge.hello = m; showVersion(m.version); (m.nodes || []).forEach(n => bridge.nodes.set(n.ip + '#' + n.bindIndex, n)); updateBridgeUI(); if (ui.dockTab === 'nodes') renderDock(); remoteHello(m.remote); if (m.startupProject) openStartupProject(m.startupProject); }
+    if (m.t === 'hello') { bridge.hello = m; showVersion(m.version); (m.nodes || []).forEach(n => bridge.nodes.set(n.ip + '#' + n.bindIndex, n)); updateBridgeUI(); updateDiscoveryUI(); remoteHello(m.remote); if (m.startupProject) openStartupProject(m.startupProject); }
     else if (m.t === 'stats') { bridge.stats = m; updateBridgeUI(); }
-    else if (m.t === 'node') { bridge.nodes.set(m.node.ip + '#' + m.node.bindIndex, m.node); if (ui.dockTab === 'nodes') renderDock(); }
+    else if (m.t === 'node') { bridge.nodes.set(m.node.ip + '#' + m.node.bindIndex, m.node); updateDiscoveryUI(); }
     else if (m.t === 'polled') {
       if (bridge.hello && Array.isArray(m.nets)) bridge.hello.nets = m.nets;
       toast(m.targets.length ? 'ArtPoll sent to ' + m.targets.join(', ') : 'ArtPoll not sent: no network to send it on', m.targets.length ? '' : 'warn');
-      if (ui.dockTab === 'nodes') renderDock();
+      updateDiscoveryUI();
     }
     else if (m.t === 'error') { toast(m.msg, 'warn'); }
     else if (m.t === 'vin') streamMessage(m);

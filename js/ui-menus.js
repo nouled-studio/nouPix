@@ -226,12 +226,12 @@ function patchToItems(list) {
   ensurePatch();
   const ids = list.map(f => f.id);
   const outs = c => c.chains.map((chain, o) => {
-    const base = c.startUniverse + o * c.upo;
+    const L = ctrlOuts(c)[o];
     const here = ids.every(id => chain.includes(id));
     const rest = chain.filter(id => !ids.includes(id));
-    const fits = simulateChannels(c, rest.concat(ids)) <= c.upo * 512;
+    const fits = fitsOn(c, o, rest.concat(ids));
     const used = rest.reduce((a, id) => a + (fxById(id) ? pixelCount(fxById(id)) : 0), 0);
-    return [`${here ? '✓ ' : ''}OUT ${o + 1}  ·  U ${uniLabel(base)}${c.upo > 1 ? '–' + uniLabel(base + c.upo - 1) : ''}`, () => patchTo(ids, c, o),
+    return [`${here ? '✓ ' : ''}OUT ${o + 1}  ·  ${uniRange(c, L)}`, () => patchTo(ids, c, o),
       { key: fits ? (used ? `${fmtN(used)} px on it` : 'empty') : "won't fit" }];
   });
   if (project.controllers.length === 1) { const c = project.controllers[0]; return [{ head: `${c.name} · ${c.ip}` }, ...outs(c)]; }

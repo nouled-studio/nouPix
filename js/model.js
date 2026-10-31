@@ -69,7 +69,7 @@ const ui = {
   autosave: false,   // every change written to the project's file too (project-io.js)
   updates: true, updateAt: 0, updateSkip: '',   // looking for a new version once a day; when it last looked; a version not to tell of (app.js)
 };
-const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'srcH', 'rightHidden', 'scanOff', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip'];
+const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'srcH', 'rightHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
 const markPatch = () => { patchDirty = true; };
@@ -196,9 +196,15 @@ function nextName(type) {
   while (names.has(label + ' ' + n)) n++;
   return label + ' ' + n;
 }
+// The channels a pixel of a controller's output takes, in Pixels mode: mono, RGB, RGBW, 16-bit RGB, 16-bit RGBW
+const CH_PER_PX = [1, 3, 4, 6, 8];
+// A controller: its protocol (Art-Net or sACN, as the last one added), and its outputs, either a number of universes
+// each (mode 'universes', upo) or a number of pixels each (mode 'pixels': pxOut pixels of chPx channels), from its
+// start universe and start channel
 function newController(props = {}) {
-  const n = project.controllers.length;
-  const c = { id: uid(), name: 'Controller ' + String.fromCharCode(65 + (n % 26)), ip: '10.0.0.' + (50 + n), enabled: true, outputs: 4, upo: 4, startUniverse: n * 16, split: false, chains: [] };
+  const n = project.controllers.length, last = project.controllers[n - 1];
+  const c = { id: uid(), name: 'Controller ' + String.fromCharCode(65 + (n % 26)), ip: '10.0.0.' + (50 + n), enabled: true, protocol: last ? last.protocol : 'artnet',
+    mode: 'universes', outputs: 4, upo: 4, pxOut: 680, chPx: 3, startUniverse: n * 16, startCh: 1, split: false, chains: [] };
   Object.assign(c, props);
   ensureChains(c);
   return c;
@@ -207,6 +213,11 @@ function ensureChains(c) {
   c.outputs = clamp(Math.round(c.outputs) || 1, 1, 128);
   c.upo = clamp(Math.round(c.upo) || 1, 1, 64);
   c.startUniverse = clamp(Math.round(c.startUniverse) || 0, 0, 32767);
+  c.protocol = c.protocol === 'sacn' ? 'sacn' : 'artnet';
+  c.mode = c.mode === 'pixels' ? 'pixels' : 'universes';
+  c.pxOut = clamp(Math.round(c.pxOut) || 680, 1, 10000);
+  c.chPx = CH_PER_PX.includes(+c.chPx) ? +c.chPx : 3;
+  c.startCh = clamp(Math.round(c.startCh) || 1, 1, 512);
   if (!Array.isArray(c.chains)) c.chains = [];
   while (c.chains.length < c.outputs) c.chains.push([]);
   if (c.chains.length > c.outputs) c.chains.length = c.outputs;
