@@ -406,8 +406,7 @@ function renderPatch(body) {
   });
   const list = h('div', { class: 'ctrl-list' }, items, h('div', { class: 'foot' },
     h('button', { class: 'btn sm', type: 'button', onclick: () => { const c = newController(); project.controllers.push(c); ui.selCtrl = c.id; ui.selCtrls = new Set(); markPatch(); commit(); renderRight(); } }, '+ Controller'),
-    REMOTE_CLIENT ? null : h('button', { class: 'btn sm', type: 'button', title: 'Find the Art-Net and sACN devices on the network', onclick: openDiscovery }, 'Discovery…'),
-    h('button', { class: 'btn sm', type: 'button', title: 'Put the selected fixtures (or all unpatched ones) on the outputs of this controller, filling each output in turn', onclick: autoPatch, disabled: !ui.selCtrl }, 'Auto-patch')));
+    REMOTE_CLIENT ? null : h('button', { class: 'btn sm', type: 'button', title: 'Find the Art-Net and sACN devices on the network', onclick: openDiscovery }, 'Discovery…')));
   const c = ctrlById(ui.selCtrl);
   const edit = h('div', { class: 'ctrl-edit' });
   if (c) renderCtrlEditor(edit, c);
@@ -578,23 +577,6 @@ function revealInPatch() {
   const key = p.ctrl.id + ':' + p.out;
   if (ui.selCtrl !== p.ctrl.id || (ui.foldOuts && ui.foldOuts.has(key))) { ui.selCtrl = p.ctrl.id; if (ui.foldOuts) ui.foldOuts.delete(key); renderDock(); }
   requestAnimationFrame(() => { const r = $(`#dockBody .prow[data-id="${CSS.escape(f.id)}"]`); if (r) r.scrollIntoView({ block: 'center' }); });
-}
-function autoPatch() {
-  const c = ctrlById(ui.selCtrl);
-  if (!c) return;
-  if (geomDirty) rebuildGeometry();
-  let list = selected();
-  if (!list.length) list = project.fixtures.filter(f => !f._patch);
-  if (!list.length) { toast('Nothing to patch: select fixtures, or leave some unpatched.'); return; }
-  let o = 0, placed = 0, over = 0;
-  for (const f of list) {
-    unassign(f.id);
-    while (o < c.outputs - 1 && !fitsOn(c, o, c.chains[o], f)) o++;
-    if (!fitsOn(c, o, c.chains[o], f)) over++;
-    c.chains[o].push(f.id); placed++;
-  }
-  markPatch(); commit(); renderRight();
-  toast(over ? `Patched ${placed} fixtures; ${over} do not fully fit. Add universes per output or outputs.` : `Patched ${placed} fixtures onto ${c.name}`, over ? 'warn' : '');
 }
 
 /* ---------- nodes ---------- */

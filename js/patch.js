@@ -158,7 +158,7 @@ function assign(fid, ctrl, out, index = -1) {
   chain.splice(index, 0, fid);
   markPatch();
 }
-// channels an output would use with an extra fixture appended (for auto-patch)
+// channels an output would use with an extra fixture appended (for Patch to)
 // Whether fixtures (a chain, and one more) fit on a controller's output: in its universes, from its start channel,
 // and in Pixels mode within its pixels
 function fitsOn(c, o, chain, extra) {

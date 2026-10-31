@@ -89,8 +89,8 @@ function blankProject(name = 'Untitled') {
 // takeover: pickup or jump, for a fader; mode: toggle or hold, for something that is on or off.
 const MIDI_KEY = /^midi:(.*):(\d{1,2}):(cc|note):(\d{1,3})$/;
 const newMidiMap = (key, to) => ({ id: uid(), key, to, takeover: 'pickup', mode: 'toggle' });
-// A group is a named set of fixtures. Its fixtures stay next to each other in the list (and so in drawing and
-// Auto-patch order), where its first one is. One level only: no groups inside groups.
+// A group is a named set of fixtures. Its fixtures stay next to each other in the list (and so in drawing
+// order), where its first one is. One level only: no groups inside groups.
 const groupById = id => project.groups.find(g => g.id === id);
 // A fixture's colour: its group's, if the group has one ('' when none)
 const fxTag = f => { const g = f.group != null && groupById(f.group); return g && g.tag ? g.tag : ''; };

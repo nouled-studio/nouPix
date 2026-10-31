@@ -342,7 +342,6 @@ function controllerMenu(e, c) {
   const n = c.chains.flat().length;
   menu(at(e), [
     { head: `${ctrlLetter(c)} · ${c.name} · ${c.ip}` },
-    ['Auto-patch onto it', autoPatch],
     [c.enabled ? 'Turn its output off' : 'Turn its output on', () => { c.enabled = !c.enabled; markPatch(); commit(); }],
     ['Unpatch all its fixtures', () => { c.chains = c.chains.map(() => []); markPatch(); commit(); renderRight(); toast(`${n} fixtures unpatched from ${c.name}. ${MOD}Z brings them back.`); }, { disabled: !n }],
     '-',
