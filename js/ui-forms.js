@@ -89,6 +89,21 @@ function selectEl(options, value, onChange, o = {}) {
   s.addEventListener('change', () => onChange(s.value));
   return s;
 }
+// A window asking to confirm something that can't be taken back by itself (Ctrl Z still can): Enter or the button does
+// it, Esc or Cancel doesn't
+function confirmBox(title, text, okLabel, onOk) {
+  const close = () => { bg.remove(); D.removeEventListener('keydown', key, true); };
+  const ok = () => { close(); onOk(); };
+  const key = e => { if (e.key === 'Escape') { e.preventDefault(); close(); } else if (e.key === 'Enter') { e.preventDefault(); ok(); } };
+  const D = uiDocNow();
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal', role: 'alertdialog', 'aria-label': title },
+      h('header', null, title), h('div', { class: 'mb' }, h('p', null, text)),
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'), h('button', { class: 'btn primary danger', type: 'button', onclick: ok }, okLabel))));
+  D.body.append(bg);
+  D.addEventListener('keydown', key, true);
+  bg.querySelector('.btn.primary').focus();
+}
 // A short explanation of a row, shown on pointing at its label, instead of text in the panel
 function tipRow(el, text) {
   const lab = el.classList.contains('checkrow') ? el : el.firstElementChild;

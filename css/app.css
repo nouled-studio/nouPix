@@ -148,6 +148,7 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .master .mono { width: 38px; text-align: right; color: var(--text); }
 
 .btn { height: 26px; padding: 0 10px; border-radius: var(--r); border: 1px solid var(--line2); background: var(--bg3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font: 600 10.5px/1 var(--label); letter-spacing: .12em; text-transform: uppercase; }
+.btn[hidden] { display: none; }
 .btn:hover { background: var(--bg4); border-color: var(--line3); }
 .btn:disabled { opacity: 0.45; cursor: default; }
 .btn.icon { width: 28px; padding: 0; }
@@ -159,6 +160,7 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
               linear-gradient(-45deg, transparent 6px, var(--accent) 0) right / 51% 100% no-repeat; }
 .btn.primary:hover:not(:disabled) { filter: brightness(1.12); }
 .btn.danger-t { color: var(--danger); }
+.btn.primary.danger { background: var(--danger); border-color: var(--danger); }
 .btn.sm { height: 22px; padding: 0 7px; font-size: 10px; letter-spacing: .1em; }
 .btn.grpbtn { width: 26px; padding: 0; }
 .btn.grpbtn:disabled { opacity: .3; }
@@ -283,6 +285,12 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
 .tabs .fill { flex: 1; }
 .tabs .tabtools { display: flex; align-items: center; gap: 6px; padding-right: 8px; }
+/* the Output settings button: a square with the cog, its label beside it */
+#btnOutSet { height: 26px; padding: 0 10px 0 0; gap: 8px; border: 1px solid var(--line2); background: var(--bg3); color: var(--text2); }
+#btnOutSet:hover { background: var(--bg4); border-color: var(--line3); color: var(--text); }
+#btnOutSet .ic { display: grid; place-items: center; width: 24px; height: 24px; border-right: 1px solid var(--line2); color: var(--accent); }
+#btnOutSet:hover .ic svg { transform: rotate(45deg); }
+#btnOutSet .ic svg { transition: transform .3s; }
 .dockbody { min-height: 0; overflow: hidden; }
 
 .patch { display: grid; grid-template-columns: 230px minmax(0,1fr); height: 100%; }
@@ -293,6 +301,7 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .ctrl.sel { background: var(--sel-soft); border-left-color: var(--sel); }
 .ctrl .t { display: flex; align-items: center; gap: 6px; font-weight: 600; }
 .ctrl .t .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctrl.off .t, .ctrl.off .s { opacity: .4; }
 .ctrl .s { display: flex; justify-content: space-between; color: var(--muted); }
 .ctrl-list .foot { padding: 8px; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); }
 .ctrl-edit { overflow: auto; display: flex; flex-direction: column; min-width: 0; --cap: 840px; }
@@ -301,10 +310,14 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .ctrl-edit .ctrl-fields, .ctrl-edit .outbar, .ctrl-edit .outhead, .ctrl-edit .outlist { padding-right: max(12px, calc(100% - var(--cap))); }
 .ctrl-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--bg1); }
 .ctrl-fields .f { display: grid; gap: 3px; }
-.onsw { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px 0 4px; border-radius: 0; border: 1px solid var(--line2); background: var(--bg2); color: var(--muted); font: 600 11px var(--mono); letter-spacing: .06em; cursor: pointer; }
-.onsw i { width: 18px; height: 18px; border-radius: 50%; background: var(--bg4); transition: background .15s; }
-.onsw.on { border-color: color-mix(in srgb, var(--live) 50%, transparent); background: var(--live-soft); color: var(--live); }
-.onsw.on i { background: var(--live); box-shadow: 0 0 8px color-mix(in srgb, var(--live) 60%, transparent); }
+.onsw { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 10px 0 8px; border-radius: 0; border: 1px solid var(--line2); background: var(--bg2); color: var(--muted); font: 600 10.5px var(--mono); letter-spacing: .12em; cursor: pointer; min-width: 80px; justify-content: flex-start; transition: border-color .15s, color .15s; }
+.onsw:hover:not(:disabled) { border-color: var(--line3); color: var(--text2); }
+/* the switch: a square track with a block that slides across, lit white when on */
+.onsw i { position: relative; width: 26px; height: 12px; border: 1px solid var(--line3); flex: none; transition: border-color .15s; }
+.onsw i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 9px; height: 6px; background: var(--muted); transition: left .15s, background .15s; }
+.onsw.on { border-color: color-mix(in srgb, var(--live) 45%, var(--line2)); color: var(--live); }
+.onsw.on i { border-color: var(--live); }
+.onsw.on i::after { left: 13px; background: var(--live); }
 .skiprow { display: flex; align-items: center; gap: 6px; height: 26px; }
 .skiprow .info { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--line2); color: var(--text2); font: italic 600 10.5px/14px Georgia, serif; text-align: center; cursor: help; }
 .skiprow .info:hover, .skiprow .info:focus { border-color: var(--accent); color: var(--accent); outline: none; }
@@ -812,6 +825,9 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 /* never taller than its window: the middle scrolls, the title and the buttons stay in view */
 .modal { width: min(420px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--bg1); border: 1px solid var(--line2); border-radius: 0; }
 .modal.wide { width: min(640px, 100%); }
+.modal.xwide { width: min(1040px, 100%); }
+.modal .mb.outset h4 { margin: 10px -16px 0; padding: 10px 16px 0; border-top: 1px solid var(--line2); font: 600 12px var(--label); letter-spacing: .16em; text-transform: uppercase; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.modal .mb.outset h4::before { content: ''; width: 3px; height: 12px; background: var(--accent); }
 .modal header { padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px; }
 .modal .mb { padding: 12px 16px; display: grid; gap: 10px; min-height: 0; overflow: auto; }
 .updmodal { width: min(520px, 100%); }

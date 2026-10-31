@@ -245,9 +245,9 @@ function outputSection(list) {
       if (!p) { box.className = 'addr warn'; box.textContent = 'Not patched. Choose a controller and output, or drag the fixture onto an output in the Patch panel.'; return; }
       const lines = [`${p.ctrl.name} · ${p.ctrl.ip} · OUT ${p.out + 1} · #${p.pos + 1} in chain`];
       if (p.first >= 0) lines.push(addrText(p));
-      if (p.overflow) { box.className = 'addr err'; lines.push(`${p.overflow} pixels do not fit in this output's ${p.ctrl.upo} universes and are not sent.`); }
+      if (p.overflow) { box.className = 'addr err'; lines.push(`${p.overflow} pixels don't fit on this output and are not sent.`); }
       if (p.overlap) { box.className = 'addr warn'; lines.push('Its set start overlaps the channels of the fixture before it on this output.'); }
-      if (p.outside) { box.className = 'addr warn'; lines.push(`Its set start, U ${uniLabel(f.addr.u)}, is outside this output's universes, so it is not used.`); }
+      if (p.outside) { box.className = 'addr warn'; lines.push(`Its set start, U ${uniLabel(f.addr.u, p.ctrl)}, is outside this output's universes, so it is not used.`); }
       box.textContent = lines.join('\n');
       box.style.whiteSpace = 'pre-wrap';
     };
@@ -260,17 +260,17 @@ function outputSection(list) {
 // Advanced patch: the fixture starts at a universe and channel set by hand, inside its output's universes, for
 // example to leave a gap of channels on purpose. The fixtures after it on the output follow on from its end.
 function advancedPatch(f) {
-  const p = f._patch, c = p.ctrl, base = c.startUniverse + p.out * c.upo, on = { v: !!f.addr };
+  const p = f._patch, c = p.ctrl, L = ctrlOuts(c)[p.out], base = L.base, on = { v: !!f.addr };
   const redo = () => { markPatch(); commit(); renderRight(); };
   const out = [tipRow(checkRow('Set universe and channel', on, 'v', v => {
     if (v) { const a = p.first >= 0 ? addrOf(p.base, p.first) : { u: base, ch: 1 }; f.addr = { u: a.u, ch: a.ch }; } else delete f.addr;
     redo();
   }), 'Where it starts, instead of right after the fixture before it. The ones after it follow on.')];
   if (f.addr) {
-    const us = Array.from({ length: c.upo }, (_, i) => [String(base + i), 'U ' + uniLabel(base + i)]);
+    const us = Array.from({ length: L.upo }, (_, i) => [String(base + i), 'U ' + uniLabel(base + i, c)]);
     out.push(row('Universe', selectEl(us, String(f.addr.u), v => { f.addr.u = +v; redo(); }, { aria: 'Start universe' })));
     out.push(numRow('Channel', f.addr, 'ch', { int: true, min: 1, max: 512, onCommit: redo }));
-    out.push(h('p', { class: 'note' }, `OUT ${p.out + 1}: universes ${uniLabel(base)}–${uniLabel(base + c.upo - 1)}`));
+    out.push(h('p', { class: 'note' }, `OUT ${p.out + 1}: ${uniRange(c, L)}`));
   }
   return out;
 }
@@ -610,22 +610,18 @@ function videoControls(src, el) {
 }
 
 /* ---------- settings tab ---------- */
-// What goes out: Art-Net (the default) or sACN, one at a time, for the whole project. Switching changes the universes'
-// numbers shown (sACN counts from 1) and, with multicast, what counts as a conflict, so the patch is worked out again.
+// The options of what goes out, for the Output settings window: ArtSync for the controllers on Art-Net, the priority
+// and multicast for those on sACN (each controller has its protocol, in the Patch tab)
 function protocolRows(s) {
-  const changed = () => { markPatch(); commit(); renderRight(); updateBridgeUI(); };
-  const rows = [tipRow(row('Protocol', seg([['artnet', 'Art-Net'], ['sacn', 'sACN']], s.protocol, v => { s.protocol = v; changed(); })),
-    'One at a time, for the whole project. sACN numbers universes from 1: Art-Net\'s universe 0 is sACN universe 1, and every universe shown follows.')];
-  if (s.protocol === 'sacn') {
-    rows.push(
-      tipRow(numRow('Priority', s, 'sacnPriority', { min: 0, max: 200, step: 1, int: true, onCommit: commit }), '0 to 200, 100 by default. A receiver getting a universe from two sources takes the higher priority: give a desk more to let it take over.'),
-      tipRow(row('Send to', seg([['unicast', 'Unicast'], ['multicast', 'Multicast']], s.sacnMulticast ? 'multicast' : 'unicast', v => { s.sacnMulticast = v === 'multicast'; changed(); })),
-        'Unicast: to each controller\'s address. Multicast: to the universe\'s group (239.255.x.x), so each universe can be used by one controller only.'));
-  } else {
-    rows.push(tipRow(checkRow('Send ArtSync after each frame', s, 'artSync', commit), 'Nodes that support it update all universes at the same moment. Leave it off otherwise: some stop outputting while they wait for a sync.'));
-  }
-  if (s.protocol === 'sacn' && bridge.hello && !(bridge.hello.protocols || []).includes('sacn'))
-    rows.push(h('p', { class: 'note warn' }, 'This computer\'s nouPix is older and sends Art-Net only: update it to send sACN.'));
+  const changed = () => { markPatch(); commit(); updateBridgeUI(); openOutputSettings(true); };
+  const rows = [h('h4', null, 'Art-Net'),
+    tipRow(checkRow('Send ArtSync after each frame', s, 'artSync', commit), 'Nodes that support it update all universes at the same moment. Leave it off otherwise: some stop outputting while they wait for a sync.'),
+    h('h4', null, 'sACN'),
+    tipRow(numRow('Priority', s, 'sacnPriority', { min: 0, max: 200, step: 1, int: true, onCommit: commit }), '0 to 200, 100 by default. A receiver getting a universe from two sources takes the higher priority: give a desk more to let it take over.'),
+    tipRow(row('Send to', seg([['unicast', 'Unicast'], ['multicast', 'Multicast']], s.sacnMulticast ? 'multicast' : 'unicast', v => { s.sacnMulticast = v === 'multicast'; changed(); })),
+      'Unicast: to each controller\'s address. Multicast: to the universe\'s group (239.255.x.x), so each universe can be used by one controller only.')];
+  if (usesSacn() && bridge.hello && !(bridge.hello.protocols || []).includes('mixed'))
+    rows.push(h('p', { class: 'note warn' }, 'This computer\'s nouPix is older: update it to send sACN and Art-Net together.'));
   return rows;
 }
 // Settings in six sections: the first five are saved with the project, the last one is this computer's
@@ -676,20 +672,37 @@ function renderSettings(body) {
 // page can't find noupix.py by itself, its address; the app always uses its own. Output is on from the start. A device sees the protocol
 // only.
 function sendSection(s) {
-  const fps = tipRow(sliderRow('Frame rate', s, 'fps', { min: 1, max: 100, step: 1, int: true, fmt: v => v + ' fps', onCommit: () => { startClock(); commit(); } }),
-    '40 by default. Above 44, some DMX nodes skip frames; pixel controllers take them.');
-  if (REMOTE_CLIENT) return sec('Output', ...protocolRows(s), fps);
+  const fps = frameRateRow(s);
+  if (REMOTE_CLIENT) return sec('Output', fps);
   // the bridge's address only when it can't be found by itself: the page opened from disk, or no connection
   const app = /Electron/.test(navigator.userAgent), auto = bridgeUrl(), lost = !app && (location.protocol === 'file:' || !bridge.connected);
-  const sw = h('input', { type: 'checkbox', id: 'outputOn', checked: ui.outputOn });
-  sw.addEventListener('change', () => { setOutput(sw.checked); sw.checked = ui.outputOn; });
   return sec('Output',
-    tipRow(h('label', { class: 'checkrow', for: 'outputOn' }, sw, 'Send ' + outName()), 'On every time nouPix opens. Switch it off while another console drives the lights.'),
-    ...protocolRows(s),
     fps,
     lost ? h('p', { class: 'note warn' }, 'nouPix can’t reach noupix.py. Start it, or give its address:') : null,
     lost ? row('Address', textInput(s, 'bridgeUrl', { placeholder: auto || 'ws://127.0.0.1:8080/ws', aria: 'Output connection address', onCommit: () => { commit(); connectBridge(); } })) : null,
     lost ? h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: connectBridge }, 'Reconnect')) : null);
+}
+// The frame rate, the same value in Settings and in the Output settings window
+const frameRateRow = s => tipRow(sliderRow('Frame rate', s, 'fps', { min: 1, max: 100, step: 1, int: true, fmt: v => v + ' fps', onCommit: () => { startClock(); commit(); } }),
+  '40 by default. Above 44, some DMX nodes skip frames; pixel controllers take them.');
+// The Output settings window (the ⚙ at the right of the Patch tab): sending on or off, each protocol's options and the
+// frame rate. again: drawn anew in place, when it is open.
+let outSetEl = null;
+function openOutputSettings(again) {
+  if (again && !(outSetEl && outSetEl.isConnected)) return;
+  const s = project.settings;
+  const sw = h('input', { type: 'checkbox', id: 'outputOn', checked: ui.outputOn });
+  sw.addEventListener('change', () => { setOutput(sw.checked); sw.checked = ui.outputOn; });
+  const rows = [tipRow(h('label', { class: 'checkrow', for: 'outputOn' }, sw, 'Art-Net/sACN enabled'), 'On every time nouPix opens. Switch it off while another console drives the lights.'),
+    frameRateRow(s), ...protocolRows(s)];
+  if (outSetEl && outSetEl.isConnected) { outSetEl.replaceChildren(...rows); return; }
+  const close = () => { bg.remove(); outSetEl = null; if (ui.rightTab === 'settings') renderRight(); };
+  outSetEl = h('div', { class: 'mb outset' }, rows);
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal', role: 'dialog', 'aria-label': 'Output settings' },
+      h('header', null, 'Output settings'), outSetEl,
+      h('footer', null, h('button', { class: 'btn primary', type: 'button', onclick: close }, 'Done'))));
+  uiDocNow().body.append(bg);
 }
 
 /* ---------- selection ---------- */

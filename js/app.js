@@ -100,8 +100,8 @@ function updateBridgeUI() {
     pill.classList.add('warn'); txt.textContent = 'Output not connected'; pill.title = `Reconnecting to the part of nouPix that sends ${outName()}…`;
   }
   else if (st && st.errors && st.lastError) { pill.classList.add('err'); txt.textContent = ui.outputOn ? `Send error · ${fmtN(st.pps)} pkt/s` : 'Send error'; pill.title = 'Last send error: ' + st.lastError + (from ? '\n' + from : ''); }
-  else if (ui.outputOn) { pill.classList.add('ok'); txt.textContent = `Sending · ${fmtN(st ? st.pps : 0)} pkt/s`; pill.title = `${outName()} packets sent per second${sacnMulticast() ? ', to multicast groups' : ''}. ` + from; }
-  else { txt.textContent = outName() + ' off'; pill.title = 'Switched off in Settings → Output.'; }
+  else if (ui.outputOn) { pill.classList.add('ok'); txt.textContent = `Sending · ${fmtN(st ? st.pps : 0)} pkt/s`; pill.title = `${outName()} packets sent per second${usesSacn() && project.settings.sacnMulticast ? ', sACN to multicast groups' : ''}. ` + from; }
+  else { txt.textContent = 'Output off'; pill.title = 'Switched off in the Patch tab, ⚙ Output settings.'; }
   pill.hidden = !show;
   // Settings shows the bridge's address only while it can't be reached: drawn again when that changes
   if (bridge.connected !== updateBridgeUI.was) {
@@ -162,10 +162,11 @@ function initUI() {
   for (const k of UI_PREFS) if (k in prefs) ui[k] = prefs[k];
   remoteLoadCfg();
   document.body.classList.toggle('remote-client', REMOTE_CLIENT);
-  if (REMOTE_CLIENT && ui.dockTab === 'nodes') ui.dockTab = 'patch';
+  if (ui.dockTab === 'nodes') ui.dockTab = 'patch';   // the Nodes tab is the Patch tab's Discovery window since 1.3.2
   applyTheme();
   $('#btnTheme').addEventListener('click', () => setTheme(ui.theme === 'light' ? 'dark' : 'light'));
   $('#btnRemote').addEventListener('click', e => remoteMenu(e.currentTarget));
+  $('#btnOutSet').addEventListener('click', () => openOutputSettings());
   initMidiUI();
   $('#projName').addEventListener('change', e => { project.name = e.target.value.trim() || 'Untitled'; commit(); });
   $('#btnFile').addEventListener('click', e => projectMenu(e.currentTarget));

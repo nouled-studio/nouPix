@@ -249,10 +249,21 @@ function removeLayer(z, L) {
 
 /* ---------- controllers ---------- */
 // The fixtures on it become unpatched; undo brings it back
-function deleteController(c) {
-  project.controllers = project.controllers.filter(x => x !== c);
-  ui.selCtrl = null; markPatch(); commit(); renderRight();
-  toast(`${c.name} deleted. ${MOD}Z brings it back.`);
+function deleteController(c) { deleteControllers([c]); }
+function deleteControllers(list) {
+  const gone = new Set(list);
+  if (!gone.size) return;
+  project.controllers = project.controllers.filter(x => !gone.has(x));
+  ui.selCtrl = null; ui.selCtrls = new Set(); markPatch(); commit(); renderRight();
+  toast(`${gone.size === 1 ? list[0].name : gone.size + ' controllers'} deleted. ${MOD}Z brings ${gone.size === 1 ? 'it' : 'them'} back.`);
+}
+// Asks first: deleting controllers unpatches their fixtures
+function askDeleteControllers(list) {
+  if (!list.length) return;
+  const n = list.reduce((a, c) => a + c.chains.flat().filter(fxById).length, 0);
+  confirmBox(list.length === 1 ? `Delete ${list[0].name}?` : `Delete ${list.length} controllers?`,
+    n ? `Their ${n} patched fixture${n === 1 ? '' : 's'} become unpatched. ${MOD}Z brings everything back.` : `${MOD}Z brings ${list.length === 1 ? 'it' : 'them'} back.`,
+    'Delete', () => deleteControllers(list));
 }
 
 /* ---------- the selection ---------- */

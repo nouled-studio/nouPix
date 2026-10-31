@@ -15,12 +15,11 @@ function fixSettings(given) {
   s.compW = clamp(Math.round(s.compW), 16, 8192); s.compH = clamp(Math.round(s.compH), 16, 8192);
   s.fps = clamp(s.fps, 1, 100);
   if (!['off', 'sub', 'add'].includes(s.whiteMode)) s.whiteMode = 'off';
-  if (!['artnet', 'sacn'].includes(s.protocol)) s.protocol = 'artnet';
+  // up to 1.3 the protocol was the project's (now each controller's), and Art-Net had a second broadcast address
+  delete s.protocol; delete s.broadcast;
   s.sacnPriority = clamp(Math.round(s.sacnPriority), 0, 200);
   s.sacnMulticast = s.sacnMulticast === true;
   s.sceneShots = s.sceneShots === true;
-  // 255.255.255.255 was the default address for ArtPoll; discovery now goes to the networks chosen in Nodes
-  if (s.broadcast.trim() === '255.255.255.255') s.broadcast = '';
   delete s.trim;   // the colour trims are per fixture now (see hydrate)
   return s;
 }
@@ -71,12 +70,15 @@ function fixFixture(f, i, ids) {
   if (!('reverse' in f)) f.reverse = false;
   return f;
 }
+let legacyProtocol = 'artnet';
 function fixController(c, i, ids) {
   c.id = uniqueId(c.id, ids);
   if (typeof c.name !== 'string') c.name = c.name != null ? String(c.name) : 'Controller ' + String.fromCharCode(65 + (i % 26));
   if (typeof c.ip !== 'string') c.ip = c.ip != null ? String(c.ip) : '';
   if (!('enabled' in c)) c.enabled = true;
   if (!('split' in c)) c.split = false;
+  // up to 1.3 the protocol was the project's, for every controller
+  if (c.protocol !== 'sacn' && c.protocol !== 'artnet') c.protocol = legacyProtocol;
   // the universes the device reported to discovery: a reminder for setting outputs and universes per output
   if ('discovered' in c) {
     const u = Array.isArray(c.discovered) ? [...new Set(c.discovered.map(v => Math.round(numOr(v, -1))).filter(v => v >= 0 && v <= 32767))].sort((a, b) => a - b) : [];
@@ -123,6 +125,7 @@ function hydrate(p) {
   const gt = isObj(p.settings) && Array.isArray(p.settings.trim) ? p.settings.trim : [];
   legacyTrim = [0, 1, 2].map(i => clamp(numOr(gt[i], 1), 0, 1)).concat(1);
   legacyGamma = clampGamma(out.settings.gamma);
+  legacyProtocol = isObj(p.settings) && p.settings.protocol === 'sacn' ? 'sacn' : 'artnet';
   const fxIds = new Set(), ctrlIds = new Set();
   out.fixtures = (Array.isArray(p.fixtures) ? p.fixtures : []).filter(f => isObj(f) && TYPE_LABEL[f.type]).map((f, i) => fixFixture(f, i, fxIds));
   out.controllers = (Array.isArray(p.controllers) ? p.controllers : []).filter(isObj).map((c, i) => fixController(c, i, ctrlIds));
@@ -458,15 +461,15 @@ async function openPath(path) {
 }
 function exportCSV() {
   ensurePatch();
-  const uni = isSacn() ? 'sACN universe' : 'universe';   // the universes as they go out: sACN counts from 1
-  const rows = [['Fixture', 'Type', 'Pixels', 'Color order', 'Bits', 'Controller', 'IP', 'Output', 'Position', 'Start ' + uni, 'Start channel', 'End ' + uni, 'End channel', 'Overflow pixels']];
+  // the universes as they go out: on a controller on sACN they count from 1
+  const rows = [['Fixture', 'Type', 'Pixels', 'Color order', 'Bits', 'Controller', 'Protocol', 'IP', 'Output', 'Position', 'Start universe', 'Start channel', 'End universe', 'End channel', 'Overflow pixels']];
   const order = [];
   for (const c of project.controllers) c.chains.forEach(ch => ch.forEach(id => { const f = fxById(id); if (f) order.push(f); }));
   for (const f of project.fixtures) if (!f._patch) order.push(f);
   for (const f of order) {
     const p = f._patch;
     const a = p && p.first >= 0 ? addrOf(p.base, p.first) : null, b = p && p.first >= 0 ? addrOf(p.base, p.last) : null;
-    rows.push([f.name, TYPE_LABEL[f.type], pixelCount(f), f.order, fxBits(f), p ? p.ctrl.name : '', p ? p.ctrl.ip : '', p ? p.out + 1 : '', p ? p.pos + 1 : '', a ? uniLabel(a.u) : '', a ? a.ch : '', b ? uniLabel(b.u) : '', b ? b.ch : '', p ? p.overflow : '']);
+    rows.push([f.name, TYPE_LABEL[f.type], pixelCount(f), f.order, fxBits(f), p ? p.ctrl.name : '', p ? protoName(p.ctrl) : '', p ? p.ctrl.ip : '', p ? p.out + 1 : '', p ? p.pos + 1 : '', a ? uniLabel(a.u, p.ctrl) : '', a ? a.ch : '', b ? uniLabel(b.u, p.ctrl) : '', b ? b.ch : '', p ? p.overflow : '']);
   }
   const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v).join(',')).join('\n');
   download((project.name || 'noupix').replace(/\s+/g, '-') + '-patch.csv', csv, 'text/csv');
