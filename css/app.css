@@ -294,7 +294,6 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .ctrl.sel { background: var(--sel-soft); border-left-color: var(--sel); }
 .ctrl .t { display: flex; align-items: center; gap: 6px; font-weight: 600; }
 .ctrl .t .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ctrl .t .proto { font-family: var(--mono); font-size: 10px; color: var(--muted); border: 1px solid var(--line2); padding: 0 4px; }
 .ctrl .s { display: flex; justify-content: space-between; color: var(--muted); }
 .ctrl-list .foot { padding: 8px; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); }
 .ctrl-edit { overflow: auto; display: flex; flex-direction: column; min-width: 0; --cap: 840px; }
