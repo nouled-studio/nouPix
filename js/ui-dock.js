@@ -390,9 +390,9 @@ function renderPatch(body) {
   for (const c of project.controllers) {
     const s = ctrlSummary(c);
     const ipOk = !!parseIP(c.ip);
-    // a badge only when something is wrong or the controller is off
-    const badge = !ipOk ? h('span', { class: 'badge err' }, 'IP?') : !c.enabled ? h('span', { class: 'badge' }, 'OFF') : s.ovf ? h('span', { class: 'badge err' }, 'OVERFLOW') : null;
-    const item = h('div', { class: 'ctrl' + (chosen.has(c.id) ? ' sel' : ''), tabindex: 0, 'data-id': c.id, onclick: e => pickCtrl(c, e),
+    // a badge only when something is wrong; a controller that is off shows dimmed
+    const badge = !ipOk ? h('span', { class: 'badge err' }, 'IP?') : s.ovf ? h('span', { class: 'badge err' }, 'OVERFLOW') : null;
+    const item = h('div', { class: 'ctrl' + (chosen.has(c.id) ? ' sel' : '') + (c.enabled ? '' : ' off'), tabindex: 0, 'data-id': c.id, onclick: e => pickCtrl(c, e),
       title: `${c.name} · ${protoName(c)}\nCtrl or Shift to select several; Delete removes them` },
       h('div', { class: 't' }, h('span', { class: 'badge' }, ctrlLetter(c)), h('span', { class: 'nm' }, c.name), badge),
       h('div', { class: 's mono' }, h('span', null, c.ip + ' · ' + protoName(c))));
