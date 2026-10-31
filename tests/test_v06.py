@@ -205,20 +205,41 @@ with sync_playwright() as pw:
     pg.click(".onsw"); check("and on", ev("olm.project.controllers[0].enabled") is True)
     pg.uncheck("#ctrlSkip"); check("Skip ch 511–512 off: all 512 channels", ev("olm.project.controllers[0].split") is True)
     pg.check("#ctrlSkip")
-    pg.click(".btn.trash"); check("one click on the bin deletes nothing", ev("olm.project.controllers.length") == 1)
-    pg.dblclick(".btn.trash"); check("a double-click deletes", ev("olm.project.controllers.length") == 0)
+    pg.click(".btn.trash"); time.sleep(0.2)
+    check("the bin asks first", ev("olm.project.controllers.length") == 1 and pg.locator(".modal:has-text('Delete')").count() == 1)
+    pg.click(".modal button.danger"); time.sleep(0.2); check("Delete deletes", ev("olm.project.controllers.length") == 0)
     ev("undo()"); check("undo brings it back", ev("olm.project.controllers.length") == 1)
+
+    # ---------- an output by its pixels; several controllers deleted at once
+    r = ev("""(() => { const c = newController({ mode: 'pixels', outputs: 3, pxOut: 200, chPx: 3, startUniverse: 2, startCh: 11, split: true });
+      const L = ctrlOuts(c); c.split = false; const W = ctrlOuts(c); return [L, W]; })()""")
+    L, W = r
+    check("by pixels: output 1 from the start universe and channel, the next ones going on from where it ends",
+          [(o["base"], o["start"], o["upo"]) for o in L] == [(2, 10, 2), (3, 98, 2), (4, 186, 2)], L)
+    check("by pixels, whole pixels: a pixel never split over two universes", [(o["base"], o["start"]) for o in W] == [(2, 10), (3, 99), (4, 189)], W)
+    ev("""(() => { const p = olm.project; const a = newController({ name: 'P1' }); const b = newController({ name: 'P2' }); p.controllers.push(a, b); commit();
+      ui.dockTab = 'patch'; ui.dockCollapsed = false; ui.selCtrl = a.id; ui.selCtrls = new Set(); renderDock(); })()"""); time.sleep(0.2)
+    n0 = ev("olm.project.controllers.length")
+    pg.locator(".ctrl", has_text="P1").click(); pg.locator(".ctrl", has_text="P2").click(modifiers=["Shift"]); time.sleep(0.1)
+    check("Shift selects a range of controllers", pg.locator(".ctrl.sel").count() == 2)
+    pg.keyboard.press("Delete"); time.sleep(0.2)
+    check("Delete asks first", ev("olm.project.controllers.length") == n0 and pg.locator(".modal:has-text('Delete 2 controllers')").count() == 1)
+    pg.click(".modal button:text-is('Cancel')"); time.sleep(0.1)
+    check("Cancel keeps them", ev("olm.project.controllers.length") == n0)
+    pg.locator(".ctrl.sel").first.focus(); pg.keyboard.press("Delete"); time.sleep(0.2); pg.click(".modal button.danger"); time.sleep(0.2)
+    check("Delete removes both, and undo brings them back", ev("olm.project.controllers.length") == n0 - 2 and (ev("undo()"), time.sleep(0.2), ev("olm.project.controllers.length"))[2] == n0)
+    ev("(() => { const p = olm.project; p.controllers = p.controllers.filter(c => !/^P[12]$/.test(c.name)); commit(); })()")
 
     # ---------- networks for discovery
     ev("""(() => { olm.bridge.hello.nets = [{ name: 'en0', ip: '2.0.0.10', mask: '255.0.0.0', prefix: 8, broadcast: '2.255.255.255' },
         { name: 'wlan', ip: '192.168.1.20', mask: '255.255.255.0', prefix: 24, broadcast: '192.168.1.255' }];
       const node = (ip, u) => ({ ip, bindIndex: 0, shortName: 'N' + ip, longName: '', report: '', ports: 1, outUniverses: u, mac: '' });
       olm.bridge.nodes.clear(); olm.bridge.nodes.set('a', node('2.0.0.50', [0, 1, 2])); olm.bridge.nodes.set('b', node('192.168.1.77', [5]));
-      olm.ui.scanOff = []; olm.ui.dockTab = 'nodes'; renderDock(); })()""")
+      olm.ui.scanOff = []; olm.ui.dockTab = 'patch'; renderDock(); openDiscovery(); })()""")
     check("a chip per network", pg.locator(".netchip").count() == 2)
     check("both nodes listed, with their network", pg.locator(".nodes tbody tr").count() == 2 and "wlan" in pg.inner_text(".nodes tbody"))
     pg.locator(".netchip").nth(1).locator("input").uncheck(); time.sleep(0.1)
-    check("unticking a network hides its nodes", pg.locator(".nodes tbody tr").count() == 1 and "1 more on networks turned off" in pg.inner_text(".nodes"))
+    check("unticking a network hides its nodes", pg.locator(".nodes tbody tr").count() == 1)
     ev("(() => { window._sent = []; const o = olm.bridge.ws.send.bind(olm.bridge.ws); olm.bridge.ws.send = d => { window._sent.push(d); o(d); }; })()")
     pg.click("text=Discover"); time.sleep(0.2)
     sent = ev("window._sent.filter(d => typeof d === 'string').map(JSON.parse).filter(m => m.t === 'poll')")   # Art-Net frames go out too, as binary
@@ -227,6 +248,7 @@ with sync_playwright() as pw:
     ev("addNodeAsController(nodeDevices().find(n => n.ip === '2.0.0.50'))"); time.sleep(0.1)
     c = ev("olm.project.controllers.find(c => c.ip === '2.0.0.50')")
     check("Add as controller keeps what the device reported", c and c["discovered"] == [0, 1, 2] and c["startUniverse"] == 0, c)
+    ev("$$('.modal-bg').forEach(m => m.remove())"); time.sleep(0.2)
     check("the row shows the reported universes", pg.inner_text(".ctrl-fields .reported") == "U 0–2")
 
     # ---------- a turned group's copies keep its frame

@@ -460,7 +460,7 @@ function renderCtrlEditor(edit, c) {
       : numInput(c, 'startUniverse', { int: true, min: 0, max: 32767, aria: 'Start universe', onCommit: onStruct }), 64), 'The universe output 1 starts on; each next output starts on a new universe'),
     f('Start ch', small(numInput(c, 'startCh', { int: true, min: 1, max: 512, aria: 'Start channel', onCommit: onStruct }), 56), 'The channel output 1 starts at; the next outputs start at channel 1'),
     c.discovered && c.discovered.length ? f('ArtPoll', h('span', { class: 'reported' }, 'U ' + universeList(c.discovered)),
-      `Universes this device reported when discovered (${c.discovered.length}). Set Outputs and Unis / output to how the device is set up.`) : null,
+      `Universes this device reported when discovered (${c.discovered.length}). Set the outputs to how the device is set up.`) : null,
     h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')),
     h('span', { style: { flex: 1 } }), del));
@@ -580,7 +580,7 @@ function revealInPatch() {
 }
 
 /* ---------- nodes ---------- */
-// The networks of this computer that discovery uses: all of them, except the ones turned off in the Nodes tab
+// The networks of this computer that discovery uses: all of them, except the ones turned off in the Discovery window
 // (kept per computer, by address)
 const ipNum = ip => ip.split('.').reduce((a, b) => a * 256 + (+b), 0);
 const netOf = (ip, nets) => nets.find(n => Math.floor(ipNum(ip) / 2 ** (32 - n.prefix)) === Math.floor(ipNum(n.ip) / 2 ** (32 - n.prefix)));
@@ -630,7 +630,7 @@ function renderNodes(body) {
   const nodes = all.filter(n => want === 'both' || (want === 'sacn') === n.sacn);
   const scroll = h('div', { class: 'scroll' });
   if (trouble) scroll.append(h('p', { class: 'note warn', style: { padding: '6px 12px' } }, trouble));
-  else if (!nodes.length) scroll.append(h('div', { class: 'empty' }, all.length ? `No ${want === 'sacn' ? 'sACN' : 'Art-Net'} devices found (${all.length} of the other).` : 'No devices found yet: press Discover.'));
+  if (!nodes.length) { if (!trouble) scroll.append(h('div', { class: 'empty' }, all.length ? `No ${want === 'sacn' ? 'sACN' : 'Art-Net'} devices found (${all.length} of the other).` : 'No devices found yet: press Discover.')); }
   else {
     scroll.append(h('table', { class: 'table' },
       h('thead', null, h('tr', null, ['IP', 'Name', 'Network', 'Protocol', 'Art-Net universes', 'MAC', 'Status', ''].map(t => h('th', null, t)))),   // ArtPoll tells the universes, not the outputs

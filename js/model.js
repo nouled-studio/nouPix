@@ -31,8 +31,8 @@ const fxCurve = f => (f.bits === 16 && CURVE_IDS.has(f.curve) ? f.curve : 'gamma
 const curveParam = f => (fxCurve(f) === 'gamma' ? f.gamma : f.strength);
 const DEFAULT_SETTINGS = {
   compW: 1000, compH: 640, fps: 40, gamma: 1, master: 1, whiteMode: 'off',
-  artSync: false, grid: 10, broadcast: '', bridgeUrl: '', transition: 0.5, fade: 2,
-  protocol: 'artnet', sacnPriority: 100, sacnMulticast: false,   // what goes out: Art-Net, or sACN (E1.31) instead
+  artSync: false, grid: 10, bridgeUrl: '', transition: 0.5, fade: 2,
+  sacnPriority: 100, sacnMulticast: false,   // sACN's priority, and unicast or multicast (each controller has its protocol)
   sceneShots: false,   // a picture of the zone on each scene stored or updated
 };
 // Blend modes, in the order the mixer shader numbers them

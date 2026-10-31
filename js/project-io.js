@@ -15,12 +15,11 @@ function fixSettings(given) {
   s.compW = clamp(Math.round(s.compW), 16, 8192); s.compH = clamp(Math.round(s.compH), 16, 8192);
   s.fps = clamp(s.fps, 1, 100);
   if (!['off', 'sub', 'add'].includes(s.whiteMode)) s.whiteMode = 'off';
-  if (!['artnet', 'sacn'].includes(s.protocol)) s.protocol = 'artnet';
+  // up to 1.3 the protocol was the project's (now each controller's), and Art-Net had a second broadcast address
+  delete s.protocol; delete s.broadcast;
   s.sacnPriority = clamp(Math.round(s.sacnPriority), 0, 200);
   s.sacnMulticast = s.sacnMulticast === true;
   s.sceneShots = s.sceneShots === true;
-  // 255.255.255.255 was the default address for ArtPoll; discovery now goes to the networks chosen in Nodes
-  if (s.broadcast.trim() === '255.255.255.255') s.broadcast = '';
   delete s.trim;   // the colour trims are per fixture now (see hydrate)
   return s;
 }
@@ -126,7 +125,7 @@ function hydrate(p) {
   const gt = isObj(p.settings) && Array.isArray(p.settings.trim) ? p.settings.trim : [];
   legacyTrim = [0, 1, 2].map(i => clamp(numOr(gt[i], 1), 0, 1)).concat(1);
   legacyGamma = clampGamma(out.settings.gamma);
-  legacyProtocol = out.settings.protocol === 'sacn' ? 'sacn' : 'artnet';
+  legacyProtocol = isObj(p.settings) && p.settings.protocol === 'sacn' ? 'sacn' : 'artnet';
   const fxIds = new Set(), ctrlIds = new Set();
   out.fixtures = (Array.isArray(p.fixtures) ? p.fixtures : []).filter(f => isObj(f) && TYPE_LABEL[f.type]).map((f, i) => fixFixture(f, i, fxIds));
   out.controllers = (Array.isArray(p.controllers) ? p.controllers : []).filter(isObj).map((c, i) => fixController(c, i, ctrlIds));
