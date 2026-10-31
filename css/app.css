@@ -821,7 +821,8 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .modal { width: min(420px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--bg1); border: 1px solid var(--line2); border-radius: 0; }
 .modal.wide { width: min(640px, 100%); }
 .modal.xwide { width: min(1040px, 100%); }
-.modal .mb.outset h4 { margin: 6px 0 0; font: 600 10.5px var(--label); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.modal .mb.outset h4 { margin: 10px -16px 0; padding: 10px 16px 0; border-top: 1px solid var(--line2); font: 600 12px var(--label); letter-spacing: .16em; text-transform: uppercase; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.modal .mb.outset h4::before { content: ''; width: 3px; height: 12px; background: var(--accent); }
 .modal header { padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px; }
 .modal .mb { padding: 12px 16px; display: grid; gap: 10px; min-height: 0; overflow: auto; }
 .updmodal { width: min(520px, 100%); }
