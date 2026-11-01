@@ -18,9 +18,9 @@ A pixel-mapping tool for LED installations, by nouled studio. Draw or import you
 
 ![The Scenes panel: two zones with their scenes, each showing a snapshot of what it plays, a playlist under each, and the X-Fader between them](docs/images/feature-scenes.webp)
 
-**Send it out.** Art-Net or sACN, automatic addressing, node discovery, 8 or 16-bit fixtures with dimming curves, a DMX monitor and test patterns to check the installation on site.
+**Send it out.** Art-Net and sACN together (each controller on its own), outputs by universes or by pixels, automatic addressing, discovery, 8 or 16-bit fixtures with dimming curves, a floating DMX monitor and test patterns to check the installation on site.
 
-![The Patch panel: two controllers with their outputs, fixtures, universes and channels](docs/images/feature-patch.webp)
+![The Patch panel: two controllers, one on Art-Net and one on sACN with its outputs set by pixels, with their fixtures, universes and channels](docs/images/feature-patch.webp)
 
 **Control it live.** MIDI controllers (with Learn, a patch bay and Flash pads), phones and tablets on the network, and HTTP triggers for show control software.
 
