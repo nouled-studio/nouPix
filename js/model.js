@@ -58,7 +58,7 @@ const ui = {
   hoverFx: null, hoverGroup: null, hoverPx: null, cursor: null, colorMode: 'wheel',
   // the Scenes panel's playlists: which one each zone shows open (zone id -> playlist id), the step being edited,
   // the zone whose + Add list is open, the playlist being renamed
-  playlistOpen: {}, playlistStep: null, playlistAdd: null, playlistRename: null,
+  playlistOpen: {}, playlistRename: null,
   curveZoom: 'full',   // the fixture's dimming curve graph: 'full', or 'low' (the first 10 %)
   // MIDI on this computer: whether it is on, the ports switched off (by name), whether the MIDI window shows its
   // monitor and its virtual controller

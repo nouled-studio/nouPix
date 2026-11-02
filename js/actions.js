@@ -571,7 +571,7 @@ function addPlaylist(z, props = {}) {
   const pl = newPlaylist(Object.assign({ name: nextPlaylistName(z) }, props));
   if (pl.autoplay) z.playlists.forEach(o => { o.autoplay = false; });
   z.playlists.push(pl);
-  ui.playlistOpen[z.id] = pl.id; ui.playlistStep = null; ui.playlistAdd = pl.steps.length ? null : z.id;
+  ui.playlistOpen[z.id] = pl.id;
   if (ui.zone !== z.id) { ui.zone = z.id; ui.layer = null; renderRight(); renderSrcList(); }
   commit();
   return pl;
@@ -580,7 +580,7 @@ function duplicatePlaylist(z, pl) {
   const c = Object.assign(JSON.parse(JSON.stringify(pl)), { id: uid(), name: nextCopyName(pl.name, new Set(z.playlists.map(p => p.name))), autoplay: false });
   c.steps.forEach(st => { st.id = uid(); });
   z.playlists.splice(z.playlists.indexOf(pl) + 1, 0, c);
-  ui.playlistOpen[z.id] = c.id; ui.playlistStep = null;
+  ui.playlistOpen[z.id] = c.id;
   commit();
   toast(`${pl.name} copied as ${c.name}.`);
 }
@@ -614,7 +614,6 @@ function removeStep(z, pl, st) {
   const keep = playingStepId(z, pl);
   pl.steps = pl.steps.filter(x => x !== st);
   playlistEdited(z, pl, keep === st.id ? null : keep);
-  if (ui.playlistStep === st.id) ui.playlistStep = null;
   commit();
 }
 // A scene that leaves its zone (deleted, or moved to another zone) leaves the zone's playlists too

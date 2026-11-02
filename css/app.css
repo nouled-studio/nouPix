@@ -537,7 +537,8 @@ body.monwin > .monitor { flex: 1; min-height: 0; }
 .fd:hover, .fd:focus-visible, .fd.scrub { border-color: var(--line2); background: var(--bg2); color: var(--text); outline: none; }
 .fd.scrub { border-color: var(--accent); color: var(--accent); }
 .scene.live .fd { color: var(--live); }
-.pstep .fd { margin-left: 0; margin-right: -4px; }
+.pstep .fd { margin: 0 -4px; }
+.pempty { align-self: center; padding: 0 6px; font-size: 12px; color: var(--muted); }
 .pstep .fd.own { color: var(--accent); }
 .pstep .fd.clip { color: var(--warn); }
 .scene input.fdin, .pstep input.fdin { width: 54px; height: 18px; padding: 0 4px; margin-left: -4px; font-family: var(--mono); font-size: 10.5px; }
@@ -577,7 +578,6 @@ body.monwin > .monitor { flex: 1; min-height: 0; }
 .ptabs.folded { align-items: center; }
 .ptabs.folded .ptab { height: 26px; border-bottom: 1px solid var(--line); border-radius: 0; padding: 0 9px 0 2px; background: var(--bg2); }
 .ptabs.folded .ptab.add { padding: 0 8px; }
-.pbrief { margin-left: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
 .pclose { margin-bottom: 3px; }
 .plane { border-radius: 0; background: var(--bg2); border: 1px solid var(--line2); }
 .plane.drop-in { outline: 1px dashed var(--accent); outline-offset: -1px; }
@@ -604,36 +604,14 @@ body.monwin > .monitor { flex: 1; min-height: 0; }
 .pstep.live { --edge: var(--live); --fill: color-mix(in srgb, var(--live) 8%, var(--bg3)); }
 .pstep.live.paused { --edge: var(--warn); --fill: color-mix(in srgb, var(--warn) 10%, var(--bg3)); }
 .pstep.live.paused .fill { background: var(--warn); }
-.pstep.sel { --edge: var(--sel); }
 .pstep.drop::after { box-shadow: inset 3px 0 0 var(--accent); }
 .pstep.dragging { opacity: .4; }
-.pstep.add { width: 70px; border: 1px dashed var(--line2); background: none; color: var(--muted); place-items: center; align-content: center; font-size: 12px; font-family: inherit; }
-.pstep.add:hover, .pstep.add.on { color: var(--accent); border-color: var(--accent); }
-.pfoot { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 14px; padding: 5px 8px; border-top: 1px solid var(--line); font-size: 12px; color: var(--text2); }
-.pfoot .pstatus { flex: 1 1 260px; min-width: 0; }
-.pfoot .pstatus.paused { color: var(--warn); }
-.pfoot .grp { display: flex; align-items: center; gap: 6px; }
-.pfoot .grp input[type=number] { width: 54px; }
-.pfoot select { width: auto; height: 24px; }
-.pfoot .seg button { height: 22px; }
-.paddbar .btn { font: 400 12px var(--ui); letter-spacing: 0; text-transform: none; }   /* scene names, as typed */
-.paddbar, .peditor { margin-top: 6px; padding: 8px 10px; border-radius: 0; border: 1px solid var(--accent); background: var(--bg1); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
-.peditor { align-items: end; gap: 8px 16px; }
-.peditor .pedhead { flex-basis: 100%; display: flex; align-items: baseline; gap: 10px; color: var(--text); }
-.peditor .pfield { display: grid; gap: 3px; }
-.peditor .pfield > span { font: 600 10px var(--label); color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
-.peditor .pfield select { width: auto; min-width: 120px; }
-.peditor .pair { display: flex; align-items: center; gap: 6px; }
-.peditor .pair input[type=number] { width: 58px; }
-.peditor .seg button { height: 26px; padding: 0 8px; }
 .ptime { width: 70px !important; font-family: var(--mono); font-size: 11.5px; }
-.peditor .pact { display: flex; gap: 6px; margin-left: auto; }
-.peditor .note { flex-basis: 100%; margin: 0; }
 .note.warn { color: var(--warn); }
 .pmodal { width: min(470px, 100%); }
 .pmodal .pair { display: flex; align-items: center; gap: 8px; }
-.pmodal .seg, .pfoot .seg, .peditor .seg { grid-auto-columns: auto; }
-.pmodal .seg button, .pfoot .seg button, .peditor .seg button { white-space: nowrap; padding: 0 9px; }
+.pmodal .seg { grid-auto-columns: auto; }
+.pmodal .seg button { white-space: nowrap; padding: 0 9px; }
 .pmodal .pair input[type=number] { width: 64px; }
 .ppicks { display: grid; border: 1px solid var(--line); border-radius: 0; max-height: 280px; overflow: auto; }
 .ppick { display: grid; grid-template-columns: 16px minmax(0, 1fr) 58px 64px 48px; align-items: center; gap: 8px; padding: 4px 8px 4px 6px; border-bottom: 1px solid var(--line); font-size: 12.5px; }

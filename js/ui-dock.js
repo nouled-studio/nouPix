@@ -161,21 +161,24 @@ function editScene(sc) {
 // A fade time on a button (a scene's, a playlist step's): drag it sideways to change it (Shift = ×10), click it to type
 // one, or use the arrow keys. 0 cuts. It works the same while that scene plays, so a fade can be tried and changed at
 // once. o: get() and set(v) the value; text() and tip() what it shows; clear(), if typing nothing goes back to automatic.
+// Also a step's play time: o.what names it, o.min, o.max and o.rate (per pixel dragged) bound it, o.input and o.parse
+// write and read it as typed
 function fadeControl(tile, o) {
+  const what = o.what || 'fade time', lo = o.min ?? 0, hi = o.max ?? 60, rate = o.rate ?? 0.05;
   const label = () => o.text ? o.text() : (o.get() > 0 ? '◢ ' + fmtV(Math.round(o.get() * 10) / 10) + ' s' : 'cut');
   const tip = () => (o.tip ? o.tip() : `Fade in: ${o.get() > 0 ? fmtV(o.get()) + ' s' : 'none, it cuts'}`) + '. Drag sideways to change it (Shift = ×10), click to type, or ↑ ↓.';
-  const el = h('span', { class: 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : ''), role: 'button', tabindex: 0, title: tip(), 'aria-label': o.name + ' fade time' }, label());
+  const el = h('span', { class: 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : ''), role: 'button', tabindex: 0, title: tip(), 'aria-label': o.name + ' ' + what }, label());
   const show = () => { el.textContent = label(); el.className = 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : '') + (el.classList.contains('scrub') ? ' scrub' : ''); el.title = tip(); };
-  const set = v => { o.set(clamp(Math.round(v * 10) / 10, 0, 60)); show(); };
+  const set = v => { o.set(clamp(Math.round(v * 10) / 10, lo, hi)); show(); };
   const type = () => {
     let done = false;
-    const inp = h('input', { type: 'text', class: 'fdin', value: o.clear && o.auto && o.auto() ? '' : fmtV(o.get()), placeholder: o.clear ? 'auto' : '', 'aria-label': o.name + ' fade time',
-      title: 'Seconds; 0 cuts' + (o.clear ? '; empty: automatic' : '') });
+    const inp = h('input', { type: 'text', class: 'fdin', value: o.clear && o.auto && o.auto() ? '' : o.input ? o.input() : fmtV(o.get()), placeholder: o.clear ? 'auto' : '', 'aria-label': o.name + ' ' + what,
+      title: o.parse ? 'Seconds (90), or minutes:seconds (1:30)' : 'Seconds; 0 cuts' + (o.clear ? '; empty: automatic' : '') });
     const finish = ok => {
       if (done) return; done = true;
-      const txt = inp.value.trim().replace(',', '.'), v = parseFloat(txt);
+      const txt = inp.value.trim().replace(',', '.'), v = o.parse ? o.parse(txt) : parseFloat(txt);
       if (ok && txt === '' && o.clear) { o.clear(); commit(); }
-      else if (ok && isFinite(v) && (clamp(v, 0, 60) !== o.get() || (o.auto && o.auto()))) { set(v); commit(); }
+      else if (ok && isFinite(v) && v != null && (clamp(v, lo, hi) !== o.get() || (o.auto && o.auto()))) { set(v); commit(); }
       else renderDock();
     };
     inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); });
@@ -196,7 +199,7 @@ function fadeControl(tile, o) {
     const mv = ev => {
       if (!moved && Math.abs(ev.clientX - x0) < 3) return;
       moved = true; el.classList.add('scrub');
-      set(v0 + (ev.clientX - x0) * 0.05 * (ev.shiftKey ? 10 : 1));
+      set(v0 + (ev.clientX - x0) * rate * (ev.shiftKey ? 10 : 1));
     };
     const up = () => {
       el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
@@ -273,7 +276,6 @@ function renderScenes(body, inWindow = false) {
         e.stopPropagation();
         if (!z.playlists.length) { newPlaylistDialog(z); return; }
         if (ui.playlistOpen[z.id]) delete ui.playlistOpen[z.id]; else ui.playlistOpen[z.id] = (cur || z.playlists[0]).id;
-        ui.playlistStep = null; ui.playlistAdd = null;
         if (ui.zone !== z.id) selectZone(z); else renderDock();
       } });
     const head = h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
