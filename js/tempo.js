@@ -20,8 +20,9 @@ tempo.anchor = performance.now();
 
 // The beat clock at time t (ms, as performance.now()): beats since the anchor, the beat's number in its bar (0 is
 // the downbeat), and the phase within the beat (0 to 1)
+// (tempo.fixed, set by tests only, holds the clock at that beat)
 function tempoAt(t = performance.now()) {
-  const b = (t - tempo.anchor) / (60000 / tempo.bpm), n = Math.floor(b), per = tempoBpb();
+  const b = tempo.fixed ?? (t - tempo.anchor) / (60000 / tempo.bpm), n = Math.floor(b), per = tempoBpb();
   return { beat: b, n, inBar: ((n % per) + per) % per, phase: b - n, bpm: tempo.bpm };
 }
 const tempoBpb = () => (ui.tempoBpb === 2 ? 2 : 4);
@@ -339,4 +340,133 @@ function tempoPerfTime(at) {
 function initTempo() {
   if (ui.tempoBpm) tempo.bpm = clamp(+ui.tempoBpm, 20, 400);
   if (ui.tempoOn && tempoUsable()) tempoListen(true);
+}
+
+/* ---------- the music, for effects ---------- */
+// An effect's float inputs with these names follow the music instead of a slider (they are not shown as controls):
+// bpm, beatCount (beats since the clock's beat 1, going on), beatPhase (0 to 1 within the beat), barBeat (the beat's
+// number in the bar, 0 to beatsPerBar - 1), barPhase (0 to 1 within the bar), beatsPerBar, and the sound's level
+// in bands, 0 to 1, quick to rise and slower to fall: audioKick (the beat band), audioBass, audioMid, audioHigh,
+// audioLevel (all of it). An image input called audioSpectrum is the spectrum, 64 bands from 30 Hz to 16 kHz on a log
+// scale, left to right, the level in red. Without a sound input the beat still runs (at the tapped or last BPM) and
+// the levels are 0; on a source's thumbnail they are made up, so it shows what it does.
+const AUDIO_INPUTS = new Set(['bpm', 'beatCount', 'beatPhase', 'barBeat', 'barPhase', 'beatsPerBar', 'audioKick', 'audioBass', 'audioMid', 'audioHigh', 'audioLevel', 'audioSpectrum']);
+const isAudioInput = inp => AUDIO_INPUTS.has(inp.NAME) && (inp.NAME === 'audioSpectrum' ? inp.TYPE === 'image' : inp.TYPE === 'float');
+const SPEC_BANDS = 64;
+const tempoFeat = { frame: -1, kick: 0, bass: 0, mid: 0, high: 0, level: 0, bands: new Float32Array(SPEC_BANDS), canvas: null, fake: null };
+// The levels, worked out once a frame from the analyser
+function tempoFeatures() {
+  const F = tempoFeat;
+  if (F.frame === frameIndex) return F;
+  F.frame = frameIndex;
+  const A = tempo.analyser, fall = 0.88;
+  const ease = (k, v) => { F[k] = v > F[k] ? v : F[k] * fall + v * (1 - fall); };
+  if (!A) { for (const k of ['kick', 'bass', 'mid', 'high', 'level']) F[k] *= fall; F.bands.fill(0); return F; }
+  const bins = A._fx || (A._fx = new Float32Array(A.frequencyBinCount)), hz = tempo.ctx.sampleRate / A.fftSize;
+  A.getFloatFrequencyData(bins);
+  const db = v => clamp((v + 90) / 60, 0, 1);
+  for (let i = 0; i < SPEC_BANDS; i++) {
+    const fa = 30 * Math.pow(16000 / 30, i / SPEC_BANDS), fb = 30 * Math.pow(16000 / 30, (i + 1) / SPEC_BANDS);
+    let v = -140;
+    for (let k = Math.floor(fa / hz); k <= Math.ceil(fb / hz) && k < bins.length; k++) v = Math.max(v, bins[k]);
+    const x = db(v); F.bands[i] = x > F.bands[i] ? x : F.bands[i] * fall + x * (1 - fall);
+  }
+  const avg = (f0, f1) => { let s = 0, n = 0; for (let i = 0; i < SPEC_BANDS; i++) { const f = 30 * Math.pow(16000 / 30, (i + 0.5) / SPEC_BANDS); if (f >= f0 && f < f1) { s += F.bands[i]; n++; } } return n ? s / n : 0; };
+  ease('bass', avg(30, 150)); ease('mid', avg(150, 2000)); ease('high', avg(2000, 16000)); ease('level', avg(30, 16000));
+  ease('kick', clamp((tempo.level + 50) / 44, 0, 1));
+  return F;
+}
+// The spectrum as a 64 × 1 picture, for an effect's audioSpectrum
+function tempoSpectrumCanvas(fake) {
+  const F = tempoFeat;
+  if (!F.canvas) { F.canvas = document.createElement('canvas'); F.canvas.width = SPEC_BANDS; F.canvas.height = 1; F.img = F.canvas.getContext('2d').createImageData(SPEC_BANDS, 1); }
+  const d = F.img.data;
+  for (let i = 0; i < SPEC_BANDS; i++) { const v = fake ? fake(i) : F.bands[i]; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = Math.round(clamp(v, 0, 1) * 255); d[i * 4 + 3] = 255; }
+  F.canvas.getContext('2d').putImageData(F.img, 0, 0);
+  return F.canvas;
+}
+// An audio input's value now; t: a thumbnail's time (made-up music at 120 BPM; a still one just after a beat 1, so it
+// shows lit), or null for the real thing
+function audioInputValue(name, t, still) {
+  if (t != null) {
+    const b = still ? 4.08 : t * 2, ph = b - Math.floor(b), bpb = tempoBpb(), hit = Math.exp(-ph * 5);
+    const lv = { audioKick: hit, audioBass: 0.3 + 0.6 * hit, audioMid: 0.4 + 0.2 * Math.sin(t * 3), audioHigh: 0.3 + 0.2 * Math.sin(t * 7), audioLevel: 0.5 + 0.3 * hit };
+    if (name === 'audioSpectrum') return tempoSpectrumCanvas(i => (1 - i / SPEC_BANDS) * (0.5 + 0.4 * hit) + 0.15 * Math.sin(i * 0.7 + t * 4));
+    return { bpm: 120, beatCount: b, beatPhase: ph, barBeat: Math.floor(b) % bpb, barPhase: ((b / bpb) % 1), beatsPerBar: bpb }[name] ?? lv[name] ?? 0;
+  }
+  if (name === 'audioSpectrum') { tempoFeatures(); return tempoSpectrumCanvas(); }
+  if (name.startsWith('audio')) return tempoFeatures()[name.slice(5).toLowerCase()] || 0;
+  const at = tempoAt(), bpb = tempoBpb();
+  return { bpm: tempo.bpm, beatCount: at.beat, beatPhase: at.phase, barBeat: at.inBar, barPhase: (at.inBar + at.phase) / bpb, beatsPerBar: bpb }[name] ?? 0;
+}
+
+/* ---------- Fixture chase ---------- */
+// A built-in source (kind 'chase') that lights groups of fixtures, or single fixtures, one after the other on the
+// beat: drawn as a dot at every pixel of the step's fixtures, on black, so it can play on its own or, above other
+// content with Blend: Multiply, let that content through only where the chase is. Its settings are the layer's
+// (L.params, kept by scenes): by ('groups' or 'fixtures'), skip (ids left out), every (beats a step lasts), order
+// ('forward', 'back', 'pingpong', 'random'), mode ('one' lit at a time, or 'fill' adding up through the round),
+// fade (0: lit the whole step; up to 1: fading out over the step), color.
+const CHASE_DEFAULT = { by: 'groups', skip: [], every: 1, order: 'forward', mode: 'one', fade: 0.5, color: [1, 1, 1, 1] };
+function chaseParams(L, src) {
+  const p = Object.assign({}, CHASE_DEFAULT, (L.params && L.params[src.id]) || {});
+  if (!['groups', 'fixtures'].includes(p.by)) p.by = 'groups';
+  if (!Array.isArray(p.skip)) p.skip = [];
+  p.every = [0.25, 0.5, 1, 2, 4].includes(+p.every) ? +p.every : 1;
+  if (!['forward', 'back', 'pingpong', 'random'].includes(p.order)) p.order = 'forward';
+  if (!['one', 'fill'].includes(p.mode)) p.mode = 'one';
+  p.fade = clamp(numOr(p.fade, 0.5), 0, 1);
+  if (!Array.isArray(p.color) || p.color.length < 3) p.color = [1, 1, 1, 1];
+  return p;
+}
+// Its steps, in the fixture list's order: each a list of fixtures (a group's, or one); by groups with no groups,
+// each fixture. Only those with a pixel in the zone, when there is one.
+function chaseSteps(p, z) {
+  const inZ = f => !z || (f._pts && f._pts.some((v, i) => i % 2 === 0 && v >= z.x && v <= z.x + z.w && f._pts[i + 1] >= z.y && f._pts[i + 1] <= z.y + z.h));
+  const fx = project.fixtures.filter(f => f._pts && inZ(f));
+  let steps;
+  if (p.by === 'groups' && project.groups.length) {
+    const seen = new Map();
+    for (const f of fx) if (f.group && groupById(f.group)) { if (!seen.has(f.group)) seen.set(f.group, []); seen.get(f.group).push(f); }
+    steps = [...seen].map(([id, list]) => ({ id, fx: list }));
+  } else steps = fx.map(f => ({ id: f.id, fx: [f] }));
+  return steps.filter(s => !p.skip.includes(s.id));
+}
+const chaseHash = k => { let x = (k * 2654435761) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0; return (x ^ (x >>> 13)) >>> 0; };
+// Which steps are lit, and how much, at a beat count b
+function chaseLit(p, n, b) {
+  const s = b / p.every, k = Math.floor(s), ph = s - k, glow = p.fade > 0 ? Math.pow(Math.max(0, 1 - ph / p.fade), 1.5) : 1;
+  const round = p.order === 'pingpong' ? Math.max(1, 2 * n - 2) : n, m = ((k % round) + round) % round;
+  const at = j => (p.order === 'back' ? n - 1 - j : p.order === 'pingpong' ? (j < n ? j : 2 * n - 2 - j) : p.order === 'random' ? (n > 1 ? (chaseHash(k) % n) : 0) : j);
+  const out = new Map();
+  if (p.mode === 'fill' && p.order !== 'random') for (let j = 0; j <= m; j++) out.set(at(j), 1);   // adding up through the round
+  else out.set(at(m), glow);
+  return out;
+}
+// Draws it into the media canvas at w × h for zone z (none: the whole canvas, as on its thumbnail); t: a thumbnail's
+// beat count, or null for the beat clock
+function drawChase(src, L, w, h, z, t) {
+  const top = mediaCanvas.height - h, p = chaseParams(L, src), area = z || { x: 0, y: 0, w: project.settings.compW, h: project.settings.compH };
+  mctx.save();
+  mctx.fillStyle = '#000'; mctx.fillRect(0, top, w, h);
+  const b = t != null ? t : tempoAt().beat, sx = w / area.w, sy = h / area.h, col = p.color.slice(0, 3).map(v => Math.round(clamp(v, 0, 1) * 255));
+  const steps = chaseSteps(p, z);
+  if (!steps.length && t != null) {
+    // a thumbnail with nothing to chase yet: four bars taking turns
+    const lit = chaseLit(p, 4, b);
+    for (let i = 0; i < 4; i++) { const v = lit.get(i) || 0; mctx.fillStyle = `rgb(${col.map(c => Math.round(c * v)).join(',')})`; mctx.fillRect(w * (0.1 + i * 0.21), top + h * 0.2, w * 0.15, h * 0.6); }
+  } else {
+    const lit = chaseLit(p, steps.length, b);
+    for (const [i, v] of lit) {
+      const s = steps[i];
+      if (!s || !(v > 0.002)) continue;
+      mctx.fillStyle = `rgb(${col.map(c => Math.round(c * v)).join(',')})`;
+      for (const f of s.fx) {
+        const P = f._pts, d = Math.max(2, (f._pitch || 4) * Math.min(sx, sy));
+        for (let i2 = 0; i2 < P.length; i2 += 2) mctx.fillRect((P[i2] - area.x) * sx - d / 2, top + (P[i2 + 1] - area.y) * sy - d / 2, d, d);
+      }
+    }
+  }
+  mctx.restore();
+  return true;
 }

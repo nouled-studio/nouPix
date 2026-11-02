@@ -57,6 +57,7 @@ function runtimeOf(src) {
   if (!R.valid) { rt.error = (R.errorLine ? 'Line ' + R.errorLine + ': ' : '') + String(R.error || 'Shader did not compile'); return rt; }
   rt.speed = (rt.hdr.INPUTS || []).find(i => isSpeedInput(src, i, code)) || null;
   rt.clocks = clocksOf(rt.hdr);
+  rt.audio = (rt.hdr.INPUTS || []).filter(isAudioInput);   // the inputs that follow the music
   rt.roles = macroRoles(rt);   // which macro each control follows
   R.setDateUniforms = function () { this.setValue('TIME', isfTime ?? layerTime ?? clockT); this.setValue('TIMEDELTA', clockDT); this.setValue('FRAMEINDEX', frameIndex); };
   rt.R = R;
@@ -121,11 +122,11 @@ function releaseMedia(id) {
   if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
 }
 const PARAM_TYPES = ['float', 'long', 'bool', 'color', 'point2D', 'event', 'int'];
-function isfInputs(src) { const rt = runtimeOf(src); return (rt.hdr && rt.hdr.INPUTS || []).filter(i => PARAM_TYPES.includes(i.TYPE) && !(rt.clocks && i.NAME in rt.clocks)); }
+function isfInputs(src) { const rt = runtimeOf(src); return (rt.hdr && rt.hdr.INPUTS || []).filter(i => PARAM_TYPES.includes(i.TYPE) && !(rt.clocks && i.NAME in rt.clocks) && !isAudioInput(i)); }
 // The same from the header alone, without compiling the shader (for an effect that isn't playing)
 function controlsOf(src) {
   const hdr = src.kind === 'isf' ? headerOf(src) : null, clocks = hdr && isObj(hdr.OLM_CLOCKS) ? hdr.OLM_CLOCKS : {};
-  return (hdr && hdr.INPUTS || []).filter(i => PARAM_TYPES.includes(i.TYPE) && !(i.NAME in clocks));
+  return (hdr && hdr.INPUTS || []).filter(i => PARAM_TYPES.includes(i.TYPE) && !(i.NAME in clocks) && !isAudioInput(i));
 }
 function paramValue(L, src, inp) {
   const p = L.params[src.id];
@@ -162,8 +163,10 @@ function applyParams(rt, L, src) {
   layerTime = null;
   // the macros, on a layer (not on a thumbnail); a control that follows Speed runs at its rate
   const roles = L.id != null && macroRolesOf(src, rt), rate = inp => (roles && roles[inp.NAME] === 'speed' ? project.macros.speed.v : 1);
+  // the music's inputs (tempo.js), real on a layer, made up on a thumbnail
+  for (const inp of rt.audio || []) { try { rt.R.setValue(inp.NAME, audioInputValue(inp.NAME, L.id == null ? (isfTime ?? clockT) : null, isfTime != null)); } catch (e) { /* not used */ } }
   for (const inp of rt.hdr.INPUTS || []) {
-    if (!PARAM_TYPES.includes(inp.TYPE) || (rt.clocks && inp.NAME in rt.clocks)) continue;
+    if (!PARAM_TYPES.includes(inp.TYPE) || (rt.clocks && inp.NAME in rt.clocks) || isAudioInput(inp)) continue;
     let v = paramValue(L, src, inp);
     const role = roles && roles[inp.NAME];
     if (role && role !== 'speed') v = macroOver(role, inp, v);
@@ -200,9 +203,10 @@ function drawMedia(src, w, h) {
   mctx.restore();
   return ok;
 }
-// Draw one layer's source at w × h; returns the canvas holding it, or null if there is nothing to show
-function renderSource(src, L, w, h) {
+// Draw one layer's source at w × h (for zone z); returns the canvas holding it, or null if there is nothing to show
+function renderSource(src, L, w, h, z) {
   if (!src) return null;
+  if (src.kind === 'chase') return drawChase(src, L, w, h, z, null) ? mediaCanvas : null;
   if (src.kind === 'isf') {
     const rt = runtimeOf(src);
     if (!rt.R) return null;
@@ -358,11 +362,15 @@ function drawThumb(src, still) {
       isfTime = still ? THUMB_TIME : null;
       applyParams(rt, { params: {} }, src);
       rt.R.draw({ width: THUMB, height: THUMB });
+      // a picture input (the spectrum) shows from its second drawing: once more on the next frame
+      if (rt.audio && rt.audio.some(i => i.TYPE === 'image') && !c._again) { c._again = true; c._redo = true; }
       isfTime = null;
       img = glCanvas;
     }
-  } else if (drawMedia(src, THUMB, THUMB)) img = mediaCanvas;
-  c._stale = !img && src.kind !== 'isf' && mediaEls.has(src.id); // media still loading: try again next frame
+  } else if (src.kind === 'chase') { drawChase(src, { params: {} }, THUMB, THUMB, null, still ? 1.08 : clockT * 2); img = mediaCanvas; }
+  else if (drawMedia(src, THUMB, THUMB)) img = mediaCanvas;
+  c._stale = (!img && src.kind !== 'isf' && mediaEls.has(src.id)) || !!c._redo; // media still loading: try again next frame
+  c._redo = false;
   if (!img) return;
   const x = c.getContext('2d');
   x.clearRect(0, 0, THUMB, THUMB);

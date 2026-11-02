@@ -139,7 +139,7 @@ function stagePick(f) {
 // The group, when the selection is exactly one whole group of two or more fixtures
 function wholeGroup(sel = selected()) { const u = selUnits(sel); return u.length === 1 && u[0].g && u[0].list.length > 1 ? u[0].g : null; }
 function builtinSources() {
-  return BUILTINS.map(b => ({ id: 'b-' + b.id, kind: 'isf', builtin: b.id, name: b.name }));
+  return BUILTINS.map(b => ({ id: 'b-' + b.id, kind: b.kind || 'isf', builtin: b.id, name: b.name }));
 }
 // A layer plays one source. Parameters are kept per source, so switching back restores them.
 function newLayer(src = null) { return { id: uid(), src, params: {}, opacity: 1, blend: 'alpha', on: true }; }

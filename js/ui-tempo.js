@@ -52,6 +52,8 @@ function tempoSection() {
 }
 // Drawn again in place when something changes (an input found, listening started, a tap)
 function updateTempoUI() {
+  // the notes on effects that follow the music say where their beat comes from now
+  for (const n of $$('.tnote')) n.replaceWith(tempoNote(n.dataset.sound === '1'));
   if (!tempoSecEl || !tempoSecEl.isConnected) return;
   const old = tempoSecEl;
   old.replaceWith(tempoSection());
@@ -191,3 +193,44 @@ function showTempoSettings() {
   requestAnimationFrame(() => { const s = $('#tempoSec'); if (s) s.scrollIntoView({ block: 'start' }); });
 }
 
+
+/* ---------- effects that follow the music ---------- */
+// Above an effect's controls: where its beat comes from, and a way to Tempo when there is none yet (sound: it also
+// needs listening, for the levels)
+function tempoNote(sound) {
+  const go = h('button', { class: 'btn sm', type: 'button', onclick: showTempoSettings }, 'Tempo…');
+  const ok = tempoActive() && (!sound || tempo.on);
+  const txt = ok ? `Follows the beat${sound ? ' and the sound' : ''} (${tempo.bpm.toFixed(1)} BPM).`
+    : sound ? 'Follows the sound: turn on listening in Settings → Tempo.' : 'Follows the beat: tap it, or let nouPix listen, in Settings → Tempo.';
+  return h('div', { class: 'tnote' + (ok ? '' : ' warn'), 'data-sound': sound ? '1' : '0' }, h('span', null, txt), go);
+}
+
+/* ---------- Fixture chase, in the Content tab ---------- */
+// What it chases (groups or single fixtures, each ticked or left out, in the fixture list's order), how long each step
+// lasts, the order, one at a time or adding up, the fade and the colour; all the layer's (scenes keep them)
+function chaseSection(L, src) {
+  const p = chaseParams(L, src), z = selZone();
+  // a setting changed: kept on the layer, a step of undo, and the panel drawn again (wr: while dragging, kept only)
+  const wr = (k, v) => { (L.params[src.id] = Object.assign({}, L.params[src.id] || {}))[k] = v; };
+  const put = (k, v, redraw = true) => { wr(k, v); commit(); if (redraw) renderRight(); };
+  const all = chaseSteps(Object.assign({}, p, { skip: [] }), z);
+  const name = s => (p.by === 'groups' && project.groups.length ? groupName(groupById(s.id)) : s.fx[0].name);
+  const list = h('div', { class: 'chlist', 'data-keep': 'chase' }, all.length ? all.map((s, i) => {
+    const on = !p.skip.includes(s.id);
+    const box = h('input', { type: 'checkbox', checked: on, onchange: e => put('skip', e.target.checked ? p.skip.filter(x => x !== s.id) : p.skip.concat(s.id)) });
+    return h('label', { class: 'checkrow chstep' + (on ? '' : ' off') }, box, h('span', { class: 'mono ix' }, String(i + 1)), h('span', { class: 'nm' }, name(s)));
+  }) : h('p', { class: 'note' }, p.by === 'groups' ? 'No groups in this zone yet: group fixtures (G), or chase single fixtures.' : 'No fixtures in this zone yet.'));
+  const cr = colorRow('Color', () => chaseParams(L, src).color, c => wr('color', c), () => commit(), `${L.id}:${src.id}:color`);
+  const kids = [tempoNote(false),
+    tipRow(row('Steps', seg([['groups', 'Groups'], ['fixtures', 'Fixtures']], p.by, v => { const q = (L.params[src.id] = Object.assign({}, L.params[src.id] || {})); q.by = v; q.skip = []; commit(); renderRight(); })),
+      'What lights in turn: each group, or each fixture, in the fixture list’s order. Untick one to leave it out.'),
+    list,
+    row('Every', seg([[0.25, '¼'], [0.5, '½'], [1, '1'], [2, '2'], [4, '4']], p.every, v => put('every', +v))),
+    row('Order', selectEl([['forward', 'Forward'], ['back', 'Backward'], ['pingpong', 'Ping-pong'], ['random', 'Random']], p.order, v => put('order', v), { aria: 'Chase order' })),
+    tipRow(row('Mode', seg([['one', 'One'], ['fill', 'Fill']], p.mode, v => put('mode', v))), 'One: a step at a time. Fill: the steps add up until the round starts again.'),
+    tipRow(sliderRow('Fade', { get v() { return chaseParams(L, src).fade; }, set v(x) { wr('fade', x); } }, 'v', { min: 0, max: 1, step: 0.01, fmt: pct, onCommit: () => commit() }),
+      '0: each step stays lit until the next. More: it fades out over its step.'),
+    cr,
+    h('p', { class: 'note' }, 'As a mask: put it above other content with Blend: Multiply, so that content shows only on the lit fixtures.')];
+  return sec('Chase', kids);
+}

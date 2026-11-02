@@ -233,6 +233,7 @@ const SRC_ALIASES = {
 const SRC_SEARCH = { smooth: 'calm', soft: 'calm', slow: 'calm', relaxing: 'calm', disco: 'party', club: 'party', atmospheric: 'ambient', atmosphere: 'ambient', architecture: 'architectural', facade: 'architectural', bpm: 'beat' };
 const SRC_FACET_OF = new Map(SRC_FACETS.flatMap(f => f.values.map(([v]) => [v, f.key])));
 function srcTags(s) {
+  if (s.kind === 'chase') return ['lively', 'show', 'geometric', 'beat', 'chase', 'audio', 'mask', 'sequencer'];
   if (s.kind !== 'isf') return s.kind === 'stream' ? ['capture', 'ndi', 'live'] : [s.kind === 'screen' ? 'capture' : s.kind];
   const hdr = headerOf(s), c = hdr && hdr.CATEGORIES;
   return Array.isArray(c) ? c.map(t => String(t).toLowerCase()) : [];
@@ -290,7 +291,7 @@ function renderSrcList() {
     const tags = [SRC_FACETS.filter(f => f.key !== 'type' && fs[f.key]).map(f => srcLabel(f.key, fs[f.key])).join(' · '), kw.join(', ')].filter(Boolean).join('\n');
     const tile = h('div', { class: 'tile' + (live ? ' live' : used ? ' used' : ''), role: 'button', tabindex: 0,
       title: (live ? `${s.name}: playing in ${where}` : `${s.name}${used ? ': playing in ' + used : ''}. Click to play it in ${where}`) + (tags ? `\n${tags}` : '') },
-      h('div', { class: 'tb' }, h('span', { class: 'ic' }, icon(s.kind === 'isf' ? 'isf' : s.kind)), thumbOf(s),
+      h('div', { class: 'tb' }, h('span', { class: 'ic' }, icon(s.kind === 'isf' || s.kind === 'chase' ? 'isf' : s.kind)), thumbOf(s),
         tag ? h('span', { class: 'tag ' + tag[1] }, tag[0]) : null,
         s.builtin ? null : h('button', { class: 'x', type: 'button', title: 'Remove source', 'aria-label': 'Remove ' + s.name, onclick: e => { e.stopPropagation(); removeSource(s); } }, icon('x'))),
       h('span', { class: 'nm' }, s.name));

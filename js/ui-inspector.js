@@ -484,8 +484,10 @@ function renderContentTab(body) {
     }
     ctl.push(...macroLinksFold(src, rt));
     ctl.push(h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { delete L.params[src.id]; commit(); renderRight(); } }, 'Reset to defaults')));
+    if (rt.audio && rt.audio.length) ctl.unshift(tempoNote(rt.audio.some(i => i.NAME.startsWith('audio'))));   // it follows the music
     body.append(sec('Parameters', ctl));
   }
+  if (src.kind === 'chase') body.append(chaseSection(L, src));
   if (src.kind === 'image' || src.kind === 'video') {
     const el = mediaEls.get(src.id);
     const k = [];

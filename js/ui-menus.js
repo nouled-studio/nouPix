@@ -57,7 +57,7 @@ async function packageDialog() {
   const rows = list.map(s => {
     const n = sizes[s.media];
     if (n != null && !seen.has(s.media)) { seen.add(s.media); total += n; }
-    return h('div', { class: 'pkrow' + (n == null ? ' miss' : '') }, h('span', { class: 'ic' }, icon(s.kind)), h('span', { class: 'nm' }, s.name),
+    return h('div', { class: 'pkrow' + (n == null ? ' miss' : '') }, h('span', { class: 'ic' }, icon(s.kind === 'chase' ? 'isf' : s.kind)), h('span', { class: 'nm' }, s.name),
       h('span', { class: 'meta' }, n == null ? 'not in the library' : fmtBytes(n)));
   });
   const missing = list.filter(s => sizes[s.media] == null);
