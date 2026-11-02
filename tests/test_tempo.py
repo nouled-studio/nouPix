@@ -28,6 +28,39 @@ def beat_file(bpm, secs=40, sr=48000):
     return path
 
 wav = beat_file(128)
+# Music made up in the page, run through ONSET_WORKLET and TempoTracker hop by hop: per second, [bpm, holding, the beat's
+# offset from the nearest true beat in beats]
+BENCH = r"""(() => {
+  const SR = 48000; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const kick = (b, t, a = 0.8) => { const i0 = Math.round(t * SR); for (let k = 0; k < 0.25 * SR && i0 + k < b.length; k++) { const tt = k / SR; b[i0 + k] += a * Math.sin(2 * Math.PI * (50 + 90 * Math.exp(-tt * 30)) * tt) * Math.exp(-tt * 9); } };
+  const hat = (b, t, a = 0.2) => { const i0 = Math.round(t * SR); for (let k = 0; k < 0.04 * SR && i0 + k < b.length; k++) b[i0 + k] += a * (rnd() * 2 - 1) * Math.exp(-k / SR * 80); };
+  const note = (b, t, f, d, a = 0.25) => { const i0 = Math.round(t * SR); for (let k = 0; k < d * SR && i0 + k < b.length; k++) { const tt = k / SR; b[i0 + k] += a * Math.sin(2 * Math.PI * f * tt) * Math.min(1, tt * 200) * Math.exp(-tt * 3); } };
+  const scen = {
+    hats: () => { const b = new Float32Array(30 * SR), beats = []; for (let t = 0.3; t < 30; t += 60 / 128) { kick(b, t); beats.push(t); } for (let i = 0; i < 180; i++) hat(b, rnd() * 30, 0.15 + rnd() * 0.2); return { b, beats }; },
+    break: () => { const b = new Float32Array(34 * SR), P = 60 / 124, beats = []; for (let t = 0.3; t < 34; t += P) { beats.push(t); if (t < 12 || t > 19) { kick(b, t); hat(b, t + P / 2); } }
+      for (let t = 12; t < 19; t += 0.15 + rnd() * 0.4) note(b, t, [220, 262, 330, 392, 440, 523][Math.floor(rnd() * 6)], 0.4);
+      for (let t = 12.1; t < 19; t += 0.3 + rnd() * 0.6) note(b, t, [82, 98, 110][Math.floor(rnd() * 3)], 0.3, 0.5); return { b, beats }; },
+    synco: () => { const b = new Float32Array(30 * SR), P = 60 / 126, beats = []; for (let t = 0.3; t < 30; t += P) { kick(b, t); beats.push(t); if (rnd() < 0.7) note(b, t + P * (rnd() < 0.5 ? 0.5 : 0.75), 65, 0.2, 0.6); hat(b, t + P / 2, 0.1); } return { b, beats }; },
+    change: () => { const b = new Float32Array(40 * SR), beats = []; for (let t = 0.3; t < 18; t += 0.5) { kick(b, t); beats.push(t); } for (let t = 18.13; t < 40; t += 60 / 128) { kick(b, t); beats.push(t); } return { b, beats }; },
+    noise: () => { const b = new Float32Array(20 * SR); let y = 0; for (let i = 0; i < b.length; i++) { y = 0.98 * y + 0.02 * (rnd() * 2 - 1); b[i] = y * 3 + (rnd() * 2 - 1) * 0.05; } return { b, beats: [] }; },
+  };
+  const out = {};
+  for (const [name, f] of Object.entries(scen)) {
+    seed = 7; const { b, beats } = f(); let Cls; const ons = [];
+    const AWP = class { constructor() { this.port = { postMessage: m => ons.push(m) }; } };
+    new Function('AudioWorkletProcessor', 'registerProcessor', 'sampleRate', 'currentTime', ONSET_WORKLET)(AWP, (n, c) => { Cls = c; }, SR, 0);
+    const p = new Cls(); for (let i = 0; i + 128 <= b.length; i += 128) p.process([[b.subarray(i, i + 128)]]);
+    const rate = SR / 512, T = new TempoTracker(rate), rows = [];
+    ons.forEach((m, i) => { T.push(m[1], m[2]);
+      if (i % Math.round(rate) === 0) {
+        let pe = null;
+        if (T.beatHop != null && beats.length) { const bt = (T.beatHop + 1) * 512 / SR, near = beats.reduce((a, x) => Math.abs(x - bt) < Math.abs(a - bt) ? x : a, beats[0]); pe = (bt - near) / (60 / T.bpm); }
+        rows.push([T.bpm, T.hold, pe]);
+      } });
+    out[name] = rows;
+  }
+  return out;
+})()"""
 bridge = start_bridge(PORT)
 try:
   with sync_playwright() as pw:
@@ -41,7 +74,7 @@ try:
     ev = pg.evaluate
     ev("ui.rightTab = 'settings'; showRight(true); renderRight()"); time.sleep(0.3)
     sec = pg.locator("#tempoSec")
-    check("Settings has a Tempo section: the BPM, the dot, the bar's four beats", sec.count() == 1 and sec.locator(".tbpm").count() == 1 and sec.locator(".tdot").count() == 1
+    check("Settings has a Tempo section: the BPM, the nouPix mark, the bar's four beats", sec.count() == 1 and sec.locator(".tbpm").count() == 1 and sec.locator(".tmark svg").count() == 1
           and sec.locator(".tbar i").count() == 4)
     check("off at first, the beat from Audio", not ev("tempo.on") and "OFF" in sec.locator(".onsw").inner_text() and ev("ui.tempoSrc || 'audio'") == "audio")
 
@@ -62,14 +95,15 @@ try:
     g0 = grid(); time.sleep(3); g1 = grid()
     drift = min(abs(g1 - g0), 1 - abs(g1 - g0))
     check("the beat stays where it is", drift < 0.1, (g0, g1))
-    # the dot lights on each beat, and the lines count the bar
-    seen, lit = set(), 0
+    # the mark lights on each beat (from red to white) and fades back; the lines count the bar
+    seen, mixes = set(), set()
     for _ in range(60):
-        r = ev("(() => { const s = document.querySelector('#tempoSec'); return [[...s.querySelectorAll('.tbar i')].findIndex(i => /on|one/.test(i.className)), s.querySelector('.tdot').className]; })()")
-        seen.add(r[0]); lit += 1 if ("on" in r[1] or "one" in r[1]) else 0
+        r = ev("(() => { const s = document.querySelector('#tempoSec'); return [[...s.querySelectorAll('.tbar i')].findIndex(i => /on|one/.test(i.className)), s.querySelector('.tmark').style.color]; })()")
+        seen.add(r[0]); mixes.add(r[1])
         time.sleep(0.05)
     check("the bar's lines count 1 2 3 4", seen >= {0, 1, 2, 3}, seen)
-    check("the dot blinks with the beat", 0 < lit < 60, lit)
+    lit = [m for m in mixes if "var(--live) " in m and " 0%" not in m]
+    check("the mark lights with the beat and fades back to red", lit and any(" 0%" in m for m in mixes), sorted(mixes)[:4])
 
     # ---------- the trim
     ev("tempoTrim(-12)"); time.sleep(1.5)
@@ -87,7 +121,8 @@ try:
     # ---------- tapping
     r = ev("""(() => { const t = performance.now() - 2000; [0, 500, 1000, 1500, 2000].forEach(d => tempoTap(t + d)); return [tempo.bpm, ui.tempoSrc, tempoAt(t).inBar, tempoAt(t + 500).inBar, +tempoAt(t + 2000).phase.toFixed(3)]; })()""")
     check("taps half a second apart: 120 BPM, the first tap is beat 1, the beat on the taps", abs(r[0] - 120) < 0.01 and r[1] == "tap" and r[2] == 0 and r[3] == 1 and (r[4] < 0.01 or r[4] > 0.99), r)
-    check("tapping while listening switches to Tap, and the analysis leaves the beat alone", ev("(() => { const b = tempo.bpm; tempoAnalyse(); return tempo.bpm === b; })()"))
+    b0 = ev("tempo.bpm"); time.sleep(1.0)
+    check("tapping while listening switches to Tap, and the listening leaves the beat alone", ev("tempo.bpm") == b0 and ev("tempo.on"))
     r = ev("""(() => { const t = performance.now(); [0, 600, 1210, 1790, 2400].forEach(d => tempoTap(t + 5000 + d)); return tempo.bpm; })()""")
     check("a pause starts a new run; uneven taps give their average", abs(r - 100) < 1, r)
     pg.click("#tempoSec .btn:text-is('Tap')"); time.sleep(0.1)
@@ -102,7 +137,23 @@ try:
     for i in range(4):
         ev("midiIn({ port: 'Fake Controller', ch: 1, type: 'on', num: 40, val: 100 }); midiIn({ port: 'Fake Controller', ch: 1, type: 'off', num: 40, val: 0 })")
         time.sleep(0.4)
-    check("each press of the pad is a tap", ev("tempo.taps.length") == 4 and abs(ev("tempo.bpm") - 150) < 15, (ev("tempo.taps.length"), ev("tempo.bpm")))
+    check("each press of the pad is a tap", ev("tempo.taps.length") == 4 and 80 < ev("tempo.bpm") < 170, (ev("tempo.taps.length"), ev("tempo.bpm")))
+
+    # ---------- the tracker on made-up music (the app's own worklet and tracker, faster than real time)
+    res = ev(BENCH)
+    def rows(name): return res[name]
+    r = rows("hats")
+    check("kick with random hi-hats: 128, the beat on the kick", all(abs(b - 128) < 0.5 for b, h, p in r[6:]) and all(p is not None and abs(p) < 0.08 for b, h, p in r[8:]), r[4:10])
+    r = rows("break")
+    check("a 7 s break (melody and a bass riff, no kick): the BPM stays, then the kick is followed again",
+          all(abs(b - 124) < 1 for b, h, p in r[5:]) and any(h for b, h, p in r[13:21]) and all(abs(p) < 0.08 for b, h, p in r[25:]), [x for x in r[10:26]])
+    check("while it holds, the beat stays where it was", all(abs(p) < 0.15 for b, h, p in r[10:24] if p is not None), [round(p, 2) for b, h, p in r[10:24]])
+    r = rows("synco")
+    check("a syncopated bass line doesn't move the beat off the kick", all(abs(b - 126) < 0.5 for b, h, p in r[6:]) and all(abs(p) < 0.08 for b, h, p in r[8:]), r[6:12])
+    r = rows("change")
+    check("a new track at another tempo is followed within 7 s", all(abs(b - 120) < 0.6 for b, h, p in r[3:14]) and all(abs(b - 128) < 0.5 for b, h, p in r[24:]) and all(abs(p) < 0.08 for b, h, p in r[26:]), [round(b, 1) for b, h, p in r[14:26]])
+    r = rows("noise")
+    check("noise without a beat: it never claims one", all(h for b, h, p in r))
 
     # ---------- off, kept, devices
     pg.locator("#tempoSec .seg button", has_text="Audio").click(); time.sleep(0.2)

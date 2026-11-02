@@ -12,8 +12,8 @@ const tempo = {
   // the input
   on: false, starting: false, err: '', ctx: null, stream: null, gain: null, node: null, devices: [],
   level: -100, peak: -100, peakAt: 0,   // the input after its trim, in dB (peak held for a moment)
-  // what listening keeps: the onset strength of each hop of audio, and when it was (audio time, seconds)
-  env: [], envT: [], rate: 0, cand: 0, candN: 0, timer: 0,
+  // listening: the tracker, and when each hop of audio was (audio time, seconds)
+  tracker: null, envT: [], holding: false, lastBeatHop: null,
   taps: [],
 };
 tempo.anchor = performance.now();
@@ -68,27 +68,27 @@ function tempoTap(t = performance.now()) {
 }
 
 /* ---------- listening ---------- */
-// The sound card's input goes through the trim (a gain), then to a worklet that measures, for every 512 samples,
-// how much the sound's energy rose: a kick drum (the bass, below about 150 Hz) counts most, the whole band a little.
-// Those rises (onsets) come back here; every 200 ms the last 8 seconds of them are compared with themselves shifted
-// by one beat's length for every tempo from 60 to 200 BPM (autocorrelation): the shift where they match best is the
-// beat. Where the beats fall is found the same way, by adding up the onsets one beat apart for every start.
+// The sound card's input goes through the trim (a gain) to a worklet that, for every 512 samples, measures how much
+// the energy rose in two bands: the kick drum (40 to 150 Hz, filters of the 4th order, so hi-hats and melody barely
+// count) and the snare's body (200 Hz to 2 kHz, counted half). Those rises (onsets) are what the beat is found in.
 const ONSET_WORKLET = `
+const bq = (hp, f) => { const w = 2 * Math.PI * f / sampleRate, c = Math.cos(w), a = Math.sin(w) / (2 * Math.SQRT1_2), a0 = 1 + a;
+  const g = hp ? (1 + c) / 2 : (1 - c) / 2;
+  return { b0: g / a0, b1: (hp ? -2 * g : 2 * g) / a0, b2: g / a0, a1: -2 * c / a0, a2: (1 - a) / a0, z1: 0, z2: 0 }; };
+const run = (fs, x) => { for (const f of fs) { const y = f.b0 * x + f.z1; f.z1 = f.b1 * x - f.a1 * y + f.z2; f.z2 = f.b2 * x - f.a2 * y; x = y; } return x; };
 class NoupixOnset extends AudioWorkletProcessor {
-  constructor() { super(); this.hop = 512; this.n = 0; this.lo = 0; this.eLo = 0; this.eAll = 0; this.pLo = 0; this.pAll = 0;
-    this.k = 1 - Math.exp(-2 * Math.PI * 150 / sampleRate); }
+  constructor() { super(); this.hop = 512; this.n = 0; this.ek = 0; this.em = 0; this.ea = 0; this.pk = 0; this.pm = 0;
+    this.kick = [bq(1, 40), bq(1, 40), bq(0, 150), bq(0, 150)]; this.mid = [bq(1, 200), bq(0, 2000)]; }
   process(inputs) {
     const ch = inputs[0] && inputs[0][0];
     if (!ch) return true;
     for (let i = 0; i < ch.length; i++) {
-      const x = ch[i];
-      this.lo += this.k * (x - this.lo);
-      this.eLo += this.lo * this.lo; this.eAll += x * x;
+      const x = ch[i], k = run(this.kick, x), m = run(this.mid, x);
+      this.ek += k * k; this.em += m * m; this.ea += x * x;
       if (++this.n === this.hop) {
-        const lo = Math.log(1 + 1e4 * this.eLo / this.hop), all = Math.log(1 + 1e3 * this.eAll / this.hop);
-        const v = Math.max(0, lo - this.pLo) + 0.4 * Math.max(0, all - this.pAll);
-        this.port.postMessage([currentTime + (i + 1 - ch.length) / sampleRate, v, this.eAll / this.hop]);
-        this.pLo = lo; this.pAll = all; this.n = 0; this.eLo = 0; this.eAll = 0;
+        const lk = Math.log(1 + 1e4 * this.ek / this.hop), lm = Math.log(1 + 1e4 * this.em / this.hop);
+        this.port.postMessage([currentTime + (i + 1 - ch.length) / sampleRate, Math.max(0, lk - this.pk), Math.max(0, lm - this.pm), this.ea / this.hop]);
+        this.pk = lk; this.pm = lm; this.n = 0; this.ek = 0; this.em = 0; this.ea = 0;
       }
     }
     return true;
@@ -96,12 +96,122 @@ class NoupixOnset extends AudioWorkletProcessor {
 }
 registerProcessor('noupix-onset', NoupixOnset);`;
 
+// The beat tracker, after BTrack (Stark, Davies and Plumbley) and Davies' context-dependent tracking, on the onsets of
+// each hop of audio (rate: hops a second). Three parts:
+// - the tempo: every 0.2 s, the onsets of the last 6 s are compared with themselves shifted (autocorrelation), and a
+//   bank of combs (1 to 4 beats on) scores every tempo from 60 to 200 BPM, those near 120 a little more. The scores
+//   update a belief over the tempos that can only drift a little each time (a hidden Markov model): the tempo has
+//   inertia, a real change wins after some seconds, half or double the beat rarely;
+// - the beat: a cumulative score, each hop's onset plus 90% of the best score about one beat back, so the beat goes on
+//   by its own momentum where there are no onsets, and stray hits barely move it; the beat is where it peaks;
+// - holding: while the kick band is quiet or no tempo stands out (a break, a melody), nothing is learnt from the sound:
+//   the tempo and the beat run on as they were, until a clear beat has been back for a second.
+const TT_MID = 0.5, TT_KEEP = 8, TT_ACF = 6, TT_STATES = 200, TT_ALPHA = 0.9, TT_TIGHT = 5;
+function TempoTracker(rate) {
+  this.rate = rate; this.o = []; this.x = []; this.C = []; this.n = 0;
+  this.states = Array.from({ length: TT_STATES }, (_, i) => TEMPO_MIN * Math.pow(TEMPO_MAX / TEMPO_MIN, i / (TT_STATES - 1)));
+  this.prior = this.states.map(b => Math.exp(-0.5 * Math.pow(Math.log2(b / 120) / 0.9, 2)));
+  this.post = new Float64Array(TT_STATES).fill(1 / TT_STATES);
+  this.bpm = 120; this.locked = false; this.hold = true; this.good = 0; this.strength = 0; this.usual = 0;
+  this.act = 0; this.longAct = 0; this.beatHop = null; this.miss = 0; this.every = Math.max(1, Math.round(rate * 0.2));
+}
+// one hop: kick onset k, the snare band's m
+TempoTracker.prototype.push = function (k, m) {
+  const v = k + TT_MID * m, keep = Math.round(TT_KEEP * this.rate);
+  this.o.push(v); if (this.o.length > keep) this.o.shift();
+  // above its local average (a quarter of a second), so a steady loud part doesn't count
+  const w = Math.max(2, Math.round(this.rate * 0.25)), from = Math.max(0, this.o.length - w);
+  let mean = 0; for (let i = from; i < this.o.length; i++) mean += this.o[i];
+  const x = Math.max(0, v - mean / (this.o.length - from));
+  this.x.push(x); if (this.x.length > keep) this.x.shift();
+  // how busy the kick band is: now (1.5 s) and over a long time (20 s)
+  this.act += (k - this.act) / (1.5 * this.rate);
+  this.longAct += (k - this.longAct) / (20 * this.rate);
+  // the cumulative score: while holding it hears nothing and runs on its momentum
+  const P = 60 * this.rate / this.bpm, C = this.C, n = C.length;
+  let best = 0;
+  for (let d = Math.round(2 * P); d >= Math.round(P / 2); d--) {
+    if (d > n) continue;
+    const wgt = Math.exp(-0.5 * Math.pow(TT_TIGHT * Math.log(d / P), 2)), c = C[n - d] * wgt;
+    if (c > best) best = c;
+  }
+  C.push((1 - TT_ALPHA) * (this.hold ? 0 : x) + TT_ALPHA * best); if (C.length > keep) C.shift();
+  this.n++;
+  if (this.n % this.every === 0) this.analyse();
+};
+TempoTracker.prototype.analyse = function () {
+  const rate = this.rate, x = this.x, N = Math.min(x.length, Math.round(TT_ACF * rate)), off = x.length - N;
+  if (N < 4 * rate) return;
+  const ac = new Float64Array(Math.ceil(4.2 * rate) + 4);
+  for (let L = 0; L < ac.length && L < N; L++) { let s = 0; for (let i = off + L; i < x.length; i++) s += x[i] * x[i - L]; ac[L] = s / (N - L); }
+  const acF = L => { const j = Math.floor(L), f = L - j; return j + 1 < ac.length ? ac[j] * (1 - f) + ac[j + 1] * f : 0; };
+  // the comb bank: each tempo's beat, two, three and four beats on (each a little spread)
+  const obs = new Float64Array(TT_STATES);
+  let mx = 0, sum = 0;
+  for (let i = 0; i < TT_STATES; i++) {
+    const P = 60 * rate / this.states[i];
+    let s = 0;
+    for (let a = 1; a <= 4; a++) for (let b = 1 - a; b <= a - 1; b++) s += acF(a * P + b) / (2 * a - 1);
+    obs[i] = s * this.prior[i]; sum += obs[i]; if (obs[i] > mx) mx = obs[i];
+  }
+  this.strength = sum > 0 ? mx / (sum / TT_STATES) : 0;
+  // how clear the beat usually is (over about 20 s): a break, a riff or a melody is much less clear than the music around
+  this.usual = this.usual ? this.usual + (this.strength - this.usual) * 0.01 : this.strength;
+  const quiet = this.act < 0.3 * this.longAct || this.longAct < 1e-4;
+  const clear = !quiet && this.strength > Math.max(2.5, 0.45 * this.usual);
+  this.good = clear ? this.good + 0.2 : 0;
+  this.hold = !(this.good >= 1);
+  if (!clear) return;
+  // the belief over tempos: it may drift a little (about 1% each time), and now and then jump anywhere (a new track)
+  const pred = new Float64Array(TT_STATES), sig = 1.5, floor = 2e-4;
+  for (let i = 0; i < TT_STATES; i++) {
+    let s = 0;
+    for (let d = -5; d <= 5; d++) { const j = i + d; if (j >= 0 && j < TT_STATES) s += this.post[j] * Math.exp(-0.5 * (d / sig) * (d / sig)); }
+    pred[i] = s + floor;
+  }
+  let tot = 0;
+  for (let i = 0; i < TT_STATES; i++) { this.post[i] = pred[i] * Math.pow(obs[i] / mx, 3); tot += this.post[i]; }
+  let bi = 0;
+  for (let i = 0; i < TT_STATES; i++) { this.post[i] /= tot; if (this.post[i] > this.post[bi]) bi = i; }
+  // the tempo: the belief's peak, finer by its neighbours
+  let wsum = 0, lsum = 0;
+  for (let d = -2; d <= 2; d++) { const j = bi + d; if (j >= 0 && j < TT_STATES) { wsum += this.post[j]; lsum += this.post[j] * Math.log(this.states[j]); } }
+  const est = Math.exp(lsum / wsum);
+  // finer still: the comb's peak near it, measured over 1 to 4 beats on
+  let lag = 60 * rate / est, bv = -1;
+  for (let L = lag * 0.985; L <= lag * 1.015; L += 0.02) {
+    let s = 0; for (let a = 1; a <= 4; a++) s += acF(a * L) * a;
+    if (s > bv) { bv = s; lag = L; }
+  }
+  const bpm = 60 * rate / lag;
+  this.bpm = this.locked ? this.bpm + (bpm - this.bpm) * 0.35 : bpm;
+  this.locked = true;
+  if (this.hold) return;
+  // the beat: where the cumulative score peaks, one beat apart going back (recent ones count more)
+  const C = this.C, M = C.length, P = 60 * rate / this.bpm, at = i => { const j = Math.floor(i), f = i - j; return j < 0 || j + 1 >= M ? 0 : C[j] * (1 - f) + C[j + 1] * f; };
+  let bo = 0, bs = -1;
+  for (let o = 0; o < P; o += 0.25) {
+    let s = 0, wk = 1;
+    for (let k = 0; k < 4; k++) { s += at(M - 1 - o - k * P) * wk; wk *= 0.7; }
+    if (s > bs) { bs = s; bo = o; }
+  }
+  const measured = this.n - 1 - bo;
+  if (this.beatHop == null) { this.beatHop = measured; return; }
+  // the beat it expects there; a measure far from it is a stray (a fill, a syncopation) unless it keeps coming
+  const k = Math.round((measured - this.beatHop) / P), expect = this.beatHop + k * P, err = measured - expect;
+  if (Math.abs(err) < 0.3 * P) { this.beatHop = expect + 0.3 * err; this.miss = 0; }
+  else if (++this.miss >= 8) { this.beatHop = measured; this.miss = 0; }
+  else this.beatHop = expect;
+};
+
 const tempoUsable = () => !REMOTE_CLIENT && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.AudioWorkletNode);
-// The sound cards' inputs; their names only once the browser was allowed to listen
+// The sound cards' inputs; their names only once the browser was allowed to listen, shortened (no "Default - ", no
+// USB numbers)
 async function tempoDevices() {
   try {
     const all = await navigator.mediaDevices.enumerateDevices();
-    tempo.devices = all.filter(d => d.kind === 'audioinput').map((d, i) => ({ id: d.deviceId, name: d.label || `Input ${i + 1}` }));
+    tempo.devices = all.filter(d => d.kind === 'audioinput').map((d, i) => ({ id: d.deviceId,
+      name: (d.label || `Input ${i + 1}`).replace(/^(Default|Communications)\s*-\s*/i, '').replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, '') }));
   } catch (e) { tempo.devices = []; }
   updateTempoUI();
 }
@@ -130,8 +240,7 @@ async function tempoListen(on) {
     gain.gain.value = tempoGain();
     src.connect(gain); gain.connect(node); node.connect(ctx.destination);   // silent: it writes nothing; connected so it runs
     node.port.onmessage = e => tempoOnset(e.data);
-    Object.assign(tempo, { ctx, stream, gain, node, on: true, env: [], envT: [], rate: ctx.sampleRate / 512, cand: 0, candN: 0, conf: 0, locked: false });
-    tempo.timer = setInterval(tempoAnalyse, 200);
+    Object.assign(tempo, { ctx, stream, gain, node, on: true, envT: [], tracker: new TempoTracker(ctx.sampleRate / 512), conf: 0, locked: false, lastBeatHop: null });
     // an audio context made without a click waits for one (the browser's rule for sound)
     if (ctx.state === 'suspended') addEventListener('pointerdown', () => ctx.resume(), { once: true, capture: true });
     ui.tempoOn = true; savePrefs();
@@ -145,10 +254,9 @@ async function tempoListen(on) {
   updateTempoUI();
 }
 function tempoStop() {
-  clearInterval(tempo.timer);
   if (tempo.stream) tempo.stream.getTracks().forEach(t => t.stop());
   if (tempo.ctx) tempo.ctx.close().catch(() => {});
-  Object.assign(tempo, { on: false, ctx: null, stream: null, gain: null, node: null, level: -100, peak: -100, conf: 0, locked: false });
+  Object.assign(tempo, { on: false, ctx: null, stream: null, gain: null, node: null, tracker: null, level: -100, peak: -100, conf: 0, locked: false, holding: false });
 }
 // Another input: listening starts again on it
 function tempoInput(id) {
@@ -161,76 +269,34 @@ function tempoTrim(db) {
   if (tempo.gain) tempo.gain.gain.setTargetAtTime(tempoGain(), tempo.ctx.currentTime, 0.02);
 }
 
-const TEMPO_KEEP = 8;   // seconds of onsets kept and looked at
-function tempoOnset([t, v, e]) {
-  tempo.env.push(v); tempo.envT.push(t);
-  if (tempo.env.length > TEMPO_KEEP * tempo.rate) { tempo.env.shift(); tempo.envT.shift(); }
+// Each hop from the worklet: the meter, the tracker, and the beat clock following the tracker
+function tempoOnset([t, k, m, e]) {
   const db = 10 * Math.log10(e + 1e-12), now = performance.now();
   tempo.level = Math.max(db, tempo.level - 0.4);   // a meter: up at once, down about 35 dB a second
   if (db > tempo.peak || now - tempo.peakAt > 1200) { tempo.peak = db; tempo.peakAt = now; }
+  const T = tempo.tracker;
+  if (!T) return;
+  tempo.envT.push(t); if (tempo.envT.length > TT_KEEP * T.rate) tempo.envT.shift();
+  T.push(k, m);
+  tempo.holding = T.hold && T.locked;
+  tempo.conf = T.hold ? 0 : clamp((T.strength - 1.6) / 2, 0, 1);
+  if (ui.tempoSrc === 'tap' || !T.locked) return;
+  if (!tempo.locked) { tempo.locked = true; tempoSetBpm(T.bpm); }
+  else if (Math.abs(T.bpm - tempo.bpm) > 0.005) tempoSetBpm(T.bpm);
+  // a beat the tracker placed: the clock is set on it (the tracker is already smooth), keeping the bar's count
+  if (T.beatHop != null && T.beatHop !== tempo.lastBeatHop && !T.hold) {
+    tempo.lastBeatHop = T.beatHop;
+    const back = T.n - 1 - T.beatHop, i = tempo.envT.length - 1 - back;
+    if (i < 0) return;
+    const j = Math.floor(i), f = i - j, at = tempo.envT[j] + (j + 1 < tempo.envT.length ? (tempo.envT[j + 1] - tempo.envT[j]) * f : 0);
+    const beatT = tempoPerfTime(at), b = (beatT - tempo.anchor) / (60000 / tempo.bpm), err = b - Math.round(b);
+    tempo.anchor += err * (60000 / tempo.bpm);
+  }
 }
 // performance.now() of an audio time
 function tempoPerfTime(at) {
   const ts = tempo.ctx.getOutputTimestamp ? tempo.ctx.getOutputTimestamp() : null;
   return ts && ts.performanceTime ? ts.performanceTime + (at - ts.contextTime) * 1000 : performance.now() - (tempo.ctx.currentTime - at) * 1000;
-}
-function tempoAnalyse() {
-  if (!tempo.on || ui.tempoSrc === 'tap') return;
-  const rate = tempo.rate, raw = tempo.env, N = raw.length;
-  if (N < rate * 4) return;   // 4 seconds before a first guess
-  if (tempo.level < -70) { tempo.conf = 0; return; }   // silence: the beat goes on as it was
-  // the onsets above their local average (a quarter of a second), so a steady loud part doesn't count
-  const w = Math.max(2, Math.round(rate * 0.25)), x = new Float32Array(N);
-  let run = 0;
-  for (let i = 0; i < N; i++) {
-    run += raw[i] - (i >= w ? raw[i - w] : 0);
-    x[i] = Math.max(0, raw[i] - run / Math.min(i + 1, w));
-  }
-  const ac = L => { let s = 0; for (let i = L; i < N; i++) s += x[i] * x[i - L]; return s / (N - L); };
-  const a0 = ac(0);
-  if (a0 <= 0) { tempo.conf = 0; return; }
-  const lo = Math.floor(60 * rate / TEMPO_MAX), hi = Math.ceil(60 * rate / TEMPO_MIN);
-  const A = new Float32Array(2 * hi + 2);
-  for (let L = lo; L <= Math.min(2 * hi + 1, N - 1); L++) A[L] = ac(L);
-  // a tempo's score: its own beat, and helped by the bar's half (two beats); tempos near 120 are preferred a little,
-  // so a song isn't heard at half or double its speed
-  const score = L => (A[L] + 0.5 * (2 * L < A.length ? A[2 * L] : 0)) * Math.exp(-0.5 * Math.pow(Math.log2(60 * rate / L / 120) / 1.0, 2));
-  let best = lo, bs = -1;
-  for (let L = lo; L <= hi; L++) { const s = score(L); if (s > bs) { bs = s; best = L; } }
-  // finer than one hop: the beat's length that best matches 1, 2, 3 and 4 beats later together (the further, the finer)
-  const far = new Map(), acAt = L => { if (!far.has(L)) far.set(L, L < N ? ac(L) : 0); return far.get(L); };
-  const acF = L => { const j = Math.floor(L), f = L - j; return acAt(j) * (1 - f) + acAt(j + 1) * f; };
-  let lag = best, lv = -1;
-  for (let L = best - 0.6; L <= best + 0.6; L += 0.02) {
-    let s = 0;
-    for (let m = 1; m <= 4 && m * L < N - rate; m++) s += acF(m * L) * m;
-    if (s > lv) { lv = s; lag = L; }
-  }
-  const cand = 60 * rate / lag, y1 = A[best];
-  tempo.conf = clamp(y1 / a0 * 2, 0, 1);
-  if (tempo.conf < 0.15) return;
-  // the BPM follows a close guess smoothly; a far one only once it has come three times
-  const cur = tempo.locked ? tempo.bpm : 0;
-  if (cur && Math.abs(cand - cur) / cur < 0.03) tempoSetBpm(cur + (cand - cur) * 0.3);
-  else {
-    if (tempo.cand && Math.abs(cand - tempo.cand) / tempo.cand < 0.03) tempo.candN++; else { tempo.cand = cand; tempo.candN = 1; }
-    // half or double the beat is the usual mistake: it has to come many times more
-    const octave = cur && [0.5, 2].some(r => Math.abs(cand / cur - r) < 0.04);
-    if (tempo.candN >= (!cur ? 2 : octave ? 15 : 3)) { tempoSetBpm(cand); tempo.locked = true; tempo.candN = 0; }
-    else if (!cur) return;
-  }
-  // where the beats fall: the start whose onsets, one beat apart going back, add up the most (recent ones count more)
-  const P = 60 * rate / tempo.bpm, at = i => { const j = Math.floor(i), f = i - j; return j < 0 || j + 1 >= N ? 0 : x[j] * (1 - f) + x[j + 1] * f; };
-  let bo = 0, bv = -1;
-  for (let o = 0; o < P; o += 0.5) {
-    let s = 0, wk = 1;
-    for (let i = N - 2 - o; i >= 0; i -= P) { s += at(i) * wk; wk *= 0.92; }
-    if (s > bv) { bv = s; bo = o; }
-  }
-  const beatT = tempoPerfTime(tempo.envT[N - 1] - bo / rate);
-  // the clock moves a quarter of the way toward it each time, so it locks without jumping
-  const b = (beatT - tempo.anchor) / (60000 / tempo.bpm), err = b - Math.round(b);
-  tempo.anchor += err * (60000 / tempo.bpm) * 0.25;
 }
 
 // At start: the tapped BPM kept from last time, and listening again if it was on
