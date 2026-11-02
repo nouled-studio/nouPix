@@ -1162,3 +1162,23 @@ body.sceneswin > .dockbody { height: 100%; }
 .checkline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pwrow { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .pwrow input[type=password], .pwrow input[type=text] { flex: 1; min-width: 0; }
+
+/* Tempo (Settings): the BPM with a dot on each beat (red on the downbeat), the bar's beats as lines, the input's meter */
+.tempo-read { display: grid; grid-template-columns: auto auto 1fr; grid-template-rows: auto auto; align-items: center; gap: 6px 12px; padding: 4px 0 8px; }
+.tempo-read .tdot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--line3); background: var(--bg3); grid-row: 1; }
+.tempo-read .tdot.on { background: var(--live); border-color: var(--live); }
+.tempo-read .tdot.one { background: var(--accent); border-color: var(--accent); }
+.tempo-read .tnum { font-family: var(--mono); font-size: 26px; line-height: 1; color: var(--text); grid-row: 1; }
+.tempo-read .tnum small { font: 600 10px var(--label); letter-spacing: .14em; color: var(--muted); margin-left: 6px; }
+.tempo-read .tbar { display: flex; gap: 4px; justify-self: end; grid-row: 1; }
+.tempo-read .tbar i { width: 18px; height: 6px; background: var(--bg4); }
+.tempo-read .tbar i.past { background: color-mix(in srgb, var(--live) 35%, var(--bg4)); }
+.tempo-read .tbar i.on { background: var(--live); }
+.tempo-read .tbar i.one { background: var(--accent); }
+.tempo-read .tstate { grid-column: 1 / -1; color: var(--muted); font-size: 11.5px; }
+.tmeter { position: relative; height: 6px; background: var(--bg3); width: 100%; overflow: hidden; }
+.tmeter .lv { position: absolute; inset: 0; background: linear-gradient(90deg, var(--fader) 0 75%, var(--midi) 75% 95%, var(--accent) 95%); }
+.tmeter .rest { position: absolute; top: 0; bottom: 0; right: 0; left: 0; background: var(--bg3); }
+.tmeter .pk { position: absolute; top: 0; bottom: 0; width: 2px; left: 0; background: var(--text2); }
+.tmeter.clip .pk { background: var(--accent); }
+

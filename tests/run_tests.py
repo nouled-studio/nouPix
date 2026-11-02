@@ -127,6 +127,7 @@ SUITES = [   # name, function, part of --quick
     ("ndi", simple("test_ndi.py", 8212, 300), True),
     ("omt", simple("test_omt.py", 8214, 300), True),
     ("sacn", simple("test_sacn.py", 8220, 300), True),
+    ("tempo", simple("test_tempo.py", 8236, 300), True),
     ("startup", simple("test_startup.py", 8216, 300), True),
     ("media", simple("test_media.py", 8218, 400), True),
     ("stability", simple("test_stability.py", 8210, 900, ("5",)), False),

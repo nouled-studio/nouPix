@@ -650,6 +650,7 @@ function renderSettings(body) {
     tipRow(numRow('Default fade', s, 'fade', { min: 0, max: 60, step: 0.1, onCommit: commit }), 'The fade new scenes get, in seconds (0 cuts). Each scene keeps its own, on its button.'),
     tipRow(checkRow('Auto snapshot', s, 'sceneShots', () => commit()), 'Storing or updating a scene also takes its snapshot.')));
   if (REMOTE_CLIENT) return;
+  body.append(tempoSection());
   body.append(remoteSection());
   // this computer's: not in the project
   const parts = [row('Look', seg([['dark', 'Black'], ['light', 'White']], ui.theme === 'light' ? 'light' : 'dark', v => setTheme(v)))];
