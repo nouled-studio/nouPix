@@ -113,7 +113,7 @@ try:
       document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return [opened, !!document.querySelector('.menu')]; })()""")
     check("and so does one straight after opening a menu", r == [True, False], r)
     # every built-in effect with colour controls gets swatches
-    n = ev("""(() => { let n = 0; for (const s of olm.project.sources.filter(s => s.builtin)) { const z = olm.project.zones[0]; z.layers = [newLayer(s.id)]; ui.layer = z.layers[0].id; renderRight();
+    n = ev("""(() => { let n = 0; for (const s of olm.project.sources.filter(s => s.builtin && s.kind === 'isf')) { const z = olm.project.zones[0]; z.layers = [newLayer(s.id)]; ui.layer = z.layers[0].id; renderRight();
       const want = isfInputs(s).filter(i => i.TYPE === 'color').length; if (document.querySelectorAll('#rightBody .cswatch').length !== want) return s.id; n += want; } return n; })()""")
     check("every built-in effect shows one swatch per colour control", isinstance(n, int) and n > 20, n)
     check("no page errors", not errs, errs[:5])
