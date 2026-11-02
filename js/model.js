@@ -70,7 +70,7 @@ const ui = {
   updates: true, updateAt: 0, updateSkip: '',   // looking for a new version once a day; when it last looked; a version not to tell of (app.js)
 };
 const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'srcH', 'rightHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
-  'tempoSrc', 'tempoIn', 'tempoTrim', 'tempoBpb', 'tempoOn', 'tempoBpm'];
+  'tempoSrc', 'tempoIn', 'tempoTrim', 'tempoBpb', 'tempoOn', 'tempoBpm', 'tempoLo', 'tempoHi'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
 const markPatch = () => { patchDirty = true; };

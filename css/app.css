@@ -1176,6 +1176,10 @@ body.sceneswin > .dockbody { height: 100%; }
 .tempo-read .tbar i.one { background: var(--accent); }
 .tempo-read .tstate { grid-column: 2 / -1; color: var(--muted); font-size: 11px; }
 .tempo select { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the spectrum with the beat band (dragged by its edges), and under it the band's hits and the beats */
+.tempo .tsig { display: grid; gap: 3px; margin: 2px 0 4px; }
+.tempo .tspec { display: block; width: 100%; height: 46px; touch-action: none; }
+.tempo .ttrace { display: block; width: 100%; height: 20px; }
 .tmrow { padding-left: 86px; margin-top: -4px; }
 .tmeter { position: relative; height: 4px; background: var(--bg3); width: 100%; overflow: hidden; }
 .tmeter .lv { position: absolute; inset: 0; background: linear-gradient(90deg, var(--fader) 0 80%, color-mix(in srgb, var(--fader) 45%, var(--accent)) 80% 95%, var(--accent) 95%); }

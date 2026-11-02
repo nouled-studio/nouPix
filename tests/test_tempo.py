@@ -51,7 +51,7 @@ BENCH = r"""(() => {
     new Function('AudioWorkletProcessor', 'registerProcessor', 'sampleRate', 'currentTime', ONSET_WORKLET)(AWP, (n, c) => { Cls = c; }, SR, 0);
     const p = new Cls(); for (let i = 0; i + 128 <= b.length; i += 128) p.process([[b.subarray(i, i + 128)]]);
     const rate = SR / 512, T = new TempoTracker(rate), rows = [];
-    ons.forEach((m, i) => { T.push(m[1], m[2]);
+    ons.forEach((m, i) => { T.push(m[1]);
       if (i % Math.round(rate) === 0) {
         let pe = null;
         if (T.beatHop != null && beats.length) { const bt = (T.beatHop + 1) * 512 / SR, near = beats.reduce((a, x) => Math.abs(x - bt) < Math.abs(a - bt) ? x : a, beats[0]); pe = (bt - near) / (60 / T.bpm); }
@@ -111,6 +111,30 @@ try:
     check("the trim turns the input down", ev("ui.tempoTrim") == -12 and ev("tempo.gain.gain.value") < 0.3, (lv, lv2))
     ev("tempoTrim(0)")
 
+    # ---------- the spectrum and the beat band
+    spec = pg.locator("#tempoSec .tspec")
+    check("listening shows the spectrum and the beat trace", spec.count() == 1 and pg.locator("#tempoSec .ttrace").count() == 1 and spec.bounding_box()["height"] > 30)
+    time.sleep(0.3)
+    lit = ev("(() => { const c = document.querySelector('#tempoSec .tspec'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 200) n++; return n; })()")
+    check("the spectrum is drawn", lit > 50, lit)
+    check("the beat band starts on the kick drum, 40 to 150 Hz", ev("tempoBandNow()") == [40, 150])
+    box = spec.bounding_box(); W = box["width"]
+    import math as _m
+    xf = lambda f: box["x"] + _m.log(f / 20) / _m.log(16000 / 20) * W
+    pg.mouse.move(xf(150), box["y"] + 20); pg.mouse.down(); pg.mouse.move(xf(110), box["y"] + 20, steps=4); pg.mouse.up(); time.sleep(0.2)
+    hi = ev("tempoBandNow()[1]")
+    check("its top edge is dragged down", 100 < hi < 125 and ev("store.get('noupix.ui').tempoHi") == hi, hi)
+    pg.mouse.move(xf(60), box["y"] + 20); pg.mouse.down(); pg.mouse.move(xf(240), box["y"] + 20, steps=6); pg.mouse.up(); time.sleep(0.2)
+    lo2, hi2 = ev("tempoBandNow()")
+    check("dragging inside moves the whole band, keeping its width", lo2 > 120 and abs(hi2 / lo2 - hi / 40) < 0.15, (lo2, hi2))
+    ev("tempoBand(40, 150)"); time.sleep(1.5)
+    lv_kick = ev("tempo.peak")
+    ev("tempoBand(4000, 12000)"); time.sleep(1.5)
+    lv_hats = ev("tempo.peak")
+    check("the meter reads the band: the kick's band much louder than the hi-hat's", lv_hats < lv_kick - 6, (lv_kick, lv_hats))
+    spec.dblclick(); time.sleep(0.2)
+    check("a double-click gives 40 to 150 Hz back", ev("tempoBandNow()") == [40, 150])
+
     # ---------- 2/4 and Downbeat
     pg.locator("#tempoSec .seg button", has_text="2/4").click(); time.sleep(0.2)
     check("2/4: two lines", pg.locator("#tempoSec .tbar i").count() == 2 and ev("tempoBpb()") == 2)
@@ -151,7 +175,7 @@ try:
     r = rows("synco")
     check("a syncopated bass line doesn't move the beat off the kick", all(abs(b - 126) < 0.5 for b, h, p in r[6:]) and all(abs(p) < 0.08 for b, h, p in r[8:]), r[6:12])
     r = rows("change")
-    check("a new track at another tempo is followed within 7 s", all(abs(b - 120) < 0.6 for b, h, p in r[3:14]) and all(abs(b - 128) < 0.5 for b, h, p in r[24:]) and all(abs(p) < 0.08 for b, h, p in r[26:]), [round(b, 1) for b, h, p in r[14:26]])
+    check("a new track at another tempo is followed within 7 s (the beat holds while the old one fades)", all(abs(b - 120) < 0.6 for b, h, p in r[3:14]) and all(abs(b - 128) < 0.5 for b, h, p in r[25:]) and all(abs(p) < 0.08 for b, h, p in r[26:]), [round(b, 1) for b, h, p in r[14:26]])
     r = rows("noise")
     check("noise without a beat: it never claims one", all(h for b, h, p in r))
 
