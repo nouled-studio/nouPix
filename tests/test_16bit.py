@@ -1,7 +1,7 @@
 # 16-bit fixtures: two channels per colour, the coarse one first, then the fine one, checked in the Art-Net packets
 # that leave the bridge. 8-bit and 16-bit fixtures on one output; universe packing (85 RGB pixels per universe, and a
 # pixel split across two when Skip ch 511–512 is off); colour orders and RGBW; the dimming curves (16-bit only); old
-# files; the inspector (resolution, curve, the graph following the gamma slider); the DMX monitor, CSV, copy and
+# files; the inspector (resolution, curve, the graph following the gamma slider); the Channel monitor, CSV, copy and
 # paste, undo.
 import os, sys, time, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -190,10 +190,10 @@ try:
     check("…moving it sets both", E("olm.project.fixtures.map(f => f.strength)") == [1.4, 1.4], E("olm.project.fixtures.map(f => f.strength)"))
     E("(() => { ui.sel = new Set(['i16']); onSelection(); })()"); time.sleep(0.2)
 
-    # ---------- the DMX monitor, CSV, copy and paste
+    # ---------- the Channel monitor, CSV, copy and paste
     E("(() => { ui.monitorKey = olm.universes()[0].key; openMonitor(); })()"); time.sleep(0.3)
     r = E("(() => { const m = monitorMap(olm.universes()[0]); return [0, 1, 2, 5].map(i => m[i] && (m[i].c + (m[i].coarse ? ' coarse' : m[i].fine ? ' fine' : ''))); })()")
-    check("the DMX monitor names each channel: R coarse, R fine, G coarse … B fine", r == ["R coarse", "R fine", "G coarse", "B fine"], r)
+    check("the Channel monitor names each channel: R coarse, R fine, G coarse … B fine", r == ["R coarse", "R fine", "G coarse", "B fine"], r)
     csv = E("(() => { let out = ''; const d = window.download; window.download = (n, t) => { out = t; }; exportCSV(); window.download = d; return out; })()")
     check("the patch CSV has a Bits column", csv.split("\n")[0].split(",")[4] == "Bits" and csv.split("\n")[1].split(",")[4] == "16", csv.split("\n")[:2])
     r = E("(() => { ui.sel = new Set(['i16']); const d = clipOfSel(); pasteFixtures(d); const f = olm.project.fixtures.at(-1); return [f.bits, f.curve, olm.project.fixtures.length]; })()")

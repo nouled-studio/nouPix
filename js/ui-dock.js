@@ -1,5 +1,5 @@
 // nouPix · js/ui-dock.js
-// The bottom dock: scenes, the patch table and controller editor; the Discovery window and the DMX monitor.
+// The bottom dock: scenes, the patch table and controller editor; the Discovery window and the Channel monitor.
 
 /* ---------- bottom dock ---------- */
 function renderDock() {
@@ -11,9 +11,9 @@ function renderDock() {
   const gear = $('#btnOutSet');   // the Output settings, at the right of the Patch tab
   gear.hidden = ui.dockTab !== 'patch' || REMOTE_CLIENT;
   if (!gear.firstChild) gear.append(h('span', { class: 'ic', html: ICONS.out }), 'Output settings');
-  const mon = $('#btnMon');   // the DMX monitor, next to it
+  const mon = $('#btnMon');   // the Channel monitor, next to it
   mon.hidden = ui.dockTab !== 'patch';
-  if (!mon.firstChild) mon.append(h('span', { class: 'ic', html: ICONS.monitor }), 'DMX monitor');
+  if (!mon.firstChild) mon.append(h('span', { class: 'ic', html: ICONS.monitor }), 'Channel monitor');
   $('#btnDock').title = ui.dockCollapsed ? 'Expand panel' : 'Collapse panel';
   const body = $('#dockBody');
   const keep = body.firstElementChild && body.querySelector('.ctrl-edit') ? body.querySelector('.ctrl-edit').scrollTop : 0;
@@ -713,17 +713,17 @@ function outSpan(c, L) {
     at(a, 'from'), at(b, 'to'));
 }
 
-/* ---------- DMX monitor ---------- */
-// Its own window, like the MIDI window (the DMX monitor button at the right of the Patch tab): this page draws into it,
+/* ---------- Channel monitor ---------- */
+// Its own window, like the MIDI window (the Channel monitor button at the right of the Patch tab): this page draws into it,
 // so it can sit on another screen while the work goes on here
 let monCanvas = null, monMap = null, monMapKey = '', monEl = null, monWin = null;
 const monWinOpen = () => !!(monWin && !monWin.closed);
 function openMonitor() {
   if (monWinOpen()) { raiseWindow(monWin); return; }
   const w = window.open('', 'olm-monitor', 'popup,width=1000,height=480');
-  if (!w) { toast('The DMX monitor could not open: allow pop-up windows for this page.', 'err'); return; }
+  if (!w) { toast('The Channel monitor could not open: allow pop-up windows for this page.', 'err'); return; }
   monWin = w;
-  const d = dressWindow(w, 'DMX monitor · nouPix', 'monwin');
+  const d = dressWindow(w, 'Channel monitor · nouPix', 'monwin');
   w.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); } });
   w.addEventListener('pagehide', () => { if (monWin === w) monClosed(); });
   monEl = d.body;
@@ -760,7 +760,7 @@ function renderMonitor(body) {
   const where = !U ? '' : U.sacn
     ? `${U.mcast ? 'multicast ' + sacnGroup(U.uni + 1) : U.ip} · sACN universe ${U.uni + 1}`
     : `${U.ip} · universe ${U.uni} (net ${U.uni >> 8}, subnet ${(U.uni >> 4) & 15}, universe ${U.uni & 15})`;
-  const bar = h('div', { class: 'bar' }, U ? h('span', { class: 'mono' }, `${where} · ${U.ctrl.name} OUT ${U.out + 1}`) : h('span', null, 'DMX values being sent'),
+  const bar = h('div', { class: 'bar' }, U ? h('span', { class: 'mono' }, `${where} · ${U.ctrl.name} OUT ${U.out + 1}`) : h('span', null, 'The values being sent, channel by channel'),
     U && !U.enabled ? h('span', { class: 'badge warn' }, 'not sent: controller off or IP invalid') : null,
     h('span', { class: 'muted' }, ui.outputOn ? '' : 'Output is off; values shown are what would be sent.'));
   body.replaceChildren(h('div', { class: 'monitor' }, bar, h('div', { class: 'mbody' }, ul, h('div', { class: 'grid' }, monCanvas, read))));

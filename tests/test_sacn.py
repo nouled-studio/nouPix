@@ -3,7 +3,7 @@
 # source name, priority, sequence numbers per universe, the universes one higher than Art-Net's (0 goes out as 1), unicast
 # to each controller and multicast to each universe's group, the universe discovery packets, streams ended with three
 # Stream_Terminated packets (back to Art-Net, multicast switched, output off, the window closed). In the interface: the
-# universes shown as sACN counts them (patch, First uni typed from 1, the menus, the DMX monitor, the status bar, CSV),
+# universes shown as sACN counts them (patch, First uni typed from 1, the menus, the Channel monitor, the status bar, CSV),
 # conflicts with multicast, undo, files and their repair. A packet is also checked byte for byte against one built here.
 import os, sys, time, json, socket, struct, threading, uuid
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -147,7 +147,7 @@ try:
     check("and 0 isn't an sACN universe: it becomes 1", E(C + ".startUniverse") == 0 and first.input_value() == "1", first.input_value())
     E("ui.monitorKey = null; openMonitor(); updateMonitorUI()"); time.sleep(0.3)
     mon = E("monEl.querySelector('.bar .mono').textContent")
-    check("the DMX monitor names the sACN universe", "sACN universe 1" in mon and "127.0.0.1" in mon, mon)
+    check("the Channel monitor names the sACN universe", "sACN universe 1" in mon and "127.0.0.1" in mon, mon)
     menu = E("patchToItems(olm.project.fixtures.slice(0, 1)).filter(i => Array.isArray(i)).map(i => i[0])")
     check("the Patch to menu uses the same numbers", [m.split("·")[-1].strip() for m in menu] == ["U 1", "U 2"], menu)
     csv = E("(() => { let out = null; const d = download; download = (n, t) => { out = t; }; exportCSV(); download = d; return out; })()")
@@ -187,7 +187,7 @@ try:
         disc = wait(lambda: groups["239.255.250.214"].since(t0, kind="discovery"), 11)
         check("and the universes sent are listed on the discovery group", disc and disc[-1]["universes"] == [1, 2] and disc[-1]["page"] == 0 and disc[-1]["last"] == 0, [d["universes"] for d in disc])
         mon = (E("openMonitor(); updateMonitorUI()"), time.sleep(0.2), E("monEl.querySelector('.bar .mono').textContent"))[2]
-        check("the DMX monitor names the group", "multicast 239.255.0.1" in mon, mon)
+        check("the Channel monitor names the group", "multicast 239.255.0.1" in mon, mon)
         E("ui.dockTab = 'patch'; renderDock()")
     else:
         print("PASS multicast doesn't reach this machine's receivers: the groups aren't checked here")

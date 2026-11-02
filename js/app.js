@@ -162,7 +162,7 @@ function initUI() {
   for (const k of UI_PREFS) if (k in prefs) ui[k] = prefs[k];
   remoteLoadCfg();
   document.body.classList.toggle('remote-client', REMOTE_CLIENT);
-  // the Nodes tab is the Patch tab's Discovery window, and the DMX Monitor tab its DMX monitor window, since 1.4
+  // the Nodes tab is the Patch tab's Discovery window, and the DMX Monitor tab the Channel monitor window, since 1.4
   if (ui.dockTab === 'nodes' || ui.dockTab === 'monitor') ui.dockTab = 'patch';
   applyTheme();
   $('#btnTheme').addEventListener('click', () => setTheme(ui.theme === 'light' ? 'dark' : 'light'));

@@ -251,12 +251,12 @@ with sync_playwright() as pw:
     ev("$$('.modal-bg').forEach(m => m.remove())"); time.sleep(0.2)
     check("the row shows the reported universes", pg.inner_text(".ctrl-fields .reported") == "U 0–2")
 
-    # ---------- the DMX monitor: its own window, like the MIDI window, from the Patch tab
+    # ---------- the Channel monitor: its own window, like the MIDI window, from the Patch tab
     ev("olm.ui.dockTab = 'patch'; renderDock()"); time.sleep(0.1)
-    check("no DMX Monitor tab; its button next to Output settings", pg.locator("#dockTabs [data-tab=monitor]").count() == 0 and pg.is_visible("#btnMon") and pg.is_visible("#btnOutSet"))
+    check("no DMX Monitor tab; the Channel monitor's button next to Output settings", pg.locator("#dockTabs [data-tab=monitor]").count() == 0 and pg.is_visible("#btnMon") and pg.is_visible("#btnOutSet"))
     with pg.expect_popup() as pi: pg.click("#btnMon")
     M = pi.value; time.sleep(0.5)
-    check("it opens the DMX monitor window, with the universes", M.title().startswith("DMX monitor") and M.locator(".ulist div").count() == ev("olm.universes().length") > 0)
+    check("it opens the Channel monitor window, with the universes", M.title().startswith("Channel monitor") and M.locator(".ulist div").count() == ev("olm.universes().length") > 0)
     M.locator(".ulist div").last.click(); time.sleep(0.2)
     check("picking a universe there shows it", ev("olm.ui.monitorKey") == ev("olm.universes()[olm.universes().length - 1].key") and "sel" in M.locator(".ulist div").last.get_attribute("class"))
     time.sleep(0.3)

@@ -30,7 +30,7 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 let win = null;
 let bridge = null;
 let quitting = false;
-// The MIDI, Scenes and DMX monitor windows (the page draws into them), by their names: 'olm-midi', 'olm-scenes', 'olm-monitor'
+// The MIDI, Scenes and Channel monitor windows (the page draws into them), by their names: 'olm-midi', 'olm-scenes', 'olm-monitor'
 const popups = new Map();
 // Brings one of them to the front, also from minimised; or asks the page to open it
 function raisePopup(name) {
@@ -153,7 +153,7 @@ async function start() {
 
   const wc = win.webContents;
   // Links leave the app for the default browser; the interface itself stays on the bridge's address. The MIDI,
-  // Scenes and DMX monitor windows, which the page draws itself, are windows of the app.
+  // Scenes and Channel monitor windows, which the page draws itself, are windows of the app.
   wc.setWindowOpenHandler(({ url: target, frameName }) => {
     if (frameName === 'olm-midi' && (target === '' || target === 'about:blank')) {
       return { action: 'allow', overrideBrowserWindowOptions: { width: 1180, height: 760, minWidth: 720, minHeight: 420, title: 'MIDI', backgroundColor: '#000000', autoHideMenuBar: true } };
@@ -162,7 +162,7 @@ async function start() {
       return { action: 'allow', overrideBrowserWindowOptions: { width: 1180, height: 460, minWidth: 520, minHeight: 220, title: 'Scenes', backgroundColor: '#000000', autoHideMenuBar: true } };
     }
     if (frameName === 'olm-monitor' && (target === '' || target === 'about:blank')) {
-      return { action: 'allow', overrideBrowserWindowOptions: { width: 1000, height: 480, minWidth: 480, minHeight: 240, title: 'DMX monitor', backgroundColor: '#000000', autoHideMenuBar: true } };
+      return { action: 'allow', overrideBrowserWindowOptions: { width: 1000, height: 480, minWidth: 480, minHeight: 240, title: 'Channel monitor', backgroundColor: '#000000', autoHideMenuBar: true } };
     }
     openOutside(target);
     return { action: 'deny' };
@@ -261,7 +261,7 @@ function setUpMenu() {
       // the MIDI and Scenes windows, from here too: also minimised, or behind the main window
       { label: 'MIDI window', accelerator: 'CmdOrCtrl+Shift+M', click: () => raisePopup('olm-midi') },
       { label: 'Scenes window', click: () => raisePopup('olm-scenes') },
-      { label: 'DMX monitor', click: () => raisePopup('olm-monitor') },
+      { label: 'Channel monitor', click: () => raisePopup('olm-monitor') },
       { label: 'Main window', click: () => { if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } } },
       { type: 'separator' }, { role: 'close' },
     ] },
