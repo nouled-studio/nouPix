@@ -123,10 +123,12 @@ function TempoTracker(rate) {
   this.prior = this.states.map(b => Math.exp(-0.5 * Math.pow(Math.log2(b / 120) / 0.9, 2)));
   this.post = new Float64Array(TT_STATES).fill(1 / TT_STATES);
   this.bpm = 120; this.locked = false; this.hold = true; this.good = 0; this.strength = 0; this.usual = 0;
-  this.act = 0; this.longAct = 0; this.beatHop = null; this.miss = 0; this.every = Math.max(1, Math.round(rate * 0.2));
+  this.act = 0; this.longAct = 0; this.eNow = 0; this.beatLvl = null; this.since = 0; this.cand = 0; this.candT = 0; this.beatHop = null; this.miss = 0; this.every = Math.max(1, Math.round(rate * 0.2));
 }
-// one hop: the beat band's onset
-TempoTracker.prototype.push = function (k) {
+// one hop: the beat band's onset k, and its energy e (for how loud the band is: a filter taking the kick away shows
+// there, where the onsets, measured on a log scale, stay as big as ever)
+TempoTracker.prototype.push = function (k, e = 0) {
+  this.eNow += (e - this.eNow) / this.rate;   // over about a second
   const v = k, keep = Math.round(TT_KEEP * this.rate);
   this.o.push(v); if (this.o.length > keep) this.o.shift();
   // above its local average (a quarter of a second), so a steady loud part doesn't count
@@ -165,13 +167,20 @@ TempoTracker.prototype.analyse = function () {
     obs[i] = s * this.prior[i]; sum += obs[i]; if (obs[i] > mx) mx = obs[i];
   }
   this.strength = sum > 0 ? mx / (sum / TT_STATES) : 0;
-  // how clear the beat usually is (over about 20 s): a break, a riff or a melody is much less clear than the music around
-  this.usual = this.usual ? this.usual + (this.strength - this.usual) * 0.01 : this.strength;
-  const quiet = this.act < 0.3 * this.longAct || this.longAct < 1e-4;
+  // how clear the beat usually is (over about 20 s of beat; not while holding, so a long break or filtered build-up
+  // doesn't lower the bar): a break, a riff or a melody is much less clear than the music around
+  if (!this.usual) this.usual = this.strength;
+  else if (!this.hold) this.usual += (this.strength - this.usual) * 0.01;
+  // the band's level against how loud it is with the beat: 12 dB under is the kick gone (a filter, a break)
+  const lvl = 10 * Math.log10(this.eNow + 1e-12);
+  const gone = this.beatLvl != null && lvl < this.beatLvl - 12;
+  const quiet = gone || this.act < 0.3 * this.longAct || this.longAct < 1e-4;
   const clear = !quiet && this.strength > Math.max(2.5, 0.45 * this.usual);
   this.good = clear ? this.good + 0.2 : 0;
+  // holding: nothing is learnt, the tempo and the beat run on; a clear beat must be back a second first
   this.hold = !(this.good >= 1);
-  if (!clear) return;
+  if (this.locked) this.since += 0.2;
+  if (this.hold) return;
   // the belief over tempos: it may drift a little (about 1% each time), and now and then jump anywhere (a new track)
   const pred = new Float64Array(TT_STATES), sig = 1.5, floor = 2e-4;
   for (let i = 0; i < TT_STATES; i++) {
@@ -197,9 +206,18 @@ TempoTracker.prototype.analyse = function () {
   // the tempo and the beat take only what comes while the beat is about as clear as usual: the start of a break
   // (the beat fading out) teaches them nothing
   const firm = this.strength >= 0.7 * this.usual;
-  if (!this.locked || firm) this.bpm = this.locked ? this.bpm + (bpm - this.bpm) * 0.35 : bpm;
-  this.locked = true;
-  if (this.hold || !firm) return;
+  if (!this.locked) { this.bpm = bpm; this.locked = true; this.since = 0; }
+  else if (firm) {
+    if (Math.abs(bpm - this.bpm) / this.bpm < 0.03 || this.since < 10) { this.bpm += (bpm - this.bpm) * 0.35; this.cand = 0; this.candT = 0; }
+    else {
+      // a tempo settled for 10 s gives way only to another that holds, clear, for 3 s (a new track, not a build-up)
+      if (this.cand && Math.abs(bpm - this.cand) / this.cand < 0.02) this.candT += 0.2; else { this.cand = bpm; this.candT = 0.2; }
+      if (this.candT >= 3) { this.bpm = bpm; this.since = 0; this.cand = 0; this.candT = 0; }
+    }
+  }
+  if (!firm) return;
+  // how loud the band is with the beat in it
+  this.beatLvl = this.beatLvl == null ? lvl : this.beatLvl + (lvl - this.beatLvl) * 0.05;
   // the beat: where the cumulative score peaks, one beat apart going back (recent ones count more)
   const C = this.C, M = C.length, P = 60 * rate / this.bpm, at = i => { const j = Math.floor(i), f = i - j; return j < 0 || j + 1 >= M ? 0 : C[j] * (1 - f) + C[j + 1] * f; };
   let bo = 0, bs = -1;
@@ -293,7 +311,7 @@ function tempoOnset([t, k, e]) {
   const T = tempo.tracker;
   if (!T) return;
   tempo.envT.push(t); if (tempo.envT.length > TT_KEEP * T.rate) tempo.envT.shift();
-  T.push(k);
+  T.push(k, e);
   tempo.holding = T.hold && T.locked;
   tempo.conf = T.hold ? 0 : clamp((T.strength - 1.6) / 2, 0, 1);
   if (ui.tempoSrc === 'tap' || !T.locked) return;

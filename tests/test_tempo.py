@@ -34,6 +34,7 @@ BENCH = r"""(() => {
   const SR = 48000; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const kick = (b, t, a = 0.8) => { const i0 = Math.round(t * SR); for (let k = 0; k < 0.25 * SR && i0 + k < b.length; k++) { const tt = k / SR; b[i0 + k] += a * Math.sin(2 * Math.PI * (50 + 90 * Math.exp(-tt * 30)) * tt) * Math.exp(-tt * 9); } };
   const hat = (b, t, a = 0.2) => { const i0 = Math.round(t * SR); for (let k = 0; k < 0.04 * SR && i0 + k < b.length; k++) b[i0 + k] += a * (rnd() * 2 - 1) * Math.exp(-k / SR * 80); };
+  const clap = (b, t, a = 0.3) => { const i0 = Math.round(t * SR); for (let k = 0; k < 0.15 * SR && i0 + k < b.length; k++) { const tt = k / SR; b[i0 + k] += a * ((rnd() * 2 - 1) * 0.6 + Math.sin(2 * Math.PI * 190 * tt)) * Math.exp(-tt * 25); } };
   const note = (b, t, f, d, a = 0.25) => { const i0 = Math.round(t * SR); for (let k = 0; k < d * SR && i0 + k < b.length; k++) { const tt = k / SR; b[i0 + k] += a * Math.sin(2 * Math.PI * f * tt) * Math.min(1, tt * 200) * Math.exp(-tt * 3); } };
   const scen = {
     hats: () => { const b = new Float32Array(30 * SR), beats = []; for (let t = 0.3; t < 30; t += 60 / 128) { kick(b, t); beats.push(t); } for (let i = 0; i < 180; i++) hat(b, rnd() * 30, 0.15 + rnd() * 0.2); return { b, beats }; },
@@ -42,6 +43,9 @@ BENCH = r"""(() => {
       for (let t = 12.1; t < 19; t += 0.3 + rnd() * 0.6) note(b, t, [82, 98, 110][Math.floor(rnd() * 3)], 0.3, 0.5); return { b, beats }; },
     synco: () => { const b = new Float32Array(30 * SR), P = 60 / 126, beats = []; for (let t = 0.3; t < 30; t += P) { kick(b, t); beats.push(t); if (rnd() < 0.7) note(b, t + P * (rnd() < 0.5 ? 0.5 : 0.75), 65, 0.2, 0.6); hat(b, t + P / 2, 0.1); } return { b, beats }; },
     change: () => { const b = new Float32Array(40 * SR), beats = []; for (let t = 0.3; t < 18; t += 0.5) { kick(b, t); beats.push(t); } for (let t = 18.13; t < 40; t += 60 / 128) { kick(b, t); beats.push(t); } return { b, beats }; },
+    // a DJ's high-pass: the kick 30 dB down for 32 beats under busy hi-hats and stray claps, then back
+    filter: () => { const b = new Float32Array(36 * SR), P = 60 / 142, beats = []; for (let t = 0.3; t < 36; t += P) { beats.push(t); const f = t > 12 && t < 25.5;
+      kick(b, t, f ? 0.024 : 0.8); for (let q = 0; q < 4; q++) hat(b, t + q * P / 4, f ? 0.25 : 0.1); if (f && rnd() < 0.5) clap(b, t + P * (0.25 + rnd() * 0.5)); } return { b, beats }; },
     noise: () => { const b = new Float32Array(20 * SR); let y = 0; for (let i = 0; i < b.length; i++) { y = 0.98 * y + 0.02 * (rnd() * 2 - 1); b[i] = y * 3 + (rnd() * 2 - 1) * 0.05; } return { b, beats: [] }; },
   };
   const out = {};
@@ -51,7 +55,7 @@ BENCH = r"""(() => {
     new Function('AudioWorkletProcessor', 'registerProcessor', 'sampleRate', 'currentTime', ONSET_WORKLET)(AWP, (n, c) => { Cls = c; }, SR, 0);
     const p = new Cls(); for (let i = 0; i + 128 <= b.length; i += 128) p.process([[b.subarray(i, i + 128)]]);
     const rate = SR / 512, T = new TempoTracker(rate), rows = [];
-    ons.forEach((m, i) => { T.push(m[1]);
+    ons.forEach((m, i) => { T.push(m[1], m[2]);
       if (i % Math.round(rate) === 0) {
         let pe = null;
         if (T.beatHop != null && beats.length) { const bt = (T.beatHop + 1) * 512 / SR, near = beats.reduce((a, x) => Math.abs(x - bt) < Math.abs(a - bt) ? x : a, beats[0]); pe = (bt - near) / (60 / T.bpm); }
@@ -175,7 +179,10 @@ try:
     r = rows("synco")
     check("a syncopated bass line doesn't move the beat off the kick", all(abs(b - 126) < 0.5 for b, h, p in r[6:]) and all(abs(p) < 0.08 for b, h, p in r[8:]), r[6:12])
     r = rows("change")
-    check("a new track at another tempo is followed within 7 s (the beat holds while the old one fades)", all(abs(b - 120) < 0.6 for b, h, p in r[3:14]) and all(abs(b - 128) < 0.5 for b, h, p in r[25:]) and all(abs(p) < 0.08 for b, h, p in r[26:]), [round(b, 1) for b, h, p in r[14:26]])
+    check("a new track at another tempo is followed within 9 s (a settled tempo gives way only to one that holds 3 s)", all(abs(b - 120) < 0.6 for b, h, p in r[3:26]) and all(abs(b - 128) < 0.5 for b, h, p in r[27:]) and all(abs(p) < 0.08 for b, h, p in r[29:]), [round(b, 1) for b, h, p in r[18:30]])
+    r = rows("filter")
+    check("a filtered build-up (the kick gone, busy hi-hats and claps): the BPM holds, and it says it is holding", all(abs(b - 142) < 0.6 for b, h, p in r[5:]) and all(h for b, h, p in r[18:26]), [(round(b, 1), h) for b, h, p in r[12:29]])
+    check("when the kick comes back the beat is where it was", all(abs(p) < 0.12 for b, h, p in r[27:]) and all(abs(p) < 0.08 for b, h, p in r[30:]), [round(p, 2) for b, h, p in r[26:]])
     r = rows("noise")
     check("noise without a beat: it never claims one", all(h for b, h, p in r))
 
