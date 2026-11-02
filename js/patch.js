@@ -39,7 +39,8 @@ function ctrlOuts(c) {
         else { const rem = px - first, full = Math.floor(rem / per), r = rem % per; end = r ? (1 + full) * 512 + r * w : full * 512 + per * w; }
       }
       const base = c.startUniverse + Math.floor(abs / 512), upo = clamp(Math.ceil(end / 512), 1, 1024);
-      out.push({ base, upo, start: s, px });
+      // end: where its channels end (one past the last), counted from its first universe's channel 1
+      out.push({ base, upo, start: s, end, px });
       abs = (base - c.startUniverse) * 512 + end;
     }
     return out;
@@ -47,7 +48,7 @@ function ctrlOuts(c) {
   // Universes: each output its universes, the first starting at the start channel
   let base = c.startUniverse;
   for (let o = 0; o < c.outputs; o++) {
-    out.push({ base, upo: c.upo, start: o === 0 ? c.startCh - 1 : 0, px: 0 });
+    out.push({ base, upo: c.upo, start: o === 0 ? c.startCh - 1 : 0, end: c.upo * 512, px: 0 });
     base += c.upo;
   }
   return out;
@@ -67,10 +68,10 @@ function computePatch() {
     c._outs = [];
     const sacn = isSacn(c), mcast = sacnMulticast(c), layout = ctrlOuts(c);
     c.chains.forEach((chain, o) => {
-      const { base, upo, start, px } = layout[o];
+      const { base, upo, start, end, px } = layout[o];
       const cap = upo * 512;
       const unis = new Array(upo).fill(null);
-      const info = { base, upo, start, px, pixels: 0, overflow: 0, ch: 0, fixtures: 0 };
+      const info = { base, upo, start, end, px, pixels: 0, overflow: 0, ch: 0, fixtures: 0 };
       let lin = start, pxUsed = 0;
       const getUni = u => {
         if (unis[u]) return unis[u];

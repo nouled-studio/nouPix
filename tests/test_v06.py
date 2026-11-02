@@ -251,18 +251,20 @@ with sync_playwright() as pw:
     ev("$$('.modal-bg').forEach(m => m.remove())"); time.sleep(0.2)
     check("the row shows the reported universes", pg.inner_text(".ctrl-fields .reported") == "U 0–2")
 
-    # ---------- the DMX monitor: a window floating over the app, from the Patch tab
+    # ---------- the DMX monitor: its own window, like the MIDI window, from the Patch tab
     ev("olm.ui.dockTab = 'patch'; renderDock()"); time.sleep(0.1)
     check("no DMX Monitor tab; its button next to Output settings", pg.locator("#dockTabs [data-tab=monitor]").count() == 0 and pg.is_visible("#btnMon") and pg.is_visible("#btnOutSet"))
+    with pg.expect_popup() as pi: pg.click("#btnMon")
+    M = pi.value; time.sleep(0.5)
+    check("it opens the DMX monitor window, with the universes", M.title().startswith("DMX monitor") and M.locator(".ulist div").count() == ev("olm.universes().length") > 0)
+    M.locator(".ulist div").last.click(); time.sleep(0.2)
+    check("picking a universe there shows it", ev("olm.ui.monitorKey") == ev("olm.universes()[olm.universes().length - 1].key") and "sel" in M.locator(".ulist div").last.get_attribute("class"))
+    time.sleep(0.3)
+    check("the values are drawn in it", M.evaluate("(() => { const c = document.querySelector('canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 60) return true; return false; })()"))
     pg.click("#btnMon"); time.sleep(0.3)
-    check("it opens the DMX monitor window, with the universes", pg.locator(".floatwin[aria-label='DMX monitor'] .ulist div").count() == ev("olm.universes().length") > 0)
-    pg.locator(".floatwin .ulist div").last.click(); time.sleep(0.2)
-    check("picking a universe shows it", ev("olm.ui.monitorKey") == ev("olm.universes()[olm.universes().length - 1].key") and "sel" in pg.locator(".floatwin .ulist div").last.get_attribute("class"))
-    pg.click("#dockTabs [data-tab=scenes]"); time.sleep(0.2)
-    check("the app works under it: another tab opens, the window stays", ev("olm.ui.dockTab") == "scenes" and pg.locator(".floatwin").count() == 1 and pg.is_hidden("#btnMon"))
-    pg.click(".floatwin button[aria-label='Close the DMX monitor']"); time.sleep(0.1)
-    check("× closes it", pg.locator(".floatwin").count() == 0)
-    ev("olm.ui.dockTab = 'patch'; renderDock()")
+    check("the button again brings the same window back, not a second one", ev("monWinOpen()") and len(pg.context.pages) == 2)
+    M.close(); time.sleep(1.3)
+    check("closed by its own button: the page knows", not ev("monWinOpen()") and "on" not in (pg.get_attribute("#btnMon", "class") or ""))
 
     # ---------- a turned group's copies keep its frame
     ev(f"olm.ui.sel = new Set({strips}.map(f => f.id)); onSelection(); rotateSel(30)")

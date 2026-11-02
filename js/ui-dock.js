@@ -486,7 +486,7 @@ function renderCtrlEditor(edit, c) {
     const head = h('div', { class: 'outhead', title: 'Click to fold or unfold. Drop fixtures here to add them at the end.' },
       h('span', { class: 'fold' }, folds.has(key) ? '▸' : '▾'),
       h('span', { class: 'on' }, 'OUT ' + (o + 1)),
-      h('span', { class: 'ur' }, uniRange(c, info) + (info.start ? ` · ch ${info.start + 1}` : '')),
+      outSpan(c, info),
       h('span', { class: 'sum' }, n ? `${n} fixture${n === 1 ? '' : 's'} · ${fmtN(info.ch)} ch` : 'empty'),
       usage);
     head.addEventListener('click', () => { folds.has(key) ? folds.delete(key) : folds.add(key); renderDock(); });
@@ -705,31 +705,40 @@ function universeList(u) {
   return parts.join(', ');
 }
 
+// Where an output starts and ends: universe and channel of its first and last channel, on two short lines
+function outSpan(c, L) {
+  const a = addrOf(L.base, L.start), b = addrOf(L.base, Math.max(L.start, (L.end ?? L.upo * 512) - 1));
+  const at = (x, cls) => h('span', { class: cls }, h('b', null, 'U ' + uniLabel(x.u, c)), ' ch ' + x.ch);
+  return h('span', { class: 'ur', title: `Starts at universe ${uniLabel(a.u, c)}, channel ${a.ch}\nEnds at universe ${uniLabel(b.u, c)}, channel ${b.ch}` },
+    at(a, 'from'), at(b, 'to'));
+}
+
 /* ---------- DMX monitor ---------- */
-// A window floating over the app (the DMX monitor button at the right of the Patch tab): it leaves the rest working, so
-// the values can be watched while fixtures are patched or content changed. Dragged by its title, closed with ×.
-let monCanvas = null, monMap = null, monMapKey = '', monEl = null;
+// Its own window, like the MIDI window (the DMX monitor button at the right of the Patch tab): this page draws into it,
+// so it can sit on another screen while the work goes on here
+let monCanvas = null, monMap = null, monMapKey = '', monEl = null, monWin = null;
+const monWinOpen = () => !!(monWin && !monWin.closed);
 function openMonitor() {
-  if (monEl && monEl.isConnected) { monEl.closest('.floatwin').classList.add('flash'); setTimeout(() => monEl && monEl.closest('.floatwin').classList.remove('flash'), 300); return; }
-  const doc = uiDocNow();
-  const close = () => { win.remove(); monEl = null; monCanvas = null; $('#btnMon').classList.remove('on'); };
-  const head = h('header', null, h('span', null, 'DMX monitor'), h('span', { class: 'fill' }),
-    h('button', { class: 'btn ghost sm', type: 'button', title: 'Close', 'aria-label': 'Close the DMX monitor', onclick: close }, '×'));
-  monEl = h('div', { class: 'fbody' });
-  const win = h('div', { class: 'floatwin', role: 'dialog', 'aria-label': 'DMX monitor' }, head, monEl);
-  head.addEventListener('pointerdown', e => {
-    if (e.target.closest('button')) return;
-    const r = win.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
-    const move = ev => { win.style.left = clamp(ev.clientX - dx, 0, innerWidth - 80) + 'px'; win.style.top = clamp(ev.clientY - dy, 0, innerHeight - 40) + 'px'; };
-    const up = () => { doc.removeEventListener('pointermove', move); doc.removeEventListener('pointerup', up); };
-    doc.addEventListener('pointermove', move); doc.addEventListener('pointerup', up);
-  });
-  doc.body.append(win);
+  if (monWinOpen()) { raiseWindow(monWin); return; }
+  const w = window.open('', 'olm-monitor', 'popup,width=1000,height=480');
+  if (!w) { toast('The DMX monitor could not open: allow pop-up windows for this page.', 'err'); return; }
+  monWin = w;
+  const d = dressWindow(w, 'DMX monitor · nouPix', 'monwin');
+  w.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); } });
+  w.addEventListener('pagehide', () => { if (monWin === w) monClosed(); });
+  monEl = d.body;
   $('#btnMon').classList.add('on');
   updateMonitorUI();
 }
-// Drawn again when the patch changes, or another universe is picked
-function updateMonitorUI() { if (monEl && monEl.isConnected) renderMonitor(monEl); }
+function monClosed() { monWin = null; monEl = null; monCanvas = null; $('#btnMon').classList.remove('on'); }
+// It doesn't outlive this page; a window closed by its own button is noticed. While this page is hidden (no animation
+// frames), the values are drawn by a timer.
+addEventListener('pagehide', () => { if (monWinOpen()) monWin.close(); });
+setInterval(() => {
+  if (monWin && monWin.closed) monClosed();
+  else if (monCanvas && document.hidden) drawMonitor(performance.now());
+}, 100);
+function updateMonitorUI() { if (monWinOpen() && monEl) renderMonitor(monEl); }
 function renderMonitor(body) {
   ensurePatch();
   if (!universes.find(u => u.key === ui.monitorKey)) ui.monitorKey = universes[0] ? universes[0].key : null;
