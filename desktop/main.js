@@ -30,7 +30,7 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 let win = null;
 let bridge = null;
 let quitting = false;
-// The MIDI and Scenes windows (the page draws into them), by their names: 'olm-midi', 'olm-scenes'
+// The MIDI, Scenes and Channel monitor windows (the page draws into them), by their names: 'olm-midi', 'olm-scenes', 'olm-monitor'
 const popups = new Map();
 // Brings one of them to the front, also from minimised; or asks the page to open it
 function raisePopup(name) {
@@ -40,7 +40,7 @@ function raisePopup(name) {
     w.show();
     w.focus();
   } else if (win) {
-    win.webContents.executeJavaScript(name === 'olm-midi' ? 'openMidiWindow()' : 'openScenesWindow()', true).catch(() => {});
+    win.webContents.executeJavaScript(({ 'olm-midi': 'openMidiWindow()', 'olm-scenes': 'openScenesWindow()', 'olm-monitor': 'openMonitor()' })[name], true).catch(() => {});
   }
 }
 
@@ -152,14 +152,17 @@ async function start() {
   win.webContents.on('did-finish-load', () => { pageReady = true; openFiles(); });
 
   const wc = win.webContents;
-  // Links leave the app for the default browser; the interface itself stays on the bridge's address. The MIDI
-  // and Scenes windows, which the page draws itself, are windows of the app.
+  // Links leave the app for the default browser; the interface itself stays on the bridge's address. The MIDI,
+  // Scenes and Channel monitor windows, which the page draws itself, are windows of the app.
   wc.setWindowOpenHandler(({ url: target, frameName }) => {
     if (frameName === 'olm-midi' && (target === '' || target === 'about:blank')) {
       return { action: 'allow', overrideBrowserWindowOptions: { width: 1180, height: 760, minWidth: 720, minHeight: 420, title: 'MIDI', backgroundColor: '#000000', autoHideMenuBar: true } };
     }
     if (frameName === 'olm-scenes' && (target === '' || target === 'about:blank')) {
       return { action: 'allow', overrideBrowserWindowOptions: { width: 1180, height: 460, minWidth: 520, minHeight: 220, title: 'Scenes', backgroundColor: '#000000', autoHideMenuBar: true } };
+    }
+    if (frameName === 'olm-monitor' && (target === '' || target === 'about:blank')) {
+      return { action: 'allow', overrideBrowserWindowOptions: { width: 1000, height: 480, minWidth: 480, minHeight: 240, title: 'Channel monitor', backgroundColor: '#000000', autoHideMenuBar: true } };
     }
     openOutside(target);
     return { action: 'deny' };
@@ -168,7 +171,7 @@ async function start() {
   // The page can't restore a minimised window, nor always bring one to the front: it asks by setting the window's
   // address to #raise… (an in-page move, which the page's drawing doesn't notice), and the app does it.
   wc.on('did-create-window', (child, { frameName }) => {
-    if (frameName !== 'olm-midi' && frameName !== 'olm-scenes') return;
+    if (!['olm-midi', 'olm-scenes', 'olm-monitor'].includes(frameName)) return;
     popups.set(frameName, child);
     child.on('closed', () => { if (popups.get(frameName) === child) popups.delete(frameName); });
     child.webContents.on('did-navigate-in-page', (e, target) => { if (/#raise/.test(target)) raisePopup(frameName); });
@@ -258,6 +261,7 @@ function setUpMenu() {
       // the MIDI and Scenes windows, from here too: also minimised, or behind the main window
       { label: 'MIDI window', accelerator: 'CmdOrCtrl+Shift+M', click: () => raisePopup('olm-midi') },
       { label: 'Scenes window', click: () => raisePopup('olm-scenes') },
+      { label: 'Channel monitor', click: () => raisePopup('olm-monitor') },
       { label: 'Main window', click: () => { if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } } },
       { type: 'separator' }, { role: 'close' },
     ] },

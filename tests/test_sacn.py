@@ -3,7 +3,7 @@
 # source name, priority, sequence numbers per universe, the universes one higher than Art-Net's (0 goes out as 1), unicast
 # to each controller and multicast to each universe's group, the universe discovery packets, streams ended with three
 # Stream_Terminated packets (back to Art-Net, multicast switched, output off, the window closed). In the interface: the
-# universes shown as sACN counts them (patch, First uni typed from 1, the menus, the DMX monitor, the status bar, CSV),
+# universes shown as sACN counts them (patch, First uni typed from 1, the menus, the Channel monitor, the status bar, CSV),
 # conflicts with multicast, undo, files and their repair. A packet is also checked byte for byte against one built here.
 import os, sys, time, json, socket, struct, threading, uuid
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -133,7 +133,7 @@ try:
     check("the status bar says sACN", "Sending" in pg.text_content("#bridgePill") and "sACN" in (pg.get_attribute("#bridgePill", "title") or ""))
 
     # ---------- the universes shown as sACN counts them
-    ur = pg.eval_on_selector_all(".outs .ur", "els => els.map(e => e.textContent)")
+    ur = pg.eval_on_selector_all(".outs .ur .from b", "els => els.map(e => e.textContent)")
     first = pg.locator("input[aria-label='Start universe']")
     check("the Patch panel shows the outputs' universes as sACN's: U 1 and U 2", ur == ["U 1", "U 2"], ur)
     check("Start uni shows 1", first.input_value() == "1")
@@ -146,8 +146,8 @@ try:
     first = pg.locator("input[aria-label='Start universe']")
     check("and 0 isn't an sACN universe: it becomes 1", E(C + ".startUniverse") == 0 and first.input_value() == "1", first.input_value())
     E("ui.monitorKey = null; openMonitor(); updateMonitorUI()"); time.sleep(0.3)
-    mon = pg.locator(".floatwin .bar .mono").first.text_content()
-    check("the DMX monitor names the sACN universe", "sACN universe 1" in mon and "127.0.0.1" in mon, mon)
+    mon = E("monEl.querySelector('.bar .mono').textContent")
+    check("the Channel monitor names the sACN universe", "sACN universe 1" in mon and "127.0.0.1" in mon, mon)
     menu = E("patchToItems(olm.project.fixtures.slice(0, 1)).filter(i => Array.isArray(i)).map(i => i[0])")
     check("the Patch to menu uses the same numbers", [m.split("·")[-1].strip() for m in menu] == ["U 1", "U 2"], menu)
     csv = E("(() => { let out = null; const d = download; download = (n, t) => { out = t; }; exportCSV(); download = d; return out; })()")
@@ -186,8 +186,8 @@ try:
         check("each universe goes to its multicast group", len(g1) > 5 and len(g2) > 5 and g1[-1]["data"] == art0 and not uni_rx.since(t1 + 0.2), (len(g1), len(g2)))
         disc = wait(lambda: groups["239.255.250.214"].since(t0, kind="discovery"), 11)
         check("and the universes sent are listed on the discovery group", disc and disc[-1]["universes"] == [1, 2] and disc[-1]["page"] == 0 and disc[-1]["last"] == 0, [d["universes"] for d in disc])
-        mon = (E("openMonitor(); updateMonitorUI()"), time.sleep(0.2), pg.locator(".floatwin .bar .mono").first.text_content())[2]
-        check("the DMX monitor names the group", "multicast 239.255.0.1" in mon, mon)
+        mon = (E("openMonitor(); updateMonitorUI()"), time.sleep(0.2), E("monEl.querySelector('.bar .mono').textContent"))[2]
+        check("the Channel monitor names the group", "multicast 239.255.0.1" in mon, mon)
         E("ui.dockTab = 'patch'; renderDock()")
     else:
         print("PASS multicast doesn't reach this machine's receivers: the groups aren't checked here")
@@ -230,7 +230,7 @@ try:
     check("back to Art-Net: the sACN streams end at once (three Stream_Terminated packets each)", sorted(p["universe"] for p in ended) == [1, 1, 1, 2, 2, 2], [(p["universe"], p["options"]) for p in ended])
     t1 = time.time(); time.sleep(0.5)
     check("and Art-Net goes out again, universes as before", node.count(t1, time.time()) > 5 and node.last(0) == art0 and not uni_rx.since(t1 + 0.1), node.count(t1, time.time()))
-    check("the Patch panel counts from 0 again", pg.eval_on_selector_all(".outs .ur", "els => els.map(e => e.textContent)") == ["U 0", "U 1"])
+    check("the Patch panel counts from 0 again", pg.eval_on_selector_all(".outs .ur .from b", "els => els.map(e => e.textContent)") == ["U 0", "U 1"])
 
     # ---------- found devices: what each is set to receive, in the Discovery window
     def reply(ip, sacn=False, switch=False, ports=1, out=True):

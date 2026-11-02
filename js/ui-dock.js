@@ -1,5 +1,5 @@
 // nouPix · js/ui-dock.js
-// The bottom dock: scenes, the patch table and controller editor; the Discovery window and the DMX monitor.
+// The bottom dock: scenes, the patch table and controller editor; the Discovery window and the Channel monitor.
 
 /* ---------- bottom dock ---------- */
 function renderDock() {
@@ -10,10 +10,10 @@ function renderDock() {
   $('#btnDock').textContent = ui.dockCollapsed ? '▴' : '▾';
   const gear = $('#btnOutSet');   // the Output settings, at the right of the Patch tab
   gear.hidden = ui.dockTab !== 'patch' || REMOTE_CLIENT;
-  if (!gear.firstChild) gear.append(h('span', { class: 'ic', html: ICONS.gear }), 'Output settings');
-  const mon = $('#btnMon');   // the DMX monitor, next to it
+  if (!gear.firstChild) gear.append(h('span', { class: 'ic', html: ICONS.out }), 'Output settings');
+  const mon = $('#btnMon');   // the Channel monitor, next to it
   mon.hidden = ui.dockTab !== 'patch';
-  if (!mon.firstChild) mon.append(h('span', { class: 'ic', html: ICONS.monitor }), 'DMX monitor');
+  if (!mon.firstChild) mon.append(h('span', { class: 'ic', html: ICONS.monitor }), 'Channel monitor');
   $('#btnDock').title = ui.dockCollapsed ? 'Expand panel' : 'Collapse panel';
   const body = $('#dockBody');
   const keep = body.firstElementChild && body.querySelector('.ctrl-edit') ? body.querySelector('.ctrl-edit').scrollTop : 0;
@@ -486,7 +486,7 @@ function renderCtrlEditor(edit, c) {
     const head = h('div', { class: 'outhead', title: 'Click to fold or unfold. Drop fixtures here to add them at the end.' },
       h('span', { class: 'fold' }, folds.has(key) ? '▸' : '▾'),
       h('span', { class: 'on' }, 'OUT ' + (o + 1)),
-      h('span', { class: 'ur' }, uniRange(c, info) + (info.start ? ` · ch ${info.start + 1}` : '')),
+      outSpan(c, info),
       h('span', { class: 'sum' }, n ? `${n} fixture${n === 1 ? '' : 's'} · ${fmtN(info.ch)} ch` : 'empty'),
       usage);
     head.addEventListener('click', () => { folds.has(key) ? folds.delete(key) : folds.add(key); renderDock(); });
@@ -705,31 +705,40 @@ function universeList(u) {
   return parts.join(', ');
 }
 
-/* ---------- DMX monitor ---------- */
-// A window floating over the app (the DMX monitor button at the right of the Patch tab): it leaves the rest working, so
-// the values can be watched while fixtures are patched or content changed. Dragged by its title, closed with ×.
-let monCanvas = null, monMap = null, monMapKey = '', monEl = null;
+// Where an output starts and ends: universe and channel of its first and last channel, on two short lines
+function outSpan(c, L) {
+  const a = addrOf(L.base, L.start), b = addrOf(L.base, Math.max(L.start, (L.end ?? L.upo * 512) - 1));
+  const at = (x, cls) => h('span', { class: cls }, h('b', null, 'U ' + uniLabel(x.u, c)), ' ch ' + x.ch);
+  return h('span', { class: 'ur', title: `Starts at universe ${uniLabel(a.u, c)}, channel ${a.ch}\nEnds at universe ${uniLabel(b.u, c)}, channel ${b.ch}` },
+    at(a, 'from'), at(b, 'to'));
+}
+
+/* ---------- Channel monitor ---------- */
+// Its own window, like the MIDI window (the Channel monitor button at the right of the Patch tab): this page draws into it,
+// so it can sit on another screen while the work goes on here
+let monCanvas = null, monMap = null, monMapKey = '', monEl = null, monWin = null;
+const monWinOpen = () => !!(monWin && !monWin.closed);
 function openMonitor() {
-  if (monEl && monEl.isConnected) { monEl.closest('.floatwin').classList.add('flash'); setTimeout(() => monEl && monEl.closest('.floatwin').classList.remove('flash'), 300); return; }
-  const doc = uiDocNow();
-  const close = () => { win.remove(); monEl = null; monCanvas = null; $('#btnMon').classList.remove('on'); };
-  const head = h('header', null, h('span', null, 'DMX monitor'), h('span', { class: 'fill' }),
-    h('button', { class: 'btn ghost sm', type: 'button', title: 'Close', 'aria-label': 'Close the DMX monitor', onclick: close }, '×'));
-  monEl = h('div', { class: 'fbody' });
-  const win = h('div', { class: 'floatwin', role: 'dialog', 'aria-label': 'DMX monitor' }, head, monEl);
-  head.addEventListener('pointerdown', e => {
-    if (e.target.closest('button')) return;
-    const r = win.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
-    const move = ev => { win.style.left = clamp(ev.clientX - dx, 0, innerWidth - 80) + 'px'; win.style.top = clamp(ev.clientY - dy, 0, innerHeight - 40) + 'px'; };
-    const up = () => { doc.removeEventListener('pointermove', move); doc.removeEventListener('pointerup', up); };
-    doc.addEventListener('pointermove', move); doc.addEventListener('pointerup', up);
-  });
-  doc.body.append(win);
+  if (monWinOpen()) { raiseWindow(monWin); return; }
+  const w = window.open('', 'olm-monitor', 'popup,width=1000,height=480');
+  if (!w) { toast('The Channel monitor could not open: allow pop-up windows for this page.', 'err'); return; }
+  monWin = w;
+  const d = dressWindow(w, 'Channel monitor · nouPix', 'monwin');
+  w.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); } });
+  w.addEventListener('pagehide', () => { if (monWin === w) monClosed(); });
+  monEl = d.body;
   $('#btnMon').classList.add('on');
   updateMonitorUI();
 }
-// Drawn again when the patch changes, or another universe is picked
-function updateMonitorUI() { if (monEl && monEl.isConnected) renderMonitor(monEl); }
+function monClosed() { monWin = null; monEl = null; monCanvas = null; $('#btnMon').classList.remove('on'); }
+// It doesn't outlive this page; a window closed by its own button is noticed. While this page is hidden (no animation
+// frames), the values are drawn by a timer.
+addEventListener('pagehide', () => { if (monWinOpen()) monWin.close(); });
+setInterval(() => {
+  if (monWin && monWin.closed) monClosed();
+  else if (monCanvas && document.hidden) drawMonitor(performance.now());
+}, 100);
+function updateMonitorUI() { if (monWinOpen() && monEl) renderMonitor(monEl); }
 function renderMonitor(body) {
   ensurePatch();
   if (!universes.find(u => u.key === ui.monitorKey)) ui.monitorKey = universes[0] ? universes[0].key : null;
@@ -751,7 +760,7 @@ function renderMonitor(body) {
   const where = !U ? '' : U.sacn
     ? `${U.mcast ? 'multicast ' + sacnGroup(U.uni + 1) : U.ip} · sACN universe ${U.uni + 1}`
     : `${U.ip} · universe ${U.uni} (net ${U.uni >> 8}, subnet ${(U.uni >> 4) & 15}, universe ${U.uni & 15})`;
-  const bar = h('div', { class: 'bar' }, U ? h('span', { class: 'mono' }, `${where} · ${U.ctrl.name} OUT ${U.out + 1}`) : h('span', null, 'DMX values being sent'),
+  const bar = h('div', { class: 'bar' }, U ? h('span', { class: 'mono' }, `${where} · ${U.ctrl.name} OUT ${U.out + 1}`) : h('span', null, 'The values being sent, channel by channel'),
     U && !U.enabled ? h('span', { class: 'badge warn' }, 'not sent: controller off or IP invalid') : null,
     h('span', { class: 'muted' }, ui.outputOn ? '' : 'Output is off; values shown are what would be sent.'));
   body.replaceChildren(h('div', { class: 'monitor' }, bar, h('div', { class: 'mbody' }, ul, h('div', { class: 'grid' }, monCanvas, read))));
