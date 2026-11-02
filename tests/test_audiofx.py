@@ -12,7 +12,8 @@ fails = []
 def check(name, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + name + ("  " + " ".join(str(detail).split())[:300] if detail != "" else ""), flush=True); ok or fails.append(name)
 
-AUDIO = ["beatpulse", "beatsteps", "spectrumbars", "spectrumring", "bassbloom", "kickrings", "beatstrobe", "levelmeter"]
+AUDIO = ["beatpulse", "beatsteps", "spectrumbars", "spectrumring", "bassbloom", "kickrings", "beatstrobe", "levelmeter",
+         "bassblobs", "spectrumveil", "inkdrops", "soundtide"]
 bridge = start_bridge(PORT)
 try:
   with sync_playwright() as pw:
@@ -23,11 +24,51 @@ try:
 
     # ---------- the effects
     r = ev("ids => ids.map(id => { const s = srcById('b-' + id), rt = runtimeOf(s); return [id, !!rt.R && !rt.error, (rt.audio || []).length, isfInputs(s).some(i => AUDIO_INPUTS.has(i.NAME))]; })", AUDIO)
-    check("8 effects follow the music, and all compile", all(x[1] for x in r) and all(x[2] > 0 for x in r), r)
+    check("12 effects follow the music, and all compile", all(x[1] for x in r) and all(x[2] > 0 for x in r), r)
     check("their music inputs are not shown as controls", not any(x[3] for x in r), r)
     check("the Fixture Chase is in the library", ev("srcById('b-fxchase') && srcById('b-fxchase').kind") == "chase")
     tags = ev("['b-beatpulse', 'b-fxchase'].map(id => srcFacets(srcById(id)).motion)")
     check("all found under Beat", tags == ["beat", "beat"], tags)
+
+    # each drawn with the music quiet and loud: lit both ways, and different (Bass Bloom much bigger when loud)
+    r = ev("""ids => { const keep = audioInputValue, out = {};
+      for (const id of ids) { const src = srcById('b-' + id), rt = runtimeOf(src), sums = [];
+        for (const lv of [0.05, 0.95]) {
+          audioInputValue = n => n === 'audioSpectrum' ? tempoSpectrumCanvas(i => lv * (1 - 0.7 * i / 64)) : ({ audioBand: lv, audioBass: lv, audioMid: lv, audioHigh: lv, audioLevel: lv, audioKick: lv, beatCount: 7.3, beatPhase: 0.3, bpm: 120, beatsPerBar: 4 })[n] ?? 0;
+          isfTime = 2; applyParams(rt, { params: {} }, src); rt.R.draw({ width: 96, height: 64 }); rt.R.draw({ width: 96, height: 64 }); isfTime = null;
+          const c2 = document.createElement('canvas'); c2.width = 96; c2.height = 64; const x2 = c2.getContext('2d');
+          x2.drawImage(glCanvas, 0, glCanvas.height - 64, 96, 64, 0, 0, 96, 64); const d = x2.getImageData(0, 0, 96, 64).data;
+          let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2]; sums.push(Math.round(s / (96 * 64)));
+        }
+        out[id] = sums; }
+      audioInputValue = keep; return out; }""", AUDIO[4:6] + AUDIO[8:])
+    check("the atmospheric ones change with the music", all(v[1] > v[0] + 5 and v[1] > 20 for k, v in r.items() if k != "inkdrops"), r)
+    check("Bass Bloom: a spark when quiet, filling the space when loud", r["bassbloom"][0] < 5 and r["bassbloom"][1] > 150, r["bassbloom"])
+    ev("ids => ids.forEach(id => drawThumb(srcById('b-' + id), true))", AUDIO)
+    time.sleep(1.5)
+    r = ev("ids => ids.map(id => { const c = thumbs.get('b-' + id), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2]; return s > 0; })", AUDIO)
+    check("every one has a lit thumbnail", all(r), list(zip(AUDIO, r)))
+    # Bass Bloom and Kick Rings listen to a range chosen on the layer
+    r = ev("""(() => { const keep = audioInputValue, got = []; audioInputValue = (n, t, still, band) => { if (n === 'audioBand') got.push(band); return 0; };
+      for (const [id, band] of [['b-bassbloom', null], ['b-kickrings', null], ['b-kickrings', 6]]) { const src = srcById(id), L = newLayer(id); if (band != null) L.params = { [id]: { band } }; applyParams(runtimeOf(src), L, src); }
+      audioInputValue = keep;
+      return [got, controlsOf(srcById('b-kickrings')).find(i => i.NAME === 'band').LABELS, AUDIO_BANDS.map(b => b[0])]; })()""")
+    check("Bass Bloom listens to the bass, Kick Rings to the beat band, until another range is chosen", r[0] == [2, 0, 6], r[0])
+    check("the ranges offered are the ones the app knows", r[1] == r[2], r[1:])
+    r = ev("""(() => { const F = tempoFeat, keep = F.bands.slice(), A = tempo.analyser; tempo.analyser = { _fake: 1 }; const out = [];
+      for (let i = 0; i < 200; i++) { F.frame = -5; F.custom = F.custom || {}; for (const k in F.custom) F.custom[k].frame = -2;
+        F.bands.fill(0.5); const hi = i % 10 < 2; for (let b = 52; b < 64; b++) F.bands[b] = hi ? 0.9 : 0.5; F.frame = frameIndex; F.dt = 0.025;
+        const v = [audioBandValue(6), audioBandValue(2)]; if (i > 150) out.push(v); }
+      tempo.analyser = A; F.bands.set(keep); F.frame = -1;
+      return [Math.max(...out.map(v => v[0])), Math.max(...out.map(v => v[1]))]; })()""")
+    check("a hit in the highs moves Highs and hats, not Bass", r[0] > 0.8 and r[1] < 0.2, r)
+    # the levels follow the music's own range: quiet music still swings fully, near silence stays dark
+    r = ev("""(() => { for (const k in tempoRanges) delete tempoRanges[k]; const out = [];
+      for (let i = 0; i < 400; i++) { const v = 0.3 + (i % 20 < 3 ? 0.15 : 0); const x = tempoRange('t', v, 0.025); if (i > 300) out.push(x); }
+      let q = 0; for (let i = 0; i < 400; i++) q = Math.max(q, tempoRange('s', 0.01 + (i % 20 < 3 ? 0.02 : 0), 0.025));
+      return [Math.min(...out), Math.max(...out), q]; })()""")
+    check("quiet music (15% swing) still goes from dark to full", r[0] < 0.05 and r[1] > 0.95, r)
+    check("near silence isn't blown up", r[2] < 0.25, r)
 
     # a zone of four bars side by side (columns), in four groups
     ev("""(() => { const p = blankProject('Chase'); p.zones[0].layers = [];

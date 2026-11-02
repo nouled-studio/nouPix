@@ -350,7 +350,7 @@ function initTempo() {
 // audioLevel (all of it). An image input called audioSpectrum is the spectrum, 64 bands from 30 Hz to 16 kHz on a log
 // scale, left to right, the level in red. Without a sound input the beat still runs (at the tapped or last BPM) and
 // the levels are 0; on a source's thumbnail they are made up, so it shows what it does.
-const AUDIO_INPUTS = new Set(['bpm', 'beatCount', 'beatPhase', 'barBeat', 'barPhase', 'beatsPerBar', 'audioKick', 'audioBass', 'audioMid', 'audioHigh', 'audioLevel', 'audioSpectrum']);
+const AUDIO_INPUTS = new Set(['bpm', 'beatCount', 'beatPhase', 'barBeat', 'barPhase', 'beatsPerBar', 'audioKick', 'audioBass', 'audioMid', 'audioHigh', 'audioLevel', 'audioBand', 'audioSpectrum']);
 const isAudioInput = inp => AUDIO_INPUTS.has(inp.NAME) && (inp.NAME === 'audioSpectrum' ? inp.TYPE === 'image' : inp.TYPE === 'float');
 const SPEC_BANDS = 64;
 const tempoFeat = { frame: -1, kick: 0, bass: 0, mid: 0, high: 0, level: 0, bands: new Float32Array(SPEC_BANDS), canvas: null, fake: null };
@@ -371,10 +371,44 @@ function tempoFeatures() {
     for (let k = Math.floor(fa / hz); k <= Math.ceil(fb / hz) && k < bins.length; k++) v = Math.max(v, bins[k]);
     const x = db(v); F.bands[i] = x > F.bands[i] ? x : F.bands[i] * fall + x * (1 - fall);
   }
-  const avg = (f0, f1) => { let s = 0, n = 0; for (let i = 0; i < SPEC_BANDS; i++) { const f = 30 * Math.pow(16000 / 30, (i + 0.5) / SPEC_BANDS); if (f >= f0 && f < f1) { s += F.bands[i]; n++; } } return n ? s / n : 0; };
-  ease('bass', avg(30, 150)); ease('mid', avg(150, 2000)); ease('high', avg(2000, 16000)); ease('level', avg(30, 16000));
-  ease('kick', clamp((tempo.level + 50) / 44, 0, 1));
+  const avg = (f0, f1) => bandAvg(f0, f1);
+  const now = performance.now(), dt = F.dt = clamp((now - (F.at || now)) / 1000, 0, 0.5); F.at = now;
+  ease('bass', tempoRange('bass', avg(30, 150), dt)); ease('mid', tempoRange('mid', avg(150, 2000), dt));
+  ease('high', tempoRange('high', avg(2000, 16000), dt)); ease('level', tempoRange('level', avg(30, 16000), dt));
+  ease('kick', tempoRange('kick', clamp((tempo.level + 50) / 44, 0, 1), dt));
   return F;
+}
+// The spectrum's mean level from f0 to f1 Hz
+function bandAvg(f0, f1) {
+  let s = 0, n = 0;
+  for (let i = 0; i < SPEC_BANDS; i++) { const f = 30 * Math.pow(16000 / 30, (i + 0.5) / SPEC_BANDS); if (f >= f0 && f < f1) { s += tempoFeat.bands[i]; n++; } }
+  return n ? s / n : 0;
+}
+// The frequency ranges an effect can listen to (its long input "band", with these labels, and the input audioBand):
+// the first is the beat band as set in Tempo (audioKick), the others a part of the spectrum, in Hz
+const AUDIO_BANDS = [['Beat band (Tempo)', 0, 0], ['Sub and kick', 30, 90], ['Bass', 60, 250], ['Low mids', 250, 800], ['Mids', 800, 2500],
+  ['Snare and claps', 1500, 5000], ['Highs and hats', 5000, 16000], ['Everything', 30, 16000]];
+// That range's level now, in the music's range like the others
+function audioBandValue(k) {
+  const F = tempoFeatures(), band = AUDIO_BANDS[k | 0] ? k | 0 : 0;
+  if (!band) return F.kick;
+  const b = F.custom || (F.custom = {}), e = b[band] || (b[band] = { frame: -1, v: 0 });
+  if (e.frame !== F.frame) {
+    e.frame = F.frame;
+    const x = tempo.analyser ? tempoRange('band' + band, bandAvg(AUDIO_BANDS[band][1], AUDIO_BANDS[band][2]), F.dt || 0) : 0;
+    e.v = x > e.v ? x : e.v * 0.88 + x * 0.12;
+  }
+  return e.v;
+}
+// A level placed between the music's recent quiet and loud moments, so an effect swings fully whatever the volume:
+// the floor drops at once to a trough and creeps up over about 8 s; the ceiling jumps to a peak and sinks over about
+// 8 s; at least 8 dB apart (0.13), so near silence isn't blown up into noise, and nothing at all below about −87 dB.
+const tempoRanges = {};
+function tempoRange(k, v, dt) {
+  const r = tempoRanges[k] || (tempoRanges[k] = { lo: v, hi: v + 0.13 }), slow = 1 - Math.exp(-dt / 8), fast = 1 - Math.exp(-dt / 0.05);
+  r.lo += (v - r.lo) * (v < r.lo ? fast : slow);
+  r.hi += (v - r.hi) * (v > r.hi ? fast : slow);
+  return clamp((v - r.lo) / Math.max(0.13, r.hi - r.lo), 0, 1) * clamp(v * 20, 0, 1);
 }
 // The spectrum as a 64 × 1 picture, for an effect's audioSpectrum
 function tempoSpectrumCanvas(fake) {
@@ -386,15 +420,16 @@ function tempoSpectrumCanvas(fake) {
   return F.canvas;
 }
 // An audio input's value now; t: a thumbnail's time (made-up music at 120 BPM; a still one just after a beat 1, so it
-// shows lit), or null for the real thing
-function audioInputValue(name, t, still) {
+// shows lit), or null for the real thing; band: for audioBand, the range chosen (AUDIO_BANDS)
+function audioInputValue(name, t, still, band) {
   if (t != null) {
     const b = still ? 4.08 : t * 2, ph = b - Math.floor(b), bpb = tempoBpb(), hit = Math.exp(-ph * 5);
-    const lv = { audioKick: hit, audioBass: 0.3 + 0.6 * hit, audioMid: 0.4 + 0.2 * Math.sin(t * 3), audioHigh: 0.3 + 0.2 * Math.sin(t * 7), audioLevel: 0.5 + 0.3 * hit };
+    const lv = { audioKick: hit, audioBass: 0.3 + 0.6 * hit, audioBand: 0.3 + 0.6 * hit, audioMid: 0.4 + 0.2 * Math.sin(t * 3), audioHigh: 0.3 + 0.2 * Math.sin(t * 7), audioLevel: 0.5 + 0.3 * hit };
     if (name === 'audioSpectrum') return tempoSpectrumCanvas(i => (1 - i / SPEC_BANDS) * (0.5 + 0.4 * hit) + 0.15 * Math.sin(i * 0.7 + t * 4));
     return { bpm: 120, beatCount: b, beatPhase: ph, barBeat: Math.floor(b) % bpb, barPhase: ((b / bpb) % 1), beatsPerBar: bpb }[name] ?? lv[name] ?? 0;
   }
   if (name === 'audioSpectrum') { tempoFeatures(); return tempoSpectrumCanvas(); }
+  if (name === 'audioBand') return audioBandValue(band);
   if (name.startsWith('audio')) return tempoFeatures()[name.slice(5).toLowerCase()] || 0;
   const at = tempoAt(), bpb = tempoBpb();
   return { bpm: tempo.bpm, beatCount: at.beat, beatPhase: at.phase, barBeat: at.inBar, barPhase: (at.inBar + at.phase) / bpb, beatsPerBar: bpb }[name] ?? 0;
