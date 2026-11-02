@@ -485,6 +485,7 @@ function renderContentTab(body) {
     ctl.push(...macroLinksFold(src, rt));
     ctl.push(h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { delete L.params[src.id]; commit(); renderRight(); } }, 'Reset to defaults')));
     if (rt.audio && rt.audio.length) ctl.unshift(tempoNote(rt.audio.some(i => i.NAME.startsWith('audio'))));   // it follows the music
+    if (rt.touch && rt.touch.length) ctl.unshift(touchNote(selZone()));   // it follows a finger
     body.append(sec('Parameters', ctl));
   }
   if (src.kind === 'chase') body.append(chaseSection(L, src));

@@ -20,7 +20,7 @@ try:
     errs = []; pg.on("pageerror", lambda e: errs.append(str(e))); pg.on("console", lambda m: errs.append(m.text) if app_error(m) else None)
     pg.goto(f"http://127.0.0.1:{PORT}/"); pg.wait_for_function("window.olm && olm.bridge.connected"); time.sleep(0.5)
     ev = pg.evaluate
-    check("all 21 are in the library", ev("ids => ids.every(id => BUILTINS.some(b => b.id === id))", NEW) and ev("BUILTINS.length") == 66, ev("BUILTINS.length"))
+    check("all 21 are in the library", ev("ids => ids.every(id => BUILTINS.some(b => b.id === id))", NEW) and ev("BUILTINS.length") == 71, ev("BUILTINS.length"))
     check("Ripples, Cruzado, Ikada and Rothco are gone", ev("ids => !ids.some(id => BUILTINS.some(b => b.id === id))", GONE))
 
     # ---------- each one: compiles, its speed, what moves it, its macros, its facets

@@ -74,6 +74,7 @@ function remoteState() {
     zones: project.zones.slice().reverse().map(z => ({ id: z.id, name: z.name, tag: z.tag, opacity: z.opacity, xf: xfDriven(z), scene: z.scene,
       scenes: z.scenes.map(sc => ({ id: sc.id, name: sc.name, tag: sc.tag || '', fade: sc.fade })),
       content: z.layers.filter(L => L.on && L.src && name(L.src)).map(L => name(L.src)),
+      touch: zoneTouches(z),   // it plays something that follows a finger: the page offers Interact
       playlists: z.playlists.map(pl => ({ id: pl.id, name: pl.name, length: playlistLength(pl), steps: pl.steps.length })),
       play: playForPhone(z) })) };
 }
@@ -119,6 +120,8 @@ function remoteFromDevice(cid, role, m) {
   } else if (m.op === 'opacity' && z && isFinite(m.value)) {
     setZoneOpacity(z, clamp(+m.value, 0, 1));
     remoteChanged(); commitSoft();
+  } else if (m.op === 'touch' && z && role !== 'http' && Array.isArray(m.pts)) {   // a finger on a pad: every device
+    touchInput(z.id, m.pts, cid);
   } else if (m.op === 'xfade' && isFinite(m.value) && (role !== 'remote' || project.xfade.phone)) {   // the Remote page only when it shows it
     setXfade(+m.value);
     remoteChanged(); commitSoft();

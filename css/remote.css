@@ -78,6 +78,19 @@ button { cursor: pointer; }
 .zone { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line2); border-left: 4px solid var(--zt, var(--line2)); background: var(--bg1); align-content: start; }
 .zhead { display: grid; gap: 2px; }
 .zhead b { font-size: 18px; font-weight: 500; overflow-wrap: anywhere; }
+.zname { display: flex; align-items: center; gap: 10px; }
+.zname b { flex: 1; min-width: 0; }
+.tint { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 8px; border: 1px solid var(--line3); background: var(--bg2); color: var(--text); font: 600 11px var(--label); letter-spacing: .1em; text-transform: uppercase; }
+.tint[hidden] { display: none; }
+.tint .ico { width: 18px; height: 18px; display: inline-flex; color: var(--accent); }
+.tint .ico svg { width: 100%; height: 100%; }
+/* the Interact pad: the whole screen, black */
+.tpadr { position: fixed; inset: 0; z-index: 10; background: var(--bg0); touch-action: none; }
+.tpadr canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+.tpadr .tlabel { position: absolute; left: 16px; top: calc(14px + env(safe-area-inset-top)); display: grid; gap: 2px; pointer-events: none; color: var(--muted); transition: opacity .6s; }
+.tpadr .tlabel b { font: 600 12px var(--label); letter-spacing: .12em; text-transform: uppercase; color: var(--text2); }
+.tpadr.on .tlabel { opacity: .25; }
+.tpadr .tdone { position: absolute; right: 14px; top: calc(10px + env(safe-area-inset-top)); height: 36px; padding: 0 16px; border: 1px solid var(--line3); background: var(--bg2); font: 600 12px var(--label); letter-spacing: .1em; text-transform: uppercase; }
 .now { color: var(--text2); font-size: 13.5px; overflow-wrap: anywhere; }
 .now em { font-style: normal; color: var(--text); font-weight: 500; }
 /* its level: a thin aluminium track filled up to the value (--p), and a bar to hold */

@@ -4,6 +4,8 @@
 :root {
   color-scheme: dark;
   --bg0: #000000;   /* stage, window */
+  --pad: #000000;   /* the Interact pad: black in both looks, as the lights are */
+  --pad-ink: #ffffff;
   --bg1: #0a0a0a;   /* panels, top bar, status bar */
   --bg2: #111111;   /* inputs, pills */
   --bg3: #191919;   /* buttons, raised */
@@ -295,6 +297,13 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 /* the Channel monitor's own window */
 body.monwin { height: 100vh; margin: 0; display: flex; flex-direction: column; background: var(--bg1); color: var(--text); }
 body.monwin > .monitor { flex: 1; min-height: 0; }
+/* the Interact window: all of it a black pad */
+body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidden; }
+.tpad { position: fixed; inset: 0; }
+.tpad canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; display: block; }
+.tpad .tlabel { position: absolute; left: 14px; top: 12px; display: grid; gap: 4px; pointer-events: none; font: 600 11px var(--label); letter-spacing: .12em; text-transform: uppercase; color: color-mix(in srgb, var(--pad-ink) 55%, transparent); transition: opacity .6s; }
+.tpad .tlabel span { font: 300 12px var(--ui); letter-spacing: 0; text-transform: none; color: color-mix(in srgb, var(--pad-ink) 35%, transparent); }
+.tpad .tlabel.gone { opacity: 0.25; }
 .dockbody { min-height: 0; overflow: hidden; }
 
 .patch { display: grid; grid-template-columns: 230px minmax(0,1fr); height: 100%; }

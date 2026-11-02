@@ -58,6 +58,7 @@ function runtimeOf(src) {
   rt.speed = (rt.hdr.INPUTS || []).find(i => isSpeedInput(src, i, code)) || null;
   rt.clocks = clocksOf(rt.hdr);
   rt.audio = (rt.hdr.INPUTS || []).filter(isAudioInput);   // the inputs that follow the music
+  rt.touch = (rt.hdr.INPUTS || []).filter(isTouchInput);   // and the ones that follow a finger (touch.js)
   rt.roles = macroRoles(rt);   // which macro each control follows
   R.setDateUniforms = function () { this.setValue('TIME', isfTime ?? layerTime ?? clockT); this.setValue('TIMEDELTA', clockDT); this.setValue('FRAMEINDEX', frameIndex); };
   rt.R = R;
@@ -122,11 +123,11 @@ function releaseMedia(id) {
   if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
 }
 const PARAM_TYPES = ['float', 'long', 'bool', 'color', 'point2D', 'event', 'int'];
-function isfInputs(src) { const rt = runtimeOf(src); return (rt.hdr && rt.hdr.INPUTS || []).filter(i => PARAM_TYPES.includes(i.TYPE) && !(rt.clocks && i.NAME in rt.clocks) && !isAudioInput(i)); }
+function isfInputs(src) { const rt = runtimeOf(src); return (rt.hdr && rt.hdr.INPUTS || []).filter(i => PARAM_TYPES.includes(i.TYPE) && !(rt.clocks && i.NAME in rt.clocks) && !isAudioInput(i) && !isTouchInput(i)); }
 // The same from the header alone, without compiling the shader (for an effect that isn't playing)
 function controlsOf(src) {
   const hdr = src.kind === 'isf' ? headerOf(src) : null, clocks = hdr && isObj(hdr.OLM_CLOCKS) ? hdr.OLM_CLOCKS : {};
-  return (hdr && hdr.INPUTS || []).filter(i => PARAM_TYPES.includes(i.TYPE) && !(i.NAME in clocks) && !isAudioInput(i));
+  return (hdr && hdr.INPUTS || []).filter(i => PARAM_TYPES.includes(i.TYPE) && !(i.NAME in clocks) && !isAudioInput(i) && !isTouchInput(i));
 }
 function paramValue(L, src, inp) {
   const p = L.params[src.id];
@@ -167,8 +168,10 @@ function applyParams(rt, L, src) {
   const bandIn = rt.audio && rt.audio.some(i => i.NAME === 'audioBand') && (rt.hdr.INPUTS || []).find(i => i.NAME === 'band');
   const band = bandIn ? numOr(paramValue(L, src, bandIn), 0) : 0;
   for (const inp of rt.audio || []) { try { rt.R.setValue(inp.NAME, audioInputValue(inp.NAME, L.id == null ? (isfTime ?? clockT) : null, isfTime != null, band)); } catch (e) { /* not used */ } }
+  // a finger on the zone it draws in (a made-up one on a thumbnail)
+  for (const inp of rt.touch || []) { try { rt.R.setValue(inp.NAME, touchInputValue(inp.NAME, L.id == null ? (isfTime ?? clockT) : null, drawZone)); } catch (e) { /* not used */ } }
   for (const inp of rt.hdr.INPUTS || []) {
-    if (!PARAM_TYPES.includes(inp.TYPE) || (rt.clocks && inp.NAME in rt.clocks) || isAudioInput(inp)) continue;
+    if (!PARAM_TYPES.includes(inp.TYPE) || (rt.clocks && inp.NAME in rt.clocks) || isAudioInput(inp) || isTouchInput(inp)) continue;
     let v = paramValue(L, src, inp);
     const role = roles && roles[inp.NAME];
     if (role && role !== 'speed') v = macroOver(role, inp, v);
@@ -206,13 +209,17 @@ function drawMedia(src, w, h) {
   return ok;
 }
 // Draw one layer's source at w × h (for zone z); returns the canvas holding it, or null if there is nothing to show
+// The zone a layer is drawn for, while its inputs are set (the finger on that zone's pad)
+let drawZone = null;
 function renderSource(src, L, w, h, z) {
   if (!src) return null;
   if (src.kind === 'chase') return drawChase(src, L, w, h, z, null) ? mediaCanvas : null;
   if (src.kind === 'isf') {
     const rt = runtimeOf(src);
     if (!rt.R) return null;
+    drawZone = z || null;
     applyParams(rt, L, src);
+    drawZone = null;
     rt.R.draw({ width: w, height: h });
     layerTime = null;
     return glCanvas;
@@ -365,7 +372,7 @@ function drawThumb(src, still) {
       applyParams(rt, { params: {} }, src);
       rt.R.draw({ width: THUMB, height: THUMB });
       // a picture input (the spectrum) shows from its second drawing
-      if (rt.audio && rt.audio.some(i => i.TYPE === 'image')) { applyParams(rt, { params: {} }, src); rt.R.draw({ width: THUMB, height: THUMB }); }
+      if ((rt.audio || []).concat(rt.touch || []).some(i => i.TYPE === 'image')) { applyParams(rt, { params: {} }, src); rt.R.draw({ width: THUMB, height: THUMB }); }
       isfTime = null;
       img = glCanvas;
     }
