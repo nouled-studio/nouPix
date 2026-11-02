@@ -78,7 +78,7 @@ try:
     ev = pg.evaluate
     ev("ui.rightTab = 'settings'; showRight(true); renderRight()"); time.sleep(0.3)
     sec = pg.locator("#tempoSec")
-    check("Settings has a Tempo section: the BPM, the nouPix mark, the bar's four beats", sec.count() == 1 and sec.locator(".tbpm").count() == 1 and sec.locator(".tmark svg").count() == 1
+    check("Settings has a Tempo section: the BPM, the beat's dot, the bar's four beats", sec.count() == 1 and sec.locator(".tbpm").count() == 1 and sec.locator(".tdot").count() == 1
           and sec.locator(".tbar i").count() == 4)
     check("off at first, the beat from Audio", not ev("tempo.on") and "OFF" in sec.locator(".onsw").inner_text() and ev("ui.tempoSrc || 'audio'") == "audio")
 
@@ -99,15 +99,17 @@ try:
     g0 = grid(); time.sleep(3); g1 = grid()
     drift = min(abs(g1 - g0), 1 - abs(g1 - g0))
     check("the beat stays where it is", drift < 0.1, (g0, g1))
-    # the mark lights on each beat (from red to white) and fades back; the lines count the bar
-    seen, mixes = set(), set()
+    # the dot lights on each beat and fades; the lines count the bar; the top bar's dot by the master too
+    seen, ops, top = set(), set(), set()
     for _ in range(60):
-        r = ev("(() => { const s = document.querySelector('#tempoSec'); return [[...s.querySelectorAll('.tbar i')].findIndex(i => /on|one/.test(i.className)), s.querySelector('.tmark').style.color]; })()")
-        seen.add(r[0]); mixes.add(r[1])
+        r = ev("(() => { const s = document.querySelector('#tempoSec'), d = document.querySelector('#beatDot'); return [[...s.querySelectorAll('.tbar i')].findIndex(i => /on|one/.test(i.className)), s.querySelector('.tdot').style.opacity, d.hidden ? 'hidden' : d.style.opacity]; })()")
+        seen.add(r[0]); ops.add(r[1]); top.add(r[2])
         time.sleep(0.05)
     check("the bar's lines count 1 2 3 4", seen >= {0, 1, 2, 3}, seen)
-    lit = [m for m in mixes if "var(--live) " in m and " 0%" not in m]
-    check("the mark lights with the beat and fades back to red", lit and any(" 0%" in m for m in mixes), sorted(mixes)[:4])
+    check("the dot lights with the beat and fades", any(float(o) > 0.6 for o in ops) and any(float(o) < 0.3 for o in ops), sorted(ops)[:5])
+    check("the dot by the master blinks with the beat", "hidden" not in top and any(float(o) > 0.6 for o in top) and any(float(o) < 0.3 for o in top), sorted(top)[:5])
+    pg.click("#beatDot"); time.sleep(0.2)
+    check("clicking it shows Tempo in Settings", ev("ui.rightTab") == "settings" and pg.is_visible("#tempoSec"))
 
     # ---------- the trim
     ev("tempoTrim(-12)"); time.sleep(1.5)
@@ -138,6 +140,8 @@ try:
     check("the meter reads the band: the kick's band much louder than the hi-hat's", lv_hats < lv_kick - 6, (lv_kick, lv_hats))
     spec.dblclick(); time.sleep(0.2)
     check("a double-click gives 40 to 150 Hz back", ev("tempoBandNow()") == [40, 150])
+    ev("tempoBand(300, 900, true)"); pg.click("#tempoSec .tbreset"); time.sleep(0.2)
+    check("so does the Reset button on the spectrum", ev("tempoBandNow()") == [40, 150] and ev("store.get('noupix.ui').tempoLo") == 40)
 
     # ---------- 2/4 and Downbeat
     pg.locator("#tempoSec .seg button", has_text="2/4").click(); time.sleep(0.2)
@@ -190,6 +194,8 @@ try:
     pg.locator("#tempoSec .seg button", has_text="Audio").click(); time.sleep(0.2)
     pg.locator("#tempoSec .onsw").click(); time.sleep(0.5)
     check("Listen off: it stops listening", not ev("tempo.on") and ev("ui.tempoOn") is False)
+    time.sleep(0.2)
+    check("with no beat, no dot by the master", pg.is_hidden("#beatDot"))
     check("this computer's settings are kept, not in the project", "tempo" not in ev("serialize()").lower())
     check("no errors on the page", not errs, errs[:3])
     br.close()

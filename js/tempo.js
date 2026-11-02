@@ -25,6 +25,8 @@ function tempoAt(t = performance.now()) {
   return { beat: b, n, inBar: ((n % per) + per) % per, phase: b - n, bpm: tempo.bpm };
 }
 const tempoBpb = () => (ui.tempoBpb === 2 ? 2 : 4);
+// Whether there is a beat to show: listening has found one, or it was tapped since nouPix started
+const tempoActive = () => (ui.tempoSrc === 'tap' ? !!tempo.tapped : tempo.on && tempo.locked);
 // A new BPM, keeping where in the beat and in the bar the clock is now, so nothing jumps
 function tempoSetBpm(bpm, t = performance.now()) {
   bpm = clamp(bpm, 20, 400);
@@ -46,7 +48,7 @@ function tempoDownbeat(t = performance.now()) {
 function tempoTap(t = performance.now()) {
   const T = tempo.taps;
   if (T.length && t - T[T.length - 1] > 2000) { T.length = 0; tempo.tapN = 0; }
-  T.push(t); tempo.tapN = (tempo.tapN || 0) + 1;
+  T.push(t); tempo.tapN = (tempo.tapN || 0) + 1; tempo.tapped = true;
   if (T.length > 8) T.shift();
   if (ui.tempoSrc !== 'tap') { ui.tempoSrc = 'tap'; savePrefs(); }
   if (T.length === 1) {
@@ -317,13 +319,14 @@ function tempoOnset([t, k, e]) {
   if (ui.tempoSrc === 'tap' || !T.locked) return;
   if (!tempo.locked) { tempo.locked = true; tempoSetBpm(T.bpm); }
   else if (Math.abs(T.bpm - tempo.bpm) > 0.005) tempoSetBpm(T.bpm);
-  // a beat the tracker placed: the clock is set on it (the tracker is already smooth), keeping the bar's count
+  // a beat the tracker placed: the clock moves onto it, keeping the bar's count
   if (T.beatHop != null && T.beatHop !== tempo.lastBeatHop && !T.hold) {
     tempo.lastBeatHop = T.beatHop;
     // its audio time, from the newest hop's (it can be a little ahead: the beat the tracker expects next)
     const at = tempo.envT[tempo.envT.length - 1] - (T.n - 1 - T.beatHop) / T.rate;
+    // half way each time: the audio clock's mapping to this page's wobbles by a few milliseconds
     const beatT = tempoPerfTime(at), b = (beatT - tempo.anchor) / (60000 / tempo.bpm), err = b - Math.round(b);
-    tempo.anchor += err * (60000 / tempo.bpm);
+    tempo.anchor += err * (60000 / tempo.bpm) * 0.5;
   }
 }
 // performance.now() of an audio time

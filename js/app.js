@@ -169,6 +169,7 @@ function initUI() {
   $('#btnRemote').addEventListener('click', e => remoteMenu(e.currentTarget));
   $('#btnOutSet').addEventListener('click', () => openOutputSettings());
   $('#btnMon').addEventListener('click', () => openMonitor());
+  $('#beatDot').addEventListener('click', showTempoSettings);
   initMidiUI();
   $('#projName').addEventListener('change', e => { project.name = e.target.value.trim() || 'Untitled'; commit(); });
   $('#btnFile').addEventListener('click', e => projectMenu(e.currentTarget));
@@ -339,6 +340,7 @@ function frameLoop(now) {
   try {
     if (monCanvas) drawMonitor(now);
     if (tempoLive) tempoFrame(now);
+    beatDotFrame(now);
     if (ui.dockTab === 'scenes' && !ui.dockCollapsed) drawSceneProgress();
     if (project.xfade.on && !document.hidden) drawXfPreviews(now);
     if (now - (frameLoop.last || 0) > 200) { frameLoop.last = now; updateStatus(); }
