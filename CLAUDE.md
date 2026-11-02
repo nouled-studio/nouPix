@@ -147,7 +147,7 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   controllers only), 4 multicast; a bridge before 1.4 (no `mixed` in `hello.protocols`) gets the old frame, `oldFrame`.
   The priority goes as `{t: 'sacn', priority}` when it changes. Changing a controller's protocol or multicast is
   `markPatch` (multicast changes what clashes). These options, sending on or off and the frame rate are in the Output
-  settings window (`openOutputSettings`, the cog at the right of the Patch tab); the frame rate also in Settings → Output.
+  settings window (`openOutputSettings`, the button at the right of the Patch tab); the frame rate also in Settings → Output.
 - A controller's outputs (`c.mode`): `'universes'`, `c.upo` each, or `'pixels'`, `c.pxOut` pixels of `c.chPx` channels
   each (`CH_PER_PX`), the universes they need worked out (`ctrlOuts`); a fixture past an output's pixels overflows. It
   starts at `c.startUniverse` and `c.startCh`; by universes each next output starts on a new universe at channel 1, by
