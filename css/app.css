@@ -336,12 +336,15 @@ body.monwin > .monitor { flex: 1; min-height: 0; }
 .outbar { position: sticky; top: 0; z-index: 2; height: 33px; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--bg2); border-bottom: 1px solid var(--line); }
 .outhead .fold { color: var(--muted); font-size: 10px; }
 .outhead .on { font-weight: 600; font-size: 12px; }
-.outhead .ur { display: grid; font-family: var(--mono); font-size: 10.5px; line-height: 1.35; white-space: nowrap; }
+.outhead .ur { display: grid; position: relative; padding-left: 13px; font-family: var(--mono); font-size: 10.5px; line-height: 1.35; white-space: nowrap; }
 .outhead .ur b { font-weight: 400; color: var(--text); }
 .outhead .ur .from { color: var(--text2); }
 .outhead .ur .to { color: var(--muted); }
-.outhead .ur .to::before { content: '→ '; }
-.outhead .ur .from::before { content: '  '; white-space: pre; }
+/* a range: a filled mark where the output starts, an open one where it ends, a line between them */
+.outhead .ur::before { content: ''; position: absolute; left: 2.5px; top: .7em; bottom: .7em; border-left: 1px solid var(--line3); }
+.outhead .ur .from::before, .outhead .ur .to::before { content: ''; position: absolute; left: 0; width: 6px; height: 6px; margin-top: .42em; box-sizing: border-box; }
+.outhead .ur .from::before { background: var(--text2); }
+.outhead .ur .to::before { border: 1px solid var(--muted); background: var(--bg1); }
 .outhead .sum { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .outrow.shut .outlist { display: none; }
 .outlist { padding: 2px 12px 8px 30px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; }

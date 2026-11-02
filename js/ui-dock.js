@@ -10,7 +10,7 @@ function renderDock() {
   $('#btnDock').textContent = ui.dockCollapsed ? '▴' : '▾';
   const gear = $('#btnOutSet');   // the Output settings, at the right of the Patch tab
   gear.hidden = ui.dockTab !== 'patch' || REMOTE_CLIENT;
-  if (!gear.firstChild) gear.append(h('span', { class: 'ic', html: ICONS.gear }), 'Output settings');
+  if (!gear.firstChild) gear.append(h('span', { class: 'ic', html: ICONS.out }), 'Output settings');
   const mon = $('#btnMon');   // the DMX monitor, next to it
   mon.hidden = ui.dockTab !== 'patch';
   if (!mon.firstChild) mon.append(h('span', { class: 'ic', html: ICONS.monitor }), 'DMX monitor');
