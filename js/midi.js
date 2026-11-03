@@ -38,6 +38,7 @@ function midiTarget(t) {
     return part ? { kind: 'fader', label: `${d.label} · ${part[1]}`, get: () => macroPart(project.macros[id], +i), set: x => setMacroPart(id, +i, x) } : null;
   }
   if (t === 'master') return { kind: 'fader', label: 'Master', get: () => project.settings.master, set: midiSetMaster };
+  if (t === 'tap') return { kind: 'trigger', label: 'Tap tempo', get: () => 0, set: () => tempoTap() };
   if (t === 'blackout') return { kind: 'toggle', label: 'Blackout', get: () => (ui.blackout ? 1 : 0), set: v => { if (!!v !== ui.blackout) toggleBlackout(); } };
   // there whether the crossfader is on or off: a fader mapped to it stays mapped
   if (t === 'xf') return { kind: 'fader', label: 'X-Fader', get: () => project.xfade.x, set: v => { setXfade(v); remoteChanged(); commitSoft(); } };

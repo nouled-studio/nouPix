@@ -301,7 +301,7 @@ function renderLook(layers, slot, z) {
   mixer.begin(slot, z.w, z.h);
   for (const L of layers) {
     if (!L.on || !(L.opacity > 0)) continue;
-    const c = renderSource(srcById(L.src), L, z.w, z.h);
+    const c = renderSource(srcById(L.src), L, z.w, z.h, z);
     if (!c) continue;
     if (slot === 0 && preview && preview.layer === L) drawPreview(c, z);
     mixer.layer(slot, c, BLEND_IDX[L.blend] || 0, L.opacity * project.macros.intensity.v);   // the Intensity macro

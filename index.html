@@ -32,7 +32,7 @@
       <button class="btn" id="btnHl" type="button" aria-pressed="false"></button>
       <button class="btn" id="btnHlMode" type="button" title="Highlight mode" aria-label="Highlight mode" aria-haspopup="menu">▾</button>
     </div>
-    <div class="master"><label for="master">Master</label><span class="mslot" data-midi="master"><input id="master" type="range" min="0" max="1" step="0.01"><i class="fline" hidden></i><span class="ftag" hidden></span></span><span class="mono" id="masterVal">100%</span></div>
+    <div class="master"><i id="beatDot" class="beatdot" hidden title="The beat. Click for Tempo in Settings"></i><label for="master">Master</label><span class="mslot" data-midi="master"><input id="master" type="range" min="0" max="1" step="0.01"><i class="fline" hidden></i><span class="ftag" hidden></span></span><span class="mono" id="masterVal">100%</span></div>
     <button class="btn btn-bo icon" id="btnBlackout" type="button" data-tip="Blackout · B|Every light off at once, whatever plays. Again to bring them back." aria-label="Blackout" aria-pressed="false" data-midi="blackout"><span class="ftag" hidden></span><svg viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="5.5"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2"/><path d="M2.5 2.5l13 13" stroke-width="1.7"/></svg></button>
   </header>
 
@@ -135,6 +135,8 @@
 <script src="js/project-io.js"></script>
 <script src="js/remote.js"></script>
 <script src="js/playlists.js"></script>
+<script src="js/tempo.js"></script>
+<script src="js/touch.js"></script>
 <script src="js/midi.js"></script>
 <script src="js/actions.js"></script>
 <script src="js/ui-forms.js"></script>
@@ -149,6 +151,8 @@
 <script src="js/ui-midi.js"></script>
 <script src="js/ui-bay.js"></script>
 <script src="js/ui-macros.js"></script>
+<script src="js/ui-tempo.js"></script>
+<script src="js/ui-touch.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

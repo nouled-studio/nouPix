@@ -161,21 +161,24 @@ function editScene(sc) {
 // A fade time on a button (a scene's, a playlist step's): drag it sideways to change it (Shift = ×10), click it to type
 // one, or use the arrow keys. 0 cuts. It works the same while that scene plays, so a fade can be tried and changed at
 // once. o: get() and set(v) the value; text() and tip() what it shows; clear(), if typing nothing goes back to automatic.
+// Also a step's play time: o.what names it, o.min, o.max and o.rate (per pixel dragged) bound it, o.input and o.parse
+// write and read it as typed
 function fadeControl(tile, o) {
+  const what = o.what || 'fade time', lo = o.min ?? 0, hi = o.max ?? 60, rate = o.rate ?? 0.05;
   const label = () => o.text ? o.text() : (o.get() > 0 ? '◢ ' + fmtV(Math.round(o.get() * 10) / 10) + ' s' : 'cut');
   const tip = () => (o.tip ? o.tip() : `Fade in: ${o.get() > 0 ? fmtV(o.get()) + ' s' : 'none, it cuts'}`) + '. Drag sideways to change it (Shift = ×10), click to type, or ↑ ↓.';
-  const el = h('span', { class: 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : ''), role: 'button', tabindex: 0, title: tip(), 'aria-label': o.name + ' fade time' }, label());
+  const el = h('span', { class: 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : ''), role: 'button', tabindex: 0, title: tip(), 'aria-label': o.name + ' ' + what }, label());
   const show = () => { el.textContent = label(); el.className = 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : '') + (el.classList.contains('scrub') ? ' scrub' : ''); el.title = tip(); };
-  const set = v => { o.set(clamp(Math.round(v * 10) / 10, 0, 60)); show(); };
+  const set = v => { o.set(clamp(Math.round(v * 10) / 10, lo, hi)); show(); };
   const type = () => {
     let done = false;
-    const inp = h('input', { type: 'text', class: 'fdin', value: o.clear && o.auto && o.auto() ? '' : fmtV(o.get()), placeholder: o.clear ? 'auto' : '', 'aria-label': o.name + ' fade time',
-      title: 'Seconds; 0 cuts' + (o.clear ? '; empty: automatic' : '') });
+    const inp = h('input', { type: 'text', class: 'fdin', value: o.clear && o.auto && o.auto() ? '' : o.input ? o.input() : fmtV(o.get()), placeholder: o.clear ? 'auto' : '', 'aria-label': o.name + ' ' + what,
+      title: o.parse ? 'Seconds (90), or minutes:seconds (1:30)' : 'Seconds; 0 cuts' + (o.clear ? '; empty: automatic' : '') });
     const finish = ok => {
       if (done) return; done = true;
-      const txt = inp.value.trim().replace(',', '.'), v = parseFloat(txt);
+      const txt = inp.value.trim().replace(',', '.'), v = o.parse ? o.parse(txt) : parseFloat(txt);
       if (ok && txt === '' && o.clear) { o.clear(); commit(); }
-      else if (ok && isFinite(v) && (clamp(v, 0, 60) !== o.get() || (o.auto && o.auto()))) { set(v); commit(); }
+      else if (ok && isFinite(v) && v != null && (clamp(v, lo, hi) !== o.get() || (o.auto && o.auto()))) { set(v); commit(); }
       else renderDock();
     };
     inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); });
@@ -196,7 +199,7 @@ function fadeControl(tile, o) {
     const mv = ev => {
       if (!moved && Math.abs(ev.clientX - x0) < 3) return;
       moved = true; el.classList.add('scrub');
-      set(v0 + (ev.clientX - x0) * 0.05 * (ev.shiftKey ? 10 : 1));
+      set(v0 + (ev.clientX - x0) * rate * (ev.shiftKey ? 10 : 1));
     };
     const up = () => {
       el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
@@ -273,7 +276,6 @@ function renderScenes(body, inWindow = false) {
         e.stopPropagation();
         if (!z.playlists.length) { newPlaylistDialog(z); return; }
         if (ui.playlistOpen[z.id]) delete ui.playlistOpen[z.id]; else ui.playlistOpen[z.id] = (cur || z.playlists[0]).id;
-        ui.playlistStep = null; ui.playlistAdd = null;
         if (ui.zone !== z.id) selectZone(z); else renderDock();
       } });
     const head = h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
@@ -643,13 +645,13 @@ function renderNodes(body) {
           h('td', { class: 'mono' }, n.ip),
           h('td', null, h('div', null, n.shortName || '—'), h('div', { class: 'muted', style: { fontSize: '11px' } }, n.longName)),
           h('td', { class: 'mono muted' }, (k => k ? k.name || k.ip : '—')(netOf(n.ip, nets))),
-          h('td', null, h('span', { class: 'badge' }, n.sacn ? 'sACN' : 'Art-Net'),
+          h('td', null, h('span', { class: 'badge' }, n.wled && n.wled.proto === 'ddp' ? 'DDP' : n.sacn ? 'sACN' : 'Art-Net'),
             n.canSwitch ? h('span', { class: 'muted', style: { fontSize: '11px', marginLeft: '6px' }, title: 'The device can be set to Art-Net or sACN in its own settings' }, 'can switch') : null),
           h('td', { class: 'mono' }, n.universes.length ? n.universes.join(', ') : '—'),
           h('td', { class: 'mono' }, n.mac || '—'),
           h('td', { class: 'muted', style: { fontSize: '11px', maxWidth: '260px' } }, n.report || ''),
           h('td', null, h('button', { class: 'btn sm', type: 'button', title: known ? `Refresh ${known.name} from what the device reports` : `Add it as a controller on ${n.sacn ? 'sACN' : 'Art-Net'}`,
-            onclick: () => addNodeAsController(n) }, known ? 'Refresh' : 'Add as controller'))), e => nodeMenu(e, n));
+            disabled: !!(n.wled && n.wled.proto === 'ddp'), onclick: () => addNodeAsController(n) }, known ? 'Refresh' : 'Add as controller'))), e => nodeMenu(e, n));
       }))));
   }
   const hidden = all.length - nodes.length;
@@ -665,8 +667,10 @@ function nodeDevices() {
   return [...byIp].map(([ip, list]) => {
     list.sort((a, b) => (a.bindIndex || 0) - (b.bindIndex || 0));
     const universes = [...new Set(list.flatMap(n => Array.isArray(n.outUniverses) ? n.outUniverses : []))].sort((a, b) => a - b);
+    // a WLED found by mDNS (bind index −1) knows its settings exactly: its protocol wins over an ArtPoll reply's
+    const wled = (list.find(n => n.wled) || {}).wled || null;
     return { ip, replies: list.length, universes, shortName: pick(list, 'shortName'), longName: pick(list, 'longName'), mac: pick(list, 'mac'), report: pick(list, 'report'),
-      sacn: list.some(n => n.sacn), canSwitch: list.some(n => n.canSwitch) };
+      sacn: wled ? wled.proto === 'sacn' : list.some(n => n.sacn), canSwitch: list.some(n => n.canSwitch), wled };
   }).sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true }));
 }
 // ArtPoll says which universes a device listens on, not how they are split over its physical outputs (2 outputs
@@ -676,6 +680,7 @@ function nodeDevices() {
 function addNodeAsController(n) {
   const u = n.universes, proto = n.sacn ? 'sacn' : 'artnet';
   const same = project.controllers.find(c => c.ip === n.ip);
+  if (n.wled) return addWledAsController(n, same);
   if (same) {
     same.protocol = proto;
     if (u.length) same.discovered = u.slice();
@@ -692,6 +697,22 @@ function addNodeAsController(n) {
   ui.selCtrl = c.id; ui.selCtrls = new Set(); ui.dockTab = 'patch';
   markPatch(); commit(); updateDiscoveryUI();   // its row now offers Refresh
   toast(`Added ${c.name} on ${protoName(c)}. Set its outputs to match how the device is set up.`);
+}
+// A WLED tells exactly how it receives (its JSON API): one output of its LEDs, by pixels, from its universe and
+// address, whole pixels per universe as WLED expects; refreshing a known one sets all that again
+function addWledAsController(n, same) {
+  const w = n.wled;
+  if (w.proto === 'ddp') { toast(`${n.shortName || n.ip} is set to DDP. Set it to E1.31 or Art-Net in WLED (Sync Interfaces), then Discover again.`, 'warn'); return; }
+  const set = { protocol: w.proto, mode: 'pixels', outputs: 1, pxOut: Math.max(1, w.leds), chPx: w.chPx, startUniverse: w.universe, startCh: w.address, split: false };
+  let c = same;
+  if (c) Object.assign(c, set);
+  else { c = newController(Object.assign({ name: n.shortName || n.ip, ip: n.ip }, set)); project.controllers.push(c); }
+  ensureChains(c);
+  if (n.universes.length) c.discovered = n.universes.slice();
+  ui.selCtrl = c.id; ui.selCtrls = new Set(); ui.dockTab = 'patch';
+  markPatch(); commit(); updateDiscoveryUI();
+  const warn = !w.receiving ? ' Its receiving is off: turn it on in WLED.' : !w.pixels ? " Set WLED's DMX mode to Multi RGB (or RGBW)." : '';
+  toast(`${same ? 'Refreshed' : 'Added'} ${c.name}: WLED on ${protoName(c)}, ${w.leds} LEDs from universe ${uniLabel(w.universe, c)}, channel ${w.address}.` + warn, warn ? 'warn' : undefined);
 }
 // 0, 1, 2, 3, 7 → "0–3, 7"
 function universeList(u) {

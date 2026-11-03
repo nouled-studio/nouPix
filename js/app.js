@@ -169,6 +169,7 @@ function initUI() {
   $('#btnRemote').addEventListener('click', e => remoteMenu(e.currentTarget));
   $('#btnOutSet').addEventListener('click', () => openOutputSettings());
   $('#btnMon').addEventListener('click', () => openMonitor());
+  $('#beatDot').addEventListener('click', showTempoSettings);
   initMidiUI();
   $('#projName').addEventListener('change', e => { project.name = e.target.value.trim() || 'Untitled'; commit(); });
   $('#btnFile').addEventListener('click', e => projectMenu(e.currentTarget));
@@ -338,6 +339,8 @@ function frameLoop(now) {
   } catch (e) { report('stage', e); }
   try {
     if (monCanvas) drawMonitor(now);
+    if (tempoLive) tempoFrame(now);
+    beatDotFrame(now);
     if (ui.dockTab === 'scenes' && !ui.dockCollapsed) drawSceneProgress();
     if (project.xfade.on && !document.hidden) drawXfPreviews(now);
     if (now - (frameLoop.last || 0) > 200) { frameLoop.last = now; updateStatus(); }
@@ -365,6 +368,7 @@ function boot() {
   connectBridge();
   remoteOverlay(); updateRemoteUI();
   if (ui.midiOn && !REMOTE_CLIENT) startMidi();
+  initTempo();
   new ResizeObserver(() => { resizeView(); redrawStage(); }).observe(stageEl);
   // The X-Fader and the zones' levels change only the content, which the stage follows each output frame anyway:
   // moving them doesn't ask for a redraw as well (it drew the stage up to 60 times a second, stealing the output's time)

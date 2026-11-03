@@ -58,7 +58,7 @@ const ui = {
   hoverFx: null, hoverGroup: null, hoverPx: null, cursor: null, colorMode: 'wheel',
   // the Scenes panel's playlists: which one each zone shows open (zone id -> playlist id), the step being edited,
   // the zone whose + Add list is open, the playlist being renamed
-  playlistOpen: {}, playlistStep: null, playlistAdd: null, playlistRename: null,
+  playlistOpen: {}, playlistRename: null,
   curveZoom: 'full',   // the fixture's dimming curve graph: 'full', or 'low' (the first 10 %)
   // MIDI on this computer: whether it is on, the ports switched off (by name), whether the MIDI window shows its
   // monitor and its virtual controller
@@ -69,7 +69,8 @@ const ui = {
   autosave: false,   // every change written to the project's file too (project-io.js)
   updates: true, updateAt: 0, updateSkip: '',   // looking for a new version once a day; when it last looked; a version not to tell of (app.js)
 };
-const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'srcH', 'rightHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip'];
+const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'srcH', 'rightHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
+  'tempoSrc', 'tempoIn', 'tempoTrim', 'tempoBpb', 'tempoOn', 'tempoBpm', 'tempoLo', 'tempoHi'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
 const markPatch = () => { patchDirty = true; };
@@ -138,7 +139,7 @@ function stagePick(f) {
 // The group, when the selection is exactly one whole group of two or more fixtures
 function wholeGroup(sel = selected()) { const u = selUnits(sel); return u.length === 1 && u[0].g && u[0].list.length > 1 ? u[0].g : null; }
 function builtinSources() {
-  return BUILTINS.map(b => ({ id: 'b-' + b.id, kind: 'isf', builtin: b.id, name: b.name }));
+  return BUILTINS.map(b => ({ id: 'b-' + b.id, kind: b.kind || 'isf', builtin: b.id, name: b.name }));
 }
 // A layer plays one source. Parameters are kept per source, so switching back restores them.
 function newLayer(src = null) { return { id: uid(), src, params: {}, opacity: 1, blend: 'alpha', on: true }; }

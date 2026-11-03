@@ -22,7 +22,51 @@
     pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/></svg>',
     next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.6 5H18v14h-2.4zM5 5.5v13L14.5 12z"/></svg>',
     list: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 6h12M4 11h12M4 16h6"/><path fill="currentColor" d="M14 13.5v7l6-3.5z"/></svg>',
+    touch: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="10" r="3.2" fill="currentColor"/><circle cx="12" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 13v8"/></svg>',
   };
+  // The pad: the whole screen black; the fingers on it go to the zone (as 0..1 across and down), about 30 times a
+  // second, and twice a second while held still, so the main computer doesn't take them as gone
+  let pad = null;
+  function openPad(zone, name) {
+    closePad();
+    const cv = el('canvas'), fingers = new Map();
+    const box = el('div', { class: 'tpadr', role: 'dialog', 'aria-label': 'Interact with ' + name }, cv,
+      el('div', { class: 'tlabel' }, el('b', null, name), el('span', null, 'Drag your finger')),
+      el('button', { class: 'tdone', type: 'button', onclick: closePad }, 'Done'));
+    document.body.append(box);
+    let last = 0, pending = 0;
+    const out = () => {
+      pending = 0; last = Date.now();
+      const r = cv.getBoundingClientRect();
+      send({ op: 'touch', zone, pts: [...fingers].map(([id, f]) => [id, Math.min(1, Math.max(0, f.x / r.width)), Math.min(1, Math.max(0, f.y / r.height))]) });
+    };
+    const soon = () => { if (Date.now() - last > 33) out(); else if (!pending) pending = setTimeout(out, 33); };
+    const at = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); fingers.set(e.pointerId, at(e)); box.classList.add('on'); soon(); });
+    cv.addEventListener('pointermove', e => { if (fingers.has(e.pointerId)) { fingers.set(e.pointerId, at(e)); soon(); } });
+    const up = e => { if (fingers.delete(e.pointerId)) { clearTimeout(pending); out(); } };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    const keep = setInterval(() => { if (fingers.size) out(); }, 500);
+    const g = cv.getContext('2d');
+    const paint = () => {
+      if (!pad || pad.box !== box) return;
+      const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+      if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(0, 0, r.width, r.height);
+      g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 1.5;
+      for (const f of fingers.values()) { g.beginPath(); g.arc(f.x, f.y, 26, 0, Math.PI * 2); g.stroke(); }
+      requestAnimationFrame(paint);
+    };
+    pad = { zone, box, keep, fingers };
+    requestAnimationFrame(paint);
+  }
+  function closePad() {
+    if (!pad) return;
+    clearInterval(pad.keep); pad.box.remove();
+    if (pad.fingers.size) send({ op: 'touch', zone: pad.zone, pts: [] });
+    pad = null;
+  }
   const fmtClock = s => { s = Math.max(0, Math.ceil(s - 1e-6)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
   const dragging = new Map();   // zone id -> the level being dragged here (the main computer's echo waits)
 
@@ -128,8 +172,11 @@
       el('button', { class: 'pnext', type: 'button', 'aria-label': 'Next step', html: ICON.next, onclick: () => { const p = playing(); if (p) send({ op: 'playlist', zone: card.dataset.id, list: p.list, do: 'next' }); } }),
       el('div', { class: 'pnow' }, el('b'), el('span')),
       el('div', { class: 'pprog' }, el('i')));
+    // the zone plays something that follows a finger: a full screen pad to move it
+    const touch = el('button', { class: 'tint', type: 'button', hidden: true, title: 'Move the content with your finger', onclick: () => openPad(card.dataset.id, card._z ? card._z.name : '') },
+      el('span', { class: 'ico', html: ICON.touch }), 'Interact');
     const card = el('section', { class: 'zone', 'data-id': z.id },
-      el('div', { class: 'zhead' }, el('b'), el('div', { class: 'now' })),
+      el('div', { class: 'zhead' }, el('div', { class: 'zname' }, el('b'), touch), el('div', { class: 'now' })),
       el('div', { class: 'dim' }, range, pc),
       el('div', { class: 'plists' }),
       bar,
@@ -146,6 +193,8 @@
     if (z.tag) card.style.setProperty('--zt', z.tag); else card.style.removeProperty('--zt');   // the zone's colour, when it has one
     updatePlaylists(card, z);
     card.querySelector('.zhead b').textContent = z.name;
+    card.querySelector('.tint').hidden = !z.touch;
+    if (pad && pad.zone === z.id && !z.touch) closePad();   // what plays there no longer follows a finger
     const sc = z.scenes.find(s => s.id === z.scene);
     const now = card.querySelector('.now');
     now.replaceChildren(sc ? el('em', null, '▶ ' + sc.name) : el('em', null, 'Live look'), z.content.length ? ' · ' + z.content.join(' + ') : ' · Black');

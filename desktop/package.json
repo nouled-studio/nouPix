@@ -1,7 +1,7 @@
 {
   "name": "noupix-desktop",
   "productName": "nouPix",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "nouPix desktop app: the interface in its own window, with the Art-Net bridge inside",
   "license": "AGPL-3.0-only",
   "author": "nouled studio",
@@ -41,6 +41,7 @@
       "identity": null,
       "minimumSystemVersion": "12.0",
       "extendInfo": {
+        "NSMicrophoneUsageDescription": "nouPix listens to the music to find its beat (Settings → Tempo).",
         "UTExportedTypeDeclarations": [
           {
             "UTTypeIdentifier": "studio.nouled.noupix.project",

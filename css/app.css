@@ -4,6 +4,8 @@
 :root {
   color-scheme: dark;
   --bg0: #000000;   /* stage, window */
+  --pad: #000000;   /* the Interact pad: black in both looks, as the lights are */
+  --pad-ink: #ffffff;
   --bg1: #0a0a0a;   /* panels, top bar, status bar */
   --bg2: #111111;   /* inputs, pills */
   --bg3: #191919;   /* buttons, raised */
@@ -143,6 +145,8 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .pill.warn .dot { background: var(--warn); }
 .pill.err .dot { background: var(--danger); }
 .master { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); min-width: 0; }
+.beatdot { width: 6px; height: 6px; border-radius: 50%; background: var(--live); cursor: pointer; flex: none; margin-right: 2px; }
+.beatdot[hidden] { display: none; }
 .master > label { font: 600 10.5px var(--label); letter-spacing: .14em; text-transform: uppercase; }
 .master .mslot { width: 110px; flex: 0 1 110px; min-width: 50px; }
 .master .mono { width: 38px; text-align: right; color: var(--text); }
@@ -199,7 +203,6 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, transparent); background: var(--warn-soft); }
 .badge.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: var(--danger-soft); }
 .badge.ok { color: var(--live); border-color: color-mix(in srgb, var(--live) 35%, transparent); background: var(--live-soft); }
-.list .srcrow { grid-template-columns: 16px minmax(0,1fr) auto auto; }
 /* groups in the fixture list: a header row, then its fixtures indented along a line in the group's colour */
 .list li.grp .chev { display: flex; align-items: center; justify-content: center; width: 14px; height: 20px; margin-left: -4px; padding: 0; border: 0; background: none; color: var(--text2); border-radius: 0; cursor: pointer; }
 .list li.grp .chev:hover { background: var(--bg3); color: var(--text); }
@@ -293,6 +296,13 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 /* the Channel monitor's own window */
 body.monwin { height: 100vh; margin: 0; display: flex; flex-direction: column; background: var(--bg1); color: var(--text); }
 body.monwin > .monitor { flex: 1; min-height: 0; }
+/* the Interact window: all of it a black pad */
+body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidden; }
+.tpad { position: fixed; inset: 0; }
+.tpad canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; display: block; }
+.tpad .tlabel { position: absolute; left: 14px; top: 12px; display: grid; gap: 4px; pointer-events: none; font: 600 11px var(--label); letter-spacing: .12em; text-transform: uppercase; color: color-mix(in srgb, var(--pad-ink) 55%, transparent); transition: opacity .6s; }
+.tpad .tlabel span { font: 300 12px var(--ui); letter-spacing: 0; text-transform: none; color: color-mix(in srgb, var(--pad-ink) 35%, transparent); }
+.tpad .tlabel.gone { opacity: 0.25; }
 .dockbody { min-height: 0; overflow: hidden; }
 
 .patch { display: grid; grid-template-columns: 230px minmax(0,1fr); height: 100%; }
@@ -535,7 +545,8 @@ body.monwin > .monitor { flex: 1; min-height: 0; }
 .fd:hover, .fd:focus-visible, .fd.scrub { border-color: var(--line2); background: var(--bg2); color: var(--text); outline: none; }
 .fd.scrub { border-color: var(--accent); color: var(--accent); }
 .scene.live .fd { color: var(--live); }
-.pstep .fd { margin-left: 0; margin-right: -4px; }
+.pstep .fd { margin: 0 -4px; }
+.pempty { align-self: center; padding: 0 6px; font-size: 12px; color: var(--muted); }
 .pstep .fd.own { color: var(--accent); }
 .pstep .fd.clip { color: var(--warn); }
 .scene input.fdin, .pstep input.fdin { width: 54px; height: 18px; padding: 0 4px; margin-left: -4px; font-family: var(--mono); font-size: 10.5px; }
@@ -575,7 +586,6 @@ body.monwin > .monitor { flex: 1; min-height: 0; }
 .ptabs.folded { align-items: center; }
 .ptabs.folded .ptab { height: 26px; border-bottom: 1px solid var(--line); border-radius: 0; padding: 0 9px 0 2px; background: var(--bg2); }
 .ptabs.folded .ptab.add { padding: 0 8px; }
-.pbrief { margin-left: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
 .pclose { margin-bottom: 3px; }
 .plane { border-radius: 0; background: var(--bg2); border: 1px solid var(--line2); }
 .plane.drop-in { outline: 1px dashed var(--accent); outline-offset: -1px; }
@@ -602,36 +612,14 @@ body.monwin > .monitor { flex: 1; min-height: 0; }
 .pstep.live { --edge: var(--live); --fill: color-mix(in srgb, var(--live) 8%, var(--bg3)); }
 .pstep.live.paused { --edge: var(--warn); --fill: color-mix(in srgb, var(--warn) 10%, var(--bg3)); }
 .pstep.live.paused .fill { background: var(--warn); }
-.pstep.sel { --edge: var(--sel); }
 .pstep.drop::after { box-shadow: inset 3px 0 0 var(--accent); }
 .pstep.dragging { opacity: .4; }
-.pstep.add { width: 70px; border: 1px dashed var(--line2); background: none; color: var(--muted); place-items: center; align-content: center; font-size: 12px; font-family: inherit; }
-.pstep.add:hover, .pstep.add.on { color: var(--accent); border-color: var(--accent); }
-.pfoot { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 14px; padding: 5px 8px; border-top: 1px solid var(--line); font-size: 12px; color: var(--text2); }
-.pfoot .pstatus { flex: 1 1 260px; min-width: 0; }
-.pfoot .pstatus.paused { color: var(--warn); }
-.pfoot .grp { display: flex; align-items: center; gap: 6px; }
-.pfoot .grp input[type=number] { width: 54px; }
-.pfoot select { width: auto; height: 24px; }
-.pfoot .seg button { height: 22px; }
-.paddbar .btn { font: 400 12px var(--ui); letter-spacing: 0; text-transform: none; }   /* scene names, as typed */
-.paddbar, .peditor { margin-top: 6px; padding: 8px 10px; border-radius: 0; border: 1px solid var(--accent); background: var(--bg1); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
-.peditor { align-items: end; gap: 8px 16px; }
-.peditor .pedhead { flex-basis: 100%; display: flex; align-items: baseline; gap: 10px; color: var(--text); }
-.peditor .pfield { display: grid; gap: 3px; }
-.peditor .pfield > span { font: 600 10px var(--label); color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
-.peditor .pfield select { width: auto; min-width: 120px; }
-.peditor .pair { display: flex; align-items: center; gap: 6px; }
-.peditor .pair input[type=number] { width: 58px; }
-.peditor .seg button { height: 26px; padding: 0 8px; }
 .ptime { width: 70px !important; font-family: var(--mono); font-size: 11.5px; }
-.peditor .pact { display: flex; gap: 6px; margin-left: auto; }
-.peditor .note { flex-basis: 100%; margin: 0; }
 .note.warn { color: var(--warn); }
 .pmodal { width: min(470px, 100%); }
 .pmodal .pair { display: flex; align-items: center; gap: 8px; }
-.pmodal .seg, .pfoot .seg, .peditor .seg { grid-auto-columns: auto; }
-.pmodal .seg button, .pfoot .seg button, .peditor .seg button { white-space: nowrap; padding: 0 9px; }
+.pmodal .seg { grid-auto-columns: auto; }
+.pmodal .seg button { white-space: nowrap; padding: 0 9px; }
 .pmodal .pair input[type=number] { width: 64px; }
 .ppicks { display: grid; border: 1px solid var(--line); border-radius: 0; max-height: 280px; overflow: auto; }
 .ppick { display: grid; grid-template-columns: 16px minmax(0, 1fr) 58px 64px 48px; align-items: center; gap: 8px; padding: 4px 8px 4px 6px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
@@ -697,7 +685,6 @@ body.monwin > .monitor { flex: 1; min-height: 0; }
 .row > label.scrub { cursor: ew-resize; }
 .row > label.scrub:hover { color: var(--accent); }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.tri { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 .inp { position: relative; display: flex; align-items: center; min-width: 0; }
 .inp > b { position: absolute; left: 7px; font-weight: 500; font-size: 10.5px; color: var(--muted); pointer-events: none; }
 .inp > b + input { padding-left: 20px; }
@@ -1162,3 +1149,41 @@ body.sceneswin > .dockbody { height: 100%; }
 .checkline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pwrow { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .pwrow input[type=password], .pwrow input[type=text] { flex: 1; min-width: 0; }
+
+/* Tempo (Settings): the nouPix mark lighting on each beat, the BPM, the bar's beats as lines, the input's meter */
+.tempo-read { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 2px 10px; padding: 2px 0 6px; }
+.tempo-read .tdot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); opacity: .18; }
+.tempo-read .tdot.idle { background: var(--line3); opacity: 1; }
+.tempo-read .tnum { font-family: var(--mono); font-size: 15px; line-height: 1; color: var(--text); white-space: nowrap; }
+.tempo-read .tnum small { font: 600 9.5px var(--label); letter-spacing: .14em; color: var(--muted); margin-left: 5px; }
+.tempo-read .tbar { display: flex; gap: 3px; justify-self: end; }
+.tempo-read .tbar i { width: 14px; height: 4px; background: var(--bg4); }
+.tempo-read .tbar i.past { background: color-mix(in srgb, var(--live) 35%, var(--bg4)); }
+.tempo-read .tbar i.on { background: var(--live); }
+.tempo-read .tbar i.one { background: var(--accent); }
+.tempo-read .tstate { grid-column: 2 / -1; color: var(--muted); font-size: 11px; }
+.tempo select { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the spectrum with the beat band (dragged by its edges), and under it the band's hits and the beats */
+.tempo .tsig { display: grid; gap: 3px; margin: 2px 0 4px; }
+.tempo .tspecw { position: relative; }
+.tempo .tbreset { position: absolute; top: 3px; right: 3px; height: 16px; padding: 0 5px; border: 1px solid var(--line2); background: var(--bg1); color: var(--muted);
+  font: 600 8.5px var(--label); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+.tempo .tbreset:hover { color: var(--text); border-color: var(--line3); }
+.tempo .tspec { display: block; width: 100%; height: 46px; touch-action: none; }
+.tempo .ttrace { display: block; width: 100%; height: 20px; }
+.tmrow { padding-left: 86px; margin-top: -4px; }
+.tmeter { position: relative; height: 4px; background: var(--bg3); width: 100%; overflow: hidden; }
+.tmeter .lv { position: absolute; inset: 0; background: linear-gradient(90deg, var(--fader) 0 80%, color-mix(in srgb, var(--fader) 45%, var(--accent)) 80% 95%, var(--accent) 95%); }
+.tmeter .rest { position: absolute; top: 0; bottom: 0; right: 0; left: 0; background: var(--bg3); }
+.tmeter .pk { position: absolute; top: 0; bottom: 0; width: 2px; left: 0; background: var(--text2); }
+.tmeter.clip .pk { background: var(--accent); }
+
+/* an effect following the music: where its beat comes from */
+.tnote { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--muted); }
+.tnote > span { flex: 1; }
+.tnote.warn > span { color: var(--text2); }
+/* Fixture chase: its steps, each ticked or left out */
+.chlist { display: grid; max-height: 168px; overflow: auto; border: 1px solid var(--line); background: var(--bg2); }
+.chlist .chstep { padding: 3px 8px; gap: 8px; border-bottom: 1px solid var(--line); }
+.chlist .chstep .ix { color: var(--muted); font-size: 10.5px; width: 18px; }
+.chlist .chstep.off .nm { color: var(--muted); }

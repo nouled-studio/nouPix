@@ -484,8 +484,11 @@ function renderContentTab(body) {
     }
     ctl.push(...macroLinksFold(src, rt));
     ctl.push(h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { delete L.params[src.id]; commit(); renderRight(); } }, 'Reset to defaults')));
+    if (rt.audio && rt.audio.length) ctl.unshift(tempoNote(rt.audio.some(i => i.NAME.startsWith('audio'))));   // it follows the music
+    if (rt.touch && rt.touch.length) ctl.unshift(touchNote(selZone()));   // it follows a finger
     body.append(sec('Parameters', ctl));
   }
+  if (src.kind === 'chase') body.append(chaseSection(L, src));
   if (src.kind === 'image' || src.kind === 'video') {
     const el = mediaEls.get(src.id);
     const k = [];
@@ -650,6 +653,7 @@ function renderSettings(body) {
     tipRow(numRow('Default fade', s, 'fade', { min: 0, max: 60, step: 0.1, onCommit: commit }), 'The fade new scenes get, in seconds (0 cuts). Each scene keeps its own, on its button.'),
     tipRow(checkRow('Auto snapshot', s, 'sceneShots', () => commit()), 'Storing or updating a scene also takes its snapshot.')));
   if (REMOTE_CLIENT) return;
+  body.append(tempoSection());
   body.append(remoteSection());
   // this computer's: not in the project
   const parts = [row('Look', seg([['dark', 'Black'], ['light', 'White']], ui.theme === 'light' ? 'light' : 'dark', v => setTheme(v)))];
@@ -761,7 +765,6 @@ function sizeRows(sel) {
 }
 function arrangeSection(sel) {
   const units = arrangeUnits(sel), free = units.filter(u => !u.locked).length, many = units.length > 1;
-  const g = wholeGroup(sel), blocks = !g && units.some(u => u.list.length > 1);
   const b = (ic, title, fn, off) => h('button', { class: 'btn icon', type: 'button', title, 'aria-label': title, disabled: !free || !!off, onclick: fn }, icon(ic));
   const align = [
     h('div', { class: 'grp' }, b('alignL', 'Align left', () => alignSel('l')), b('alignCX', 'Align centres horizontally', () => alignSel('cx')), b('alignR', 'Align right', () => alignSel('r'))),
