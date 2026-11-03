@@ -48,9 +48,9 @@ try:
     t = ev("(() => { const T = touches.get(String(olm.project.zones[0].id)); return { n: T.fingers.size, down: T.down, x: T.x, y: T.y }; })()")
     check("the finger is down there (x, y smoothed towards it)", t["n"] == 1 and t["down"] > 0.5 and t["x"] < 0.35 and t["y"] < 0.35, t)
     ev("touchInput(olm.project.zones[0].id, [])")
-    r = ev("""async () => { const z = olm.project.zones[0]; for (let k = 0; k < 120; k++) { frameIndex++; touchFeatures(z.id); await new Promise(r => setTimeout(r, 25)); }
+    r = ev("""async () => { const z = olm.project.zones[0]; for (let k = 0; k < 120; k++) { frameIndex++; touchFeatures(z.id); await new Promise(r => setTimeout(r, 100)); }
       const T = touches.get(String(z.id)); const d = T.ctx.getImageData(0, 0, TOUCH_W, TOUCH_H).data; let b = 0; for (let i = 2; i < d.length; i += 4) b = Math.max(b, d[i]); return [T.down, b]; }""")
-    check("let go, it eases out and the trail fades away in a few seconds", r[0] < 0.05 and r[1] < 12, r)
+    check("let go, it eases out, and the swirl and smoke settle away within about ten seconds", r[0] < 0.05 and r[1] < 12, r)
     # another zone's pad doesn't touch this one
     ev("(() => { touches.clear(); touchInput('elsewhere', [[1, 0.2, 0.2]]); })()")
     other = ev(LOOK, ["touchsmoke", False])
@@ -77,6 +77,9 @@ try:
     with pg.expect_popup() as pop: note.locator("button").click()
     win = pop.value; time.sleep(0.4)
     check("Interact opens a black pad in a window of its own", win.locator("body.touchwin .tpad canvas").count() == 1 and "Interact" in win.title(), win.title())
+    m = ev("(() => { const z = olm.project.zones[0], M = touchMap(z); return [M.length, M.every(v => v >= 0 && v <= 1), olm.project.fixtures.filter(f => f._pts).length]; })()")
+    check("the zone's map: its pixels, 0..1 across and down it", m[0] > 0 and m[0] <= 6002 and m[1], m)
+    check("the pad shows the zone's fixtures faintly, before any finger", win.evaluate("""(() => { const c = document.querySelector('.tpad canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 20) n++; return n; })()""") > 50)
     box = win.locator(".tpad canvas").bounding_box()
     zid = ev("String(olm.project.zones[0].id)")
     win.mouse.move(box["x"] + box["width"] * 0.25, box["y"] + box["height"] * 0.25); win.mouse.down()
@@ -104,6 +107,8 @@ try:
     check("its zone has Interact on the Remote page; the others don't", card.locator(".tint").is_visible() and ph.locator(".zone .tint:visible").count() == 1)
     card.locator(".tint").click(); time.sleep(0.3)
     check("Interact covers the screen with a black pad", ph.locator(".tpadr canvas").is_visible())
+    time.sleep(0.5)
+    check("…showing the zone's fixtures faintly (their map asked of the computer)", ph.evaluate("""(() => { const c = document.querySelector('.tpadr canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 20) n++; return n; })()""") > 50)
     vb = ph.viewport_size
     ph.mouse.move(vb["width"] * 0.5, vb["height"] * 0.6); ph.mouse.down()
     for k in range(8): ph.mouse.move(vb["width"] * (0.5 + k * 0.03), vb["height"] * 0.6, steps=2); time.sleep(0.04)
@@ -126,6 +131,18 @@ try:
     try: ph.wait_for_function(f"document.querySelector(\".zone[data-id='{zid}'] .tint\").hidden", timeout=4000)
     except Exception: ok = False
     check("when the zone plays something else, Interact goes", ok)
+    # the scenes' snapshots on the Remote page's buttons
+    shot = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=="
+    ev(f"(() => {{ const z = olm.project.zones[0]; z.scenes.push({{ id: 'scshot', name: 'With a picture', layers: [], fade: 0, thumb: '{shot}' }}, {{ id: 'scplain', name: 'Without', layers: [], fade: 0 }}); commit(); }})()")
+    ok = True
+    try: ph.wait_for_function("!!document.querySelector(\".scene.shot[data-id='scshot']\")", timeout=5000)
+    except Exception: ok = False
+    check("a scene's snapshot shows on its button on the Remote page; one without stays plain", ok and ph.locator(".scene[data-id='scplain']").get_attribute("class").find("shot") < 0)
+    ev("(() => { const z = olm.project.zones[0]; z.scenes.find(s => s.id === 'scshot').thumb = null; commit(); })()")
+    ok = True
+    try: ph.wait_for_function("!document.querySelector(\".scene.shot[data-id='scshot']\")", timeout=5000)
+    except Exception: ok = False
+    check("…and goes when the snapshot is removed", ok)
     ev("(() => { remote.cfg.on = false; remoteConfigure(); })()")
     check("no errors on the page", not errs, errs[:3])
     br.close()

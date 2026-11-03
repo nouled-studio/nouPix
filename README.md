@@ -20,7 +20,7 @@ A pixel-mapping tool for LED installations, by nouled studio. Draw or import you
 
 **Touch it.** Interactive effects (blobs, clouds, particles, ripples, smoke) drift by themselves and follow a finger on a pad: in a window on the computer, or full screen on a phone from the Remote page. Several people can play at once.
 
-![Touch Smoke: a finger's trail curling across the LED strips, with Interact in the effect's Parameters](docs/images/feature-touch.webp)
+![Touch Smoke: the smoke a finger stirred, curling and rising across the LED strips, with Interact in the effect's Parameters](docs/images/feature-touch.webp)
 
 **Scenes and playlists.** Store looks per zone, with a snapshot of each on its button; fade between them, play them in playlists, mix two zones with the X-Fader.
 

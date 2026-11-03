@@ -26,7 +26,7 @@
   };
   // The pad: the whole screen black; the fingers on it go to the zone (as 0..1 across and down), about 30 times a
   // second, and twice a second while held still, so the main computer doesn't take them as gone
-  let pad = null;
+  let pad = null, shots = {};   // shots: scene id -> its snapshot (the main computer sends them when they change)
   function openPad(zone, name) {
     closePad();
     const cv = el('canvas'), fingers = new Map();
@@ -54,11 +54,15 @@
       if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(0, 0, r.width, r.height);
+      const M = pad.map, dot = Math.max(1.5, Math.min(3, Math.sqrt(r.width * r.height / Math.max(1, M.length / 2)) * 0.25));
+      g.fillStyle = 'rgba(255,255,255,0.28)';
+      for (let i = 0; i < M.length; i += 2) g.fillRect(M[i] * r.width - dot / 2, M[i + 1] * r.height - dot / 2, dot, dot);
       g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 1.5;
       for (const f of fingers.values()) { g.beginPath(); g.arc(f.x, f.y, 26, 0, Math.PI * 2); g.stroke(); }
       requestAnimationFrame(paint);
     };
-    pad = { zone, box, keep, fingers };
+    pad = { zone, box, keep, fingers, map: [] };
+    send({ op: 'map', zone });   // where the zone's fixtures are, drawn faintly under the fingers
     requestAnimationFrame(paint);
   }
   function closePad() {
@@ -98,6 +102,8 @@
       else if (m.t === 'host') { hostOn = m.on; status(); }
       else if (m.t === 'bye') { bye = m.reason || 'Disconnected.'; token = null; sessionStorage.removeItem('olm.remote.token'); status(); }
       else if (m.t === 'state') { hostOn = true; state = m; stateAt = performance.now(); render(); status(); }
+      else if (m.t === 'shots') { shots = m.shots || {}; if (state) render(); }
+      else if (m.t === 'map' && pad && pad.zone === m.zone && Array.isArray(m.pts)) pad.map = m.pts;
     };
     ws.onclose = () => { status(); if (!bye) retry = setTimeout(connect, 2000); };
   }
@@ -204,14 +210,15 @@
     dim.disabled = !!z.xf; dim.title = z.xf ? 'The X-Fader sets this level' : '';
     const box = card.querySelector('.scenes');
     // the buttons are made again only when the scenes change, so a tap is never lost; otherwise the playing one moves
-    const key = JSON.stringify(z.scenes.map(s => [s.id, s.name, s.tag, s.fade]));
+    const key = JSON.stringify(z.scenes.map(s => [s.id, s.name, s.tag, s.fade, (shots[s.id] || '').length]));
     if (box.dataset.key === key) {
       box.querySelectorAll('.scene').forEach(b => { const on = b.dataset.id === z.scene; b.classList.toggle('live', on); b.setAttribute('aria-pressed', String(on)); });
       return;
     }
     box.dataset.key = key;
     box.replaceChildren(...(z.scenes.length ? z.scenes.map(s => el('button', { 'data-id': s.id,
-      class: 'scene' + (s.id === z.scene ? ' live' : ''), type: 'button', style: s.tag ? { '--mark': s.tag } : {}, 'aria-pressed': String(s.id === z.scene),
+      class: 'scene' + (s.id === z.scene ? ' live' : '') + (shots[s.id] ? ' shot' : ''), type: 'button', 'aria-pressed': String(s.id === z.scene),
+      style: Object.assign(s.tag ? { '--mark': s.tag } : {}, shots[s.id] ? { '--shot': 'url("' + shots[s.id] + '")' } : {}),
       title: s.fade ? `Fades in ${s.fade} s` : 'Cuts straight to it',
       onclick: e => {
         send({ op: 'scene', zone: z.id, scene: s.id });
