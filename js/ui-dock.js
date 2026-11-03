@@ -645,13 +645,13 @@ function renderNodes(body) {
           h('td', { class: 'mono' }, n.ip),
           h('td', null, h('div', null, n.shortName || '—'), h('div', { class: 'muted', style: { fontSize: '11px' } }, n.longName)),
           h('td', { class: 'mono muted' }, (k => k ? k.name || k.ip : '—')(netOf(n.ip, nets))),
-          h('td', null, h('span', { class: 'badge' }, n.sacn ? 'sACN' : 'Art-Net'),
+          h('td', null, h('span', { class: 'badge' }, n.wled && n.wled.proto === 'ddp' ? 'DDP' : n.sacn ? 'sACN' : 'Art-Net'),
             n.canSwitch ? h('span', { class: 'muted', style: { fontSize: '11px', marginLeft: '6px' }, title: 'The device can be set to Art-Net or sACN in its own settings' }, 'can switch') : null),
           h('td', { class: 'mono' }, n.universes.length ? n.universes.join(', ') : '—'),
           h('td', { class: 'mono' }, n.mac || '—'),
           h('td', { class: 'muted', style: { fontSize: '11px', maxWidth: '260px' } }, n.report || ''),
           h('td', null, h('button', { class: 'btn sm', type: 'button', title: known ? `Refresh ${known.name} from what the device reports` : `Add it as a controller on ${n.sacn ? 'sACN' : 'Art-Net'}`,
-            onclick: () => addNodeAsController(n) }, known ? 'Refresh' : 'Add as controller'))), e => nodeMenu(e, n));
+            disabled: !!(n.wled && n.wled.proto === 'ddp'), onclick: () => addNodeAsController(n) }, known ? 'Refresh' : 'Add as controller'))), e => nodeMenu(e, n));
       }))));
   }
   const hidden = all.length - nodes.length;
@@ -667,8 +667,10 @@ function nodeDevices() {
   return [...byIp].map(([ip, list]) => {
     list.sort((a, b) => (a.bindIndex || 0) - (b.bindIndex || 0));
     const universes = [...new Set(list.flatMap(n => Array.isArray(n.outUniverses) ? n.outUniverses : []))].sort((a, b) => a - b);
+    // a WLED found by mDNS (bind index −1) knows its settings exactly: its protocol wins over an ArtPoll reply's
+    const wled = (list.find(n => n.wled) || {}).wled || null;
     return { ip, replies: list.length, universes, shortName: pick(list, 'shortName'), longName: pick(list, 'longName'), mac: pick(list, 'mac'), report: pick(list, 'report'),
-      sacn: list.some(n => n.sacn), canSwitch: list.some(n => n.canSwitch) };
+      sacn: wled ? wled.proto === 'sacn' : list.some(n => n.sacn), canSwitch: list.some(n => n.canSwitch), wled };
   }).sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true }));
 }
 // ArtPoll says which universes a device listens on, not how they are split over its physical outputs (2 outputs
@@ -678,6 +680,7 @@ function nodeDevices() {
 function addNodeAsController(n) {
   const u = n.universes, proto = n.sacn ? 'sacn' : 'artnet';
   const same = project.controllers.find(c => c.ip === n.ip);
+  if (n.wled) return addWledAsController(n, same);
   if (same) {
     same.protocol = proto;
     if (u.length) same.discovered = u.slice();
@@ -694,6 +697,22 @@ function addNodeAsController(n) {
   ui.selCtrl = c.id; ui.selCtrls = new Set(); ui.dockTab = 'patch';
   markPatch(); commit(); updateDiscoveryUI();   // its row now offers Refresh
   toast(`Added ${c.name} on ${protoName(c)}. Set its outputs to match how the device is set up.`);
+}
+// A WLED tells exactly how it receives (its JSON API): one output of its LEDs, by pixels, from its universe and
+// address, whole pixels per universe as WLED expects; refreshing a known one sets all that again
+function addWledAsController(n, same) {
+  const w = n.wled;
+  if (w.proto === 'ddp') { toast(`${n.shortName || n.ip} is set to DDP. Set it to E1.31 or Art-Net in WLED (Sync Interfaces), then Discover again.`, 'warn'); return; }
+  const set = { protocol: w.proto, mode: 'pixels', outputs: 1, pxOut: Math.max(1, w.leds), chPx: w.chPx, startUniverse: w.universe, startCh: w.address, split: false };
+  let c = same;
+  if (c) Object.assign(c, set);
+  else { c = newController(Object.assign({ name: n.shortName || n.ip, ip: n.ip }, set)); project.controllers.push(c); }
+  ensureChains(c);
+  if (n.universes.length) c.discovered = n.universes.slice();
+  ui.selCtrl = c.id; ui.selCtrls = new Set(); ui.dockTab = 'patch';
+  markPatch(); commit(); updateDiscoveryUI();
+  const warn = !w.receiving ? ' Its receiving is off: turn it on in WLED.' : !w.pixels ? " Set WLED's DMX mode to Multi RGB (or RGBW)." : '';
+  toast(`${same ? 'Refreshed' : 'Added'} ${c.name}: WLED on ${protoName(c)}, ${w.leds} LEDs from universe ${uniLabel(w.universe, c)}, channel ${w.address}.` + warn, warn ? 'warn' : undefined);
 }
 // 0, 1, 2, 3, 7 → "0–3, 7"
 function universeList(u) {

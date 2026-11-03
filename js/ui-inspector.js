@@ -765,7 +765,6 @@ function sizeRows(sel) {
 }
 function arrangeSection(sel) {
   const units = arrangeUnits(sel), free = units.filter(u => !u.locked).length, many = units.length > 1;
-  const g = wholeGroup(sel), blocks = !g && units.some(u => u.list.length > 1);
   const b = (ic, title, fn, off) => h('button', { class: 'btn icon', type: 'button', title, 'aria-label': title, disabled: !free || !!off, onclick: fn }, icon(ic));
   const align = [
     h('div', { class: 'grp' }, b('alignL', 'Align left', () => alignSel('l')), b('alignCX', 'Align centres horizontally', () => alignSel('cx')), b('alignR', 'Align right', () => alignSel('r'))),

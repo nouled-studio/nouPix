@@ -59,6 +59,7 @@ function runtimeOf(src) {
   rt.clocks = clocksOf(rt.hdr);
   rt.audio = (rt.hdr.INPUTS || []).filter(isAudioInput);   // the inputs that follow the music
   rt.touch = (rt.hdr.INPUTS || []).filter(isTouchInput);   // and the ones that follow a finger (touch.js)
+  rt.bandIn = rt.audio.some(i => i.NAME === 'audioBand') ? (rt.hdr.INPUTS || []).find(i => i.NAME === 'band') || null : null;   // the range it listens to
   rt.roles = macroRoles(rt);   // which macro each control follows
   R.setDateUniforms = function () { this.setValue('TIME', isfTime ?? layerTime ?? clockT); this.setValue('TIMEDELTA', clockDT); this.setValue('FRAMEINDEX', frameIndex); };
   rt.R = R;
@@ -165,8 +166,7 @@ function applyParams(rt, L, src) {
   // the macros, on a layer (not on a thumbnail); a control that follows Speed runs at its rate
   const roles = L.id != null && macroRolesOf(src, rt), rate = inp => (roles && roles[inp.NAME] === 'speed' ? project.macros.speed.v : 1);
   // the music's inputs (tempo.js), real on a layer, made up on a thumbnail
-  const bandIn = rt.audio && rt.audio.some(i => i.NAME === 'audioBand') && (rt.hdr.INPUTS || []).find(i => i.NAME === 'band');
-  const band = bandIn ? numOr(paramValue(L, src, bandIn), 0) : 0;
+  const band = rt.bandIn ? numOr(paramValue(L, src, rt.bandIn), 0) : 0;
   for (const inp of rt.audio || []) { try { rt.R.setValue(inp.NAME, audioInputValue(inp.NAME, L.id == null ? (isfTime ?? clockT) : null, isfTime != null, band)); } catch (e) { /* not used */ } }
   // a finger on the zone it draws in (a made-up one on a thumbnail)
   for (const inp of rt.touch || []) { try { rt.R.setValue(inp.NAME, touchInputValue(inp.NAME, L.id == null ? (isfTime ?? clockT) : null, drawZone)); } catch (e) { /* not used */ } }

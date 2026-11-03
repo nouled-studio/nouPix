@@ -18,7 +18,6 @@ const remote = {
 };
 // The operator sees the mapping but cannot change it: fixtures, patch, controllers, zone areas, settings
 const mappingLocked = () => remote.role === 'operator';
-const isRemoteClient = () => REMOTE_CLIENT;
 function remoteLoadCfg() {
   const c = store.get('noupix.remote', {});
   remote.cfg = { on: !!(c && c.on), port: clamp(Math.round(numOr(c && c.port, REMOTE_PORT)), 1024, 65535), password: typeof (c && c.password) === 'string' ? c.password : '', http: !!(c && c.http) };

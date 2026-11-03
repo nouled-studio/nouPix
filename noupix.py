@@ -46,7 +46,7 @@ import urllib.parse
 import uuid
 import webbrowser
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 HERE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 ARTNET_PORT = 6454
 WS_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -138,6 +138,7 @@ class ArtNet:
         self.last_error = ""
         self.nodes = {}
         self.listeners = set()
+        self.wled = WledFinder(self.found)   # WLEDs set to sACN never hear ArtPoll: found by mDNS
         self.owner = None  # the window allowed to send: the last one that switched Art-Net on
         self.held = None   # last frame from the owner, repeated if the window stalls
         self.holding = False
@@ -313,13 +314,16 @@ class ArtNet:
             if struct.unpack("<H", data[8:10])[0] == OP_POLL_REPLY:
                 node = parse_poll_reply(data, addr)
                 if node:
-                    key = "%s#%d" % (node["ip"], node["bindIndex"])
-                    self.nodes[key] = node
-                    for fn in list(self.listeners):
-                        try:
-                            fn(node)
-                        except Exception:
-                            pass
+                    self.found(node)
+
+    def found(self, node):
+        """A device that answered: kept, and told to every window."""
+        self.nodes["%s#%d" % (node["ip"], node["bindIndex"])] = node
+        for fn in list(self.listeners):
+            try:
+                fn(node)
+            except Exception:
+                pass
 
 
 def parse_poll_reply(d, addr):
@@ -349,6 +353,194 @@ def parse_poll_reply(d, addr):
         "canSwitch": bool(status2 & 0x10),
         "seen": time.time(),
     }
+
+
+# --------------------------------------------------------------------------- WLED
+
+# A WLED set to E1.31 (sACN) listens on 5568 only, so it never hears ArtPoll on 6454, and sACN has no way to ask who
+# is listening. WLED announces itself with mDNS instead (_wled._tcp), and its JSON API tells how it receives: so a
+# Discover also asks mDNS, then reads each WLED's /json/info and /json/cfg. The question goes from an ordinary port,
+# which mDNS answers straight back to that port ("legacy unicast", RFC 6762 6.7): no need for 5353, which the
+# system's own mDNS service may hold. NOUPIX_MDNS=host:port sends it elsewhere (the tests' stand-in WLED).
+MDNS_GROUP = ("224.0.0.251", 5353)
+WLED_SERVICE = "_wled._tcp.local"
+WLED_LISTEN = 1.5   # seconds to wait for answers
+WLED_PROTOS = {5568: "sacn", 6454: "artnet", 4048: "ddp"}
+# WLED's DMX modes that give each LED its own channels: channels per LED, and LEDs per universe after the first
+WLED_PIXEL_MODES = {4: (3, 170), 5: (3, 170), 6: (4, 128)}   # Multi RGB, Dimmer + Multi RGB, Multi RGBW
+
+
+def mdns_query(name, qtype=12):
+    labels = b"".join(bytes([len(p)]) + p.encode("ascii") for p in name.split(".") if p)
+    return struct.pack(">HHHHHH", 0x4E50, 0, 1, 0, 0, 0) + labels + b"\x00" + struct.pack(">HH", qtype, 1)
+
+
+def dns_name(d, i, depth=0):
+    """A name at offset i, following compression pointers; returns it and the offset after it."""
+    parts, end = [], None
+    while i < len(d):
+        n = d[i]
+        if n == 0:
+            i += 1
+            break
+        if n & 0xC0 == 0xC0:
+            if i + 1 >= len(d) or depth > 10:
+                raise ValueError("bad name")
+            if end is None:
+                end = i + 2
+            i, depth = ((n & 0x3F) << 8) | d[i + 1], depth + 1
+            continue
+        parts.append(d[i + 1:i + 1 + n].decode("utf-8", "replace"))
+        i += 1 + n
+    return ".".join(parts).lower(), (end if end is not None else i)
+
+
+def parse_mdns(d):
+    """The records of an mDNS answer: PTR name -> instances, SRV instance -> (host, port), A host -> address."""
+    out = {"ptr": {}, "srv": {}, "a": {}}
+    if len(d) < 12:
+        return out
+    qd, an, ns, ar = struct.unpack(">HHHH", d[4:12])
+    i = 12
+    try:
+        for _ in range(qd):
+            _, i = dns_name(d, i)
+            i += 4
+        for _ in range(an + ns + ar):
+            name, i = dns_name(d, i)
+            rtype, _, _, rdlen = struct.unpack(">HHIH", d[i:i + 10])
+            i += 10
+            rd = i
+            if rtype == 12:
+                out["ptr"].setdefault(name, []).append(dns_name(d, rd)[0])
+            elif rtype == 33 and rdlen >= 6:
+                port = struct.unpack(">H", d[rd + 4:rd + 6])[0]
+                out["srv"][name] = (dns_name(d, rd + 6)[0], port)
+            elif rtype == 1 and rdlen == 4:
+                out["a"][name] = socket.inet_ntoa(d[rd:rd + 4])
+            i = rd + rdlen
+    except (ValueError, struct.error, IndexError, OSError):
+        pass
+    return out
+
+
+def wled_node(ip, info, cfg):
+    """A WLED's settings as a node, like an ArtPoll reply: its universes as nouPix counts them (from 0, sACN's one
+    lower), and what the page needs to make a controller of it (LED count, channels per LED, start address)."""
+    live = ((cfg.get("if") or {}).get("live") or {}) if isinstance(cfg, dict) else {}
+    dmx = live.get("dmx") or {}
+    port = int(live.get("port") or 5568)
+    proto = WLED_PROTOS.get(port, "sacn" if port == 5568 else "artnet")
+    leds = int(((info.get("leds") or {}).get("count")) or 0)
+    uni, addr, mode = int(dmx.get("uni") or 1), int(dmx.get("addr") or 1), int(dmx.get("mode") if dmx.get("mode") is not None else 4)
+    first = uni - 1 if proto == "sacn" else uni   # nouPix counts universes from 0 as Art-Net does
+    cpl, per = WLED_PIXEL_MODES.get(mode, (3, 170))
+    if mode == 5:
+        addr += 1   # the dimmer takes the first channel
+    in_first = max(0, (513 - addr) // cpl)
+    count = 1 + (max(0, leds - in_first) + per - 1) // per if leds else 1
+    notes = []
+    if not live.get("en", True):
+        notes.append("Receiving is off in WLED (Sync Interfaces, Realtime: Receive UDP realtime).")
+    if proto == "ddp":
+        notes.append("WLED is set to DDP: set it to E1.31 or Art-Net for nouPix.")
+    if mode not in WLED_PIXEL_MODES:
+        notes.append("Its DMX mode isn't Multi RGB or RGBW: one color for all, or effects.")
+    elif mode == 5:
+        notes.append("Dimmer + Multi RGB: the first channel is WLED's dimmer.")
+    led_text = "%d LED%s, %s" % (leds, "" if leds == 1 else "s", "RGBW" if cpl == 4 else "RGB")
+    where = "%s universe %d from channel %d" % ({"sacn": "sACN", "artnet": "Art-Net", "ddp": "DDP"}[proto], uni, int(dmx.get("addr") or 1))
+    return {
+        "ip": ip, "from": ip, "shortName": str(info.get("name") or "WLED")[:40], "longName": "WLED " + str(info.get("ver") or ""),
+        "report": " ".join([led_text + ", " + where + "."] + notes), "ports": 1,
+        "outUniverses": [first + k for k in range(count)] if proto != "ddp" else [],
+        "mac": ":".join(re.findall("..", str(info.get("mac") or "").lower())) if info.get("mac") else "",
+        "bindIndex": -1, "sacn": proto == "sacn", "canSwitch": True, "seen": time.time(),
+        "wled": {"proto": proto, "leds": leds, "chPx": cpl, "universe": first, "address": addr, "mode": mode,
+                 "multicast": bool(live.get("mc")), "receiving": bool(live.get("en", True)), "pixels": mode in WLED_PIXEL_MODES},
+    }
+
+
+class WledFinder:
+    """Asks mDNS for WLEDs on the chosen networks, reads each one's settings, and reports it as a node."""
+
+    def __init__(self, found):
+        self.found = found   # called with each node
+        self.busy = False
+        self.again = None    # a Discover during a search: searched once more when it ends (settings may have changed)
+        self.lock = threading.Lock()
+
+    def find(self, iface_ips):
+        with self.lock:
+            if self.busy:
+                self.again = list(iface_ips)
+                return
+            self.busy = True
+        threading.Thread(target=self._run, args=(list(iface_ips),), daemon=True).start()
+
+    def _run(self, iface_ips):
+        while iface_ips is not None:
+            try:
+                self._find(iface_ips)
+            except Exception:
+                pass
+            with self.lock:
+                iface_ips, self.again = self.again, None
+                if iface_ips is None:
+                    self.busy = False
+
+    def _find(self, iface_ips):
+        target = MDNS_GROUP
+        if os.environ.get("NOUPIX_MDNS"):
+            h, _, p = os.environ["NOUPIX_MDNS"].rpartition(":")
+            target = (h, int(p))
+        socks = []
+        for ip in iface_ips or [""]:
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.bind((ip, 0))
+                s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
+                if ip:
+                    s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
+                s.settimeout(0.1)
+                s.sendto(mdns_query(WLED_SERVICE), target)
+                socks.append(s)
+            except OSError:
+                pass
+        seen, end = set(), time.time() + WLED_LISTEN
+        while socks and time.time() < end:
+            for s in socks:
+                try:
+                    data, addr = s.recvfrom(4096)
+                except (socket.timeout, OSError):
+                    continue
+                rec = parse_mdns(data)
+                for inst in rec["ptr"].get(WLED_SERVICE, []):
+                    host, port = rec["srv"].get(inst, ("", 80))
+                    ip = rec["a"].get(host) or addr[0]
+                    if (ip, port) not in seen:
+                        seen.add((ip, port))
+                        threading.Thread(target=self._read, args=(ip, port), daemon=True).start()
+        for s in socks:
+            s.close()
+
+    def _read(self, ip, port):
+        def get(path):
+            c = http.client.HTTPConnection(ip, port, timeout=2.5)
+            try:
+                c.request("GET", path)
+                r = c.getresponse()
+                return json.loads(r.read(200000).decode("utf-8", "replace")) if r.status == 200 else {}
+            finally:
+                c.close()
+        try:
+            info = get("/json/info")
+            if not isinstance(info, dict) or not info:
+                return
+            cfg = get("/json/cfg")
+            self.found(wled_node(ip, info, cfg if isinstance(cfg, dict) else {}))
+        except (OSError, ValueError, http.client.HTTPException):
+            pass
 
 
 # --------------------------------------------------------------------------- WebSocket
@@ -1351,7 +1543,7 @@ class MediaHandler:
         return {"project": json.loads(text), "media": got}
 
     def package_open(self, n):
-        import zipfile, tempfile
+        import tempfile
         fd, tmp = tempfile.mkstemp(suffix=".noupixpkg")
         try:
             with os.fdopen(fd, "wb") as f:
@@ -1681,6 +1873,9 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
         elif msg.get("t") == "rhttp" and remote:
             remote.answer(ws, msg)
         elif msg.get("t") == "poll":
+            # WLEDs answer mDNS, whatever port Art-Net has here
+            ifaces = msg.get("ifaces")
+            art.wled.find([n["ip"] for n in network_interfaces() if isinstance(ifaces, list) and n["ip"] in ifaces])
             if not art.discovery:
                 ws.send_json({"t": "error", "msg": "Discovery unavailable: " + art.discovery_note})
                 return

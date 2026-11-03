@@ -72,6 +72,8 @@ try:
     time.sleep(0.3)
     note = pg.locator("#rightBody .tnote:has-text('Interactive')")
     check("its Parameters say it is interactive, with Interact", note.count() == 1 and note.locator("button:has-text('Interact')").count() == 1)
+    ev("updateTempoUI()"); time.sleep(0.2)   # a tap or Listen redraws the tempo notes: not this one
+    check("…and it stays so when the tempo changes", pg.locator("#rightBody .tnote:has-text('Interactive')").count() == 1 and pg.locator("#rightBody .tnote:has-text('beat')").count() == 0)
     with pg.expect_popup() as pop: note.locator("button").click()
     win = pop.value; time.sleep(0.4)
     check("Interact opens a black pad in a window of its own", win.locator("body.touchwin .tpad canvas").count() == 1 and "Interact" in win.title(), win.title())

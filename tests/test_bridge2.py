@@ -63,9 +63,12 @@ finally:
 from harness import ROOT
 sys.path.insert(0, ROOT)
 import noupix as olm
+class FakeWled:
+    def __init__(s): s.asked = []
+    def find(s, ips): s.asked.append(ips)
 class FakeArt:
     discovery = True
-    def __init__(s): s.sent = []
+    def __init__(s): s.sent = []; s.wled = FakeWled()
     def poll(s, address): s.sent.append(address)
 class FakeWS:
     def __init__(s): s.out = []
@@ -73,12 +76,14 @@ class FakeWS:
 def poll(msg):
     art, ws = FakeArt(), FakeWS()
     olm.Handler.handle_message(art, ws, json.dumps(msg).encode())
+    poll.wled = art.wled.asked
     return art.sent, ws.out
 nets = olm.network_interfaces()
 check("networks have an address, mask and broadcast address", all({"ip", "mask", "prefix", "broadcast"} <= set(n) and not n["ip"].startswith("127.") for n in nets))
 if nets:
     sent, out = poll({"t": "poll", "ifaces": [nets[0]["ip"]], "broadcast": ""})
     check("a ticked network gets ArtPoll on its broadcast address", sent == [nets[0]["broadcast"]] and out and out[0]["t"] == "polled" and out[0]["nets"] == nets)
+    check("…and WLEDs are asked for on it (mDNS)", poll.wled == [[nets[0]["ip"]]])
 check("no network ticked: nothing sent", poll({"t": "poll", "ifaces": [], "broadcast": ""})[0] == [])
 check("a typed address is used too", poll({"t": "poll", "ifaces": [], "broadcast": " 2.255.255.255 "})[0] == ["2.255.255.255"])
 check("a typed address must be an IPv4 address", poll({"t": "poll", "ifaces": [], "broadcast": "example.com"})[0] == [])

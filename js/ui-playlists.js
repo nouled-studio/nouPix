@@ -225,8 +225,7 @@ function newPlaylistDialog(z, only = null, edit = null) {
     const keep = playingStepId(z, edit);
     Object.assign(edit, { name: o.name.trim() || edit.name, fade, end: endV,
       steps: chosen.map(pk => (pk.st ? Object.assign(pk.st, { time: pk.time, fade: pk.fade }) : newStep(pk.sc.id, pk.time, pk.fade))) });
-    if (auto.checked) z.playlists.forEach(x => { x.autoplay = false; });
-    edit.autoplay = auto.checked;
+    setPlaylistAutoplay(z, edit, auto.checked, false);
     playlistEdited(z, edit, keep);
     commit();
   };

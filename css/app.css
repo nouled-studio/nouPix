@@ -203,7 +203,6 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, transparent); background: var(--warn-soft); }
 .badge.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: var(--danger-soft); }
 .badge.ok { color: var(--live); border-color: color-mix(in srgb, var(--live) 35%, transparent); background: var(--live-soft); }
-.list .srcrow { grid-template-columns: 16px minmax(0,1fr) auto auto; }
 /* groups in the fixture list: a header row, then its fixtures indented along a line in the group's colour */
 .list li.grp .chev { display: flex; align-items: center; justify-content: center; width: 14px; height: 20px; margin-left: -4px; padding: 0; border: 0; background: none; color: var(--text2); border-radius: 0; cursor: pointer; }
 .list li.grp .chev:hover { background: var(--bg3); color: var(--text); }
@@ -686,7 +685,6 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .row > label.scrub { cursor: ew-resize; }
 .row > label.scrub:hover { color: var(--accent); }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.tri { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 .inp { position: relative; display: flex; align-items: center; min-width: 0; }
 .inp > b { position: absolute; left: 7px; font-weight: 500; font-size: 10.5px; color: var(--muted); pointer-events: none; }
 .inp > b + input { padding-left: 20px; }

@@ -96,7 +96,7 @@ with sync_playwright() as pw:
     time.sleep(1.2)
     ev("loadSource('b-solid')"); time.sleep(0.9); ev("syncMedia()")   # after the crossfade
     check("not shown: paused", vid()["paused"])
-    ev("loadSource(olm.project.sources.at(-1).id); syncMedia()"); time.sleep(0.3)
+    ev("loadSource(olm.project.sources.at(-1).id); syncMedia()"); time.sleep(0.1)   # a slow machine plays on meanwhile
     v = vid(); check("shown again: from its start", not v["paused"] and 1 <= v["t"] < 1.6, v)
 
     # ---------- sound
@@ -124,9 +124,11 @@ with sync_playwright() as pw:
     time.sleep(0.3); ev("syncMedia()"); time.sleep(0.3)
     check("and it stays paused", abs(vid()["t"] - t1) < 0.05)
     check("Pause shows it is on", "on" in (pg.get_attribute("#rightBody .transport button[aria-label=Pause]", "class") or ""))
+    # paused, back to 1.5 s: on a slow machine the pause can land near the trim's end (5), and playing on would loop round
+    ev("olm.mediaEl(olm.project.sources.at(-1).id).currentTime = 1.5"); time.sleep(0.2)
     tr("Play"); ts = []
     for _ in range(6): time.sleep(0.2); ts.append(round(vid()["t"], 2))
-    check("Play plays on from there", ts[-1] > ts[0] and not vid()["paused"], ts)
+    check("Play plays on from there", ts[-1] > ts[0] and ts[0] >= 1.45 and not vid()["paused"], ts)
     ev("(() => { const s = olm.project.sources.at(-1); s.loop = false; applyVideoOptions(s, olm.mediaEl(s.id)); restartVideo(s, olm.mediaEl(s.id)); })()")
     time.sleep(4.6); check("played once to its end", vid()["done"])
     ev("olm.ui.rightTab = 'content'; renderRight()"); tr("Play"); time.sleep(0.4); v = vid()

@@ -1,4 +1,4 @@
-# nouPix 1.4.0
+# nouPix 1.5.0
 
 <img src="icons/noupix-256.png" alt="" width="96" align="right">
 
@@ -12,13 +12,17 @@ A pixel-mapping tool for LED installations, by nouled studio. Draw or import you
 
 ![The stage with rings, triangles and a diamond matrix turned 45°, one ring selected, the Inspector open](docs/images/feature-map.webp)
 
-**Play content.** 53 built-in effects, your own ISF shaders, images, video, window capture and NDI or OMT streams, in zones with layers and blend modes.
+**Play content.** 70 built-in effects, your own ISF shaders, images, video, window capture and NDI or OMT streams, in zones with layers and blend modes.
+
+**Follow the music.** nouPix listens to a sound input and finds the beat, or you tap it (from MIDI too). Effects pulse, chase and swell with the beat and the spectrum, and the Fixture Chase lights your groups or fixtures one after another on the beat.
+
+**Touch it.** Interactive effects (blobs, clouds, particles, ripples, smoke) follow a finger on a pad: in a window on the computer, or full screen on a phone.
 
 **Scenes and playlists.** Store looks per zone, with a snapshot of each on its button; fade between them, play them in playlists, mix two zones with the X-Fader.
 
 ![The Scenes panel: two zones with their scenes, each showing a snapshot of what it plays, a playlist under each, and the X-Fader between them](docs/images/feature-scenes.webp)
 
-**Send it out.** Art-Net and sACN together (each controller on its own), outputs by universes or by pixels, automatic addressing, discovery, 8 or 16-bit fixtures with dimming curves, a floating DMX monitor and test patterns to check the installation on site.
+**Send it out.** Art-Net and sACN together (each controller on its own), outputs by universes or by pixels, automatic addressing, discovery (WLED too), 8 or 16-bit fixtures with dimming curves, a Channel monitor in its own window and test patterns to check the installation on site.
 
 ![The Patch panel: two controllers, one on Art-Net and one on sACN with its outputs set by pixels, with their fixtures, universes and channels](docs/images/feature-patch.webp)
 

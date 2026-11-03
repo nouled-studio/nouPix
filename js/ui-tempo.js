@@ -53,7 +53,7 @@ function tempoSection() {
 // Drawn again in place when something changes (an input found, listening started, a tap)
 function updateTempoUI() {
   // the notes on effects that follow the music say where their beat comes from now
-  for (const n of $$('.tnote')) n.replaceWith(tempoNote(n.dataset.sound === '1'));
+  for (const n of $$('.tnote[data-sound]')) n.replaceWith(tempoNote(n.dataset.sound === '1'));   // not touch effects' note
   if (!tempoSecEl || !tempoSecEl.isConnected) return;
   const old = tempoSecEl;
   old.replaceWith(tempoSection());
@@ -66,7 +66,8 @@ function tempoFrame(now, force) {
   const L = tempoLive;
   if (!L || !tempoSecEl || !tempoSecEl.isConnected) return;
   const at = tempoAt(now), sure = ui.tempoSrc === 'tap' ? tempo.taps.length > 1 || !!ui.tempoBpm : tempo.locked;
-  L.dot.style.opacity = sure ? (0.18 + 0.82 * tempoGlow(at)).toFixed(2) : '';
+  const o = sure ? (0.18 + 0.82 * tempoGlow(at)).toFixed(2) : '';
+  if (L.dot.style.opacity !== o) L.dot.style.opacity = o;
   L.dot.classList.toggle('idle', !sure);
   // the bar's lines every frame (a Downbeat or a tap can move them without a new beat)
   L.bars.forEach((b, i) => { const c = sure && i === at.inBar ? (i === 0 ? 'one' : 'on') : sure && i < at.inBar ? 'past' : ''; if (b.className !== c) b.className = c; });
@@ -181,12 +182,15 @@ function bandDrag(c) {
 
 /* ---------- the beat in the top bar ---------- */
 // A small white dot by the master, lighting on each beat while there is one; a click opens Tempo in Settings
+let beatDotEl = null;
 function beatDotFrame(now) {
-  const d = $('#beatDot');
+  const d = beatDotEl && beatDotEl.isConnected ? beatDotEl : (beatDotEl = $('#beatDot'));
   if (!d) return;
   const on = tempoActive();
   if (d.hidden === on) d.hidden = !on;
-  if (on) d.style.opacity = (0.15 + 0.85 * tempoGlow(tempoAt(now))).toFixed(2);
+  if (!on) return;
+  const o = (0.15 + 0.85 * tempoGlow(tempoAt(now))).toFixed(2);
+  if (d.style.opacity !== o) d.style.opacity = o;   // still between beats: nothing to restyle
 }
 function showTempoSettings() {
   showRight(true); ui.rightTab = 'settings'; renderRight();

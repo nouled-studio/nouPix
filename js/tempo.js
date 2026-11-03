@@ -353,7 +353,10 @@ function initTempo() {
 const AUDIO_INPUTS = new Set(['bpm', 'beatCount', 'beatPhase', 'barBeat', 'barPhase', 'beatsPerBar', 'audioKick', 'audioBass', 'audioMid', 'audioHigh', 'audioLevel', 'audioBand', 'audioSpectrum']);
 const isAudioInput = inp => AUDIO_INPUTS.has(inp.NAME) && (inp.NAME === 'audioSpectrum' ? inp.TYPE === 'image' : inp.TYPE === 'float');
 const SPEC_BANDS = 64;
-const tempoFeat = { frame: -1, kick: 0, bass: 0, mid: 0, high: 0, level: 0, bands: new Float32Array(SPEC_BANDS), canvas: null, fake: null };
+// the bands' edges and middles, 30 Hz to 16 kHz in equal steps of pitch (worked out once, not every frame)
+const SPEC_EDGE = Array.from({ length: SPEC_BANDS + 1 }, (_, i) => 30 * Math.pow(16000 / 30, i / SPEC_BANDS));
+const SPEC_MID = Array.from({ length: SPEC_BANDS }, (_, i) => 30 * Math.pow(16000 / 30, (i + 0.5) / SPEC_BANDS));
+const tempoFeat = { frame: -1, kick: 0, bass: 0, mid: 0, high: 0, level: 0, bands: new Float32Array(SPEC_BANDS), spec: null, fakeSpec: null };
 // The levels, worked out once a frame from the analyser
 function tempoFeatures() {
   const F = tempoFeat;
@@ -366,7 +369,7 @@ function tempoFeatures() {
   A.getFloatFrequencyData(bins);
   const db = v => clamp((v + 90) / 60, 0, 1);
   for (let i = 0; i < SPEC_BANDS; i++) {
-    const fa = 30 * Math.pow(16000 / 30, i / SPEC_BANDS), fb = 30 * Math.pow(16000 / 30, (i + 1) / SPEC_BANDS);
+    const fa = SPEC_EDGE[i], fb = SPEC_EDGE[i + 1];
     let v = -140;
     for (let k = Math.floor(fa / hz); k <= Math.ceil(fb / hz) && k < bins.length; k++) v = Math.max(v, bins[k]);
     const x = db(v); F.bands[i] = x > F.bands[i] ? x : F.bands[i] * fall + x * (1 - fall);
@@ -381,7 +384,7 @@ function tempoFeatures() {
 // The spectrum's mean level from f0 to f1 Hz
 function bandAvg(f0, f1) {
   let s = 0, n = 0;
-  for (let i = 0; i < SPEC_BANDS; i++) { const f = 30 * Math.pow(16000 / 30, (i + 0.5) / SPEC_BANDS); if (f >= f0 && f < f1) { s += tempoFeat.bands[i]; n++; } }
+  for (let i = 0; i < SPEC_BANDS; i++) { const f = SPEC_MID[i]; if (f >= f0 && f < f1) { s += tempoFeat.bands[i]; n++; } }
   return n ? s / n : 0;
 }
 // The frequency ranges an effect can listen to (its long input "band", with these labels, and the input audioBand):
@@ -410,14 +413,18 @@ function tempoRange(k, v, dt) {
   r.hi += (v - r.hi) * (v > r.hi ? fast : slow);
   return clamp((v - r.lo) / Math.max(0.13, r.hi - r.lo), 0, 1) * clamp(v * 20, 0, 1);
 }
-// The spectrum as a 64 × 1 picture, for an effect's audioSpectrum
+// The spectrum as a 64 × 1 picture, for an effect's audioSpectrum: the real one drawn once a frame, however many
+// effects show it; a thumbnail's made-up one (fake: band -> level) in a picture of its own
 function tempoSpectrumCanvas(fake) {
-  const F = tempoFeat;
-  if (!F.canvas) { F.canvas = document.createElement('canvas'); F.canvas.width = SPEC_BANDS; F.canvas.height = 1; F.img = F.canvas.getContext('2d').createImageData(SPEC_BANDS, 1); }
-  const d = F.img.data;
+  const F = tempoFeat, k = fake ? 'fakeSpec' : 'spec';
+  let S = F[k];
+  if (!S) { const c = document.createElement('canvas'); c.width = SPEC_BANDS; c.height = 1; const x = c.getContext('2d'); S = F[k] = { c, x, img: x.createImageData(SPEC_BANDS, 1), frame: -2 }; }
+  if (!fake && S.frame === F.frame) return S.c;
+  S.frame = F.frame;
+  const d = S.img.data;
   for (let i = 0; i < SPEC_BANDS; i++) { const v = fake ? fake(i) : F.bands[i]; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = Math.round(clamp(v, 0, 1) * 255); d[i * 4 + 3] = 255; }
-  F.canvas.getContext('2d').putImageData(F.img, 0, 0);
-  return F.canvas;
+  S.x.putImageData(S.img, 0, 0);
+  return S.c;
 }
 // An audio input's value now; t: a thumbnail's time (made-up music at 120 BPM; a still one just after a beat 1, so it
 // shows lit), or null for the real thing; band: for audioBand, the range chosen (AUDIO_BANDS)
@@ -457,8 +464,7 @@ function chaseParams(L, src) {
 // Its steps, in the fixture list's order: each a list of fixtures (a group's, or one); by groups with no groups,
 // each fixture. Only those with a pixel in the zone, when there is one.
 function chaseSteps(p, z) {
-  const inZ = f => !z || (f._pts && f._pts.some((v, i) => i % 2 === 0 && v >= z.x && v <= z.x + z.w && f._pts[i + 1] >= z.y && f._pts[i + 1] <= z.y + z.h));
-  const fx = project.fixtures.filter(f => f._pts && inZ(f));
+  const fx = project.fixtures.filter(f => f._pts && (!z || chaseInZone(z).has(f)));
   let steps;
   if (p.by === 'groups' && project.groups.length) {
     const seen = new Map();
@@ -466,6 +472,19 @@ function chaseSteps(p, z) {
     steps = [...seen].map(([id, list]) => ({ id, fx: list }));
   } else steps = fx.map(f => ({ id: f.id, fx: [f] }));
   return steps.filter(s => !p.skip.includes(s.id));
+}
+// The fixtures with a pixel in a zone: every pixel looked at only when the layout or the zone changes (z._chaseIn)
+function chaseInZone(z) {
+  const key = [geomVersion, z.x, z.y, z.w, z.h, project.fixtures.length].join('|');
+  if (z._chaseIn && z._chaseIn.key === key) return z._chaseIn.set;
+  const set = new Set();
+  for (const f of project.fixtures) {
+    const P = f._pts;
+    if (!P) continue;
+    for (let i = 0; i < P.length; i += 2) if (P[i] >= z.x && P[i] <= z.x + z.w && P[i + 1] >= z.y && P[i + 1] <= z.y + z.h) { set.add(f); break; }
+  }
+  z._chaseIn = { key, set };
+  return set;
 }
 const chaseHash = k => { let x = (k * 2654435761) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0; return (x ^ (x >>> 13)) >>> 0; };
 // Which steps are lit, and how much, at a beat count b

@@ -366,7 +366,7 @@ function nodeMenu(e, n) {
   if (mappingLocked()) return;   // the operator's mapping is locked
   menu(at(e), [
     { head: n.shortName || n.ip },
-    [project.controllers.some(c => c.ip === n.ip) ? 'Refresh reported universes' : 'Add as controller', () => addNodeAsController(n), { disabled: !n.universes.length }],
+    [project.controllers.some(c => c.ip === n.ip) ? 'Refresh reported universes' : 'Add as controller', () => addNodeAsController(n), { disabled: !n.universes.length && !n.wled }],
     ['Copy IP address', () => { navigator.clipboard.writeText(n.ip).then(() => toast('Copied ' + n.ip), () => toast(n.ip)); }],
   ]);
 }

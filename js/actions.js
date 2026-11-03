@@ -592,7 +592,8 @@ function deletePlaylist(z, pl) {
   commit();
   toast(`${pl.name} deleted. ${MOD}Z brings it back.`);
 }
-function setPlaylistAutoplay(z, pl, on) { z.playlists.forEach(o => { o.autoplay = false; }); pl.autoplay = !!on; commit(); }
+// One playlist per zone plays when the project opens: turning one on turns the others off
+function setPlaylistAutoplay(z, pl, on, save = true) { if (on) z.playlists.forEach(o => { o.autoplay = false; }); pl.autoplay = !!on; if (save) commit(); }
 // The id of the step playing, when pl is the zone's current playlist: it stays the one playing when steps move
 const playingStepId = (z, pl) => { const p = z._play; return p && p.list === pl.id && pl.steps[p.i] ? pl.steps[p.i].id : null; };
 function addToPlaylist(z, pl, sceneId, at = pl.steps.length, time = 30) {

@@ -51,7 +51,9 @@ function touchFeatures(zoneId) {
   const x = T.ctx, first = T.fingers.values().next().value;
   if (first) { const k = 1 - Math.exp(-dt / 0.06); T.x += (first.x - T.x) * k; T.y += (first.y - T.y) * k; }
   T.down += ((T.fingers.size ? 1 : 0) - T.down) * (1 - Math.exp(-dt / (T.fingers.size ? 0.08 : 0.6)));
-  // the trail fades towards still and dark over about two seconds
+  // the trail fades towards still and dark over about two seconds; 8 s after the last finger it is gone, and stays
+  if (T.fingers.size) T.last = now;
+  if (now - (T.last || 0) > 8) return T;
   x.globalCompositeOperation = 'source-over';
   x.fillStyle = `rgba(128,128,0,${1 - Math.exp(-dt / 0.8)})`;
   x.fillRect(0, 0, TOUCH_W, TOUCH_H);
