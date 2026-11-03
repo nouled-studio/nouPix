@@ -83,8 +83,16 @@ function xfForPhone() {
 }
 function remoteWelcome(cid, role) {
   if (FULL_ROLES.includes(role)) remoteSend(cid, null, { t: 'project', data: serialize(false), live: remoteLive(), acks: remote.acks });
-  else remoteSend(cid, null, remoteState());
+  else { remoteSend(cid, null, remoteState()); remoteSend(cid, null, remoteShots()); }
 }
+// The scenes' snapshots for the phones' buttons: apart from the state, and only when they change (the state goes out
+// on every change, many a second while a level moves)
+function remoteShots() {
+  const shots = {};
+  for (const z of project.zones) for (const sc of z.scenes) if (sc.thumb) shots[sc.id] = sc.thumb;
+  return { t: 'shots', shots };
+}
+const remoteShotsKey = () => project.zones.map(z => z.scenes.map(sc => sc.id + ':' + (sc.thumb ? sc.thumb.length + sc.thumb.slice(-12) : '')).join()).join('|');
 // After every change on the host: the project to the programmers and operators, the state to the phones.
 // Several changes in a row go out once, a moment after the first.
 let remoteTimer = null, remoteLast = '';
@@ -98,7 +106,11 @@ function remoteChanged() {
       const data = serialize(false), key = data + JSON.stringify(remote.acks);
       if (key !== remoteLast) { remoteLast = key; remoteSend(null, FULL_ROLES, { t: 'project', data, acks: remote.acks }); }
     }
-    if (hasClients(['remote'])) remoteSend(null, ['remote'], remoteState());
+    if (hasClients(['remote'])) {
+      remoteSend(null, ['remote'], remoteState());
+      const k = remoteShotsKey();
+      if (k !== remote.shotsKey) { remote.shotsKey = k; remoteSend(null, ['remote'], remoteShots()); }
+    }
   }, 80);
 }
 function remoteLiveChanged() {
@@ -121,6 +133,8 @@ function remoteFromDevice(cid, role, m) {
     remoteChanged(); commitSoft();
   } else if (m.op === 'touch' && z && role !== 'http' && Array.isArray(m.pts)) {   // a finger on a pad: every device
     touchInput(z.id, m.pts, cid);
+  } else if (m.op === 'map' && z && role !== 'http') {   // a pad opening: where the zone's fixtures are, to draw on it
+    remoteSend(cid, null, { t: 'map', zone: z.id, pts: touchMap(z) });
   } else if (m.op === 'xfade' && isFinite(m.value) && (role !== 'remote' || project.xfade.phone)) {   // the Remote page only when it shows it
     setXfade(+m.value);
     remoteChanged(); commitSoft();

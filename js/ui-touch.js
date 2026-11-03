@@ -51,12 +51,18 @@ function drawTouchPad() {
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   // the rings, drawn while the window is open
   const g = cv.getContext('2d');
+  let map = [], mapAt = -1;
   const paint = () => {
     if (!touchWinOpen() || touchWin !== win || !cv.isConnected) return;
     const r = cv.getBoundingClientRect(), dpr = win.devicePixelRatio || 1;
     if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(0, 0, r.width, r.height);
+    // the zone's fixtures, faintly, so the finger knows where they are (again when they move)
+    if (mapAt !== geomVersion) { mapAt = geomVersion; map = touchMap(zoneById(touchZoneId)); }
+    const dot = Math.max(1.5, Math.min(3, Math.sqrt(r.width * r.height / Math.max(1, map.length / 2)) * 0.25));
+    g.fillStyle = 'rgba(255,255,255,0.28)';
+    for (let i = 0; i < map.length; i += 2) g.fillRect(map[i] * r.width - dot / 2, map[i + 1] * r.height - dot / 2, dot, dot);
     g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 1.5;
     for (const f of fingers.values()) { g.beginPath(); g.arc(f.x, f.y, 22, 0, Math.PI * 2); g.stroke(); }
     win.requestAnimationFrame(paint);
