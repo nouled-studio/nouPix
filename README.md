@@ -14,9 +14,13 @@ A pixel-mapping tool for LED installations, by nouled studio. Draw or import you
 
 **Play content.** 70 built-in effects, your own ISF shaders, images, video, window capture and NDI or OMT streams, in zones with layers and blend modes.
 
-**Follow the music.** nouPix listens to a sound input and finds the beat, or you tap it (from MIDI too). Effects pulse, chase and swell with the beat and the spectrum, and the Fixture Chase lights your groups or fixtures one after another on the beat.
+**Follow the music.** nouPix listens to a sound input and finds the beat, or you tap it (from MIDI too). Effects pulse, chase and swell with the beat, the bass or the part of the spectrum you choose. The Fixture Chase lights your groups or fixtures one after another on the beat, on its own or as a mask over any content.
 
-**Touch it.** Interactive effects (blobs, clouds, particles, ripples, smoke) follow a finger on a pad: in a window on the computer, or full screen on a phone.
+![The Fixture Chase over a rainbow, filling the fixtures one by one on the beat, with its settings in the Content tab: steps by fixture, every beat, following a tapped 124 BPM](docs/images/feature-music.webp)
+
+**Touch it.** Interactive effects (blobs, clouds, particles, ripples, smoke) drift by themselves and follow a finger on a pad: in a window on the computer, or full screen on a phone from the Remote page. Several people can play at once.
+
+![Touch Smoke: a finger's trail curling across the LED strips, with Interact in the effect's Parameters](docs/images/feature-touch.webp)
 
 **Scenes and playlists.** Store looks per zone, with a snapshot of each on its button; fade between them, play them in playlists, mix two zones with the X-Fader.
 
@@ -55,7 +59,7 @@ On a Mac, open the `.dmg` and drag nouPix onto Applications. The apps aren't sig
 - **Windows:** SmartScreen says it protected your PC. Click **More info → Run anyway**.
 - **macOS:** click **Done** on the warning, then **System Settings → Privacy & Security → Open Anyway**.
 
-On Windows, allow nouPix through the firewall on private networks when asked, or node discovery won't work.
+On Windows, allow nouPix through the firewall on private networks when asked, or node discovery won't work. To follow the music, allow the microphone (or the sound input you choose) the first time you listen, in Settings → Tempo.
 
 ## Run from the source (Linux, Raspberry Pi, any computer)
 
