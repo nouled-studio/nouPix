@@ -30,7 +30,8 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 let win = null;
 let bridge = null;
 let quitting = false;
-// The MIDI, Scenes and Channel monitor windows (the page draws into them), by their names: 'olm-midi', 'olm-scenes', 'olm-monitor'
+// The MIDI, Scenes, Channel monitor and Interact windows (the page draws into them), by their names: 'olm-midi',
+// 'olm-scenes', 'olm-monitor', 'olm-touch'
 const popups = new Map();
 // Brings one of them to the front, also from minimised; or asks the page to open it
 function raisePopup(name) {
@@ -39,7 +40,7 @@ function raisePopup(name) {
     if (w.isMinimized()) w.restore();
     w.show();
     w.focus();
-  } else if (win) {
+  } else if (win && name !== 'olm-touch') {
     win.webContents.executeJavaScript(({ 'olm-midi': 'openMidiWindow()', 'olm-scenes': 'openScenesWindow()', 'olm-monitor': 'openMonitor()' })[name], true).catch(() => {});
   }
 }
@@ -153,7 +154,7 @@ async function start() {
 
   const wc = win.webContents;
   // Links leave the app for the default browser; the interface itself stays on the bridge's address. The MIDI,
-  // Scenes and Channel monitor windows, which the page draws itself, are windows of the app.
+  // Scenes, Channel monitor and Interact windows, which the page draws itself, are windows of the app.
   wc.setWindowOpenHandler(({ url: target, frameName }) => {
     if (frameName === 'olm-midi' && (target === '' || target === 'about:blank')) {
       return { action: 'allow', overrideBrowserWindowOptions: { width: 1180, height: 760, minWidth: 720, minHeight: 420, title: 'MIDI', backgroundColor: '#000000', autoHideMenuBar: true } };
@@ -164,6 +165,9 @@ async function start() {
     if (frameName === 'olm-monitor' && (target === '' || target === 'about:blank')) {
       return { action: 'allow', overrideBrowserWindowOptions: { width: 1000, height: 480, minWidth: 480, minHeight: 240, title: 'Channel monitor', backgroundColor: '#000000', autoHideMenuBar: true } };
     }
+    if (frameName === 'olm-touch' && (target === '' || target === 'about:blank')) {
+      return { action: 'allow', overrideBrowserWindowOptions: { width: 900, height: 560, minWidth: 320, minHeight: 220, title: 'Interact', backgroundColor: '#000000', autoHideMenuBar: true } };
+    }
     openOutside(target);
     return { action: 'deny' };
   });
@@ -171,7 +175,7 @@ async function start() {
   // The page can't restore a minimised window, nor always bring one to the front: it asks by setting the window's
   // address to #raise… (an in-page move, which the page's drawing doesn't notice), and the app does it.
   wc.on('did-create-window', (child, { frameName }) => {
-    if (!['olm-midi', 'olm-scenes', 'olm-monitor'].includes(frameName)) return;
+    if (!['olm-midi', 'olm-scenes', 'olm-monitor', 'olm-touch'].includes(frameName)) return;
     popups.set(frameName, child);
     child.on('closed', () => { if (popups.get(frameName) === child) popups.delete(frameName); });
     child.webContents.on('did-navigate-in-page', (e, target) => { if (/#raise/.test(target)) raisePopup(frameName); });
