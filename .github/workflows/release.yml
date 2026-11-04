@@ -22,8 +22,8 @@ jobs:
       matrix:
         include:
           - { runner: windows-2025,   label: Windows,             suffix: windows }
-          # macos-latest: GitHub's main Apple silicon pool (macos-15 machines stopped being handed out for v1.2.2)
-          - { runner: macos-latest,   label: macOS Apple silicon, suffix: macos-apple-silicon }
+          # macos-14: Apple silicon (macos-15 stopped being handed out for v1.2.2, macos-latest for v1.5.0)
+          - { runner: macos-14,       label: macOS Apple silicon, suffix: macos-apple-silicon }
           - { runner: macos-15-intel, label: macOS Intel,         suffix: macos-intel }
     defaults:
       run:
