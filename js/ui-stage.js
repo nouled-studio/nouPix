@@ -113,17 +113,19 @@ function dotRadius(f, zoom = ui.view.zoom) {
   if (f.type === 'dot') return Math.max(1.5, s * 0.45);   // a big light: as big as its size, however close
   return clamp(s * 0.36, clamp(s * 0.45, 0.6, 1.1), 10);
 }
+// The outline of a dot over content shown strongly: thin and not quite black, so it finds the dot without darkening it
+const DOT_RIM = 'rgba(0,0,0,0.55)';
 function drawDots(f, dispOverride) {
   const P = f._pts, n = f._n, D = dispOverride || f._disp, z = ui.view.zoom, ox = ui.view.x, oy = ui.view.y;
   const r = dotRadius(f), d = r * 2;
   // Below a pixel and a half across a dot can't look round anyway: squares are drawn, faster
   const small = r < 0.75, xmax = VW + 10, ymax = VH + 10;
   // Each dot shows what it sends, black when off, inside a thin grey ring that keeps the fixture easy to find on the
-  // black stage; with the content shown strongly behind them, a dark rim outside that, so they stand out from it.
-  // Rings and rims follow the dot's size, so small dots don't drown in them
-  const e = clamp(r * 0.3, 0.5, 1.5), rims = [[SC.dotEdge, e]], blur = ctx.shadowBlur;
+  // black stage; with the content shown strongly behind them, only a thin dark outline instead, so a dot as bright as
+  // the content around it looks as bright. Rings follow the dot's size, so small dots don't drown in them
+  const e = clamp(r * 0.3, 0.5, 1.5), blur = ctx.shadowBlur;
+  const rims = ui.showContent && ui.contentOp > 0.4 ? [[DOT_RIM, clamp(r * 0.2, 0.5, 1)]] : [[SC.dotEdge, e]];
   ctx.shadowBlur = 0;
-  if (ui.showContent && ui.contentOp > 0.4) rims.unshift(['rgba(0,0,0,0.8)', e + Math.min(1.5, r * 0.6)]);
   for (const [col, w] of rims) {
     ctx.fillStyle = col;
     ctx.beginPath();
@@ -240,9 +242,8 @@ function drawDotLayer(c, isMask, z, ox, oy, lv, rimmed) {
     if (alpha >= 0) x.fill();
     return;
   }
-  const edge = f => clamp(dotRadius(f, z) * 0.3, 0.5, 1.5);
-  if (rimmed) { x.fillStyle = 'rgba(0,0,0,0.8)'; x.beginPath(); for (const f of project.fixtures) circles(f, edge(f) + Math.min(1.5, dotRadius(f, z) * 0.6)); x.fill(); }
-  x.fillStyle = SC.dotEdge; x.beginPath(); for (const f of project.fixtures) circles(f, edge(f)); x.fill();
+  const edge = f => (rimmed ? clamp(dotRadius(f, z) * 0.2, 0.5, 1) : clamp(dotRadius(f, z) * 0.3, 0.5, 1.5));
+  x.fillStyle = rimmed ? DOT_RIM : SC.dotEdge; x.beginPath(); for (const f of project.fixtures) circles(f, edge(f)); x.fill();
   x.fillStyle = SC.dot; x.beginPath(); for (const f of project.fixtures) circles(f, 0); x.fill();
 }
 function drawWiring(f, color) {
