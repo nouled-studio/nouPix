@@ -10,21 +10,14 @@ let patchConflicts = [];
 // What goes out, per controller: Art-Net, or sACN (E1.31). The universes are counted from 0 inside, as Art-Net counts
 // them; sACN counts from 1, so a controller on sACN shows (and the bridge sends) every universe one higher: 0 is sACN
 // universe 1. sACN to multicast groups, and its priority, are the project's, for every controller on sACN.
-// DDP has no universes: a controller takes one run of channels (bytes) from 0. Inside it is kept as universes of 512
-// from 0, as the others are, with no channels skipped, so a channel's place in that run is its universe × 512 + its
-// channel; the bridge sends the run in DDP packets.
 const isSacn = c => !!c && c.protocol === 'sacn';
-const isDdp = c => !!c && c.protocol === 'ddp';
 const sacnMulticast = c => isSacn(c) && project.settings.sacnMulticast;
 const usesSacn = () => project.controllers.some(isSacn);
-const usesDdp = () => project.controllers.some(isDdp);
-const usesArtnet = () => !project.controllers.length || project.controllers.some(c => !isSacn(c) && !isDdp(c));
-// What the project sends, in words: Art-Net, sACN, DDP, or several
-const outName = () => [usesArtnet() && 'Art-Net', usesSacn() && 'sACN', usesDdp() && 'DDP'].filter(Boolean).join(' and ').replace(/ and (?=.* and )/, ', ');
-const protoName = c => (isSacn(c) ? 'sACN' : isDdp(c) ? 'DDP' : 'Art-Net');
+const usesArtnet = () => !project.controllers.length || project.controllers.some(c => !isSacn(c));
+// What the project sends, in words: Art-Net, sACN, or both
+const outName = () => (usesSacn() ? (usesArtnet() ? 'Art-Net and sACN' : 'sACN') : 'Art-Net');
+const protoName = c => (isSacn(c) ? 'sACN' : 'Art-Net');
 const uniLabel = (u, c) => u + (isSacn(c) ? 1 : 0);
-// An address as shown: U 1 · ch 4, or on DDP the channel in the controller's run, ch 516
-const chLabel = (a, c, sep = ' · ') => (isDdp(c) ? 'ch ' + (a.u * 512 + a.ch) : `U ${uniLabel(a.u, c)}${sep}ch ${a.ch}`);
 // Where each output of a controller is: its first universe, how many universes it has, the channel it starts at (counted
 // from its first universe) and, in Pixels mode, how many pixels it takes. The first output starts at the controller's
 // start universe and start channel; each next one on the universe after the one before it ends, at channel 1. In
@@ -73,7 +66,7 @@ function computePatch() {
     ensureChains(c);
     const ipb = parseIP(c.ip);
     c._outs = [];
-    const sacn = isSacn(c), ddp = isDdp(c), mcast = sacnMulticast(c), layout = ctrlOuts(c);
+    const sacn = isSacn(c), mcast = sacnMulticast(c), layout = ctrlOuts(c);
     c.chains.forEach((chain, o) => {
       const { base, upo, start, end, px } = layout[o];
       const cap = upo * 512;
@@ -85,14 +78,12 @@ function computePatch() {
         const num = base + u;
         // a universe is Art-Net's or sACN's at an address; with sACN to multicast groups it is the same one for every
         // controller on sACN, and can be used once
-        const key = (sacn ? 's|' : ddp ? 'd|' : 'a|') + (mcast ? '*' : c.ip.trim()) + '|' + num;
+        const key = (sacn ? 's|' : 'a|') + (mcast ? '*' : c.ip.trim()) + '|' + num;
         let U = byKey.get(key);
         // (in Pixels mode, one output goes on in the universe where the one before it ends)
-        if (U) { if (U.ctrl !== c || (U.out !== o && c.mode !== 'pixels')) patchConflicts.push(ddp ? `${c.name} and ${U.ctrl.name} both send DDP to ${c.ip}` : `${c.name} OUT ${o + 1} and ${U.ctrl.name} OUT ${U.out + 1} both use ${mcast ? 'sACN' : c.ip} universe ${uniLabel(num, c)}`); }
+        if (U) { if (U.ctrl !== c || (U.out !== o && c.mode !== 'pixels')) patchConflicts.push(`${c.name} OUT ${o + 1} and ${U.ctrl.name} OUT ${U.out + 1} both use ${mcast ? 'sACN' : c.ip} universe ${uniLabel(num, c)}`); }
         else {
-          // (DDP only to a bridge that sends it: an older one would read the frame wrong)
-          U = { key, ip: c.ip.trim(), ipb, uni: num, ctrl: c, out: o, sacn, ddp, rgbw: ddp && c.chPx % 4 === 0, mcast, data: new Uint8Array(512),
-            enabled: !!(c.enabled && ipb && num <= 32767 && (!ddp || bridgeDdp())), used: 0 };
+          U = { key, ip: c.ip.trim(), ipb, uni: num, ctrl: c, out: o, sacn, mcast, data: new Uint8Array(512), enabled: !!(c.enabled && ipb && num <= 32767), used: 0 };
           byKey.set(key, U); universes.push(U);
         }
         unis[u] = U;
@@ -110,7 +101,7 @@ function computePatch() {
           if (u >= 0 && u < upo) { const at = u * 512 + f.addr.ch - 1; manual = true; overlap = at < lin; lin = at; }
           else outside = true;
         }
-        if (overlap) patchConflicts.push(`${f.name} is set to start at ${chLabel(f.addr, c, ' ')}, on channels the fixture before it on ${c.name} OUT ${o + 1} already uses`);
+        if (overlap) patchConflicts.push(`${f.name} is set to start at U ${uniLabel(f.addr.u, c)} ch ${f.addr.ch}, on channels the fixture before it on ${c.name} OUT ${o + 1} already uses`);
         for (let i = 0; i < n; i++) {
           if (!c.split) { const w = lin % 512; if (w + bpp > 512) lin += 512 - w; }
           const end = lin + bpp;
@@ -144,14 +135,14 @@ const addrOf = (base, lin) => ({ u: base + (lin >> 9), ch: (lin & 511) + 1 });
 function addrText(p) {
   if (!p || p.first < 0) return '';
   const a = addrOf(p.base, p.first), b = addrOf(p.base, p.last);
-  return `${chLabel(a, p.ctrl)}  →  ${chLabel(b, p.ctrl)}`;
+  return `U ${uniLabel(a.u, p.ctrl)} · ch ${a.ch}  →  U ${uniLabel(b.u, p.ctrl)} · ch ${b.ch}`;
 }
 // A pixel's address, as U 1 ch 4–6, or '' when it isn't patched
 function pixelAddrText(f, i) {
   const p = f._patch;
   if (!(p && f._out && f._out.lin[i] >= 0)) return '';
   const a = addrOf(p.base, f._out.lin[i]);
-  return isDdp(p.ctrl) ? `ch ${a.u * 512 + a.ch}–${a.u * 512 + a.ch + BPP(f) - 1}` : `U ${uniLabel(a.u, p.ctrl)} ch ${a.ch}–${a.ch + BPP(f) - 1}`;
+  return `U ${uniLabel(a.u, p.ctrl)} ch ${a.ch}–${a.ch + BPP(f) - 1}`;
 }
 // The output a patch is on, as shown on the badges: 1, 2… or A1, B2… with more than one controller
 function outLabel(p) { return (project.controllers.length > 1 ? ctrlLetter(p.ctrl) : '') + (p.out + 1); }
@@ -182,6 +173,5 @@ function fitsOn(c, o, chain, extra) {
   }
   return lin <= L.upo * 512 && (!L.px || n <= L.px);
 }
-// An output's universes as shown: U 1, or U 1–4 (sACN's one higher); on DDP its channels, ch 1–900
-const uniRange = (c, L) => (isDdp(c) ? `ch ${L.base * 512 + L.start + 1}–${L.base * 512 + Math.max(L.start + 1, L.end)}`
-  : L.upo > 1 ? `U ${uniLabel(L.base, c)}–${uniLabel(L.base + L.upo - 1, c)}` : `U ${uniLabel(L.base, c)}`);
+// An output's universes as shown: U 1, or U 1–4 (sACN's one higher)
+const uniRange = (c, L) => (L.upo > 1 ? `U ${uniLabel(L.base, c)}–${uniLabel(L.base + L.upo - 1, c)}` : `U ${uniLabel(L.base, c)}`);

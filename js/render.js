@@ -256,26 +256,6 @@ void main() {
         g.drawArrays(g.POINTS, 0, S.count);
         g.bindBuffer(g.ARRAY_BUFFER, quad); g.vertexAttribPointer(0, 2, g.FLOAT, false, 0, 0);
       }
-      // With WebGL2 the colours are read into a buffer on the GPU, and picked up on the next frame: by then the GPU has
-      // long finished that frame, so the page doesn't wait for this one. Waiting for this frame meant waiting for all
-      // the GPU's work queued with it (the stage, the panels, the previews), and every move in the interface delayed
-      // the output. The lights are a frame behind the picture (25 ms at 40 a second). Just after the layout changes the
-      // colours are read at once, so they always belong to the fixtures as they are. (No fences: Chrome updates them
-      // only now and then for a canvas that isn't on screen.)
-      const layout = version + '|' + n;
-      if (gl2) {
-        if (!S.pbo) S.pbo = g.createBuffer();
-        g.bindBuffer(g.PIXEL_PACK_BUFFER, S.pbo);
-        const ready = S.pend === layout && S.have === layout;
-        if (ready) g.getBufferSubData(g.PIXEL_PACK_BUFFER, 0, S.out);
-        else { g.bindBuffer(g.PIXEL_PACK_BUFFER, null); g.readPixels(0, 0, S.W, S.rows, g.RGBA, g.UNSIGNED_BYTE, S.out); g.bindBuffer(g.PIXEL_PACK_BUFFER, S.pbo); S.have = layout; }
-        if (S.pboSize !== S.out.length) { S.pboSize = S.out.length; g.bufferData(g.PIXEL_PACK_BUFFER, S.out.length, g.STREAM_READ); }
-        g.readPixels(0, 0, S.W, S.rows, g.RGBA, g.UNSIGNED_BYTE, 0);
-        g.bindBuffer(g.PIXEL_PACK_BUFFER, null);
-        S.pend = layout;
-        g.flush();
-        return S.out;
-      }
       g.readPixels(0, 0, S.W, S.rows, g.RGBA, g.UNSIGNED_BYTE, S.out);
       return S.out;
     },
