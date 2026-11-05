@@ -22,8 +22,8 @@ jobs:
       matrix:
         include:
           - { runner: windows-2025,   label: Windows,             suffix: windows }
-          # macos-14: Apple silicon (macos-15 stopped being handed out for v1.2.2, macos-latest for v1.5.0)
-          - { runner: macos-14,       label: macOS Apple silicon, suffix: macos-apple-silicon }
+          # macos-15: Apple silicon (macos-latest gave no Mac for v1.5.0, macos-14 was retired for v1.5.2)
+          - { runner: macos-15,       label: macOS Apple silicon, suffix: macos-apple-silicon }
           - { runner: macos-15-intel, label: macOS Intel,         suffix: macos-intel }
     defaults:
       run:
