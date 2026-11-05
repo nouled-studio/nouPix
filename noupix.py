@@ -46,7 +46,7 @@ import urllib.parse
 import uuid
 import webbrowser
 
-VERSION = "1.5.1"
+VERSION = "1.5.2"
 HERE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 ARTNET_PORT = 6454
 WS_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -91,6 +91,21 @@ def sacn_discovery(universes, page=0, last=0):
             + struct.pack(">HIBB", 0x7000 | (8 + 2 * n), 0x01, page, last) + b"".join(struct.pack(">H", u) for u in universes))
 
 
+# DDP (Distributed Display Protocol, 3waylabs): a controller's channels as one run of bytes from 0, in UDP packets to
+# port 4048 of a 10-byte header and at most 1440 bytes (480 RGB or 360 RGBW pixels). WLED, Advatek, Falcon and
+# others take it. Header: flags (version 1, push on the frame's last packet), a sequence number 1..15, the data type
+# (RGB or RGBW, 8 bits each), the destination (1: the display), the offset and the length.
+DDP_PORT = 4048
+DDP_CHUNK = 1440
+DDP_RGB, DDP_RGBW = 0x0B, 0x1B
+DDP_DISPLAY = 1
+
+
+def ddp_packet(offset, data, seq, kind=DDP_RGB, push=True):
+    """A DDP data packet: the header, then the channels from offset."""
+    return struct.pack(">BBBBIH", 0x40 | (0x01 if push else 0), seq & 0x0F, kind, DDP_DISPLAY, offset, len(data)) + bytes(data)
+
+
 def log(msg):
     try:
         print("  %s  %s" % (time.strftime("%H:%M:%S"), msg), flush=True)
@@ -129,6 +144,7 @@ class ArtNet:
             self.bind_error or "listening on UDP %d instead of %d (--bind-port)" % (self.bind_port, ARTNET_PORT))
         self.seq = {}
         self.sacn_seq, self.sacn_streams, self.sacn_priority, self.sacn_listed = {}, {}, 100, 0.0
+        self.ddp_seq = {}
         # Frames come from the page's connection, and from the hold loop when the page stalls: one at a time
         self.send_lock = threading.Lock()
         self.packets = 0
@@ -172,12 +188,13 @@ class ArtNet:
     def send_frame(self, p, priority=100):
         # [u8 type=1][u8 flags][u16 count] then count x ([4 ip][u16 universe][u16 length][data])
         # flags: 1 ArtSync after the frame (to the Art-Net universes' addresses), 2 every universe as sACN (pages from
-        # before 1.3.2), 4 sACN to multicast groups, 8 each universe says its protocol: the length's top bit set for sACN
+        # before 1.3.2), 4 sACN to multicast groups, 8 each universe says its protocol: the length's top bit set for sACN,
+        # bit 14 for DDP (then bit 13: RGBW pixels, and the length the channels used of the 512 that follow)
         if len(p) < 4 or p[0] != 1:
             return
         flags, count = p[1], struct.unpack_from("<H", p, 2)[0]
         mixed = bool(flags & 8)
-        off, ips, streams = 4, [], {}
+        off, ips, streams, runs = 4, [], {}, {}
         with self.send_lock:
             for _ in range(count):
                 if off + 8 > len(p):
@@ -185,10 +202,14 @@ class ArtNet:
                 ip = socket.inet_ntoa(p[off:off + 4])
                 uni, n = struct.unpack_from("<HH", p, off + 4)
                 sacn = bool(n & 0x8000) if mixed else bool(flags & 2)
-                n &= 0x7FFF
+                ddp, rgbw = mixed and bool(n & 0x4000), bool(n & 0x2000)
+                n &= 0x1FFF if mixed else 0x7FFF
                 off += 8
                 data = p[off:off + min(n, 512)]   # a universe carries at most 512 channels
-                off += n
+                off += 512 if ddp else n   # (a DDP universe's length says how many of its 512 channels are used)
+                if ddp:
+                    runs.setdefault(ip, []).append((uni, data, rgbw))
+                    continue
                 if sacn:
                     u = uni + 1
                     if u <= SACN_MAX_UNIVERSE:
@@ -199,6 +220,8 @@ class ArtNet:
                 self.send_dmx(ip, uni, data)
                 if ip not in ips:
                     ips.append(ip)
+            for ip, parts in runs.items():
+                self.send_ddp(ip, parts)
             if flags & 1 and ips:
                 self.send_sync(ips)
             # sACN streams no longer sent (a universe unpatched, multicast switched, back to Art-Net) are ended
@@ -243,6 +266,26 @@ class ArtNet:
         except OSError as e:
             self.errors += 1
             self.last_error = "%s: %s" % (ip, e.strerror or e)
+
+    def send_ddp(self, ip, parts):
+        """A DDP controller's channels: its universes, 512 channels each from 0, are one run of bytes, sent in packets of
+        at most DDP_CHUNK bytes; the last one says push (show the frame now)."""
+        run = bytearray(512 * (max(u for u, _, _ in parts) + 1))
+        for u, data, _ in parts:
+            run[u * 512:u * 512 + len(data)] = data
+        end = max(u * 512 + len(data) for u, data, _ in parts)
+        seq = self.ddp_seq.get(ip, 0) % 15 + 1   # 1..15, 0 means "not sequenced"
+        self.ddp_seq[ip] = seq
+        kind = DDP_RGBW if any(r for _, _, r in parts) else DDP_RGB
+        for at in range(0, max(end, 1), DDP_CHUNK):
+            chunk = bytes(run[at:min(end, at + DDP_CHUNK)])
+            last = at + DDP_CHUNK >= end
+            try:
+                self.sock.sendto(ddp_packet(at, chunk, seq, kind, last), (ip, DDP_PORT))
+                self.packets += 1
+            except OSError as e:
+                self.errors += 1
+                self.last_error = "%s: %s" % (ip, e.strerror or e)
 
     def send_sacn(self, key, data, priority, options=0):
         dest, universe = key
@@ -435,21 +478,23 @@ def wled_node(ip, info, cfg):
     uni, addr, mode = int(dmx.get("uni") or 1), int(dmx.get("addr") or 1), int(dmx.get("mode") if dmx.get("mode") is not None else 4)
     first = uni - 1 if proto == "sacn" else uni   # nouPix counts universes from 0 as Art-Net does
     cpl, per = WLED_PIXEL_MODES.get(mode, (3, 170))
+    if proto == "ddp":   # DDP says what the pixels are itself: WLED's DMX mode doesn't apply, its LEDs do
+        cpl, per, mode, addr = (4 if (info.get("leds") or {}).get("rgbw") else 3), 0, 4, 1
     if mode == 5:
         addr += 1   # the dimmer takes the first channel
     in_first = max(0, (513 - addr) // cpl)
-    count = 1 + (max(0, leds - in_first) + per - 1) // per if leds else 1
+    count = 1 + (max(0, leds - in_first) + per - 1) // per if leds and per else 1
     notes = []
     if not live.get("en", True):
         notes.append("Receiving is off in WLED (Sync Interfaces, Realtime: Receive UDP realtime).")
     if proto == "ddp":
-        notes.append("WLED is set to DDP: set it to E1.31 or Art-Net for nouPix.")
-    if mode not in WLED_PIXEL_MODES:
+        pass
+    elif mode not in WLED_PIXEL_MODES:
         notes.append("Its DMX mode isn't Multi RGB or RGBW: one color for all, or effects.")
     elif mode == 5:
         notes.append("Dimmer + Multi RGB: the first channel is WLED's dimmer.")
     led_text = "%d LED%s, %s" % (leds, "" if leds == 1 else "s", "RGBW" if cpl == 4 else "RGB")
-    where = "%s universe %d from channel %d" % ({"sacn": "sACN", "artnet": "Art-Net", "ddp": "DDP"}[proto], uni, int(dmx.get("addr") or 1))
+    where = "DDP" if proto == "ddp" else "%s universe %d from channel %d" % ({"sacn": "sACN", "artnet": "Art-Net"}[proto], uni, int(dmx.get("addr") or 1))
     return {
         "ip": ip, "from": ip, "shortName": str(info.get("name") or "WLED")[:40], "longName": "WLED " + str(info.get("ver") or ""),
         "report": " ".join([led_text + ", " + where + "."] + notes), "ports": 1,
@@ -1801,7 +1846,7 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
         art.listeners.add(on_node)
         vin_message, vin_closed = self.server.vin.window(ws)
         ws.send_json({
-            "t": "hello", "version": VERSION, "bindIp": art.bind_ip, "bindPort": art.bind_port, "protocols": ["artnet", "sacn", "mixed"],
+            "t": "hello", "version": VERSION, "bindIp": art.bind_ip, "bindPort": art.bind_port, "protocols": ["artnet", "sacn", "mixed", "ddp"],
             "discovery": art.discovery, "discoveryNote": art.discovery_note, "interfaces": local_ips(),
             "nets": network_interfaces(),
             "nodes": list(art.nodes.values()),

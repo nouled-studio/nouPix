@@ -214,8 +214,10 @@ function ensureChains(c) {
   c.outputs = clamp(Math.round(c.outputs) || 1, 1, 128);
   c.upo = clamp(Math.round(c.upo) || 1, 1, 64);
   c.startUniverse = clamp(Math.round(c.startUniverse) || 0, 0, 32767);
-  c.protocol = c.protocol === 'sacn' ? 'sacn' : 'artnet';
+  c.protocol = c.protocol === 'sacn' || c.protocol === 'ddp' ? c.protocol : 'artnet';
   c.mode = c.mode === 'pixels' ? 'pixels' : 'universes';
+  // DDP is one run of channels from 0: by pixels, none skipped, no universes to start on
+  if (c.protocol === 'ddp') { c.mode = 'pixels'; c.split = true; c.startUniverse = 0; }
   c.pxOut = clamp(Math.round(c.pxOut) || 680, 1, 10000);
   c.chPx = CH_PER_PX.includes(+c.chPx) ? +c.chPx : 3;
   c.startCh = clamp(Math.round(c.startCh) || 1, 1, 512);
