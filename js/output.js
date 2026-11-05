@@ -100,8 +100,7 @@ function buildOutput() {
   }
 }
 // The frame sent to the bridge: [u8 type=1][u8 flags][u16 count], then per universe [4 ip][u16 universe][u16 length]
-// [512 channels], the length's top bit set for a universe sent as sACN (its controller's protocol); bit 14 for DDP, the
-// length then the channels used, as DDP sends only those (bit 13 with it: pixels of 4 channels, RGBW). It is laid out once
+// [512 channels], the length's top bit set for a universe sent as sACN (its controller's protocol). It is laid out once
 // per patch, and the channels of each universe that is sent live in it, so a frame is sent as is. Its flags say how the
 // bridge sends it: 1 ArtSync after the Art-Net universes, 4 the sACN ones to multicast groups, 8 each universe says its
 // protocol (2, every universe as sACN, was the older bridges' way). Each frame says so itself: a protocol switched, an
@@ -114,7 +113,7 @@ function layoutFrame() {
   u8[0] = 1; dv.setUint16(2, list.length, true);
   let off = 4;
   for (const U of list) {
-    u8.set(U.ipb, off); dv.setUint16(off + 4, U.uni, true); dv.setUint16(off + 6, U.ddp ? U.used | 0x4000 | (U.rgbw ? 0x2000 : 0) : 512 | (U.sacn ? 0x8000 : 0), true);
+    u8.set(U.ipb, off); dv.setUint16(off + 4, U.uni, true); dv.setUint16(off + 6, 512 | (U.sacn ? 0x8000 : 0), true);
     const data = new Uint8Array(buf, off + 8, 512);
     data.set(U.data); U.data = data;
     off += 520;
@@ -129,8 +128,6 @@ function frameFlags() {
 }
 // A bridge from before 1.3.2 takes one protocol per frame: the universes' protocol bits off, sACN if all are sACN
 const bridgeMixed = () => !bridge.hello || (bridge.hello.protocols || []).includes('mixed');
-// A bridge from before 1.6 doesn't send DDP: the patch leaves DDP controllers out of the frame for it
-const bridgeDdp = () => !!bridge.hello && (bridge.hello.protocols || []).includes('ddp');
 function oldFrame() {
   const b = outFrame.u8.slice();
   for (let off = 4; off < b.length; off += 520) b[off + 7] &= 0x7F;
@@ -239,7 +236,7 @@ function connectBridge() {
   ws.onmessage = ev => {
     if (typeof ev.data !== 'string') { streamFrame(ev.data); return; }   // a frame of an NDI or OMT stream (streams.js)
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
-    if (m.t === 'hello') { bridge.hello = m; if (usesDdp()) markPatch(); showVersion(m.version); (m.nodes || []).forEach(n => bridge.nodes.set(n.ip + '#' + n.bindIndex, n)); updateBridgeUI(); updateDiscoveryUI(); remoteHello(m.remote); if (m.startupProject) openStartupProject(m.startupProject); }
+    if (m.t === 'hello') { bridge.hello = m; showVersion(m.version); (m.nodes || []).forEach(n => bridge.nodes.set(n.ip + '#' + n.bindIndex, n)); updateBridgeUI(); updateDiscoveryUI(); remoteHello(m.remote); if (m.startupProject) openStartupProject(m.startupProject); }
     else if (m.t === 'stats') { bridge.stats = m; updateBridgeUI(); }
     else if (m.t === 'node') { bridge.nodes.set(m.node.ip + '#' + m.node.bindIndex, m.node); updateDiscoveryUI(); }
     else if (m.t === 'polled') {

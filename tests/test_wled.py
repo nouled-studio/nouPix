@@ -79,11 +79,8 @@ n = noupix.wled_node("x", {"leds": {"count": 170}}, cfg(dmx={"uni": 1, "addr": 1
 check("from channel 10, 170 LEDs no longer fit one universe", n["outUniverses"] == [0, 1] and n["wled"]["address"] == 10, n["outUniverses"])
 n = noupix.wled_node("x", {"leds": {"count": 10}}, cfg(dmx={"uni": 1, "addr": 1, "mode": 5}))
 check("Dimmer + Multi RGB: the LEDs start a channel later, and it says why", n["wled"]["address"] == 2 and "dimmer" in n["report"], n["report"])
-n = noupix.wled_node("x", {"leds": {"count": 10}}, cfg(port=4048, dmx={"uni": 1, "addr": 1, "mode": 1}))
-check("DDP: no universes, its DMX mode doesn't matter, and it says DDP", n["wled"]["proto"] == "ddp" and n["outUniverses"] == [] and "DDP" in n["report"]
-      and "Multi RGB" not in n["report"] and n["wled"]["pixels"] and n["wled"]["chPx"] == 3, n["report"])
-n = noupix.wled_node("x", {"leds": {"count": 10, "rgbw": True}}, cfg(port=4048))
-check("DDP with RGBW LEDs: 4 channels each", n["wled"]["chPx"] == 4)
+n = noupix.wled_node("x", {"leds": {"count": 10}}, cfg(port=4048))
+check("DDP: no universes, and it says to set E1.31 or Art-Net", n["wled"]["proto"] == "ddp" and n["outUniverses"] == [] and "DDP" in n["report"], n["report"])
 n = noupix.wled_node("x", {"leds": {"count": 10}}, cfg(en=False, dmx={"uni": 1, "addr": 1, "mode": 1}))
 check("receiving off, or one colour for all: it says so", "Receiving is off" in n["report"] and "Multi RGB" in n["report"] and not n["wled"]["pixels"], n["report"])
 
@@ -116,7 +113,7 @@ try:
     # WLED changed on the device: Discover again and Refresh
     WLED["cfg"] = cfg(port=6454, dmx={"uni": 5, "addr": 4, "mode": 6}); WLED["info"]["leds"]["count"] = 144
     ev("olm.bridge.nodes.clear()")
-    pg.locator(".modal[aria-label='Discovery'] .seg button", has_text="All").click()
+    pg.locator(".modal[aria-label='Discovery'] .seg button", has_text="Both").click()
     pg.locator(".modal[aria-label='Discovery'] button", has_text="Discover").first.click()
     try: pg.wait_for_function("[...olm.bridge.nodes.values()].some(n => n.wled && n.wled.leds === 144)", timeout=8000)
     except Exception: pass
@@ -131,15 +128,7 @@ try:
     except Exception: pass
     time.sleep(0.3)
     row = pg.locator(".modal[aria-label='Discovery'] tbody tr", has_text="Kitchen")
-    check("a WLED on DDP shows DDP", row.locator(".badge").inner_text() == "DDP" and not row.locator("button").is_disabled(), row.inner_text())
-    row.locator("button").click(); time.sleep(0.3)
-    c = ev("(() => { const c = olm.project.controllers[0]; return [olm.project.controllers.length, c.protocol, c.mode, c.pxOut, c.split, c.startUniverse]; })()")
-    check("…and Refresh makes it a DDP controller of its LEDs, by pixels, none skipped", c[:3] == [1, "ddp", "pixels"] and c[4:] == [True, 0], c)
-    pg.locator(".modal[aria-label='Discovery'] .seg button", has_text="DDP").click(); time.sleep(0.2)
-    check("the filter shows it under DDP", pg.locator(".modal[aria-label='Discovery'] tbody tr", has_text="Kitchen").count() == 1)
-    pg.locator(".modal[aria-label='Discovery'] .seg button", has_text="sACN").click(); time.sleep(0.2)
-    check("…and not under sACN", pg.locator(".modal[aria-label='Discovery'] tbody tr", has_text="Kitchen").count() == 0)
-    pg.locator(".modal[aria-label='Discovery'] .seg button", has_text="All").click(); time.sleep(0.2)
+    check("a WLED on DDP shows DDP, and can't be added", row.locator(".badge").inner_text() == "DDP" and row.locator("button").is_disabled(), row.inner_text())
     # Discover pressed again during a search: searched once more when it ends (several presses: once)
     time.sleep(2); m0 = asked["mdns"]
     pg.locator(".modal[aria-label='Discovery'] button", has_text="Discover").first.click(); time.sleep(0.2)

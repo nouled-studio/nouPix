@@ -247,7 +247,7 @@ function outputSection(list) {
       if (p.first >= 0) lines.push(addrText(p));
       if (p.overflow) { box.className = 'addr err'; lines.push(`${p.overflow} pixels don't fit on this output and are not sent.`); }
       if (p.overlap) { box.className = 'addr warn'; lines.push('Its set start overlaps the channels of the fixture before it on this output.'); }
-      if (p.outside) { box.className = 'addr warn'; lines.push(`Its set start, ${chLabel(f.addr, p.ctrl, ' ')}, is outside this output's ${isDdp(p.ctrl) ? 'channels' : 'universes'}, so it is not used.`); }
+      if (p.outside) { box.className = 'addr warn'; lines.push(`Its set start, U ${uniLabel(f.addr.u, p.ctrl)}, is outside this output's universes, so it is not used.`); }
       box.textContent = lines.join('\n');
       box.style.whiteSpace = 'pre-wrap';
     };
@@ -262,16 +262,11 @@ function outputSection(list) {
 function advancedPatch(f) {
   const p = f._patch, c = p.ctrl, L = ctrlOuts(c)[p.out], base = L.base, on = { v: !!f.addr };
   const redo = () => { markPatch(); commit(); renderRight(); };
-  const out = [tipRow(checkRow(isDdp(c) ? 'Set its channel' : 'Set universe and channel', on, 'v', v => {
+  const out = [tipRow(checkRow('Set universe and channel', on, 'v', v => {
     if (v) { const a = p.first >= 0 ? addrOf(p.base, p.first) : { u: base, ch: 1 }; f.addr = { u: a.u, ch: a.ch }; } else delete f.addr;
     redo();
   }), 'Where it starts, instead of right after the fixture before it. The ones after it follow on.')];
-  if (f.addr && isDdp(c)) {
-    // DDP: one channel number in the controller's run, from 1 (kept inside as a universe of 512 and a channel)
-    const run = { get v() { return f.addr.u * 512 + f.addr.ch; }, set v(x) { f.addr.u = Math.floor((x - 1) / 512); f.addr.ch = (x - 1) % 512 + 1; } };
-    out.push(numRow('Channel', run, 'v', { int: true, min: base * 512 + 1, max: (base + L.upo) * 512, onCommit: redo }));
-    out.push(h('p', { class: 'note' }, `OUT ${p.out + 1}: ${uniRange(c, L)}`));
-  } else if (f.addr) {
+  if (f.addr) {
     const us = Array.from({ length: L.upo }, (_, i) => [String(base + i), 'U ' + uniLabel(base + i, c)]);
     out.push(row('Universe', selectEl(us, String(f.addr.u), v => { f.addr.u = +v; redo(); }, { aria: 'Start universe' })));
     out.push(numRow('Channel', f.addr, 'ch', { int: true, min: 1, max: 512, onCommit: redo }));
