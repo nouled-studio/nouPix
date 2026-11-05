@@ -1,8 +1,8 @@
-# nouPix 1.5.1
+# nouPix 1.5.2
 
 <img src="icons/noupix-256.png" alt="" width="96" align="right">
 
-A pixel-mapping tool for LED installations, by nouled studio. Draw or import your LED fixtures, play effects, shaders, images, video or live streams on them, store looks as scenes and playlists, and send it all out over Art-Net or sACN.
+A pixel-mapping tool for LED installations, by nouled studio. Draw or import your LED fixtures, play effects, shaders, images, video or live streams on them, store looks as scenes and playlists, and send it all out over Art-Net, sACN or DDP.
 
 ![nouPix playing a geometric show: rings, triangles and a diamond matrix in four zones; the fixture list, the stage, the scenes with their playlists and the X-Fader, and the Content panel](docs/images/app-hero.webp)
 
@@ -26,7 +26,7 @@ A pixel-mapping tool for LED installations, by nouled studio. Draw or import you
 
 ![The Scenes panel: two zones with their scenes, each showing a snapshot of what it plays, a playlist under each, and the X-Fader between them](docs/images/feature-scenes.webp)
 
-**Send it out.** Art-Net and sACN together (each controller on its own), outputs by universes or by pixels, automatic addressing, discovery (WLED too), 8 or 16-bit fixtures with dimming curves, a Channel monitor in its own window and test patterns to check the installation on site.
+**Send it out.** Art-Net, sACN and DDP together (each controller on its own), outputs by universes or by pixels, automatic addressing, discovery (WLED too), 8 or 16-bit fixtures with dimming curves, a Channel monitor in its own window and test patterns to check the installation on site.
 
 ![The Patch panel: two controllers, one on Art-Net and one on sACN with its outputs set by pixels, with their fixtures, universes and channels](docs/images/feature-patch.webp)
 
@@ -79,7 +79,7 @@ On Windows or macOS you can also double-click `start-noupix.bat` or `start-noupi
 
 ## For developers
 
-The interface is a web page (`index.html`, `css/`, plain scripts in `js/`, no build step); `noupix.py` (Python, standard library only) serves it and sends Art-Net and sACN; `desktop/` is the Electron app around both (`cd desktop && npm install && npm start`). [CLAUDE.md](CLAUDE.md) describes the architecture and the conventions. Tests: `python3 tests/run_tests.py --quick`. Releases are built by GitHub when a `v<VERSION>` tag is pushed.
+The interface is a web page (`index.html`, `css/`, plain scripts in `js/`, no build step); `noupix.py` (Python, standard library only) serves it and sends Art-Net, sACN and DDP; `desktop/` is the Electron app around both (`cd desktop && npm install && npm start`). [CLAUDE.md](CLAUDE.md) describes the architecture and the conventions. Tests: `python3 tests/run_tests.py --quick`. Releases are built by GitHub when a `v<VERSION>` tag is pushed.
 
 ## Licence and credits
 

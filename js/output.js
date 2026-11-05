@@ -129,7 +129,7 @@ function frameFlags() {
 }
 // A bridge from before 1.3.2 takes one protocol per frame: the universes' protocol bits off, sACN if all are sACN
 const bridgeMixed = () => !bridge.hello || (bridge.hello.protocols || []).includes('mixed');
-// A bridge from before 1.6 doesn't send DDP: the patch leaves DDP controllers out of the frame for it
+// A bridge from before 1.5.2 doesn't send DDP: the patch leaves DDP controllers out of the frame for it
 const bridgeDdp = () => !!bridge.hello && (bridge.hello.protocols || []).includes('ddp');
 function oldFrame() {
   const b = outFrame.u8.slice();
