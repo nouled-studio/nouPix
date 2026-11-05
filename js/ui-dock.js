@@ -445,14 +445,15 @@ function renderCtrlEditor(edit, c) {
     + 'If colours look shifted from the second universe on, this setting does not match the controller.\n'
     + 'RGBW pixels take 4 channels: 128 fill a universe exactly, so nothing is skipped either way.\n'
     + '16-bit fixtures take two channels per colour (coarse, then fine): 6 for RGB, so 85 pixels fill channels 1 to 510; 8 for RGBW, so 64 fill a universe.';
+  const ddp = isDdp(c);
   edit.append(h('div', { class: 'ctrl-fields' },
     f('Output', en),
     f('Name', small(textInput(c, 'name', { aria: 'Controller name', onInput: () => {}, onCommit: () => { commit(); renderRight(); } }), 150)),
     f('IP address', small(ipIn, 120)),
-    f('Protocol', seg([['artnet', 'Art-Net'], ['sacn', 'sACN']], c.protocol, v => { c.protocol = v; markPatch(); commit(); }),
-      'What this controller receives. sACN counts universes from 1.'),
+    f('Protocol', seg([['artnet', 'Art-Net'], ['sacn', 'sACN'], ['ddp', 'DDP']], c.protocol, v => { c.protocol = v; ensureChains(c); markPatch(); commit(); }),
+      'What this controller receives. sACN counts universes from 1. DDP has no universes: the pixels are one run of channels from 1, none skipped.'),
     f('Outputs', small(numInput(c, 'outputs', { int: true, min: 1, max: 128, aria: 'Outputs', onCommit: onStruct }), 64)),
-    f('Per output', seg([['universes', 'Universes'], ['pixels', 'Pixels']], c.mode, v => { c.mode = v; markPatch(); commit(); }),
+    ddp ? null : f('Per output', seg([['universes', 'Universes'], ['pixels', 'Pixels']], c.mode, v => { c.mode = v; markPatch(); commit(); }),
       'Size each output by a number of universes, or by its pixels: nouPix works out the universes they need'),
     c.mode === 'pixels'
       ? f('Pixels', small(numInput(c, 'pxOut', { int: true, min: 1, max: 10000, aria: 'Pixels per output', onCommit: onStruct }), 72), 'Pixels per output')
@@ -460,16 +461,18 @@ function renderCtrlEditor(edit, c) {
     c.mode === 'pixels' ? f('Pixel', selectEl(CH_PER_PX.map(n => [n, { 1: 'Mono · 1 ch', 3: 'RGB · 3 ch', 4: 'RGBW · 4 ch', 6: 'RGB 16-bit · 6 ch', 8: 'RGBW 16-bit · 8 ch' }[n]]), c.chPx,
       v => { c.chPx = +v; markPatch(); commit(); }, { aria: 'Channels per pixel' }), 'The pixels the controller drives: how many channels each takes') : null,
     // with sACN the first universe is typed and shown as sACN counts it, from 1 (kept from 0 inside, as Art-Net counts)
-    f('Start uni', small(isSacn(c)
+    ddp ? null : f('Start uni', small(isSacn(c)
       ? numInput({ get v() { return c.startUniverse + 1; }, set v(x) { c.startUniverse = x - 1; } }, 'v', { int: true, min: 1, max: 32768, aria: 'Start universe', onCommit: onStruct })
       : numInput(c, 'startUniverse', { int: true, min: 0, max: 32767, aria: 'Start universe', onCommit: onStruct }), 64), 'The universe output 1 starts on; each next output starts on a new universe'),
-    f('Start ch', small(numInput(c, 'startCh', { int: true, min: 1, max: 512, aria: 'Start channel', onCommit: onStruct }), 56), 'The channel output 1 starts at; the next outputs start at channel 1'),
-    c.discovered && c.discovered.length ? f('ArtPoll', h('span', { class: 'reported' }, 'U ' + universeList(c.discovered)),
+    f('Start ch', small(numInput(c, 'startCh', { int: true, min: 1, max: 512, aria: 'Start channel', onCommit: onStruct }), 56),
+      ddp ? 'The channel output 1 starts at, counted from 1; each next output goes on from where the one before it ends' : 'The channel output 1 starts at; the next outputs start at channel 1'),
+    !ddp && c.discovered && c.discovered.length ? f('ArtPoll', h('span', { class: 'reported' }, 'U ' + universeList(c.discovered)),
       `Universes this device reported when discovered (${c.discovered.length}). Set the outputs to how the device is set up.`) : null,
-    h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
+    ddp ? null : h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')),
+    ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null,
     h('span', { style: { flex: 1 } }), del));
-  if (patchConflicts.length) edit.append(h('div', { class: 'conflict' }, 'Universe clash: ' + patchConflicts[0] + (patchConflicts.length > 1 ? ` (+${patchConflicts.length - 1} more)` : '')));
+  if (patchConflicts.length) edit.append(h('div', { class: 'conflict' }, (usesDdp() ? 'Clash: ' : 'Universe clash: ') + patchConflicts[0] + (patchConflicts.length > 1 ? ` (+${patchConflicts.length - 1} more)` : '')));
   const folds = ui.foldOuts || (ui.foldOuts = new Set());
   const foldAll = shut => { c.chains.forEach((_, o) => { const k = c.id + ':' + o; shut ? folds.add(k) : folds.delete(k); }); renderDock(); };
   edit.append(h('div', { class: 'outbar' },
@@ -484,7 +487,7 @@ function renderCtrlEditor(edit, c) {
     const pct = Math.min(100, info.px ? info.pixels / info.px * 100 : info.ch / (info.upo * 512) * 100);
     const usage = h('div', { class: 'usage' + (info.overflow ? ' ovf' : pct > 92 ? ' full' : '') },
       h('div', { class: 'bar' }, h('i', { style: { width: (info.overflow ? 100 : pct) + '%' } })),
-      h('div', { class: 'lbl' }, h('span', null, info.px ? `${fmtN(info.pixels)}/${fmtN(info.px)} px` : `${fmtN(info.pixels)} px`), h('span', null, info.overflow ? `${info.overflow} px over` : `${usedU}/${info.upo} U`)));
+      h('div', { class: 'lbl' }, h('span', null, info.px ? `${fmtN(info.pixels)}/${fmtN(info.px)} px` : `${fmtN(info.pixels)} px`), h('span', null, info.overflow ? `${info.overflow} px over` : ddp ? `${fmtN(info.ch - info.start)} ch` : `${usedU}/${info.upo} U`)));
     const head = h('div', { class: 'outhead', title: 'Click to fold or unfold. Drop fixtures here to add them at the end.' },
       h('span', { class: 'fold' }, folds.has(key) ? '▸' : '▾'),
       h('span', { class: 'on' }, 'OUT ' + (o + 1)),
@@ -500,7 +503,7 @@ function renderCtrlEditor(edit, c) {
       let ad = '—';
       if (p && p.first >= 0) {
         const a = addrOf(p.base, p.first), b = addrOf(p.base, p.last);
-        ad = a.u === b.u ? `U${uniLabel(a.u, c)} · ch ${a.ch}–${b.ch}` : `U${uniLabel(a.u, c)}.${a.ch} – U${uniLabel(b.u, c)}.${b.ch}`;
+        ad = ddp ? `ch ${a.u * 512 + a.ch}–${b.u * 512 + b.ch}` : a.u === b.u ? `U${uniLabel(a.u, c)} · ch ${a.ch}–${b.ch}` : `U${uniLabel(a.u, c)}.${a.ch} – U${uniLabel(b.u, c)}.${b.ch}`;
       }
       if (p && p.overflow) ad = p.first >= 0 ? `${ad} · ${p.overflow} px over` : `${p.overflow} px don't fit`;
       const mv = (txt, d, off, label) => h('button', { type: 'button', disabled: off, title: label, 'aria-label': `${label}: ${fx.name}`, onclick: e => { e.stopPropagation(); moveOnOutput([fid], d); } }, txt);
@@ -629,13 +632,14 @@ function renderNodes(body) {
     h('button', { class: 'btn primary', type: 'button', disabled: !bridge.connected, onclick: discover }, 'Discover'),
     nets.length ? h('span', null, 'on') : null, ...nets.map(chip),
     h('span', { class: 'fill' }),
-    seg([['both', 'Both'], ['artnet', 'Art-Net'], ['sacn', 'sACN']], want, v => { ui.discFilter = v; savePrefs(); updateDiscoveryUI(); }));
+    seg([['both', 'All'], ['artnet', 'Art-Net'], ['sacn', 'sACN'], ['ddp', 'DDP']], want, v => { ui.discFilter = v; savePrefs(); updateDiscoveryUI(); }));
   // Devices on a network turned off for scans, or of the other protocol, are left out
   const all = nodeDevices().filter(n => { const k = netOf(n.ip, nets); return !k || !off.has(k.ip); });
-  const nodes = all.filter(n => want === 'both' || (want === 'sacn') === n.sacn);
+  const protoOf = n => (n.ddp ? 'ddp' : n.sacn ? 'sacn' : 'artnet'), wantName = { artnet: 'Art-Net', sacn: 'sACN', ddp: 'DDP' }[want];
+  const nodes = all.filter(n => want === 'both' || protoOf(n) === want);
   const scroll = h('div', { class: 'scroll' });
   if (trouble) scroll.append(h('p', { class: 'note warn', style: { padding: '6px 12px' } }, trouble));
-  if (!nodes.length) { if (!trouble) scroll.append(h('div', { class: 'empty' }, all.length ? `No ${want === 'sacn' ? 'sACN' : 'Art-Net'} devices found (${all.length} of the other).` : 'No devices found yet: press Discover.')); }
+  if (!nodes.length) { if (!trouble) scroll.append(h('div', { class: 'empty' }, all.length ? `No ${wantName} devices found (${all.length} on the others).` : 'No devices found yet: press Discover.')); }
   else {
     scroll.append(h('table', { class: 'table' },
       h('thead', null, h('tr', null, ['IP', 'Name', 'Network', 'Protocol', 'Art-Net universes', 'MAC', 'Status', ''].map(t => h('th', null, t)))),   // ArtPoll tells the universes, not the outputs
@@ -645,17 +649,17 @@ function renderNodes(body) {
           h('td', { class: 'mono' }, n.ip),
           h('td', null, h('div', null, n.shortName || '—'), h('div', { class: 'muted', style: { fontSize: '11px' } }, n.longName)),
           h('td', { class: 'mono muted' }, (k => k ? k.name || k.ip : '—')(netOf(n.ip, nets))),
-          h('td', null, h('span', { class: 'badge' }, n.wled && n.wled.proto === 'ddp' ? 'DDP' : n.sacn ? 'sACN' : 'Art-Net'),
+          h('td', null, h('span', { class: 'badge' }, n.ddp ? 'DDP' : n.sacn ? 'sACN' : 'Art-Net'),
             n.canSwitch ? h('span', { class: 'muted', style: { fontSize: '11px', marginLeft: '6px' }, title: 'The device can be set to Art-Net or sACN in its own settings' }, 'can switch') : null),
           h('td', { class: 'mono' }, n.universes.length ? n.universes.join(', ') : '—'),
           h('td', { class: 'mono' }, n.mac || '—'),
           h('td', { class: 'muted', style: { fontSize: '11px', maxWidth: '260px' } }, n.report || ''),
-          h('td', null, h('button', { class: 'btn sm', type: 'button', title: known ? `Refresh ${known.name} from what the device reports` : `Add it as a controller on ${n.sacn ? 'sACN' : 'Art-Net'}`,
-            disabled: !!(n.wled && n.wled.proto === 'ddp'), onclick: () => addNodeAsController(n) }, known ? 'Refresh' : 'Add as controller'))), e => nodeMenu(e, n));
+          h('td', null, h('button', { class: 'btn sm', type: 'button', title: known ? `Refresh ${known.name} from what the device reports` : `Add it as a controller on ${n.ddp ? 'DDP' : n.sacn ? 'sACN' : 'Art-Net'}`,
+            onclick: () => addNodeAsController(n) }, known ? 'Refresh' : 'Add as controller'))), e => nodeMenu(e, n));
       }))));
   }
   const hidden = all.length - nodes.length;
-  if (nodes.length && hidden) scroll.append(h('p', { class: 'note', style: { padding: '6px 12px' } }, `${hidden} more on ${want === 'sacn' ? 'Art-Net' : 'sACN'}.`));
+  if (nodes.length && hidden) scroll.append(h('p', { class: 'note', style: { padding: '6px 12px' } }, `${hidden} more on other protocols.`));
   body.replaceChildren(bar, scroll);
 }
 // One device per IP. A node with several ports answers ArtPoll once per port (or per group of ports), each reply
@@ -670,7 +674,7 @@ function nodeDevices() {
     // a WLED found by mDNS (bind index −1) knows its settings exactly: its protocol wins over an ArtPoll reply's
     const wled = (list.find(n => n.wled) || {}).wled || null;
     return { ip, replies: list.length, universes, shortName: pick(list, 'shortName'), longName: pick(list, 'longName'), mac: pick(list, 'mac'), report: pick(list, 'report'),
-      sacn: wled ? wled.proto === 'sacn' : list.some(n => n.sacn), canSwitch: list.some(n => n.canSwitch), wled };
+      sacn: wled ? wled.proto === 'sacn' : list.some(n => n.sacn), ddp: !!wled && wled.proto === 'ddp', canSwitch: list.some(n => n.canSwitch), wled };
   }).sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true }));
 }
 // ArtPoll says which universes a device listens on, not how they are split over its physical outputs (2 outputs
@@ -682,7 +686,7 @@ function addNodeAsController(n) {
   const same = project.controllers.find(c => c.ip === n.ip);
   if (n.wled) return addWledAsController(n, same);
   if (same) {
-    same.protocol = proto;
+    if (!isDdp(same)) same.protocol = proto;   // a device set to DDP by hand (Advatek, Falcon…) stays on DDP: ArtPoll can't tell
     if (u.length) same.discovered = u.slice();
     ui.selCtrl = same.id; ui.dockTab = 'patch';
     markPatch(); commit(); updateDiscoveryUI();
@@ -702,8 +706,8 @@ function addNodeAsController(n) {
 // address, whole pixels per universe as WLED expects; refreshing a known one sets all that again
 function addWledAsController(n, same) {
   const w = n.wled;
-  if (w.proto === 'ddp') { toast(`${n.shortName || n.ip} is set to DDP. Set it to E1.31 or Art-Net in WLED (Sync Interfaces), then Discover again.`, 'warn'); return; }
-  const set = { protocol: w.proto, mode: 'pixels', outputs: 1, pxOut: Math.max(1, w.leds), chPx: w.chPx, startUniverse: w.universe, startCh: w.address, split: false };
+  const set = w.proto === 'ddp' ? { protocol: 'ddp', mode: 'pixels', outputs: 1, pxOut: Math.max(1, w.leds), chPx: w.chPx, startUniverse: 0, startCh: 1, split: true }
+    : { protocol: w.proto, mode: 'pixels', outputs: 1, pxOut: Math.max(1, w.leds), chPx: w.chPx, startUniverse: w.universe, startCh: w.address, split: false };
   let c = same;
   if (c) Object.assign(c, set);
   else { c = newController(Object.assign({ name: n.shortName || n.ip, ip: n.ip }, set)); project.controllers.push(c); }
@@ -712,7 +716,7 @@ function addWledAsController(n, same) {
   ui.selCtrl = c.id; ui.selCtrls = new Set(); ui.dockTab = 'patch';
   markPatch(); commit(); updateDiscoveryUI();
   const warn = !w.receiving ? ' Its receiving is off: turn it on in WLED.' : !w.pixels ? " Set WLED's DMX mode to Multi RGB (or RGBW)." : '';
-  toast(`${same ? 'Refreshed' : 'Added'} ${c.name}: WLED on ${protoName(c)}, ${w.leds} LEDs from universe ${uniLabel(w.universe, c)}, channel ${w.address}.` + warn, warn ? 'warn' : undefined);
+  toast(`${same ? 'Refreshed' : 'Added'} ${c.name}: WLED on ${protoName(c)}, ${w.leds} LEDs` + (w.proto === 'ddp' ? '.' : ` from universe ${uniLabel(w.universe, c)}, channel ${w.address}.`) + warn, warn ? 'warn' : undefined);
 }
 // 0, 1, 2, 3, 7 → "0–3, 7"
 function universeList(u) {
@@ -729,6 +733,10 @@ function universeList(u) {
 // Where an output starts and ends: universe and channel of its first and last channel, on two short lines
 function outSpan(c, L) {
   const a = addrOf(L.base, L.start), b = addrOf(L.base, Math.max(L.start, (L.end ?? L.upo * 512) - 1));
+  if (isDdp(c)) {
+    const x = a.u * 512 + a.ch, y = b.u * 512 + b.ch;
+    return h('span', { class: 'ur', title: `Channels ${x} to ${y} of what ${c.name} receives over DDP` }, h('span', { class: 'from' }, h('b', null, 'DDP'), ' ch ' + x), h('span', { class: 'to' }, ' ch ' + y));
+  }
   const at = (x, cls) => h('span', { class: cls }, h('b', null, 'U ' + uniLabel(x.u, c)), ' ch ' + x.ch);
   return h('span', { class: 'ur', title: `Starts at universe ${uniLabel(a.u, c)}, channel ${a.ch}\nEnds at universe ${uniLabel(b.u, c)}, channel ${b.ch}` },
     at(a, 'from'), at(b, 'to'));
@@ -764,7 +772,7 @@ function renderMonitor(body) {
   ensurePatch();
   if (!universes.find(u => u.key === ui.monitorKey)) ui.monitorKey = universes[0] ? universes[0].key : null;
   const ul = h('div', { class: 'ulist' }, universes.length ? universes.map(u => h('div', { class: u.key === ui.monitorKey ? 'sel' : '', onclick: () => { ui.monitorKey = u.key; updateMonitorUI(); } },
-    h('span', null, `${u.mcast ? 'sACN' : u.ip} · U ${uniLabel(u.uni, u.ctrl)}`), h('span', { class: 'muted' }, u.used + ' ch'))) : h('div', { class: 'empty', style: { fontFamily: 'var(--ui)', cursor: 'default' } }, 'No universes yet. Patch fixtures to a controller.'));
+    h('span', null, u.ddp ? `${u.ip} · DDP ch ${u.uni * 512 + 1}–${u.uni * 512 + 512}` : `${u.mcast ? 'sACN' : u.ip} · U ${uniLabel(u.uni, u.ctrl)}`), h('span', { class: 'muted' }, u.used + ' ch'))) : h('div', { class: 'empty', style: { fontFamily: 'var(--ui)', cursor: 'default' } }, 'No universes yet. Patch fixtures to a controller.'));
   monCanvas = h('canvas', { width: 32 * 26, height: 16 * 20, 'aria-label': 'DMX channel values' });
   const read = h('div', { class: 'readout' }, 'Hover a channel to see what drives it.');
   monCanvas.addEventListener('mousemove', e => {

@@ -78,7 +78,7 @@ function fixController(c, i, ids) {
   if (!('enabled' in c)) c.enabled = true;
   if (!('split' in c)) c.split = false;
   // up to 1.3 the protocol was the project's, for every controller
-  if (c.protocol !== 'sacn' && c.protocol !== 'artnet') c.protocol = legacyProtocol;
+  if (c.protocol !== 'sacn' && c.protocol !== 'artnet' && c.protocol !== 'ddp') c.protocol = legacyProtocol;
   // the universes the device reported to discovery: a reminder for setting outputs and universes per output
   if ('discovered' in c) {
     const u = Array.isArray(c.discovered) ? [...new Set(c.discovered.map(v => Math.round(numOr(v, -1))).filter(v => v >= 0 && v <= 32767))].sort((a, b) => a - b) : [];
@@ -469,7 +469,9 @@ function exportCSV() {
   for (const f of order) {
     const p = f._patch;
     const a = p && p.first >= 0 ? addrOf(p.base, p.first) : null, b = p && p.first >= 0 ? addrOf(p.base, p.last) : null;
-    rows.push([f.name, TYPE_LABEL[f.type], pixelCount(f), f.order, fxBits(f), p ? p.ctrl.name : '', p ? protoName(p.ctrl) : '', p ? p.ctrl.ip : '', p ? p.out + 1 : '', p ? p.pos + 1 : '', a ? uniLabel(a.u, p.ctrl) : '', a ? a.ch : '', b ? uniLabel(b.u, p.ctrl) : '', b ? b.ch : '', p ? p.overflow : '']);
+    // on DDP there are no universes: the channels are counted from 1 through the controller's whole run
+    const d = p && isDdp(p.ctrl), uOf = x => (x ? (d ? '' : uniLabel(x.u, p.ctrl)) : ''), chOf = x => (x ? (d ? x.u * 512 + x.ch : x.ch) : '');
+    rows.push([f.name, TYPE_LABEL[f.type], pixelCount(f), f.order, fxBits(f), p ? p.ctrl.name : '', p ? protoName(p.ctrl) : '', p ? p.ctrl.ip : '', p ? p.out + 1 : '', p ? p.pos + 1 : '', uOf(a), chOf(a), uOf(b), chOf(b), p ? p.overflow : '']);
   }
   const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v).join(',')).join('\n');
   download((project.name || 'noupix').replace(/\s+/g, '-') + '-patch.csv', csv, 'text/csv');
