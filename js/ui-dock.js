@@ -216,7 +216,7 @@ function fadeControl(tile, o) {
 }
 function sceneTile(z, sc, i, keys, look) {
   const live = z.scene === sc.id;
-  const edited = live && lookOf(sc.layers) !== look;
+  const edited = live && !project.settings.sceneKeep && lookOf(sc.layers) !== look;   // (with Keep changes on, they go in by themselves)
   const inLists = z.playlists.filter(pl => pl.steps.some(st => st.scene === sc.id)).length;
   const tile = h('div', { class: 'scene' + (live ? ' live' : ''), role: 'button', tabindex: 0, draggable: true, 'data-zone': z.id, 'data-id': sc.id,
     title: `${sc.name} · ${sc.layers.length} layer${sc.layers.length === 1 ? '' : 's'} · ${sc.fade > 0 ? 'fades in over ' + fmtV(sc.fade) + ' s' : 'cuts in'}` +
@@ -262,6 +262,10 @@ function renderScenes(body, inWindow = false) {
         onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi', 'aria-label': m[1] }, xfGraph(m)), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
     X.on ? xfadeStrip() : h('span'),
     h('div', { class: 'sbtns' },
+      h('button', { class: 'btn sm keepbtn' + (project.settings.sceneKeep ? ' on' : ''), type: 'button', 'aria-pressed': String(!!project.settings.sceneKeep),
+        title: project.settings.sceneKeep ? 'Keep changes on: what you change while a scene plays (speed, colours…) is saved into that scene. Click to turn it off.'
+          : 'Keep changes: what you change while a scene plays (speed, colours…) is saved into that scene by itself',
+        onclick: () => setSceneKeep(!project.settings.sceneKeep) }, h('i', { class: 'dot' }), 'Keep'),
       inWindow ? h('button', { class: 'btn sm icon', type: 'button', html: ICONS.panel, title: 'Back to the panel: close this window, the scenes go back to the bottom panel', 'aria-label': 'Back to the panel', onclick: closeScenesWindow })
         : h('button', { class: 'btn sm icon', type: 'button', html: ICONS.popout, title: 'Open in a window: the scenes and playlists in a window of their own, to put on another screen', 'aria-label': 'Open in a window', onclick: openScenesWindow })));
   const rows = h('div', { class: 'zonerows', 'data-keep': 'zonerows' });
@@ -772,7 +776,7 @@ function renderMonitor(body) {
   ensurePatch();
   if (!universes.find(u => u.key === ui.monitorKey)) ui.monitorKey = universes[0] ? universes[0].key : null;
   const ul = h('div', { class: 'ulist' }, universes.length ? universes.map(u => h('div', { class: u.key === ui.monitorKey ? 'sel' : '', onclick: () => { ui.monitorKey = u.key; updateMonitorUI(); } },
-    h('span', null, u.ddp ? `${u.ip} · DDP ch ${u.uni * 512 + 1}–${u.uni * 512 + 512}` : `${u.mcast ? 'sACN' : u.ip} · U ${uniLabel(u.uni, u.ctrl)}`), h('span', { class: 'muted' }, u.used + ' ch'))) : h('div', { class: 'empty', style: { fontFamily: 'var(--ui)', cursor: 'default' } }, 'No universes yet. Patch fixtures to a controller.'));
+    h('span', null, u.ddp ? `${u.ip} · DDP ch ${u.uni * 512 + 1}–${u.uni * 512 + u.used}` : `${u.mcast ? 'sACN' : u.ip} · U ${uniLabel(u.uni, u.ctrl)}`), h('span', { class: 'muted' }, u.used + ' ch'))) : h('div', { class: 'empty', style: { fontFamily: 'var(--ui)', cursor: 'default' } }, 'No universes yet. Patch fixtures to a controller.'));
   monCanvas = h('canvas', { width: 32 * 26, height: 16 * 20, 'aria-label': 'DMX channel values' });
   const read = h('div', { class: 'readout' }, 'Hover a channel to see what drives it.');
   monCanvas.addEventListener('mousemove', e => {
@@ -783,10 +787,13 @@ function renderMonitor(body) {
     const U = universes.find(u => u.key === ui.monitorKey);
     if (!U) return;
     const m = monitorMap(U)[ch];
-    read.textContent = `ch ${ch + 1} = ${U.data[ch]}` + (m ? ` · ${m.f.name} · pixel ${m.i + 1} · ${m.c}${m.coarse ? ' coarse' : m.fine ? ' fine' : ''}` : ' · unused');
+    // on DDP the channel as the controller counts it: its place in the whole run, not on this page of 512
+    read.textContent = `ch ${(U.ddp ? U.uni * 512 : 0) + ch + 1} = ${U.data[ch]}` + (m ? ` · ${m.f.name} · pixel ${m.i + 1} · ${m.c}${m.coarse ? ' coarse' : m.fine ? ' fine' : ''}` : ' · unused');
   });
   const U = universes.find(u => u.key === ui.monitorKey);
-  const where = !U ? '' : U.sacn
+  // DDP has no universes: a page of 512 channels of the controller's run
+  const where = !U ? '' : U.ddp ? `${U.ip} · DDP · channels ${U.uni * 512 + 1}–${U.uni * 512 + 512} of what it receives`
+    : U.sacn
     ? `${U.mcast ? 'multicast ' + sacnGroup(U.uni + 1) : U.ip} · sACN universe ${U.uni + 1}`
     : `${U.ip} · universe ${U.uni} (net ${U.uni >> 8}, subnet ${(U.uni >> 4) & 15}, universe ${U.uni & 15})`;
   const bar = h('div', { class: 'bar' }, U ? h('span', { class: 'mono' }, `${where} · ${U.ctrl.name} OUT ${U.out + 1}`) : h('span', null, 'The values being sent, channel by channel'),

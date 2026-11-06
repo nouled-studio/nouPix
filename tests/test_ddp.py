@@ -167,6 +167,17 @@ try:
 
     # the Channel monitor and CSV
     check("the Channel monitor lists DDP by channels", E("(() => { ensurePatch(); return universes.map(u => u.ddp) })()") == [True, True])
+    E("ui.monitorKey = null; openMonitor(); updateMonitorUI()"); time.sleep(0.3)
+    lst = E("[...monEl.querySelectorAll('.ulist > div > span:first-child')].map(e => e.textContent)")
+    check("…in pages of 512 of the run, each up to the channels used: ch 1–30, ch 513–630", lst == ["127.0.0.1 · DDP ch 1–30", "127.0.0.1 · DDP ch 513–630"], lst)
+    E("(() => { ui.monitorKey = universes[1].key; updateMonitorUI(); })()"); time.sleep(0.2)
+    bar = E("monEl.querySelector('.bar .mono').textContent")
+    check("its head says DDP and the channels of the run, no universe", "DDP · channels 513–1024" in bar and "universe" not in bar, bar)
+    read = E("""(() => { const c = monCanvas, r = c.getBoundingClientRect(), w = r.width / 32, hh = r.height / 16;
+      c.dispatchEvent(new MouseEvent('mousemove', { clientX: r.left + (88 % 32 + 0.5) * w, clientY: r.top + (Math.floor(88 / 32) + 0.5) * hh }));
+      return monEl.querySelector('.readout').textContent; })()""")
+    check("hovering a channel names it as the controller counts it: ch 601, b's first pixel", read.startswith("ch 601 = ") and "b · pixel 1 · R" in read, read)
+    E("monWin.close()"); time.sleep(0.2)
     csv = E("(() => { let out = ''; const d = window.download; window.download = (n, t) => { out = t; }; try { exportCSV(); } finally { window.download = d; } return out; })()")
     line = [l for l in csv.split("\n") if l.startswith("b,")]
     check("CSV: DDP, no universes, the channels of the run", line and ",DDP," in line[0] and line[0].split(",")[10:14] == ["", "601", "", "630"], line)
