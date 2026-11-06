@@ -34,7 +34,6 @@ const DEFAULT_SETTINGS = {
   artSync: false, grid: 10, bridgeUrl: '', transition: 0.5, fade: 2,
   sacnPriority: 100, sacnMulticast: false,   // sACN's priority, and unicast or multicast (each controller has its protocol)
   sceneShots: false,   // a picture of the zone on each scene stored or updated
-  sceneKeep: false,   // changes to a zone's layers go into the scene it plays, as they are made (Keep changes)
 };
 // Blend modes, in the order the mixer shader numbers them
 const BLENDS = [['alpha', 'Alpha'], ['add', 'Add'], ['screen', 'Screen'], ['multiply', 'Multiply'], ['subtract', 'Subtract'], ['lighten', 'Lighten'], ['darken', 'Darken'], ['difference', 'Difference']];
