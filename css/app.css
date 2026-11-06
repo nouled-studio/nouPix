@@ -461,7 +461,11 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .xfpair { flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-bottom: 6px; margin-bottom: 2px; border-bottom: 1px solid var(--line); }
 .xfpair .zoneblock { margin: 0; min-width: 0; }
 .scenerow.xfcol { flex-direction: column; align-items: stretch; }
-.scenerow.xfcol .stiles { flex-wrap: wrap; align-items: flex-start; }
+/* their scenes in 4 columns that share the width: narrower as the panel is, wider when a side panel is folded */
+.scenerow.xfcol .stiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; align-items: start; }
+.scenerow.xfcol .scene { width: auto; min-width: 0; height: 48px; padding: 5px 2px 5px 7px; }
+.scenerow.xfcol .scene .t { gap: 4px; font-size: 12px; }
+.scenerow.xfcol .stiles > .rowhint { grid-column: 1 / -1; }
 .zhead.compact { width: auto; height: 32px; flex-direction: row; align-items: center; padding: 0 6px 0 10px; }
 .zhead.compact .zt { flex: 1; }
 .zhead.compact .btn { flex: none; }

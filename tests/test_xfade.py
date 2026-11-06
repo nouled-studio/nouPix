@@ -212,6 +212,8 @@ try:
     rest = ev("[...$$('#dockBody .zonerows > .zoneblock')].map(b => b.dataset.zone)")
     check("…the other zones in rows below", rest == ["z1"], rest)
     hd = ev("[...$$('#dockBody .xfpair .zhead.compact')].map(h => [h.querySelector('.xftag').textContent, !!h.querySelector('[data-zone-op]'), h.getBoundingClientRect().height])")
+    E4 = ev("(() => { const b = $('#dockBody .xfpair .zoneblock'), z = zoneById(b.dataset.zone); for (let i = 0; i < 6; i++) storeScene(z); renderDock(); return [...document.querySelector('#dockBody .xfpair .zoneblock').querySelectorAll('.stiles > .scene')].slice(0, 5).map(t => Math.round(t.getBoundingClientRect().top)); })()")
+    check("…their scenes in 4 columns: the fifth starts a new line", len(E4) == 5 and len(set(E4[:4])) == 1 and E4[4] > E4[0], E4)
     check("…each with a one-line head: its A or B tag and its level slider", [x[:2] for x in hd] == [["A", True], ["B", True]] and all(x[2] < 40 for x in hd), hd)
     ev("setXfadeOn(false)"); time.sleep(0.3)
     check("off: the old way, every zone a row", ev("$$('#dockBody .xfpair').length") == 0 and ev("$$('#dockBody .zonerows > .zoneblock').length") == 3)
