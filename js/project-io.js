@@ -20,6 +20,7 @@ function fixSettings(given) {
   s.sacnPriority = clamp(Math.round(s.sacnPriority), 0, 200);
   s.sacnMulticast = s.sacnMulticast === true;
   s.sceneShots = s.sceneShots === true;
+  s.sceneKeep = s.sceneKeep === true;
   delete s.trim;   // the colour trims are per fixture now (see hydrate)
   return s;
 }
@@ -216,6 +217,7 @@ function serialize(withGuide = true) {
   });
 }
 function pushHistory() {
+  keepScenes();   // with Keep changes on, the scenes playing take the edits first, in the same step of undo
   const s = serialize(false);
   if (hist.stack[hist.idx] === s) return;
   hist.stack.splice(hist.idx + 1);

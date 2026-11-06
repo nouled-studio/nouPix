@@ -492,6 +492,23 @@ function takeSceneShot(z, sc) {
   commit();
   toast(`${sc.name} has a snapshot now.`);
 }
+// Keep changes (the Scenes panel): while on, what is changed in a zone's layers as it plays a scene (a speed, a colour,
+// from the Content tab or MIDI) goes into that scene, so recalling it later brings it back as it was left. Run before
+// each step of undo is taken, so the scene and its zone change together. Not while the zone fades to it, and only on
+// the main window (a device's copy comes from it).
+function keepScenes() {
+  if (!project.settings.sceneKeep || REMOTE_CLIENT) return;
+  for (const z of project.zones) {
+    const sc = z.scene && !z._fade && z.scenes.find(s => s.id === z.scene);
+    if (sc && lookOf(sc.layers) !== lookOf(z.layers)) sc.layers = snapshotLayers(z);
+  }
+}
+function setSceneKeep(on) {
+  project.settings.sceneKeep = !!on;
+  commit();
+  refreshScenes();
+  toast(on ? 'Keep changes on: the scene playing in each zone keeps what you change.' : 'Keep changes off: changes stay until you update the scene (⋯ → Update).');
+}
 // Updating a scene with the zone's layers (and its picture, with Settings → Scenes → Pictures on)
 function updateScene(z, sc) {
   sc.layers = snapshotLayers(z); z.scene = sc.id;
