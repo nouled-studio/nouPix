@@ -167,9 +167,8 @@ function xfFitAdvice() {
     h('div', { class: 'modal', role: 'dialog', 'aria-label': 'X-Fader' },
       h('header', null, 'X-Fader'),
       h('div', { class: 'mb' },
-        h('p', null, 'The X-Fader mixes two zones with one fader: A on the left, B on the right. Live, it fades from one look to the next (a DJ set, a concert). In a building, it blends two moods of the same space (day and night, calm and busy). Each zone keeps its own level: the fader mixes within it.'),
-        h('p', null, `It works best when ${p[0].name} (A) and ${p[1].name} (B) both cover the whole canvas, so the fade reaches every light. ${part.map(z => z.name).join(' and ')} ${part.length > 1 ? "don't" : "doesn't"} yet.`),
-        h('p', { class: 'note' }, 'You can do it yourself: press Z (the Zone tool), select the zone, and set its area in the right panel, under Zones.')),
+        h('p', null, 'The X-Fader mixes two zones with one fader: A on the left, B on the right. Live, it fades from one look to the next (a DJ set, a concert).'),
+        h('p', null, `Make ${p[0].name} (A) and ${p[1].name} (B) full size, so the fade reaches every light?`)),
       h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Not now'),
         mappingLocked() ? null : h('button', { class: 'btn primary', type: 'button', onclick: fill }, 'Make both full size'))));
   uiDocNow().body.append(bg);   // in the window it was asked for from
