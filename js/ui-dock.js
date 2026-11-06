@@ -216,7 +216,7 @@ function fadeControl(tile, o) {
 }
 function sceneTile(z, sc, i, keys, look) {
   const live = z.scene === sc.id;
-  const edited = live && !project.settings.sceneKeep && lookOf(sc.layers) !== look;   // (with Keep changes on, they go in by themselves)
+  const edited = live && !sameContents(sc.layers, z.layers);   // other contents: changes to the same ones go in by themselves (keepScenes)
   const inLists = z.playlists.filter(pl => pl.steps.some(st => st.scene === sc.id)).length;
   const tile = h('div', { class: 'scene' + (live ? ' live' : ''), role: 'button', tabindex: 0, draggable: true, 'data-zone': z.id, 'data-id': sc.id,
     title: `${sc.name} · ${sc.layers.length} layer${sc.layers.length === 1 ? '' : 's'} · ${sc.fade > 0 ? 'fades in over ' + fmtV(sc.fade) + ' s' : 'cuts in'}` +
@@ -225,7 +225,8 @@ function sceneTile(z, sc, i, keys, look) {
       sc.onOpen ? h('span', { class: 'au', title: 'Plays when the project opens', html: ICONS.power }) : null,
       h('button', { class: 'x', type: 'button', title: 'Add to playlist, update, rename, delete…', 'aria-label': 'Options for ' + sc.name, onclick: e => { e.stopPropagation(); sceneMenu(e.currentTarget, z, sc); } }, '⋯')),
     h('div', { class: 's' }, null, h('span', { class: 'fill' }),
-      edited ? h('span', { class: 'badge warn', title: 'The layers have changed since this scene was recalled. ⋯ → Update saves the changes into it.' }, 'edited') : null),
+      edited ? h('button', { class: 'badge warn edited', type: 'button', title: 'Other contents are playing than this scene has. Click to save them into it; recalled without saving, it comes back as it was.',
+        onclick: e => { e.stopPropagation(); updateScene(z, sc); } }, 'edited') : null),
     h('i', { class: 'prog' }));
   tile.querySelector('.s').prepend(fadeControl(tile, { name: sc.name, get: () => sc.fade, set: v => { sc.fade = v; } }));
   if (z.tag) tile.style.setProperty('--tag', z.tag);   // its zone's colour, when it has one
@@ -262,10 +263,6 @@ function renderScenes(body, inWindow = false) {
         onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi', 'aria-label': m[1] }, xfGraph(m)), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
     X.on ? xfadeStrip() : h('span'),
     h('div', { class: 'sbtns' },
-      h('button', { class: 'btn sm keepbtn' + (project.settings.sceneKeep ? ' on' : ''), type: 'button', 'aria-pressed': String(!!project.settings.sceneKeep),
-        title: project.settings.sceneKeep ? 'Keep changes on: what you change while a scene plays (speed, colours…) is saved into that scene. Click to turn it off.'
-          : 'Keep changes: what you change while a scene plays (speed, colours…) is saved into that scene by itself',
-        onclick: () => setSceneKeep(!project.settings.sceneKeep) }, h('i', { class: 'dot' }), 'Keep'),
       inWindow ? h('button', { class: 'btn sm icon', type: 'button', html: ICONS.panel, title: 'Back to the panel: close this window, the scenes go back to the bottom panel', 'aria-label': 'Back to the panel', onclick: closeScenesWindow })
         : h('button', { class: 'btn sm icon', type: 'button', html: ICONS.popout, title: 'Open in a window: the scenes and playlists in a window of their own, to put on another screen', 'aria-label': 'Open in a window', onclick: openScenesWindow })));
   const rows = h('div', { class: 'zonerows', 'data-keep': 'zonerows' });

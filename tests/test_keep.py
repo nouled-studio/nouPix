@@ -1,7 +1,8 @@
-# Keep changes (the Scenes panel's Keep button): off by default, a change to a zone's layers while it plays a scene stays
-# a change (the "edited" badge, ⋯ → Update); on, the scene playing takes it as it is made (a colour, a speed, from the
-# Content tab's values or MIDI onto an effect's control), so recalling the scene brings it back as it was left; one step
-# of undo for both; not while the zone fades in; the setting kept in files and undo.
+# Changes kept in the scene playing: what is changed in a zone's layers with the same contents (a colour, a speed, a
+# layer's opacity, from the Content tab's values or MIDI onto an effect's control) goes into the scene it plays, so
+# recalling it brings it back as it was left; one step of undo for both; not while the zone fades in. Other contents
+# (a source swapped, a layer added) don't: the scene shows an "edited" button that saves them, and recalled without
+# saving it comes back as it was stored. Files with 1.5.2's Keep setting open without it.
 import os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import start_bridge, CHROME_ARGS, app_error
@@ -13,7 +14,7 @@ def check(name, ok, detail=""):
 
 def layer(color, speed=0.5):
     return {"id": "l1", "src": "b-solid", "params": {"b-solid": {"color": color + [1], "speed": speed}}, "opacity": 1, "blend": "alpha", "on": True}
-P = {"name": "K", "settings": {"compW": 400, "compH": 200, "transition": 0, "fps": 30},
+P = {"name": "K", "settings": {"compW": 400, "compH": 200, "transition": 0, "fps": 30, "sceneKeep": True},
      "fixtures": [{"id": "a", "type": "line", "name": "a", "order": "RGB", "x1": 20, "y1": 50, "x2": 380, "y2": 50, "pixels": 10}],
      "controllers": [],
      "zones": [{"id": "z1", "name": "Zone 1", "x": 0, "y": 0, "w": 400, "h": 200, "opacity": 1, "layers": [layer([1, 0, 0])],
@@ -32,52 +33,47 @@ try:
     E = pg.evaluate
     E("p => { olm.loadProject(p); ui.dockTab = 'scenes'; ui.dockCollapsed = false; renderDock(); }", P); time.sleep(0.8)
     Z = "olm.project.zones[0]"
-    sceneColor = lambda sid: E(f"{Z}.scenes.find(s => s.id === '{sid}').layers[0].params['b-solid'].color")
-    # a change as the Content tab makes it: the layer's value, then a soft commit
+    scene = lambda sid: E(f"{Z}.scenes.find(s => s.id === '{sid}').layers")
+    # a change as the Content tab makes it: the layer's value, a soft commit, the scenes redrawn
     change = lambda color: E(f"c => {{ {Z}.layers[0].params['b-solid'].color = c; commitSoft(); refreshScenes(); }}", color + [1])
-    btn = pg.locator(".sfoot .keepbtn")
+    edited = lambda sid: pg.locator(f".scene[data-id='{sid}'] .edited")
 
-    # ---------- off, as before
-    check("Keep is in the Scenes panel, off by default", btn.count() == 1 and "on" not in (btn.get_attribute("class") or "") and E("olm.project.settings.sceneKeep") is False)
-    change([0, 1, 0]); time.sleep(0.6)
-    check("off: a change while Red plays leaves Red as it was", sceneColor("s1") == [1, 0, 0, 1], sceneColor("s1"))
-    check("…and Red shows it was edited", pg.locator(".scene[data-id='s1'] .badge", has_text="edited").count() == 1)
-    E(f"goScene({Z}, {Z}.scenes[1]); goScene({Z}, {Z}.scenes[0])"); time.sleep(0.4)
-    check("…so recalling Red brings back its own colour", E(f"{Z}.layers[0].params['b-solid'].color") == [1, 0, 0, 1])
+    check("no Keep button: it is always so", pg.locator(".sfoot .keepbtn").count() == 0)
+    check("a file from 1.5.2 with Keep opens without the setting", "sceneKeep" not in E("olm.project.settings"))
 
-    # ---------- on
-    btn.click(); time.sleep(0.4)
-    check("Keep turns on from its button", E("olm.project.settings.sceneKeep") is True and "on" in (pg.locator(".sfoot .keepbtn").get_attribute("class") or ""))
+    # ---------- the same contents: kept
     change([0, 1, 0]); time.sleep(0.6)
-    check("on: a colour changed while Red plays goes into Red", sceneColor("s1") == [0, 1, 0, 1], sceneColor("s1"))
-    check("…with no edited badge", pg.locator(".scene[data-id='s1'] .badge", has_text="edited").count() == 0)
-    check("…and Blue, not playing, stays as it was", sceneColor("s2") == [0, 0, 1, 1])
+    check("a colour changed while Red plays goes into Red", scene("s1")[0]["params"]["b-solid"]["color"] == [0, 1, 0, 1])
+    check("…with no edited button", edited("s1").count() == 0)
+    check("…and Blue, not playing, stays as it was", scene("s2")[0]["params"]["b-solid"]["color"] == [0, 0, 1, 1])
     E(f"goScene({Z}, {Z}.scenes[1])"); time.sleep(0.3)
-    E(f"{Z}.layers[0].params['b-solid'].speed = 0.9; commitSoft()"); time.sleep(0.6)
+    E(f"{Z}.layers[0].opacity = 0.4; {Z}.layers[0].params['b-solid'].speed = 0.9; commitSoft()"); time.sleep(0.6)
     E(f"goScene({Z}, {Z}.scenes[0])"); time.sleep(0.3)
     check("recalling Red brings it back as it was left (green)", E(f"{Z}.layers[0].params['b-solid'].color") == [0, 1, 0, 1])
     E(f"goScene({Z}, {Z}.scenes[1])"); time.sleep(0.3)
-    check("and Blue keeps its new speed", E(f"{Z}.layers[0].params['b-solid'].speed") == 0.9, E(f"{Z}.layers[0].params['b-solid'].speed"))
-
-    # MIDI onto an effect's control (setEffectControl): the scene playing takes it too
+    check("and Blue keeps its new speed and its layer's opacity", E(f"[{Z}.layers[0].params['b-solid'].speed, {Z}.layers[0].opacity]") == [0.9, 0.4])
     E("setEffectControl(srcById('b-solid'), 'speed', 0.25)"); time.sleep(0.7)
-    check("a MIDI control on an effect goes into the scene playing too", E(f"{Z}.scenes[1].layers[0].params['b-solid'].speed") == 0.25, E(f"{Z}.scenes[1].layers[0].params['b-solid'].speed"))
-
-    # undo: the scene and the zone go back together
+    check("a MIDI control on an effect goes into the scene playing too", scene("s2")[0]["params"]["b-solid"]["speed"] == 0.25)
     E("undo()"); time.sleep(0.3)
-    check("undo takes back the change from the zone and the scene together", E(f"{Z}.layers[0].params['b-solid'].speed") == 0.9 and E(f"{Z}.scenes[1].layers[0].params['b-solid'].speed") == 0.9)
+    check("undo takes it back from the zone and the scene together", E(f"{Z}.layers[0].params['b-solid'].speed") == 0.9 and scene("s2")[0]["params"]["b-solid"]["speed"] == 0.9)
 
-    # not while the zone fades in: the scene isn't written with a half-way look
+    # ---------- other contents: an edited button, not kept unless saved
+    E(f"(() => {{ const L = {Z}.layers[0]; L.src = 'b-rainbow'; commit(); refreshScenes(); }})()"); time.sleep(0.5)
+    check("a source swapped in Blue's layer doesn't go into Blue", scene("s2")[0]["src"] == "b-solid")
+    check("…Blue shows an edited button instead", edited("s2").count() == 1 and edited("s2").evaluate("e => e.tagName") == "BUTTON")
+    E(f"(() => {{ {Z}.layers[0].opacity = 0.7; commit(); }})()"); time.sleep(0.3)
+    check("…and nothing more goes in while the contents differ", scene("s2")[0]["opacity"] == 0.4)
+    E(f"goScene({Z}, {Z}.scenes[0]); goScene({Z}, {Z}.scenes[1])"); time.sleep(0.4)
+    check("recalled without saving, Blue comes back as it was stored", E(f"{Z}.layers[0].src") == "b-solid" and E(f"{Z}.layers[0].opacity") == 0.4)
+    E(f"(() => {{ const z = {Z}; z.layers.push(Object.assign(newLayer(), {{ src: 'b-rainbow' }})); commit(); refreshScenes(); }})()"); time.sleep(0.5)
+    check("a layer added shows the edited button too", edited("s2").count() == 1 and len(scene("s2")) == 1)
+    edited("s2").click(); time.sleep(0.4)
+    check("clicking edited saves the zone's contents into the scene", len(scene("s2")) == 2 and scene("s2")[1]["src"] == "b-rainbow" and edited("s2").count() == 0)
+    check("…without recalling anything else", E(f"{Z}.scene") == "s2")
+
+    # ---------- not while the zone fades in
     E(f"(() => {{ const z = {Z}; z.scenes[0].fade = 5; goScene(z, z.scenes[0]); z.layers[0].params['b-solid'].color = [1, 1, 0, 1]; commit(); }})()"); time.sleep(0.3)
-    check("not while its zone fades to it", sceneColor("s1") == [0, 1, 0, 1], sceneColor("s1"))
-    E(f"(() => {{ {Z}._fade = null; {Z}.scenes[0].fade = 0; }})()")
-
-    # ---------- files and off again
-    check("the setting is kept in the project", E("JSON.parse(serialize()).settings.sceneKeep") is True)
-    check("a file without it opens with Keep off", E("p => hydrate(p).settings.sceneKeep", P) is False)
-    pg.locator(".sfoot .keepbtn").click(); time.sleep(0.4)
-    change([1, 1, 1]); time.sleep(0.6)
-    check("off again: changes stay changes", sceneColor("s1") != [1, 1, 1, 1] and E("olm.project.settings.sceneKeep") is False)
+    check("not while its zone fades to it", scene("s1")[0]["params"]["b-solid"]["color"] == [0, 1, 0, 1])
     check("no errors in the page", not errs, errs[:3])
     br.close()
 finally:
