@@ -309,10 +309,10 @@ function loadSource(id, L = selLayer()) {
 // Zones fully covered by an opaque zone above them, or at zero opacity, cannot be seen and are not drawn
 function hiddenZone(i) {
   const zs = project.zones, z = zs[i];
-  if (!(z.opacity > 0)) return true;
+  if (!(zoneLevel(z) > 0)) return true;
   for (let j = i + 1; j < zs.length; j++) {
     const o = zs[j];
-    if (o.opacity >= 1 && o.x <= z.x && o.y <= z.y && o.x + o.w >= z.x + z.w && o.y + o.h >= z.y + z.h) return true;
+    if (zoneLevel(o) >= 1 && o.x <= z.x && o.y <= z.y && o.x + o.w >= z.x + z.w && o.y + o.h >= z.y + z.h) return true;
   }
   return false;
 }
@@ -362,8 +362,8 @@ function renderContent() {
     if (f && f.from) renderLook(f.from, 1, z);
     mixer.zone(z, f ? (f.from ? 1 : 'frozen') : null, t);
     if (!show) return;
-    mixer.composite(z, z.opacity);
-    if (z === lo && up.opacity > 0) {
+    mixer.composite(z, zoneLevel(z));
+    if (z === lo && zoneLevel(up) > 0) {
       const x0 = Math.max(z.x, up.x), y0 = Math.max(z.y, up.y), x1 = Math.min(z.x + z.w, up.x + up.w), y1 = Math.min(z.y + z.h, up.y + up.h);
       if (x1 > x0 && y1 > y0) mixer.composite(z, 1, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
     }

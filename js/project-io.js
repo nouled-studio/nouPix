@@ -193,8 +193,11 @@ function hydrate(p) {
   out.macros = fixMacros(p.macros);
   out.macroLinks = fixMacroLinks(p.macroLinks, known);
   const X = isObj(p.xfade) ? p.xfade : {};
+  // Up to 1.5.2 the X-Fader wrote A's and B's levels into them; now their levels are their own and it mixes within
+  // them: a project saved with it on gets A and B back at full, so it looks as it did (\`own\` marks one saved since)
+  if (X.on === true && X.own !== true) for (const z of out.zones) if (z.id === X.a || z.id === X.b) z.opacity = 1;
   out.xfade = { on: X.on === true, a: isId(X.a) ? String(X.a) : '', b: isId(X.b) ? String(X.b) : '', x: clamp(numOr(X.x, 0), 0, 1),
-    mode: XF_MODES.some(m => m[0] === X.mode) ? X.mode : 'mix', phone: X.phone === true };
+    mode: XF_MODES.some(m => m[0] === X.mode) ? X.mode : 'mix', phone: X.phone === true, own: true };
   return out;
 }
 // The MIDI mappings: well-formed ones only, each with its own id. A mapping to a zone, scene or playlist that is gone

@@ -48,9 +48,9 @@ function midiTarget(t) {
   }
   const [k, zid, id] = t.split(':'), z = zid ? zoneById(zid) : null;
   if (!z) return null;
-  // while the crossfader drives the zone, a control mapped to its level does nothing
-  if (k === 'z') return { kind: 'fader', label: z.name + ' level' + (xfDriven(z) ? ' (on the X-Fader)' : ''), get: () => z.opacity,
-    set: v => { if (xfDriven(z)) return; setZoneOpacity(z, v); remoteChanged(); commitSoft(); } };
+  // on the X-Fader's zones, the most the zone reaches: the fader mixes within it
+  if (k === 'z') return { kind: 'fader', label: z.name + ' level' + (xfDriven(z) ? ' (its most, on the X-Fader)' : ''), get: () => z.opacity,
+    set: v => { setZoneOpacity(z, v); remoteChanged(); commitSoft(); } };
   if (k === 'sc') {
     const sc = z.scenes.find(s => s.id === id);
     return sc ? { kind: 'trigger', label: `${z.name} · ${sc.name}`, get: () => (z.scene === sc.id ? 1 : 0), set: () => goScene(z, sc), flash: () => zoneBack(z) } : null;

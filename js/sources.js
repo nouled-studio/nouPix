@@ -272,7 +272,7 @@ function videoVolume(src) {
   const v = clamp(numOr(src.volume, 1), 0, 1);
   if (!src.volFollow) return v;
   let k = 0;
-  for (const z of project.zones) for (const L of z.layers) if (L.on && L.src === src.id) k = Math.max(k, clamp(numOr(z.opacity, 1), 0, 1) * clamp(numOr(L.opacity, 1), 0, 1));
+  for (const z of project.zones) for (const L of z.layers) if (L.on && L.src === src.id) k = Math.max(k, zoneLevel(z) * clamp(numOr(L.opacity, 1), 0, 1));
   return v * k;
 }
 function playVideo(src, el) {
