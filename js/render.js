@@ -65,6 +65,12 @@ void main() {
   // GPU resources. They are made again when the browser restores the context after losing it (a GPU reset).
   let blendP, mixP, quad, slots, cur, area, upload, zones, TW, TH, CW, CH, smp, small, smallBuf;
   const reads = new Map();   // preview canvas -> its read under way: { buf, fence, w, h }
+  // A zone's last picture drawn at w × hh into the small target, to be read back (a preview, a scene's picture)
+  function drawSmall(Z, w, hh) {
+    if (!small) small = target();
+    size(small, w, hh);
+    pass(small.fb, 0, 0, w, hh, mixP, u => { bindTex(0, Z.out.tex, u.a); bindTex(1, Z.out.tex, u.b); g.uniform2f(u.sa, 1, 1); g.uniform2f(u.sb, 1, 1); g.uniform1f(u.t, 1); });
+  }
   function init() {
     reads.clear();
     blendP = program(VS, BLEND); mixP = program(VS, MIX);
@@ -169,9 +175,7 @@ void main() {
           show(c, raw, R.w, R.h);
         }
       }
-      if (!small) small = target();
-      size(small, w, hh);
-      pass(small.fb, 0, 0, w, hh, mixP, u => { bindTex(0, Z.out.tex, u.a); bindTex(1, Z.out.tex, u.b); g.uniform2f(u.sa, 1, 1); g.uniform2f(u.sb, 1, 1); g.uniform1f(u.t, 1); });
+      drawSmall(Z, w, hh);
       if (gl2) {
         if (!R) reads.set(c, R = { buf: g.createBuffer(), fence: null, w: 0, h: 0 });
         g.bindBuffer(g.PIXEL_PACK_BUFFER, R.buf);
@@ -192,9 +196,7 @@ void main() {
     grab(z, w, hh) {
       const Z = zones.get(z.id);
       if (!Z || !Z.out.w) return null;
-      if (!small) small = target();
-      size(small, w, hh);
-      pass(small.fb, 0, 0, w, hh, mixP, u => { bindTex(0, Z.out.tex, u.a); bindTex(1, Z.out.tex, u.b); g.uniform2f(u.sa, 1, 1); g.uniform2f(u.sb, 1, 1); g.uniform1f(u.t, 1); });
+      drawSmall(Z, w, hh);
       const raw = new Uint8Array(w * hh * 4);
       g.readPixels(0, 0, w, hh, g.RGBA, g.UNSIGNED_BYTE, raw);
       const c = document.createElement('canvas');
@@ -327,9 +329,13 @@ function renderLook(layers, slot, z) {
     mixer.layer(slot, c, BLEND_IDX[L.blend] || 0, L.opacity * project.macros.intensity.v);   // the Intensity macro
   }
 }
+// Copying the picture out of the GPU makes the page wait for it, so the preview (for the eye only) is drawn on a
+// steady share of the output's frames, as the stage is: every one up to 20 a second, every second one at 40
+const eyeEvery = () => Math.max(1, Math.ceil(1000 / tickPeriod / 20));
 function drawPreview(c, z) {
   const p = preview.canvas;
   if (!p.isConnected) { preview = null; return; }
+  if (frameIndex % eyeEvery()) return;
   p.getContext('2d').drawImage(c, 0, c.height - z.h, z.w, z.h, 0, 0, p.width, p.height);
 }
 // A zone's picture now, w × hh, in a 2D canvas (a scene's picture). A zone the output doesn't draw (hidden under
