@@ -441,7 +441,8 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .xfend { font: 600 10px var(--label); color: var(--muted); }
 .xftag { flex: none; font: 600 9px var(--label); line-height: 12px; padding: 0 3px; border: 1px solid var(--line3); color: var(--text2); }
 .bar .fill { flex: 1; }
-.zonerows { flex: 1; overflow: auto; padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 6px; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+/* the scroll bar's room kept whether or not it shows, so the scenes don't change size when it comes and goes */
+.zonerows { flex: 1; overflow: auto; scrollbar-gutter: stable; padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 6px; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
 .zonerows::-webkit-scrollbar { width: 8px; }
 .zonerows::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 0; }
 .zonerows::-webkit-scrollbar-track { background: transparent; }

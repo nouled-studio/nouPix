@@ -219,6 +219,13 @@ try:
             " const col = $('#dockBody .xfpair .zoneblock[data-zone=z2]').getBoundingClientRect(), box = $('#dockBody .xfpair .zoneblock[data-zone=z2] .plist').getBoundingClientRect();"
             " return [Math.round(box.left - col.left), Math.round(col.right - box.right), Math.round(box.width)]; })()")
     check("an open playlist takes its column's width under the scenes (no room left for a head beside it)", pl[0] <= 6 and pl[1] <= 6 and pl[2] > 200, pl)
+    # the panel made short until its scroll bar shows: the scenes keep their size
+    sw = lambda: ev("Math.round($('#dockBody .xfpair .scene').getBoundingClientRect().width * 10) / 10")
+    ev("(() => { ui.dockH = 600; renderAll(); })()"); time.sleep(0.4); w_tall = sw()
+    ev("(() => { ui.dockH = 160; renderAll(); })()"); time.sleep(0.4); w_short = sw()
+    bar = ev("(() => { const r = $('#dockBody .zonerows'); return r.scrollHeight > r.clientHeight; })()")
+    check("the scenes keep their size when the panel's scroll bar comes and goes", bar and w_tall == w_short, (bar, w_tall, w_short))
+    ev("(() => { ui.dockH = 430; renderAll(); })()")
     ev("setXfadeOn(false)"); time.sleep(0.3)
     check("off: the old way, every zone a row", ev("$$('#dockBody .xfpair').length") == 0 and ev("$$('#dockBody .zonerows > .zoneblock').length") == 3)
 
