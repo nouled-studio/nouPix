@@ -320,19 +320,23 @@ function onKey(e) {
 /* ---------- boot ---------- */
 // The stage is drawn when something on it may have changed (a new frame of content, a drag, a click, the mouse
 // over another fixture), and only as often as leaves the output its time, so the Art-Net frame rate holds:
-// - at most 30 times a second for moving content, 60 while you work on it, and at least 10 if it is waiting
-//   (but frames that don't fit their period get the stage drawn once every 4 of them: the output comes first);
+// - for moving content, on a steady share of the output frames: every one up to 30 a second, every second one at 40
+//   or 60, and so on (stageEvery), so what it shows keeps step with the LEDs: drawn at moments of its own, a strobe
+//   or a fast line beat against the output's frames and looked random; 60 a second while you work on it, and at least
+//   10 if it is waiting (but frames that don't fit their period get the stage drawn once every 4 of them: the output
+//   comes first);
 // - fewer when drawing it is slow: it may take about half the time the output leaves free;
 // - in the gap after an output frame, not just before the next one is due.
 let stageDirty = true, drawnFrame = -1, drawCost = 0, drawnAt = 0;
+const stageEvery = () => Math.max(1, Math.ceil(1000 / tickPeriod / 30));
 function frameLoop(now) {
   requestAnimationFrame(frameLoop);
   if (!project) return;
   try {
     if (geomDirty) rebuildGeometry();
-    const want = stageDirty || frameIndex !== drawnFrame, since = now - drawnAt;
+    const k = stageEvery(), want = stageDirty || Math.floor(frameIndex / k) !== Math.floor(drawnFrame / k), since = now - drawnAt;
     const free = Math.max(0.1, 1 - tickCost / tickPeriod), longest = Math.max(100, 4 * Math.max(tickPeriod, tickCost));
-    const gap = Math.min(longest, Math.max(stageDirty ? 1000 / 60 : 1000 / 30, drawCost / (free * 0.5), tickCost > tickPeriod ? 4 * tickCost : 0));
+    const gap = Math.min(longest, Math.max(stageDirty ? 1000 / 60 : 0, drawCost / (free * 0.5), tickCost > tickPeriod ? 4 * tickCost : 0));
     const fits = performance.now() + drawCost < lastTick + tickPeriod || drawCost > tickPeriod - tickCost;
     if (want && since >= gap && (fits || since >= longest)) {
       stageDirty = false; drawnFrame = frameIndex; drawnAt = now;
