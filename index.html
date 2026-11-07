@@ -44,6 +44,7 @@
           <button class="btn sm" id="btnAddFx" type="button">+ Add</button>
           <button class="btn sm grpbtn" id="btnGroup" type="button" disabled></button>
           <button class="btn sm grpbtn" id="btnLock" type="button" disabled></button>
+          <button class="btn ghost sm" id="btnHideLeft" type="button" title="Hide this panel (Shift H)" aria-label="Hide the left panel">«</button>
         </div>
         <div class="pbody"><ul class="list" id="fxList"></ul></div>
       </section>
@@ -58,6 +59,8 @@
     <main class="center">
       <div class="stagewrap">
         <div class="stagebar">
+          <button class="btn sm icon" id="btnLeft" type="button" data-tip="Fixtures and sources · Shift H|Shows or hides the left panel, for more room on the stage." aria-label="Show or hide the left panel"></button>
+          <span class="vsep"></span>
           <label class="vt" data-tip="Content|What plays, shown behind the fixtures. Off: only the LEDs’ light. The slider mixes between the two."><input type="checkbox" id="vContent" aria-label="Content"><svg viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="2.5" width="13" height="13"/><path d="M9 2.5v13"/><path d="M2.5 12.5l2.5-3 2 2 2-2.5"/><circle cx="5.6" cy="5.8" r="1" fill="currentColor" stroke="none"/><g fill="currentColor" stroke="none"><circle cx="12.25" cy="5.5" r="1.25"/><circle cx="12.25" cy="9" r="1.25"/><circle cx="12.25" cy="12.5" r="1.25"/></g></svg></label>
           <input type="range" id="vContentOp" min="0" max="1" step="0.05" aria-label="Content opacity" data-tip="Content opacity|How strongly the content shows behind the fixtures.">
           <span class="vsep"></span>
