@@ -268,7 +268,8 @@ function renderScenes(body, inWindow = false) {
   const rows = h('div', { class: 'zonerows', 'data-keep': 'zonerows' });
   const sel = selZone();
   // with the X-Fader on, its zones A and B side by side at the top (A on the left, B on the right, as on the fader),
-  // each with a compact head (its level is the fader's) and its scenes wrapping; the other zones in rows below
+  // each with a one-line head (its level slider the most it reaches) and its scenes in 4 columns; the other zones in
+  // rows below
   const xf = xfZones(), pair = [null, null];
   for (const z of project.zones.slice().reverse()) {
     const side = xf ? xf.indexOf(z) : -1;
@@ -283,7 +284,7 @@ function renderScenes(body, inWindow = false) {
         if (ui.playlistOpen[z.id]) delete ui.playlistOpen[z.id]; else ui.playlistOpen[z.id] = (cur || z.playlists[0]).id;
         if (ui.zone !== z.id) selectZone(z); else renderDock();
       } });
-    const head = side >= 0 ? h('div', { class: 'zhead compact' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The X-Fader sets its level.`, onclick: () => selectZone(z) },
+    const head = side >= 0 ? h('div', { class: 'zhead compact' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. Its slider is the most it reaches; the X-Fader mixes within it.`, onclick: () => selectZone(z) },
       h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'xftag' }, side ? 'B' : 'A'), h('span', { class: 'nm' }, z.name),
         zoneOpacityInput(z, 110), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists,
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')))
