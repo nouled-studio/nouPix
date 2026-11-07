@@ -724,6 +724,14 @@ function showRight(on) {
   savePrefs();
   updateMidiUI();
 }
+// The left column (fixtures and sources) too, from its « or the stage bar's button (Shift H)
+function showLeft(on) {
+  ui.leftHidden = !on;
+  $('.workspace').classList.toggle('noleft', ui.leftHidden);
+  $('#btnLeft').classList.toggle('on', !ui.leftHidden);
+  $('#btnLeft').setAttribute('aria-pressed', String(!ui.leftHidden));
+  savePrefs();
+}
 // Rename: open the Inspector (showing the panel if it is hidden) with the name selected
 function focusName(id) { if (ui.rightHidden) showRight(true); ui.rightTab = 'inspector'; renderRight(); const i = $('#' + id); if (i) { i.focus(); i.select(); } }
 function onSelection() {

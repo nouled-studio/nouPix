@@ -215,6 +215,10 @@ try:
     E4 = ev("(() => { const b = $('#dockBody .xfpair .zoneblock'), z = zoneById(b.dataset.zone); for (let i = 0; i < 6; i++) storeScene(z); renderDock(); return [...document.querySelector('#dockBody .xfpair .zoneblock').querySelectorAll('.stiles > .scene')].slice(0, 5).map(t => Math.round(t.getBoundingClientRect().top)); })()")
     check("…their scenes in 4 columns: the fifth starts a new line", len(E4) == 5 and len(set(E4[:4])) == 1 and E4[4] > E4[0], E4)
     check("…each with a one-line head: its A or B tag and its level slider", [x[:2] for x in hd] == [["A", True], ["B", True]] and all(x[2] < 40 for x in hd), hd)
+    pl = ev("(() => { const z = zoneById('z2'), sc = z.scenes.slice(0, 2); const p = newPlaylist({ steps: sc.map(s => newStep(s.id)) }); z.playlists.push(p); ui.playlistOpen[z.id] = p.id; renderDock();"
+            " const col = $('#dockBody .xfpair .zoneblock[data-zone=z2]').getBoundingClientRect(), box = $('#dockBody .xfpair .zoneblock[data-zone=z2] .plist').getBoundingClientRect();"
+            " return [Math.round(box.left - col.left), Math.round(col.right - box.right), Math.round(box.width)]; })()")
+    check("an open playlist takes its column's width under the scenes (no room left for a head beside it)", pl[0] <= 6 and pl[1] <= 6 and pl[2] > 200, pl)
     ev("setXfadeOn(false)"); time.sleep(0.3)
     check("off: the old way, every zone a row", ev("$$('#dockBody .xfpair').length") == 0 and ev("$$('#dockBody .zonerows > .zoneblock').length") == 3)
 

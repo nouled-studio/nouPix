@@ -205,6 +205,10 @@ function initUI() {
   $('#btnRight').replaceChildren(icon('panel'));
   $('#btnRight').addEventListener('click', () => showRight(ui.rightHidden));
   $('#btnHideRight').addEventListener('click', () => showRight(false));
+  $('#btnLeft').replaceChildren(icon('panelLeft'));
+  $('#btnLeft').addEventListener('click', () => showLeft(ui.leftHidden));
+  $('#btnHideLeft').addEventListener('click', () => showLeft(false));
+  showLeft(!ui.leftHidden);
   showRight(!ui.rightHidden);
   $('#btnDock').addEventListener('click', () => { ui.dockCollapsed = !ui.dockCollapsed; savePrefs(); renderDock(); });
   const grip = $('#dockGrip');
@@ -299,7 +303,7 @@ function onKey(e) {
   if (e.key === 'Escape') { if (ui.tool !== 'select') setTool('select'); else if (ui.sel.size) { ui.sel.clear(); onSelection(); } return; }
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); if (ui.tool === 'zone') deleteZone(selZone()); else deleteSel(); return; }
   if (k === 'f') { fitView(); return; }
-  if (k === 'h') { showRight(ui.rightHidden); return; }
+  if (k === 'h') { if (e.shiftKey) showLeft(ui.leftHidden); else showRight(ui.rightHidden); return; }
   if (k === 'g') { ui.snap = !ui.snap; $('#vSnap').checked = ui.snap; savePrefs(); toast('Snap ' + (ui.snap ? 'on' : 'off')); return; }
   if (k === 'b') { toggleBlackout(); return; }
   if (k === 'i') { toggleIdentify(); return; }

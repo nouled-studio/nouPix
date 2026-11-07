@@ -111,6 +111,11 @@ input, select, textarea { font-weight: 400; }
 .workspace { display: grid; grid-template-columns: 250px minmax(0, 1fr) 300px; min-height: 0; }
 .workspace.noright { grid-template-columns: 250px minmax(0, 1fr); }
 .workspace.noright > .right { display: none; }
+/* the left column folded too (or alone): the stage takes its room */
+.workspace.noleft { grid-template-columns: minmax(0, 1fr) 300px; }
+.workspace.noleft.noright { grid-template-columns: minmax(0, 1fr); }
+.workspace.noleft > .left { display: none; }
+.fixtures .phead #btnHideLeft { margin-left: 2px; }
 #btnRight.on { color: var(--accent); border-color: var(--accent); }
 #btnTheme svg { width: 15px; height: 15px; }
 .right .tabs button { padding: 0 10px; }
@@ -577,6 +582,11 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 
 /* ---------- playlists: under a zone's scenes ---------- */
 .plist { margin: 0 5px 0 189px; padding-bottom: 6px; }
+/* in the X-Fader's columns no zone head sits beside the scenes: the playlist takes the column's whole width under them */
+.xfpair .plist { margin: 6px 5px 0; }
+.xfpair .ptabs { flex-wrap: nowrap; }
+.xfpair .ptab { min-width: 0; }
+.xfpair .ptab .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ptabs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px; position: relative; z-index: 1; }
 .ptabs .fill { flex: 1; }
 .ptab { position: relative; flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 7px 0 3px; border: 1px solid var(--line); border-bottom: 0; border-radius: 0; background: var(--bg1); color: var(--text2); cursor: pointer; font-size: 12px; overflow: hidden; user-select: none; }
