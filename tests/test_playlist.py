@@ -86,7 +86,10 @@ try:
     pg.click(".zoneblock >> nth=0 >> .ptab.open .pb"); wait()
     s = E("ST()")
     check("▶ on the tab plays it from step 1", s and s["on"] and s["i"] == 0 and s["list"] == "Evening", s)
-    pg.click(".zoneblock >> nth=0 >> .ptab.open .nm"); wait(0.5)
+    pg.click(".zoneblock >> nth=0 >> .ptab.open .nm")
+    # (the panel redraws as the playlist plays: wait for the fold rather than a fixed time)
+    try: pg.wait_for_function("!document.querySelector('.zoneblock .plane') && !!document.querySelector('.zoneblock .ptabs.folded')", timeout=3000)
+    except Exception: pass
     check("clicking the open playlist's tab folds it back to one line", pg.locator(".zoneblock >> nth=0 >> .plane").count() == 0 and pg.locator(".zoneblock >> nth=0 >> .ptabs.folded").count() == 1)
     check("folded, the line is just the tabs: no words about what plays", pg.locator(".zoneblock >> nth=0 >> .pbrief").count() == 0 and pg.locator(".zoneblock >> nth=0 >> .ptab.on").count() == 1)
     check("folded, the playlist keeps playing", E("ST().on"))
