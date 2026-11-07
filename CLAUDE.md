@@ -142,10 +142,15 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
 - The crossfader ("X-Fader" on screen) is `project.xfade` (`{ on, a, b, x, mode, phone }`: two zones' ids, the fader (0 all A,
   1 all B), its mode (`XF_MODES`: mix, dip through black, cut at the middle) and whether the Remote page shows it). Its button
   (bottom left, with a button for the mode next to it that opens a list of the three, each a small graph, `xfGraph`) and strip (bottom middle) are at the bottom of the Scenes panel; the fade for new scenes is in Settings. While it is on
-  (`xfZones()`), `xfApply` sets A's and B's levels (`xfLevels`: in mix 1 − x and x), and only it: `setZoneOpacity` ignores those two (sliders,
-  MIDI on their levels, devices), and their sliders are disabled. `setXfade` moves it (from its slider, MIDI's `xf`, a
-  device's `{op: 'xfade'}`, from the Remote page only with `phone`, which shows it on or off but can't switch it), on or off; turning it on suggests making A and B
-  cover the canvas (`xfFitAdvice`); turning it on or off and choosing a zone are steps of undo. `renderContent`
+  (`xfZones()`), A and B show at their own level × the fader's share (`zoneLevel`; `xfLevels`: in mix 1 − x and x): each
+  zone's slider (and MIDI on it, a device, an HTTP trigger) is the most it reaches, and the fader mixes within it; the
+  output, `hiddenZone`, a video's volume and the strip's percentages (`data-zone-eff`) use `zoneLevel`, the sliders the zone's
+  own. `xfApply` only redraws what shows them. Files saved with it on before 1.5.3 (no `xfade.own`) had A's and B's levels
+  written by it: `hydrate` sets those two to full. The Scenes panel, while it is on, puts A's and B's scenes side by side
+  (`.xfpair`: A left, B right, each a one-line head with its tag, name, level slider, playlist and + Store, its scenes
+  wrapping), the other zones in rows below; off, every zone is a row. Turning it on explains it in short and suggests
+  making A and B cover the canvas (`xfFitAdvice`). `setXfade` moves it (from its slider, MIDI's `xf`, a
+  device's `{op: 'xfade'}`, from the Remote page only with `phone`, which shows it on or off but can't switch it), on or off; turning it on or off and choosing a zone are steps of undo. `renderContent`
   lays the lower of the two on whole where the upper covers it, so the upper's level alone mixes them there and the
   light stays even, and draws both even when one is faded out, for their previews.
 - Each controller has its protocol, `c.protocol` (`'artnet'`, the default, `'sacn'` or `'ddp'`; files before 1.4 had one for the
@@ -307,7 +312,7 @@ white from the top bar and Settings (kept, from the start, the windows and the s
 groups and zones (none at first, shown by their fixtures and scenes, undo), files (old colours dropped, the old
 format opened, `.noupix`, Save, Save as and autosave), the sliders' fill, the scene tiles' cuts, openLedMapper's stored data carried over.
 `test_xfade.py` checks the crossfader: the levels and the even mix (same place, either way up, overlapping in part),
-nothing else setting A's and B's levels while it is on (sliders, devices, MIDI), MIDI onto it on or off, the Scenes
+A's and B's own levels as the most each reaches (sliders, devices, MIDI), files from before (A and B back at full), A and B side by side in the Scenes panel only while it is on, MIDI onto it on or off, the Scenes
 panel (button at the bottom left that stays put, the modes, strip in the middle, short fader, greyed sliders, A and B tags, previews filling their frames,
 choosing zones, the zone menu), the fade for new scenes in Settings, undo, files, the advice to make both zones full size, and the
 Remote page (the option, the card, moving it both ways).

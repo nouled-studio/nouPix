@@ -77,7 +77,7 @@ try:
     # with the X-Fader driving a zone
     ev(f"""(() => {{ setXfadeOn(true); }})()"""); time.sleep(0.2)
     s, b = get("/trigger/level/Main/10")
-    check("a zone on the X-Fader says so", s == 409 and "X-Fader" in b.get("error", ""), (s, b))
+    check("a zone on the X-Fader takes its own level too (the most it reaches; the fader mixes within it)", s == 200 and abs(ev("project.zones.find(z => z.name === 'Main').opacity") - 0.1) < 1e-9, (s, b))
     ev("setXfadeOn(false); $$('.modal-bg').forEach(m => m.remove())")
     # the phones see what a trigger did
     st = ev("JSON.parse(JSON.stringify(remoteState()))")

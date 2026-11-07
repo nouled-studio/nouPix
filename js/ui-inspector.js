@@ -321,9 +321,9 @@ function renderMulti(body, sel) {
 
 /* ---------- zones ---------- */
 function zoneOpacityInput(z, width) {
-  const driven = xfDriven(z);   // the crossfader sets it
-  const r = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: z.opacity, 'data-zone-op': z.id, disabled: driven,
-    title: driven ? z.name + ': the X-Fader sets its level' : z.name + ' opacity (its master)', 'aria-label': z.name + ' opacity' });
+  const driven = xfDriven(z);   // on the X-Fader: the most it reaches
+  const r = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: z.opacity, 'data-zone-op': z.id,
+    title: driven ? z.name + ': the most it reaches; the X-Fader mixes within it' : z.name + ' opacity (its master)', 'aria-label': z.name + ' opacity' });
   r.addEventListener('input', () => setZoneOpacity(z, parseFloat(r.value), r));
   r.addEventListener('change', commitSoft);
   r.addEventListener('click', e => e.stopPropagation());

@@ -82,7 +82,7 @@ function blankProject(name = 'Untitled') {
     format: 'noupix-project', version: 4, name, settings,
     fixtures: [], groups: [], controllers: [], sources: builtinSources(), zones: [newZone({ w: settings.compW, h: settings.compH, layers: [newLayer('b-rainbow')] })], guide: null,
     midi: { maps: [], order: [] }, macros: defaultMacros(), macroLinks: {},
-    xfade: { on: false, a: '', b: '', x: 0, mode: 'mix', phone: false },
+    xfade: { on: false, a: '', b: '', x: 0, mode: 'mix', phone: false, own: true },
   };
 }
 // A MIDI mapping (midi.js): a control (key: midi:<port>:<channel>:cc|note:<number>) drives a target (to: master,
@@ -245,6 +245,12 @@ function xfZones() {
   return a && b ? [a, b] : null;
 }
 const xfDriven = z => { const p = xfZones(); return !!p && p.includes(z); };
+// A zone's level as it shows: its own (its slider, MIDI, a phone) and, for A and B while the X-Fader is on, times the
+// fader's share for it, so each zone's slider is the most it can reach and the X-Fader mixes within that
+function zoneLevel(z) {
+  const own = clamp(numOr(z.opacity, 1), 0, 1), p = xfZones(), i = p ? p.indexOf(z) : -1;
+  return i < 0 ? own : own * xfLevels(project.xfade.x, project.xfade.mode)[i];
+}
 // Its modes: how A's and B's levels go as it moves; each with a small graph of them, A's level and B's,
 // from the fader's left to its right
 const XF_MODES = [

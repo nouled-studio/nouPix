@@ -267,7 +267,12 @@ function renderScenes(body, inWindow = false) {
         : h('button', { class: 'btn sm icon', type: 'button', html: ICONS.popout, title: 'Open in a window: the scenes and playlists in a window of their own, to put on another screen', 'aria-label': 'Open in a window', onclick: openScenesWindow })));
   const rows = h('div', { class: 'zonerows', 'data-keep': 'zonerows' });
   const sel = selZone();
+  // with the X-Fader on, its zones A and B side by side at the top (A on the left, B on the right, as on the fader),
+  // each with a one-line head (its level slider the most it reaches) and its scenes in 4 columns; the other zones in
+  // rows below
+  const xf = xfZones(), pair = [null, null];
   for (const z of project.zones.slice().reverse()) {
+    const side = xf ? xf.indexOf(z) : -1;
     const look = lookOf(z.layers);
     const p = z._play, cur = playingList(z), state = cur && p.on ? ' playing' : cur && !p.ended ? ' paused' : '';
     const lists = h('button', { class: 'btn sm icon plbtn' + state + (ui.playlistOpen[z.id] ? ' on' : ''), type: 'button', html: ICONS.playlist,
@@ -279,15 +284,19 @@ function renderScenes(body, inWindow = false) {
         if (ui.playlistOpen[z.id]) delete ui.playlistOpen[z.id]; else ui.playlistOpen[z.id] = (cur || z.playlists[0]).id;
         if (ui.zone !== z.id) selectZone(z); else renderDock();
       } });
-    const head = h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
+    const head = side >= 0 ? h('div', { class: 'zhead compact' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. Its slider is the most it reaches; the X-Fader mixes within it.`, onclick: () => selectZone(z) },
+      h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'xftag' }, side ? 'B' : 'A'), h('span', { class: 'nm' }, z.name),
+        zoneOpacityInput(z, 110), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists,
+        h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')))
+    : h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
       h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'nm' }, z.name),
-        xfDriven(z) ? h('span', { class: 'xftag', title: 'The X-Fader sets its level' }, z.id === project.xfade.a ? 'A' : 'B') : null,
+        xfDriven(z) ? h('span', { class: 'xftag', title: 'On the X-Fader: it mixes within this level' }, z.id === project.xfade.a ? 'A' : 'B') : null,
         h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists),
       h('div', { class: 'zc' }, zoneOpacityInput(z, 80),
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
     // the zone's head stays put; its scenes scroll sideways beside it
     const tiles = h('div', { class: 'stiles' });
-    const r = h('div', { class: 'scenerow' + (z === sel ? ' sel' : '') }, head, hscroller(tiles, 'scenes:' + z.id));
+    const r = h('div', { class: 'scenerow' + (z === sel ? ' sel' : '') + (side >= 0 ? ' xfcol' : '') }, head, side >= 0 ? tiles : hscroller(tiles, 'scenes:' + z.id));
     head.title += '\nDrag it to change the order of the zones.';
     reorderable(head, r, 'zone', () => [z.id], ([id], after) => moveZoneTo(id, z, after));
     onRightClick(head, e => zoneMenu(e, z));
@@ -302,8 +311,10 @@ function renderScenes(body, inWindow = false) {
     r.addEventListener('drop', e => { r.classList.remove('drop-in'); const d = e.dataTransfer.getData(dragType('scene')); if (!d || e.defaultPrevented) return; e.preventDefault(); moveScene(d, z); });
     z.scenes.forEach((sc, i) => tiles.append(sceneTile(z, sc, i, z === sel, look)));
     if (!z.scenes.length) tiles.append(h('span', { class: 'rowhint' }, `No scenes yet. Set up ${z.name}'s layers in the Content tab, then + Store.`));
-    rows.append(h('div', { class: 'zoneblock' + (z === sel ? ' sel' : ''), 'data-zone': z.id }, r, playlistArea(z)));
+    const block = h('div', { class: 'zoneblock' + (z === sel ? ' sel' : ''), 'data-zone': z.id }, r, playlistArea(z));
+    if (side >= 0) pair[side] = block; else rows.append(block);
   }
+  if (xf) rows.prepend(h('div', { class: 'xfpair' }, pair[0], pair[1]));
   if (!project.zones.length) rows.append(h('div', { class: 'empty' }, 'No zones yet.'));
   body.append(h('div', { class: 'scenepanel' }, rows, foot));
 }
@@ -319,7 +330,7 @@ function xfadeStrip() {
     if (z) xfPvSize(c, z);
     return h('div', { class: 'xfside ' + which },
       h('div', { class: 'xfpv', title: z ? z.name : '' }, c, h('b', null, L)),
-      h('div', { class: 'xfwho' }, pick, z ? h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)) : null));
+      h('div', { class: 'xfwho' }, pick, z ? h('span', { class: 'mono muted', 'data-zone-eff': z.id, title: 'The level it shows: its own × the X-Fader' }, pct(zoneLevel(z))) : null));
   };
   const r = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: X.x, 'data-xf': '', 'aria-label': 'X-Fader', title: 'X-Fader: A on the left, B on the right' });
   r.addEventListener('input', () => setXfade(parseFloat(r.value), r));

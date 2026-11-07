@@ -62,7 +62,7 @@ function selectZone(z) {
 // The first zone above zones[i] that overlaps it and shows: it covers zones[i] there
 function zoneAbove(i) {
   const zs = project.zones, z = zs[i];
-  for (let j = zs.length - 1; j > i; j--) { const o = zs[j]; if (o.opacity > 0 && o.x < z.x + z.w && z.x < o.x + o.w && o.y < z.y + z.h && z.y < o.y + o.h) return o; }
+  for (let j = zs.length - 1; j > i; j--) { const o = zs[j]; if (zoneLevel(o) > 0 && o.x < z.x + z.w && z.x < o.x + o.w && o.y < z.y + z.h && z.y < o.y + o.h) return o; }
   return null;
 }
 // New zones go under the others: zones higher in the list cover the ones below
@@ -111,10 +111,9 @@ function deleteZone(z) {
   syncMedia(); commit(); renderRight(); renderSrcList();
   toast(`${z.name} deleted. Ctrl Z brings it back.`);
 }
-// The opacity of a zone is its master. Every slider for it (Content tab, Scenes tab, Inspector) stays in step.
-// While the crossfader drives a zone, only the crossfader sets it: a slider, a MIDI control or a device can't.
+// The opacity of a zone is its master. Every slider for it (Content tab, Scenes tab, Inspector) stays in step. On the
+// X-Fader's zones it is the most the zone reaches: the fader mixes within it (zoneLevel).
 function setZoneOpacity(z, v, from) {
-  if (xfDriven(z)) return;
   z.opacity = v;
   if (REMOTE_CLIENT && from) remoteOp({ op: 'opacity', zone: z.id, value: v });   // live on the main computer while it moves
   showZoneOpacity(z, from);
@@ -123,6 +122,7 @@ function showZoneOpacity(z, from) {
   for (const d of [document, scenesDoc()]) if (d) {   // here and in the Scenes window
     for (const el of $$(`[data-zone-op="${z.id}"]`, d)) if (el !== from) el.value = z.opacity;
     for (const el of $$(`[data-zone-pct="${z.id}"]`, d)) el.textContent = pct(z.opacity);
+    for (const el of $$(`[data-zone-eff="${z.id}"]`, d)) el.textContent = pct(zoneLevel(z));   // on the X-Fader's strip: as it shows
   }
 }
 // The crossfader's position, from its slider, a MIDI control or a device: 0 is all A, 1 all B. It moves even while
@@ -134,15 +134,15 @@ function setXfade(x, from) {
   xfApply();
   for (const d of [document, scenesDoc()]) if (d) for (const el of $$('[data-xf]', d)) if (el !== from) el.value = X.x;
 }
-// The levels of A and B from the crossfader's position
+// The X-Fader moved, or its zones or mode changed: A and B show through it (zoneLevel), their own levels untouched;
+// what shows them is redrawn
 function xfApply() {
   const p = xfZones();
   if (!p) return;
-  [p[0].opacity, p[1].opacity] = xfLevels(project.xfade.x, project.xfade.mode);
   showZoneOpacity(p[0]); showZoneOpacity(p[1]);
 }
-// On or off. On needs two zones: A and B are the first two unless two others were chosen. Off leaves the zones at
-// the levels the crossfader gave them.
+// On or off. On needs two zones: A and B are the first two unless two others were chosen. Off, A and B show at their
+// own levels again.
 function setXfadeOn(on) {
   const X = project.xfade, zs = project.zones;
   if (on) {
@@ -167,8 +167,8 @@ function xfFitAdvice() {
     h('div', { class: 'modal', role: 'dialog', 'aria-label': 'X-Fader' },
       h('header', null, 'X-Fader'),
       h('div', { class: 'mb' },
-        h('p', null, `For the X-Fader we recommend that both zones, ${p[0].name} (A) and ${p[1].name} (B), cover the whole canvas, so the fade goes from one to the other on every light. ${part.map(z => z.name).join(' and ')} ${part.length > 1 ? "don't" : "doesn't"} yet.`),
-        h('p', { class: 'note' }, 'You can do it yourself: press Z (the Zone tool), select the zone, and set its area in the right panel, under Zones.')),
+        h('p', null, 'The X-Fader mixes two zones with one fader: A on the left, B on the right. Live, it fades from one look to the next (a DJ set, a concert).'),
+        h('p', null, `Make ${p[0].name} (A) and ${p[1].name} (B) full size, so the fade reaches every light?`)),
       h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Not now'),
         mappingLocked() ? null : h('button', { class: 'btn primary', type: 'button', onclick: fill }, 'Make both full size'))));
   uiDocNow().body.append(bg);   // in the window it was asked for from

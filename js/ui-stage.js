@@ -549,7 +549,7 @@ function drawZones() {
     ctx.setLineDash([]); ctx.globalAlpha = 1;
     // label: name, and what covers it or its opacity
     const over = zoneAbove(i);
-    const extra = over ? `under ${over.name} ${pct(over.opacity)}` : z.opacity < 1 ? pct(z.opacity) : '';
+    const extra = over ? `under ${over.name} ${pct(zoneLevel(over))}` : zoneLevel(z) < 1 ? pct(zoneLevel(z)) : '';
     ctx.font = '600 11px ' + FONT_UI; const nw = ctx.measureText(z.name).width;
     ctx.font = '400 11px ' + FONT_UI; const ew = extra ? ctx.measureText(extra).width + 6 : 0;
     const lx = Math.round(sx), ly = z.y * zm >= 22 ? Math.round(sy) - 21 : Math.round(sy) + 5, lw = Math.round(nw + ew + 14);

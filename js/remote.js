@@ -188,7 +188,6 @@ function httpTrigger(url) {
   if (what === 'level') {
     const v = percentOf(b || '');
     if (!isFinite(v)) return no(400, `Give ${z.name}'s level from 0 to 100: /trigger/level/${encodeURIComponent(z.name)}/50`);
-    if (xfDriven(z)) return no(409, `${z.name}'s level follows the X-Fader while it is on.`);
     run({ op: 'opacity', zone: z.id, value: v });
     return ok(`${z.name} level ${pct(v)}`);
   }

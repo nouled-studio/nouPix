@@ -205,9 +205,9 @@
     const now = card.querySelector('.now');
     now.replaceChildren(sc ? el('em', null, '▶ ' + sc.name) : el('em', null, 'Live look'), z.content.length ? ' · ' + z.content.join(' + ') : ' · Black');
     if (!dragging.has(z.id)) { card.querySelector('.dim input').value = Math.round(z.opacity * 100); paintLevel(card, z.opacity); }
-    // the crossfader on the main computer sets this level
+    // on the X-Fader: the most this zone reaches, the fader mixing within it
     const dim = card.querySelector('.dim input');
-    dim.disabled = !!z.xf; dim.title = z.xf ? 'The X-Fader sets this level' : '';
+    dim.title = z.xf ? 'The most this zone reaches: the X-Fader mixes within it' : '';
     const box = card.querySelector('.scenes');
     // the buttons are made again only when the scenes change, so a tap is never lost; otherwise the playing one moves
     const key = JSON.stringify(z.scenes.map(s => [s.id, s.name, s.tag, s.fade, (shots[s.id] || '').length]));
