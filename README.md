@@ -4,7 +4,7 @@
 
 A pixel-mapping tool for LED installations, by nouled studio. Draw or import your LED fixtures, play effects, shaders, images, video or live streams on them, store looks as scenes and playlists, and send it all out over Art-Net, sACN or DDP.
 
-![nouPix playing a geometric show: rings, triangles and a diamond matrix in four zones; the fixture list, the stage, the scenes with their playlists and the X-Fader, and the Content panel](docs/images/app-hero.webp)
+![nouPix playing a geometric show: rings, triangles and a diamond matrix in four zones; the fixture list, the stage, the scenes of the X-Fader's two zones side by side with their playlists, the X-Fader under them, and the Content panel](docs/images/app-hero.webp)
 
 ## What it does
 
@@ -22,13 +22,13 @@ A pixel-mapping tool for LED installations, by nouled studio. Draw or import you
 
 ![Touch Smoke: the smoke a finger stirred, curling and rising across the LED strips, with Interact in the effect's Parameters](docs/images/feature-touch.webp)
 
-**Scenes and playlists.** Store looks per zone, with a snapshot of each on its button; fade between them, play them in playlists, mix two zones with the X-Fader.
+**Scenes and playlists.** Store looks per zone, with a snapshot of each on its button; the scene playing keeps what you change live. Fade between them, play them in playlists, mix two zones with the X-Fader, their scenes side by side.
 
-![The Scenes panel: two zones with their scenes, each showing a snapshot of what it plays, a playlist under each, and the X-Fader between them](docs/images/feature-scenes.webp)
+![The Scenes panel with the X-Fader on: its two zones side by side, their scenes showing a snapshot of what each plays, a playlist under each, and the X-Fader under them](docs/images/feature-scenes.webp)
 
 **Send it out.** Art-Net, sACN and DDP together (each controller on its own), outputs by universes or by pixels, automatic addressing, discovery (WLED too), 8 or 16-bit fixtures with dimming curves, a Channel monitor in its own window and test patterns to check the installation on site.
 
-![The Patch panel: two controllers, one on Art-Net and one on sACN with its outputs set by pixels, with their fixtures, universes and channels](docs/images/feature-patch.webp)
+![The Patch panel: two controllers, one on Art-Net and one on DDP with its outputs set by pixels, with their fixtures and channels](docs/images/feature-patch.webp)
 
 **Control it live.** MIDI controllers (with Learn, a patch bay and Flash pads), phones and tablets on the network, and HTTP triggers for show control software.
 
