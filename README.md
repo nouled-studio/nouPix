@@ -1,4 +1,4 @@
-# nouPix 1.5.3
+# nouPix 1.5.4
 
 <img src="icons/noupix-256.png" alt="" width="96" align="right">
 
