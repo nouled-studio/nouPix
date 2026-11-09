@@ -1,11 +1,11 @@
 # nouPix: the look
 
 The look of the interface, the login page and the phone remote, and the logo. It began as the restyle brief of the
-nouPix brand kit; this is what the app does since 1.0, with the choices made while mocking it up. `css/app.css` and
+nouPix brand kit; this is what the app does (checked against 1.5.4), with the choices made while mocking it up. `css/app.css` and
 `css/remote.css` are the source of truth for the values; this page says what they mean.
 
 The same rules with pictures, for designers, video and web (logo use, colour, type, icons, controls, writing), are in the
-[brand guide (PDF)](nouPix-brand-guide.pdf). If the two ever disagree, the CSS wins.
+[brand guide (PDF)](nouPix-brand-guide.pdf) (v1.1: the icon set as of 1.5.4 and a page on the parts added since 1.0). If the two ever disagree, the CSS wins. Where this page still marks something "today", the app doesn't follow the rule yet.
 
 ## 1. The idea in four colours
 
@@ -14,9 +14,9 @@ Pure black, so the light on the stage is the brightest thing on screen.
 | Colour | Means | Used for |
 |---|---|---|
 | **Red** `#FF3B3B` (`--accent`) | acts | the active tool, the tab underline, the chosen half of a grouped button (a line under it), focus, the primary button, Blackout, every scene's small mark (unless the user gives it another colour; dim, bright while it plays), the red dot of the i and the arrows in the logo |
-| **White** `#FFFFFF` (`--live`) | a light is on | Art-Net on (with the app's one glow), the playing scene's edge, the playlist playing, the source playing |
-| **Yellow** `#FFD23F` (`--midi`) | MIDI, and nothing else | learn, the fader lines, CC / Note tags, MIDI wires |
-| **Aluminium** `#DCE1E6` (`--fader`) | something you move | sliders and their fill, levels, the macros' links in the patch bay |
+| **White** `#FFFFFF` (`--live`) | a light is on | Art-Net on (with the app's one glow), the playing scene's edge, the playlist playing (its tab's name, play button and progress line), the source playing, the beat dot by the master and the beat lit in the Tempo bar |
+| **Yellow** `#FFD23F` (`--midi`) | MIDI, and nothing else | learn, the fader lines, CC / Note tags, MIDI wires (Tap tempo learnt onto a pad too) |
+| **Aluminium** `#DCE1E6` (`--fader`) | something you move | sliders and their fill, levels, the X-Fader, the macros' links in the patch bay, the beat band's bars and the hits under it in Tempo |
 
 What is selected (fixtures and groups on the stage and in the lists, patch rows, the selected zone and step) is
 outlined in white (`--sel`; black in the white look), so red is left for what acts.
@@ -77,6 +77,35 @@ same without the internet; the bridge serves them. They are under the SIL Open F
 - **Checkboxes:** red.
 - **MIDI:** yellow, as before. In the patch bay the macros' links to effect controls, their dots and their counts are
   aluminium, so red never means MIDI or a link.
+- **Side panels:** both fold, for a bigger stage: the left one (fixtures and sources) with « in its head, the first
+  button of the stage bar (`side-panel-left`) or Shift H; the right one with » in its tabs, the last button of the stage
+  bar (`side-panel`) or H. The two stage-bar buttons are mirror images, outlined in red while their panel shows (the
+  left one doesn't light yet: `#btnLeft.on` has no style).
+- **Playlists:** tabs kept quiet, no status words: a small square play button, the name, the length in mono. Playing:
+  the name and the button white, a 2 px white progress line along the tab's top. Paused: the same in orange (`--warn`).
+  The tab that adds one is dashed. Each step is a small scene tile with its fade and play time in mono.
+- **X-Fader:** its button has a small round dot, red while it is on (and a white edge); the mode button next to it
+  shows its curve as a small line graph (Mix an X, Dip a V, Cut a step). The strip: the two zones' live previews with
+  a tag **A** and **B** (small boxed letters, also at the head of each zone), their names, the fader (aluminium) and the
+  share each gets in mono. While it is on, A's and B's scenes sit side by side; the zone selected keeps its white
+  outline.
+- **Tempo:** the BPM in mono with a small dot that lights red on each beat, the bar's beats as four short lines (the
+  current one white, beat 1 red). The spectrum is grey, the beat band's bars aluminium; under it the band's hits are an
+  aluminium line with a grey tick on each beat (red on 1). The band's two edges are what you drag, so they are
+  aluminium, and its range (40–150 Hz) sits on a small dark tag so it reads over the bars (today: red edges, a faint
+  red fill and the range written straight over the bars). The white dot next to the master blinks with the beat while
+  there is one.
+- **Interact:** the pad is black and empty but for the zone's fixtures, drawn faintly in white, so the light under a
+  finger is the only colour. The phone's Interact button carries the `touch` icon in red; Done brings the zone back.
+- **Windows of their own** (MIDI, Scenes, Channel monitor, Interact) are dressed like the main window
+  (`dressWindow`): the same tokens, fonts and look, the window's name then "· nouPix".
+- **Protocol tags** (Discovery, Patch): Art-Net, sACN, DDP in mono in a small 1 px box. Protocol names keep their case
+  even where the label voice sets text in capitals: **sACN** never becomes SACN (`text-transform: none` on the name;
+  the Output settings window's section heads still show SACN).
+- **Messages** (`toast()`): a 3 px line on the left: grey (`--line3`) for news, orange (`--warn`) for a warning, red
+  (`--danger`) for an error, so red still means something (today news is red too, and looks like an error).
+- **One primary button per view:** the window's main action. Discovery has two (Discover and Done); Done there, and
+  in windows whose only button closes them, is a plain button.
 
 ## 5. Colours the user gives
 
@@ -86,7 +115,19 @@ left edge, a scene's on its small mark, dim and bright while it plays (red when 
 eight choices are saturated, and none is red or yellow: `#2f7bff` `#00c2ff` `#00d68f` `#8fe000` `#ff8a00` `#ff2fd1`
 `#9b5cff` `#ff5c8a` (`TAGS` in `model.js`).
 
-## 6. The name
+## 6. Icons and signs
+
+Icons are inline SVG in `currentColor` (`ICONS` in `util.js`, and the buttons in `index.html`), on a 16 × 16 grid (18 × 18
+in the tool rail and the stage bar), 1.3–1.6 lines. The set has 65: the 58 of the brand guide v1.0 and, since,
+`tool-dot` and `dot` (the Dot), `stream` (NDI and OMT), `monitor` (Channel monitor), `output` (Output settings),
+`side-panel-left` and `touch` (Interact, on the phone). The phone remote draws its own play, pause, next, playlist and
+`touch` larger, on a 24 grid for fingers.
+
+Text signs that every font draws the same are fine: × · – → ← ↑ ↓ ° ✓ ⇧ ⌘ « » ‹ › ⋯ ▾ ▴. Signs that phones and some systems
+turn into coloured emoji are not: ▶ ⏸ ⚙ ☀ ★ ⚠ ✔ (use the icon, or a word). Signs the app's fonts lack (↺ ↻ ◢ ❚) come out in
+another font: use an icon.
+
+## 7. The name
 
 **nouPix**: lowercase n, capital P. It is the app's name everywhere: the windows, the bridge (`noupix.py`,
 `noupix.spec`), the desktop app (`studio.nouled.noupix`), the phone app, files (`.noupix`, format
@@ -94,7 +135,7 @@ eight choices are saturated, and none is red or yellow: `#2f7bff` `#00c2ff` `#00
 carries over once (its files open, its storage and window profile move, the desktop app's data folder is renamed).
 `window.olm` and the popups' window names (`olm-midi`, `olm-scenes`) are internal and stay.
 
-## 7. Logo and icons
+## 8. Logo and icons
 
 Wordmark: monoline square letters with 45° cuts on the top-left and bottom-right corners (like PCB traces). The x is
 nine rounded pixels, and the dot of the i is the one red "lit" pixel. The letters are low and wide: x-height 10.5
@@ -102,7 +143,7 @@ units, letters 11.5 wide with 3.5 between them; the P rises 4.5 above the x-heig
 x-height's top, and the i's dot is level with the top of the P (about 4.4 : 1 overall). Icon: the LED schematic symbol (circle, wire,
 diode, cathode bar) in white, with two red light arrows. The tile has the same two 45° corner cuts.
 
-### 7a. Icon, master (64 px and up)
+### 8a. Icon, master (64 px and up)
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
@@ -118,7 +159,7 @@ At 32 px, use stroke-width 1.8 for the circle and diode, and these arrows:
 `M30.94,23.36 L33.69,18.19 M34.86,25.6 L37.61,20.43` (stroke 1.8) and heads
 `M35.63,14.53 L35.33,19.06 L32.04,17.31 Z M39.55,16.77 L39.25,21.3 L35.96,19.55 Z`.
 
-### 7b. Icon, small (24–28 px: the top bar)
+### 8b. Icon, small (24–28 px: the top bar)
 
 At this size the symbol is larger in the tile and the lines are heavier.
 
@@ -132,13 +173,13 @@ At this size the symbol is larger in the tile and the lines are heavier.
 </svg>
 ```
 
-### 7c. Favicon (16 px)
+### 8c. Favicon (16 px)
 
-Same as 7b, with stroke-width **4.2** for the circle and diode, and these arrows:
+Same as 8b, with stroke-width **4.2** for the circle and diode, and these arrows:
 `M28.03,20.02 L29.01,18.17 M34.87,24.2 L35.85,22.35` (stroke 4.2, red) and heads
 `M32.96,10.75 L32.35,19.94 L25.67,16.39 Z M39.8,14.93 L39.19,24.12 L32.51,20.57 Z`.
 
-### 7d. Wordmark on dark, master (40 px tall and up)
+### 8d. Wordmark on dark, master (40 px tall and up)
 
 Aspect ratio 77.5 : 17.5. Stroke 1.25, pixels 1.85.
 
@@ -148,7 +189,7 @@ Aspect ratio 77.5 : 17.5. Stroke 1.25, pixels 1.85.
 </svg>
 ```
 
-### 7e. Wordmark on dark, small (the top bar, 15 px tall)
+### 8e. Wordmark on dark, small (the top bar, 15 px tall)
 
 Aspect ratio 78.6 : 18.6 (about 4.2 : 1). Heavier line (1.8) and larger pixels (2.3) so it stays crisp. The top bar and
 the login page draw it inline at 63.4 × 15 px, in the page's colours (`currentColor`, `var(--accent)`).
@@ -159,7 +200,7 @@ the login page draw it inline at 63.4 × 15 px, in the page's colours (`currentC
 </svg>
 ```
 
-### 7f. Wordmark on light (docs, website, print)
+### 8f. Wordmark on light (docs, website, print)
 
 Aspect ratio 77.9 : 17.9. Ink `#0A0A0A`, red `#C8141A` (5.3:1 on `#F2F2F2`), stroke 1.45, pixels 2.0.
 
@@ -171,10 +212,10 @@ Aspect ratio 77.9 : 17.9. Ink `#0A0A0A`, red `#C8141A` (5.3:1 on `#F2F2F2`), str
 
 ### Where they are
 
-- `icons/noupix.svg` (7a), `noupix-32.svg` (the 32 px cut of 7a), `noupix-small.svg` (7b), `noupix-favicon.svg` (7c),
-  `noupix-wordmark.svg` (7d), `noupix-wordmark-small.svg` (7e), `noupix-wordmark-light.svg` (7f), `noupix-lockup.svg`.
-- The top bar draws 7b and 7e inline, in the page's colours (`currentColor`, `--accent`, `--bg0`), so they follow the
-  look; the login page and the phone remote the same. The browser tab icon is 7c.
-- Raster: `noupix-256.png`, `noupix.ico` (16 from 7c, 32 from the 32 px cut, 48 and 256 from 7a), `noupix.icns`, and the
+- `icons/noupix.svg` (8a), `noupix-32.svg` (the 32 px cut of 8a), `noupix-small.svg` (8b), `noupix-favicon.svg` (8c),
+  `noupix-wordmark.svg` (8d), `noupix-wordmark-small.svg` (8e), `noupix-wordmark-light.svg` (8f), `noupix-lockup.svg`.
+- The top bar draws 8b and 8e inline, in the page's colours (`currentColor`, `--accent`, `--bg0`), so they follow the
+  look; the login page and the phone remote the same. The browser tab icon is 8c.
+- Raster: `noupix-256.png`, `noupix.ico` (16 from 8c, 32 from the 32 px cut, 48 and 256 from 8a), `noupix.icns`, and the
   phone app's `remote-192.png`, `remote-512.png` and `remote-maskable-512.png` (black square, the symbol at 70%, inside
   the maskable safe zone). If an SVG changes, export these again.
