@@ -18,10 +18,11 @@
   };
   let ws = null, token = sessionStorage.getItem('olm.remote.token'), role = null, state = null, stateAt = 0, hostOn = false, bye = '', retry = null, relogged = false;
   const ICON = {
-    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5.5v13l10.5-6.5z"/></svg>',
-    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/></svg>',
-    next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.6 5H18v14h-2.4zM5 5.5v13L14.5 12z"/></svg>',
-    list: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 6h12M4 11h12M4 16h6"/><path fill="currentColor" d="M14 13.5v7l6-3.5z"/></svg>',
+    // the same shapes as the app's ICONS (util.js), scaled from its 16 grid to 24
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.75 4.2v15.6L19.5 12z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><rect x="5.25" y="4.5" width="4.5" height="15" rx=".75"/><rect x="14.25" y="4.5" width="4.5" height="15" rx=".75"/></g></svg>',
+    next: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><path d="M4.5 4.2v15.6L15.75 12z"/><rect x="16.5" y="4.5" width="3" height="15" rx=".75"/></g></svg>',
+    list: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" d="M3 5.25h12.75M3 10.5h12.75M3 15.75h6.75"/><path fill="currentColor" d="M14.25 13.5v8.25l6.9-4.125z"/></svg>',
     touch: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="10" r="3.2" fill="currentColor"/><circle cx="12" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 13v8"/></svg>',
   };
   // The pad: the whole screen black; the fingers on it go to the zone (as 0..1 across and down), about 30 times a
@@ -203,7 +204,7 @@
     if (pad && pad.zone === z.id && !z.touch) closePad();   // what plays there no longer follows a finger
     const sc = z.scenes.find(s => s.id === z.scene);
     const now = card.querySelector('.now');
-    now.replaceChildren(sc ? el('em', null, '▶ ' + sc.name) : el('em', null, 'Live look'), z.content.length ? ' · ' + z.content.join(' + ') : ' · Black');
+    now.replaceChildren(sc ? el('em', null, sc.name) : el('em', null, 'Live look'), z.content.length ? ' · ' + z.content.join(' + ') : ' · Black');
     if (!dragging.has(z.id)) { card.querySelector('.dim input').value = Math.round(z.opacity * 100); paintLevel(card, z.opacity); }
     // on the X-Fader: the most this zone reaches, the fader mixing within it
     const dim = card.querySelector('.dim input');

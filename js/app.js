@@ -101,7 +101,7 @@ function updateBridgeUI() {
   }
   else if (st && st.errors && st.lastError) { pill.classList.add('err'); txt.textContent = ui.outputOn ? `Send error · ${fmtN(st.pps)} pkt/s` : 'Send error'; pill.title = 'Last send error: ' + st.lastError + (from ? '\n' + from : ''); }
   else if (ui.outputOn) { pill.classList.add('ok'); txt.textContent = `Sending · ${fmtN(st ? st.pps : 0)} pkt/s`; pill.title = `${outName()} packets sent per second${usesSacn() && project.settings.sacnMulticast ? ', sACN to multicast groups' : ''}. ` + from; }
-  else { txt.textContent = 'Output off'; pill.title = 'Switched off in the Patch tab, ⚙ Output settings.'; }
+  else { txt.textContent = 'Output off'; pill.title = 'Switched off: turn it on in Output settings, at the right of the Patch tab.'; }
   pill.hidden = !show;
   // Settings shows the bridge's address only while it can't be reached: drawn again when that changes
   if (bridge.connected !== updateBridgeUI.was) {

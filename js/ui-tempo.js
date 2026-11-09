@@ -102,9 +102,9 @@ function drawSpectrum(c) {
   const r = fitCanvas(c), W = c.width, H = c.height, g = c.getContext('2d'), A = tempo.analyser;
   g.clearRect(0, 0, W, H);
   g.fillStyle = cssVar('--bg2'); g.fillRect(0, 0, W, H);
-  const [lo, hi] = tempoBandNow(), x0 = specX(lo, W), x1 = specX(hi, W), acc = cssVar('--accent');
-  // the band, under the bars
-  g.fillStyle = acc; g.globalAlpha = 0.16; g.fillRect(x0, 0, x1 - x0, H); g.globalAlpha = 1;
+  const [lo, hi] = tempoBandNow(), x0 = specX(lo, W), x1 = specX(hi, W), fader = cssVar('--fader');
+  // the band, under the bars: a faint aluminium (what is dragged), never a red area
+  g.fillStyle = fader; g.globalAlpha = 0.08; g.fillRect(x0, 0, x1 - x0, H); g.globalAlpha = 1;
   // the bars: 56 bands, each its loudest bin, -95 to -25 dB
   if (A) {
     const bins = A._buf || (A._buf = new Float32Array(A.frequencyBinCount)), hz = tempo.ctx.sampleRate / A.fftSize, n = 56, bw = W / n;
@@ -119,11 +119,15 @@ function drawSpectrum(c) {
       g.fillRect(i * bw + r, H - y, bw - 2 * r, y);
     }
   }
-  // the band's edges, and what it is
-  g.fillStyle = acc; g.fillRect(x0 - r, 0, 2 * r, H); g.fillRect(x1 - r, 0, 2 * r, H);
-  g.font = `${9 * r}px ${FONT_MONO || 'monospace'}`; g.textBaseline = 'top'; g.fillStyle = cssVar('--text2');
-  const label = `${lo}–${hi} Hz`, tw = g.measureText(label).width;
-  g.fillText(label, clamp(x0 + 4 * r, 3 * r, W - tw - 3 * r), 3 * r);
+  // the band's edges, aluminium as what you move, white while one is dragged or pointed at
+  const d = c._drag, lit = e => (d && (d.what === e || d.what === 'band')) || c._hot === e;
+  g.fillStyle = lit('lo') ? cssVar('--text') : fader; g.fillRect(x0 - r, 0, 2 * r, H);
+  g.fillStyle = lit('hi') ? cssVar('--text') : fader; g.fillRect(x1 - r, 0, 2 * r, H);
+  // what it is, on a small tag so it reads over any bar
+  g.font = `${9 * r}px ${FONT_MONO || 'monospace'}`; g.textBaseline = 'top';
+  const label = `${lo}–${hi} Hz`, tw = g.measureText(label).width, tx = clamp(x0 + 4 * r, 3 * r, W - tw - 3 * r);
+  g.fillStyle = cssVar('--bg2'); g.fillRect(tx - 2 * r, 2 * r, tw + 4 * r, 12 * r);
+  g.fillStyle = cssVar('--text2'); g.fillText(label, tx, 3.5 * r);
 }
 // The last 4 s of the band's hits (as the tracker hears them), and the beats the clock counts: a tick on each, red on
 // the bar's 1; dimmed while it holds
@@ -155,6 +159,7 @@ function bandDrag(c) {
   c.addEventListener('pointermove', e => {
     if (c._drag) return;
     const W = c.clientWidth, [lo, hi] = tempoBandNow(), x = e.offsetX;
+    c._hot = Math.abs(x - specX(lo, W)) < 7 ? 'lo' : Math.abs(x - specX(hi, W)) < 7 ? 'hi' : null;   // its edge lights
     c.style.cursor = Math.abs(x - specX(lo, W)) < 7 || Math.abs(x - specX(hi, W)) < 7 ? 'ew-resize' : x > specX(lo, W) && x < specX(hi, W) ? 'grab' : 'default';
   });
   c.addEventListener('pointerdown', e => {
@@ -175,6 +180,7 @@ function bandDrag(c) {
       tempoBand(lo, lo * d.hi / d.lo);
     }
   });
+  c.addEventListener('pointerleave', () => { c._hot = null; });
   const end = () => { if (c._drag) { c._drag = null; savePrefs(); } };
   c.addEventListener('pointerup', end); c.addEventListener('pointercancel', end);
   c.addEventListener('dblclick', () => tempoBand(TEMPO_BAND[0], TEMPO_BAND[1], true));

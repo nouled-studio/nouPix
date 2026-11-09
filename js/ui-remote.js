@@ -46,7 +46,7 @@ function remoteMenu(anchor) {
 function remoteSection() {
   const cfg = remote.cfg, st = remote.status, on = !!(st && st.on);
   const apply = () => { remoteConfigure(); renderRight(); };
-  const pw = h('input', { type: 'password', value: cfg.password, placeholder: 'Needed for programmers', autocomplete: 'new-password', 'aria-label': 'Programmer password' });
+  const pw = h('input', { type: 'password', value: cfg.password, placeholder: 'For programmers', autocomplete: 'new-password', 'aria-label': 'Programmer password' });
   pw.addEventListener('change', () => { cfg.password = pw.value; if (cfg.on) remoteConfigure(); else remoteSaveCfg(); renderRight(); });
   const show = h('label', { class: 'checkrow' }, h('input', { type: 'checkbox', onchange: e => { pw.type = e.target.checked ? 'text' : 'password'; } }), 'Show');
   const port = { v: cfg.port };
@@ -98,7 +98,7 @@ function httpDialog() {
     h('div', { class: 'modal wide', role: 'dialog', 'aria-label': 'HTTP triggers' },
       h('header', null, 'HTTP triggers'), body,
       h('footer', null, h('button', { class: 'btn', type: 'button', onclick: () => copy(httpTriggers().map(t => `${base()}${t.path}\t${t.does}`).join('\n')) }, 'Copy all'),
-        h('button', { class: 'btn primary', type: 'button', onclick: close }, 'Done'))));
+        h('button', { class: 'btn', type: 'button', onclick: close }, 'Done'))));
   draw();
   D.body.append(bg);
 }

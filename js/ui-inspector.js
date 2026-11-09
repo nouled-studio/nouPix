@@ -622,9 +622,9 @@ function videoControls(src, el) {
 // and multicast for those on sACN (each controller has its protocol, in the Patch tab)
 function protocolRows(s) {
   const changed = () => { markPatch(); commit(); updateBridgeUI(); openOutputSettings(true); };
-  const rows = [h('h4', null, 'Art-Net'),
+  const rows = [h('h4', null, h('span', { class: 'pname' }, 'Art-Net')),
     tipRow(checkRow('Send ArtSync after each frame', s, 'artSync', commit), 'Nodes that support it update all universes at the same moment. Leave it off otherwise: some stop outputting while they wait for a sync.'),
-    h('h4', null, 'sACN'),
+    h('h4', null, h('span', { class: 'pname' }, 'sACN')),
     tipRow(numRow('Priority', s, 'sacnPriority', { min: 0, max: 200, step: 1, int: true, onCommit: commit }), '0 to 200, 100 by default. A receiver getting a universe from two sources takes the higher priority: give a desk more to let it take over.'),
     tipRow(row('Send to', seg([['unicast', 'Unicast'], ['multicast', 'Multicast']], s.sacnMulticast ? 'multicast' : 'unicast', v => { s.sacnMulticast = v === 'multicast'; changed(); })),
       'Unicast: to each controller\'s address. Multicast: to the universe\'s group (239.255.x.x), so each universe can be used by one controller only.')];
@@ -694,7 +694,7 @@ function sendSection(s) {
 // The frame rate, the same value in Settings and in the Output settings window
 const frameRateRow = s => tipRow(sliderRow('Frame rate', s, 'fps', { min: 1, max: 100, step: 1, int: true, fmt: v => v + ' fps', onCommit: () => { startClock(); commit(); } }),
   '40 by default. Above 44, some DMX nodes skip frames; pixel controllers take them.');
-// The Output settings window (the ⚙ at the right of the Patch tab): sending on or off, each protocol's options and the
+// The Output settings window (its button at the right of the Patch tab): sending on or off, each protocol's options and the
 // frame rate. again: drawn anew in place, when it is open.
 let outSetEl = null;
 function openOutputSettings(again) {
@@ -710,7 +710,7 @@ function openOutputSettings(again) {
   const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
     h('div', { class: 'modal', role: 'dialog', 'aria-label': 'Output settings' },
       h('header', null, 'Output settings'), outSetEl,
-      h('footer', null, h('button', { class: 'btn primary', type: 'button', onclick: close }, 'Done'))));
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Done'))));
   uiDocNow().body.append(bg);
 }
 
@@ -752,12 +752,12 @@ function unfoldForSelection() {
 /* ---------- arrange rows ---------- */
 function rotateRow(sel) {
   const off = !sel.some(f => !f.locked), tmp = { deg: 45 };
-  const b = (txt, deg, title) => h('button', { class: 'btn', type: 'button', title, disabled: off, onclick: () => rotateSel(deg) }, txt);
+  const b = ([ic, txt], deg, title) => h('button', { class: 'btn rotb', type: 'button', title, disabled: off, onclick: () => rotateSel(deg) }, icon(ic), txt);
   const inp = numInput(tmp, 'deg', { min: -360, max: 360, step: 1, aria: 'Angle to rotate by, in degrees (clockwise)' });
   inp.style.width = '64px';
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') rotateSel(numOr(tmp.deg, 0)); });
   return [
-    row('Rotate', h('div', { class: 'rotbtns' }, b('↺90°', -90, 'Turn 90° counter-clockwise (Shift R)'), b('↺15°', -15, 'Turn 15° counter-clockwise'), b('↻15°', 15, 'Turn 15° clockwise'), b('↻90°', 90, 'Turn 90° clockwise (R)'))),
+    row('Rotate', h('div', { class: 'rotbtns' }, b(['rotL', '90°'], -90, 'Turn 90° counter-clockwise (Shift R)'), b(['rotL', '15°'], -15, 'Turn 15° counter-clockwise'), b(['rotR', '15°'], 15, 'Turn 15° clockwise'), b(['rotR', '90°'], 90, 'Turn 90° clockwise (R)'))),
     row('By', h('div', { class: 'rotbtns' }, inp, h('span', { class: 'muted', style: { alignSelf: 'center' } }, '°'), h('button', { class: 'btn', type: 'button', disabled: off, onclick: () => rotateSel(numOr(tmp.deg, 0)) }, 'Rotate'))),
     ...sizeRows(sel)];
 }

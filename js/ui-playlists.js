@@ -105,7 +105,7 @@ function stepTile(z, pl, st, i) {
   const from = () => { const g = stepFade(z, pl, st); return g.from === 'step' ? 'its own, in this playlist only' : g.from === 'playlist' ? "the playlist's" : `the scene's own (${sc ? sc.name : ''})`; };
   $('.s', t).append(fadeControl(t, { name: `Step ${i + 1}`,
     get: () => stepFade(z, pl, st).want, set: v => { st.fade = v; }, auto: () => st.fade == null, clear: () => { st.fade = null; },
-    text: () => { const g = stepFade(z, pl, st); return g.v > 0 ? '◢ ' + fmtFade(g.v) : 'cut'; },
+    text: () => { const g = stepFade(z, pl, st); return g.v > 0 ? [true, fmtFade(g.v)] : 'cut'; },
     cls: () => { const g = stepFade(z, pl, st); return g.clipped ? 'clip' : g.from === 'step' ? 'own' : ''; },
     tip: () => `Fade in: ${fmtFade(stepFade(z, pl, st).v)}, ${from()}. Changing it here doesn't change the scene; type nothing to go back to automatic` }),
   fadeControl(t, { name: `Step ${i + 1}`, what: 'play time', cls: () => 'tm', min: 0.1, max: 86400, rate: 0.2,

@@ -79,8 +79,8 @@ same without the internet; the bridge serves them. They are under the SIL Open F
   aluminium, so red never means MIDI or a link.
 - **Side panels:** both fold, for a bigger stage: the left one (fixtures and sources) with « in its head, the first
   button of the stage bar (`side-panel-left`) or Shift H; the right one with » in its tabs, the last button of the stage
-  bar (`side-panel`) or H. The two stage-bar buttons are mirror images, outlined in red while their panel shows (the
-  left one doesn't light yet: `#btnLeft.on` has no style).
+  bar (`side-panel`) or H. The two stage-bar buttons are mirror images, outlined in red while their panel shows, each
+  at its end of the bar.
 - **Playlists:** tabs kept quiet, no status words: a small square play button, the name, the length in mono. Playing:
   the name and the button white, a 2 px white progress line along the tab's top. Paused: the same in orange (`--warn`).
   The tab that adds one is dashed. Each step is a small scene tile with its fade and play time in mono.
@@ -92,20 +92,20 @@ same without the internet; the bridge serves them. They are under the SIL Open F
 - **Tempo:** the BPM in mono with a small dot that lights red on each beat, the bar's beats as four short lines (the
   current one white, beat 1 red). The spectrum is grey, the beat band's bars aluminium; under it the band's hits are an
   aluminium line with a grey tick on each beat (red on 1). The band's two edges are what you drag, so they are
-  aluminium, and its range (40–150 Hz) sits on a small dark tag so it reads over the bars (today: red edges, a faint
-  red fill and the range written straight over the bars). The white dot next to the master blinks with the beat while
+  aluminium (white while one is dragged or pointed at), and its range (40–150 Hz) sits on a small dark tag so it reads
+  over the bars. The white dot next to the master blinks with the beat while
   there is one.
 - **Interact:** the pad is black and empty but for the zone's fixtures, drawn faintly in white, so the light under a
   finger is the only colour. The phone's Interact button carries the `touch` icon in red; Done brings the zone back.
 - **Windows of their own** (MIDI, Scenes, Channel monitor, Interact) are dressed like the main window
   (`dressWindow`): the same tokens, fonts and look, the window's name then "· nouPix".
 - **Protocol tags** (Discovery, Patch): Art-Net, sACN, DDP in mono in a small 1 px box. Protocol names keep their case
-  even where the label voice sets text in capitals: **sACN** never becomes SACN (`text-transform: none` on the name;
-  the Output settings window's section heads still show SACN).
+  even where the label voice sets text in capitals: **sACN** never becomes SACN (`.pname`, `text-transform: none` on
+  the name).
 - **Messages** (`toast()`): a 3 px line on the left: grey (`--line3`) for news, orange (`--warn`) for a warning, red
-  (`--danger`) for an error, so red still means something (today news is red too, and looks like an error).
-- **One primary button per view:** the window's main action. Discovery has two (Discover and Done); Done there, and
-  in windows whose only button closes them, is a plain button.
+  (`--danger`) for an error, so red still means something.
+- **One primary button per view:** the window's main action (Discover in Discovery). Done, and any button that only
+  closes a window, is a plain button.
 
 ## 5. Colours the user gives
 
