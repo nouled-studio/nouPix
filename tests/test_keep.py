@@ -47,12 +47,18 @@ try:
     check("…with no edited button", edited("s1").count() == 0)
     check("…and Blue, not playing, stays as it was", scene("s2")[0]["params"]["b-solid"]["color"] == [0, 0, 1, 1])
     E(f"goScene({Z}, {Z}.scenes[1])"); time.sleep(0.3)
-    E(f"{Z}.layers[0].opacity = 0.4; {Z}.layers[0].params['b-solid'].speed = 0.9; commitSoft()"); time.sleep(0.6)
+    # (commit, not the delayed commitSoft: under load two delayed saves could land as one step of undo)
+    E(f"{Z}.layers[0].opacity = 0.4; {Z}.layers[0].params['b-solid'].speed = 0.9; commit()"); time.sleep(0.3)
     E(f"goScene({Z}, {Z}.scenes[0])"); time.sleep(0.3)
     check("recalling Red brings it back as it was left (green)", E(f"{Z}.layers[0].params['b-solid'].color") == [0, 1, 0, 1])
     E(f"goScene({Z}, {Z}.scenes[1])"); time.sleep(0.3)
     check("and Blue keeps its new speed and its layer's opacity", E(f"[{Z}.layers[0].params['b-solid'].speed, {Z}.layers[0].opacity]") == [0.9, 0.4])
-    E("setEffectControl(srcById('b-solid'), 'speed', 0.25)"); time.sleep(0.7)
+    # the scene just recalled saves its step a moment later too: take it now, so the MIDI move is a step of its own
+    E("pushHistory()"); h0 = E("hist.idx")
+    E("setEffectControl(srcById('b-solid'), 'speed', 0.25)")
+    # its step of undo comes a moment later (commitSoft): wait for it rather than a fixed time
+    try: pg.wait_for_function(f"hist.idx > {h0}", timeout=5000)
+    except Exception: pass
     check("a MIDI control on an effect goes into the scene playing too", scene("s2")[0]["params"]["b-solid"]["speed"] == 0.25)
     E("undo()"); time.sleep(0.3)
     check("undo takes it back from the zone and the scene together", E(f"{Z}.layers[0].params['b-solid'].speed") == 0.9 and scene("s2")[0]["params"]["b-solid"]["speed"] == 0.9)
