@@ -16,11 +16,11 @@ A pixel-mapping tool for LED installations, by nouled studio. Draw or import you
 
 **Follow the music.** nouPix listens to a sound input and finds the beat, or you tap it (from MIDI too). Effects pulse, chase and swell with the beat, the bass or the part of the spectrum you choose. The Fixture Chase lights your groups or fixtures one after another on the beat, on its own or as a mask over any content.
 
-![The Fixture Chase over a rainbow, filling the fixtures one by one on the beat, with its settings in the Content tab: steps by fixture, every beat, following a tapped 124 BPM](docs/images/feature-music.webp)
+![The Fixture Chase filling the rings, the prism and the diamond with white one fixture after another on the beat, red rings pulsing on the kick behind them; its settings in the Content tab follow the beat at 124 BPM](docs/images/feature-music.webp)
 
 **Touch it.** Interactive effects (blobs, clouds, particles, ripples, smoke) drift by themselves and follow a finger on a pad: in a window on the computer, or full screen on a phone from the Remote page. Several people can play at once.
 
-![Touch Smoke: the smoke a finger stirred, curling and rising across the LED strips, with Interact in the effect's Parameters](docs/images/feature-touch.webp)
+![Touch Smoke in white and red: the smoke a finger stirred, curling across the prism and the diamond, with Interact in the effect's Parameters](docs/images/feature-touch.webp)
 
 **Scenes and playlists.** Store looks per zone, with a snapshot of each on its button; the scene playing keeps what you change live. Fade between them, play them in playlists, mix two zones with the X-Fader, their scenes side by side.
 
