@@ -165,10 +165,14 @@ function editScene(sc) {
 // write and read it as typed
 function fadeControl(tile, o) {
   const what = o.what || 'fade time', lo = o.min ?? 0, hi = o.max ?? 60, rate = o.rate ?? 0.05;
-  const label = () => o.text ? o.text() : (o.get() > 0 ? '◢ ' + fmtV(Math.round(o.get() * 10) / 10) + ' s' : 'cut');
+  // what it shows: a fade's time has a small triangle before it (.tri, drawn by CSS), a cut or a play time none;
+  // o.text may give [true, text] for the triangle
+  const label = () => { const t = o.text ? o.text() : o.get() > 0 ? [true, fmtV(Math.round(o.get() * 10) / 10) + ' s'] : 'cut'; return Array.isArray(t) ? t : [false, t]; };
+  const paint = () => { const [tri, t] = label(); el.textContent = t; el.classList.toggle('tri', tri); };
   const tip = () => (o.tip ? o.tip() : `Fade in: ${o.get() > 0 ? fmtV(o.get()) + ' s' : 'none, it cuts'}`) + '. Drag sideways to change it (Shift = ×10), click to type, or ↑ ↓.';
-  const el = h('span', { class: 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : ''), role: 'button', tabindex: 0, title: tip(), 'aria-label': o.name + ' ' + what }, label());
-  const show = () => { el.textContent = label(); el.className = 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : '') + (el.classList.contains('scrub') ? ' scrub' : ''); el.title = tip(); };
+  const el = h('span', { class: 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : ''), role: 'button', tabindex: 0, title: tip(), 'aria-label': o.name + ' ' + what });
+  paint();
+  const show = () => { el.className = 'fd' + (o.get() > 0 ? '' : ' cut') + (o.cls ? ' ' + o.cls() : '') + (el.classList.contains('scrub') ? ' scrub' : ''); paint(); el.title = tip(); };
   const set = v => { o.set(clamp(Math.round(v * 10) / 10, lo, hi)); show(); };
   const type = () => {
     let done = false;
@@ -260,7 +264,7 @@ function renderScenes(body, inWindow = false) {
         title: X.on ? 'X-Fader on: it sets the levels of zones A and B. Click to turn it off.' : 'X-Fader: one fader between two zones, A and B',
         onclick: () => setXfadeOn(!X.on) }, h('i', { class: 'dot' }), 'X-Fader'),
       X.on ? h('button', { class: 'btn sm xfmode', type: 'button', title: mode[2] + '. Click to choose another mode.', 'aria-label': 'X-Fader mode: ' + mode[1], 'aria-haspopup': 'menu',
-        onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi', 'aria-label': m[1] }, xfGraph(m)), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
+        onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi' }, xfGraph(m), m[1]), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
     X.on ? xfadeStrip() : h('span'),
     h('div', { class: 'sbtns' },
       inWindow ? h('button', { class: 'btn sm icon', type: 'button', html: ICONS.panel, title: 'Back to the panel: close this window, the scenes go back to the bottom panel', 'aria-label': 'Back to the panel', onclick: closeScenesWindow })
@@ -619,7 +623,7 @@ function openDiscovery() {
   const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
     h('div', { class: 'modal xwide', role: 'dialog', 'aria-label': 'Discovery' },
       h('header', null, 'Discovery'), body,
-      h('footer', null, h('button', { class: 'btn primary', type: 'button', onclick: close }, 'Done'))));
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Done'))));
   discoveryEl = body;
   uiDocNow().body.append(bg);
   updateDiscoveryUI();
@@ -654,7 +658,7 @@ function renderNodes(body) {
   if (!nodes.length) { if (!trouble) scroll.append(h('div', { class: 'empty' }, all.length ? `No ${wantName} devices found (${all.length} on the others).` : 'No devices found yet: press Discover.')); }
   else {
     scroll.append(h('table', { class: 'table' },
-      h('thead', null, h('tr', null, ['IP', 'Name', 'Network', 'Protocol', 'Art-Net universes', 'MAC', 'Status', ''].map(t => h('th', null, t)))),   // ArtPoll tells the universes, not the outputs
+      h('thead', null, h('tr', null, ['IP', 'Name', 'Network', 'Protocol', [h('span', { class: 'pname' }, 'Art-Net'), ' universes'], 'MAC', 'Status', ''].map(t => h('th', null, ...[].concat(t))))),   // ArtPoll tells the universes, not the outputs
       h('tbody', null, nodes.map(n => {
         const known = project.controllers.find(c => c.ip === n.ip);
         return withRightClick(h('tr', null,

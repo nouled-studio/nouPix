@@ -286,7 +286,7 @@ function zoneMenu(e, z) {
     ['Rename, color, area…', () => renameZone(z)],
     ['Store a scene', () => storeScene(z)],
     ['Playlists', null, { sub: [
-      ...z.playlists.map(pl => { const p = z._play, cur = playingList(z) === pl; return [(cur && p.on ? '▶ ' : cur && !p.ended ? '❚❚ ' : '') + pl.name, () => playlistDo(z, pl, 'start'), { key: fmtClock(playlistLength(pl)), title: 'Play it' }]; }),
+      ...z.playlists.map(pl => { const p = z._play, cur = playingList(z) === pl; return [h('span', { class: 'mic' }, cur && (p.on || !p.ended) ? icon(p.on ? 'play' : 'pause') : null, pl.name), () => playlistDo(z, pl, 'start'), { key: fmtClock(playlistLength(pl)), title: 'Play it' }]; }),
       z.playlists.length && '-',
       ['New playlist…', () => newPlaylistDialog(z)],
     ] }],

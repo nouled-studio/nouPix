@@ -116,7 +116,7 @@ input, select, textarea { font-weight: 400; }
 .workspace.noleft.noright { grid-template-columns: minmax(0, 1fr); }
 .workspace.noleft > .left { display: none; }
 .fixtures .phead #btnHideLeft { margin-left: 2px; }
-#btnRight.on { color: var(--accent); border-color: var(--accent); }
+#btnLeft.on, #btnRight.on { color: var(--accent); border-color: var(--accent); }
 #btnTheme svg { width: 15px; height: 15px; }
 .right .tabs button { padding: 0 10px; }
 .center { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; border-inline: 1px solid var(--line); }
@@ -255,7 +255,7 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 
 /* ---------- stage ---------- */
 .stagewrap { position: relative; display: grid; grid-template-rows: 32px minmax(0, 1fr); min-height: 0; background: var(--bg0); }
-.stagebar { display: flex; align-items: center; gap: 4px; padding: 0 10px 0 52px; border-bottom: 1px solid var(--line); background: var(--bg1); font-size: 12px; color: var(--text2); overflow-x: auto; overflow-y: hidden; white-space: nowrap; scrollbar-width: none; }
+.stagebar { display: flex; align-items: center; gap: 4px; padding: 0 10px; border-bottom: 1px solid var(--line); background: var(--bg1); font-size: 12px; color: var(--text2); overflow-x: auto; overflow-y: hidden; white-space: nowrap; scrollbar-width: none; }
 /* on a narrow window it scrolls sideways (trackpad, Shift + wheel) without a scroll bar in the way */
 .stagebar::-webkit-scrollbar { display: none; }
 .stagebar label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
@@ -419,7 +419,7 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .xfmode .car { font-size: 9px; color: var(--muted); }
 .xfg { display: inline-grid; place-items: center; }
 .xfg svg { width: 22px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linejoin: miter; }
-.xfmi { display: inline-flex; align-items: center; }
+.xfmi { display: inline-flex; align-items: center; gap: 8px; }
 /* the list of modes: only the graphs, as narrow as they are */
 .menu:has(.xfmi) { min-width: 0; }
 .menu button:has(.xfmi) { padding: 6px 8px; }
@@ -568,6 +568,14 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .fd { padding: 0 4px; margin-left: -4px; border-radius: 0; border: 1px solid transparent; cursor: ew-resize; white-space: nowrap; touch-action: none; }
 .fd:hover, .fd:focus-visible, .fd.scrub { border-color: var(--line2); background: var(--bg2); color: var(--text); outline: none; }
 .fd.scrub { border-color: var(--accent); color: var(--accent); }
+/* a fade's small triangle, drawn (the fonts have no such glyph, so a character looked different on each computer) */
+.fd.tri::before { content: ''; display: inline-block; width: .6em; height: .6em; margin-right: .4em; background: currentColor; clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+/* the Rotate buttons: an arrow icon before the angle */
+.btn.rotb { display: inline-flex; align-items: center; gap: 4px; }
+.btn.rotb svg { width: 13px; height: 13px; }
+/* a menu item with an icon before its words (a playlist playing or paused) */
+.menu .mic { display: inline-flex; align-items: center; gap: 6px; }
+.menu .mic svg { width: 11px; height: 11px; }
 .scene.live .fd { color: var(--live); }
 .pstep .fd { margin: 0 -4px; }
 .pempty { align-self: center; padding: 0 6px; font-size: 12px; color: var(--muted); }
@@ -592,7 +600,7 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .ptabs .fill { flex: 1; }
 .ptab { position: relative; flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 7px 0 3px; border: 1px solid var(--line); border-bottom: 0; border-radius: 0; background: var(--bg1); color: var(--text2); cursor: pointer; font-size: 12px; overflow: hidden; user-select: none; }
 .ptab:hover { color: var(--text); background: var(--bg2); }
-.ptab:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.ptab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .ptab.open { background: var(--bg2); color: var(--text); border-color: var(--line2); font-weight: 600; margin-bottom: -1px; height: 29px; }
 .ptab .pb { width: 22px; height: 22px; flex: none; display: grid; place-items: center; padding: 0; border: 1px solid var(--line2); background: var(--bg3); color: var(--text2); cursor: pointer; }
 .ptab .pb svg { width: 11px; height: 11px; }
@@ -853,6 +861,8 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .modal.wide { width: min(640px, 100%); }
 .modal.xwide { width: min(1040px, 100%); }
 .modal .mb.outset h4 { margin: 10px -16px 0; padding: 10px 16px 0; border-top: 1px solid var(--line2); font: 600 12px var(--label); letter-spacing: .16em; text-transform: uppercase; color: var(--text); display: flex; align-items: center; gap: 8px; }
+/* a protocol's name keeps its case (sACN, not SACN) inside a label set in capitals */
+.pname { text-transform: none; }
 .modal .mb.outset h4::before { content: ''; width: 3px; height: 12px; background: var(--accent); }
 .modal header { padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px; }
 .modal .mb { padding: 12px 16px; display: grid; gap: 10px; min-height: 0; overflow: auto; }
@@ -860,7 +870,7 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .updnotes { max-height: 240px; overflow: auto; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--line); color: var(--text2); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .modal footer { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
 .toasts { position: fixed; right: 14px; bottom: 34px; display: grid; gap: 6px; z-index: 60; }
-.toast { background: var(--bg3); border: 1px solid var(--line2); border-left: 3px solid var(--accent); border-radius: var(--r); padding: 8px 12px; font-size: 12.5px; max-width: 360px; }
+.toast { background: var(--bg3); border: 1px solid var(--line2); border-left: 3px solid var(--line3); border-radius: var(--r); padding: 8px 12px; font-size: 12.5px; max-width: 360px; }
 .toast.warn { border-left-color: var(--warn); }
 .toast.err { border-left-color: var(--danger); }
 .menu { position: fixed; z-index: 55; background: var(--bg2); border: 1px solid var(--line2); border-radius: 0; padding: 4px; min-width: 180px; }
