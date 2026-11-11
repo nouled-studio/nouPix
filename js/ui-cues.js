@@ -72,7 +72,7 @@ function renderCues(body) {
       // its settings fold open under it, apart from picking it
       h('button', { type: 'button', class: 'cfold' + (sel ? ' open' : ''), html: ICONS.chev, title: sel ? 'Fold its settings' : 'Open its settings',
         'aria-label': (sel ? 'Fold' : 'Open') + ' cue ' + c.num, 'aria-expanded': String(sel), onclick: e => { e.stopPropagation(); ui.cueSel = sel ? null : c.id; refreshCues(); } }),
-      h('span', { class: 'cmark' }, live ? '▶' : sb ? '●' : ''),
+      h('span', { class: 'cmark', title: live ? 'Playing' : '' }, live ? '▶' : ''),
       h('span', { class: 'cnum' }, c.num),
       h('span', { class: 'cname' }, cueTitle(c)),
       h('span', { class: 'cacts' }, c.actions.length ? c.actions.map(a => h('span', { class: 'cact', title: actionText(a) + ' · ' + fmtFade(a.fade) }, actionText(a))) : h('span', { class: 'muted' }, 'no actions')),
