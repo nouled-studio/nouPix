@@ -158,6 +158,17 @@ try:
     E(f"(() => {{ const s = zoneById('{Z[0]}').scenes[0]; s.thumb = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA='; commit(); refreshTimeline(); }})()"); time.sleep(0.3)
     check("a scene with a snapshot shows it at the start of its clips", pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}'] .tlclip img.tlshot").count() >= 1)
 
+    # ---------- zoom: the slider dragged smoothly (the bar isn't drawn again under the mouse)
+    E("window._zs = $('#dockBody .tlzoom')")
+    zb = pg.locator("#dockBody .tlzoom").bounding_box(); z0 = E("ui.tlZoom")
+    pg.mouse.move(zb["x"] + zb["width"] * 0.15, zb["y"] + zb["height"] / 2); pg.mouse.down()
+    for k in range(1, 9): pg.mouse.move(zb["x"] + zb["width"] * (0.15 + k * 0.08), zb["y"] + zb["height"] / 2); time.sleep(0.03)
+    mid = E("[ui.tlZoom, window._zs.isConnected]")
+    pg.mouse.up(); time.sleep(0.2)
+    check("dragging the zoom slider: it stays the same slider under the mouse and the zoom follows it", mid[1] and mid[0] > z0 + 40 and E("window._zs.isConnected"), (z0, mid))
+    check("…the tracks drawn at the new zoom", abs(E("parseFloat($('#dockBody .tlgrid').style.width)") - (112 + E("project.timelines[0].length * ui.tlZoom"))) < 1)
+    E("tlZoomTo(40)")
+
     # ---------- the grid in bars
     pg.locator("#dockBody .tlseg[aria-label='Grid'] button:has-text('Bars')").click(); time.sleep(0.3)
     labels = E("[...$$('#dockBody .tltick.major')].slice(0, 3).map(e => e.textContent)")

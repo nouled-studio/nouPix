@@ -43,7 +43,8 @@ function tlSnapT(T, t, skip) {
 
 function renderTimeline(body) {
   const T = shownTimeline();
-  const panel = h('div', { class: 'tlpanel' });
+  // (text selected anywhere on the page would start a drag of it under a slider or a clip, cancelling theirs)
+  const panel = h('div', { class: 'tlpanel', onpointerdown: e => { if (!e.target.matches('input[type=text], input[type=number]')) { const sel = e.target.ownerDocument.getSelection(); if (sel && !sel.isCollapsed) sel.removeAllRanges(); } } });
   body.append(panel);
   panel.append(h('div', { class: 'cuetabs' },
     project.timelines.map(K => h('button', { type: 'button', class: 'cltab' + (K === T ? ' on' : ''), title: K === T ? 'Right-click for its menu' : 'Show ' + K.name,
@@ -74,11 +75,16 @@ function renderTimeline(body) {
     h('label', { class: 'tlsnap', title: 'Clips and markers snap to the grid, the playhead and other clips' }, h('input', { type: 'checkbox', checked: tlSnap, onchange: e => { tlSnap = e.target.checked; } }), 'Snap'),
     h('span', { class: 'fill' }),
     h('input', { type: 'range', class: 'tlzoom', min: 4, max: 240, step: 1, value: ui.tlZoom, 'aria-label': 'Zoom', title: 'Zoom (Ctrl + scroll on the tracks)',
-      oninput: e => { ui.tlZoom = +e.target.value; refreshTimeline(); }, onchange: () => savePrefs() }),
+      oninput: e => tlZoomTo(+e.target.value), onchange: () => savePrefs() }),
     T.audio ? h('span', { class: 'tlaudioname', title: T.audio.name }, '♪ ' + T.audio.name) : null,
     h('button', { type: 'button', class: 'btn sm', title: T.audio ? 'Another audio file for this timeline' : 'An audio file that plays with the timeline', onclick: () => fileIn.click() }, T.audio ? 'Audio…' : '+ Audio'),
     T.audio ? h('button', { type: 'button', class: 'btn sm icon', title: 'Remove the audio', 'aria-label': 'Remove the audio', onclick: () => { tlHalt(); T.audio = null; commit({ lists: false }); refreshTimeline(); } }, '×') : null,
     fileIn));
+  panel.append(tlTracks(T, mine));
+}
+// The tracks: a ruler, the audio, the zones (top zone first); drawn again alone when zooming, so the bar and its
+// slider stay as they are while dragged
+function tlTracks(T, mine) {
   // the tracks: a ruler, the audio, the zones (top zone first)
   const W = Math.max(1, T.length * ui.tlZoom), st = tlSteps(T);
   const grid = h('div', { class: 'tlgrid', style: { width: TL_LABEL + W + 'px' } });
@@ -86,10 +92,8 @@ function renderTimeline(body) {
   scroll.addEventListener('wheel', e => {
     if (!(e.ctrlKey || e.metaKey)) return;
     e.preventDefault();
-    const r = scroll.getBoundingClientRect(), t = (scroll.scrollLeft + e.clientX - r.left - TL_LABEL) / ui.tlZoom;
-    ui.tlZoom = clamp(Math.round(ui.tlZoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2)), 4, 240); savePrefs();
-    refreshTimeline();
-    for (const s of $$('.tlscroll', panel.ownerDocument)) s.scrollLeft = Math.max(0, t * ui.tlZoom - (e.clientX - r.left - TL_LABEL));
+    tlZoomTo(ui.tlZoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2), e.clientX - scroll.getBoundingClientRect().left);
+    savePrefs();
   }, { passive: false });
   // the ruler: ticks, labels, the loop's region and markers; clicked or dragged, the playhead goes there
   const ruler = h('div', { class: 'tllane tlruler', style: { width: W + 'px' }, title: 'Click or drag to move the playhead' });
@@ -160,7 +164,26 @@ function renderTimeline(body) {
   // over all of it: the loop's region and the playhead
   if (T.loop.mode === 'region') grid.append(h('div', { class: 'tlloopcol', style: { left: TL_LABEL + T.loop.a * ui.tlZoom + 'px', width: (T.loop.b - T.loop.a) * ui.tlZoom + 'px' } }));
   grid.append(h('div', { class: 'tlhead', 'data-tl-head': '', style: { left: TL_LABEL + (mine ? tlPos() : 0) * ui.tlZoom + 'px' } }));
-  panel.append(scroll);
+  return scroll;
+}
+// Zoom: the tracks drawn again at the new scale, the time under the mouse (or the middle of the view) kept where it is
+function tlZoomTo(z, at) {
+  const T = shownTimeline();
+  if (!T) return;
+  z = clamp(Math.round(z), 4, 240);
+  if (z === ui.tlZoom) return;
+  const old = ui.tlZoom;
+  ui.tlZoom = z;
+  for (const r of tlRoots()) {
+    const sc = $('.tlscroll', r);
+    if (!sc) continue;
+    const x = at ?? TL_LABEL + (sc.clientWidth - TL_LABEL) / 2, t = (sc.scrollLeft + x - TL_LABEL) / old;
+    const n = tlTracks(T, tl.id === T.id);
+    sc.replaceWith(n);
+    n.scrollLeft = Math.max(0, t * z - x + TL_LABEL);
+    const sl = $('.tlzoom', r);
+    if (sl && +sl.value !== z) sl.value = z;
+  }
 }
 // A clip: where and how long, its scene's name, its fades drawn as the level's line, handles to change each
 function paintClip(el, c) {

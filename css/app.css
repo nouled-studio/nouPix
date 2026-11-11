@@ -1328,7 +1328,8 @@ body.sceneswin > .dockbody { height: 100%; }
 }
 
 /* ---------- timelines ---------- */
-.tlpanel { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.tlpanel { height: 100%; display: flex; flex-direction: column; min-height: 0; user-select: none; }
+.tlpanel input[type=text], .tlpanel input[type=number] { user-select: text; }
 .tlbar { flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 12px 8px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
 .tlbar .fill { flex: 1; }
 .tlbar .lbl { font: 600 9.5px var(--label); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-left: 6px; }
