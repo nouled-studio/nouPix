@@ -161,8 +161,7 @@ const newStep = (scene, time = 30, fade = null) => ({ id: uid(), scene, time, fa
 // has a number and a name, and actions on zones: each plays one of the zone's scenes (scene: its id, '' keeps what
 // plays) and/or takes its level somewhere (level 0..1, null keeps it), over fade seconds. After it (then): 'wait' for
 // GO, 'next' cue by itself, or 'goto' the cue target, those two after wait seconds.
-// A list's zones are the ones its new cues act on (+ Cue records them): the general zone at first.
-function newCueList(props = {}) { return Object.assign({ id: uid(), name: 'Cue list 1', zones: [], cues: [] }, props); }
+function newCueList(props = {}) { return Object.assign({ id: uid(), name: 'Cue list 1', cues: [] }, props); }
 function newCue(props = {}) { return Object.assign({ id: uid(), num: '1', name: '', actions: [], then: 'wait', wait: 0, target: '' }, props); }
 const newCueAction = (zone, props = {}) => Object.assign({ zone, scene: '', level: null, fade: 2 }, props);
 function clampZone(z, s = project.settings) {
@@ -250,12 +249,6 @@ const clampGamma = v => clamp(numOr(v, 1), 1, 3);
 
 /* ---------- look-ups ---------- */
 const zoneById = id => project.zones.find(z => z.id === id);
-// The general zone: the lowest that covers the whole canvas, or else the largest
-function generalZone(p = project) {
-  const s = p.settings, zs = p.zones;
-  return zs.find(z => z.x <= 0 && z.y <= 0 && z.x + z.w >= s.compW && z.y + z.h >= s.compH)
-    || zs.reduce((m, z) => (!m || z.w * z.h > m.w * m.h ? z : m), null);
-}
 // The crossfader (project.xfade): while it is on, x sets the levels of two zones, A at 1 - x and B at x, and nothing
 // else does; phone: the Remote page shows it too. Its two zones, while it is on and both are there; null otherwise.
 function xfZones() {

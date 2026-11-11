@@ -34,26 +34,12 @@ try:
     pg.locator("#dockBody .cueempty button").click(); time.sleep(0.3)
     check("+ New cue list makes Cue list 1, shown as a tab", E("project.cueLists.length") == 1 and pg.locator("#dockBody .cltab.on").inner_text().lower() == "cue list 1")
     check("…with GO greyed while there's nothing to play", pg.locator("#dockBody .cuegobtn").is_disabled())
-    G = E("generalZone().id")
-    check("a new list acts on the general zone (the one covering the canvas)", E(f"{L}.zones") == [G] and E("generalZone().w") == E("project.settings.compW")
-          and pg.locator("#dockBody .cuepanel > .cuezones .czone.on").count() == 1)
-    E(f"(() => {{ for (const z of project.zones) {{ recallScene(z, z.scenes[1], 0); z.opacity = 1; }} }})()")
-    pg.click("#dockBody .cuefoot button:has-text('+ Cue')"); time.sleep(0.3)
-    check("+ Cue then records that zone only", E(f"{L}.cues[0].actions.map(a => a.zone)") == [G])
-    E(f"deleteCue({L}, {L}.cues[0])"); time.sleep(0.2)
-    for i in range(3):
-        b = pg.locator("#dockBody .cuepanel > .cuezones .czone:not(.on)")
-        if b.count(): b.first.click(); time.sleep(0.2)
-    check("the tick boxes add the others", sorted(E(f"{L}.zones")) == sorted(Z) and pg.locator("#dockBody .cuepanel > .cuezones .czone.on").count() == 3)
-    pg.locator("#dockBody .cuepanel > .cuezones .czone.on").first.click(); time.sleep(0.2)
-    check("…and take one off", len(E(f"{L}.zones")) == 2)
-    pg.locator("#dockBody .cuepanel > .cuezones .czone:not(.on)").first.click(); time.sleep(0.2)
 
     # ---------- recording
     E(f"(() => {{ for (const [i, z] of project.zones.entries()) {{ recallScene(z, z.scenes[0], 0); z.opacity = i === 0 ? 1 : 0; }} }})()")
     pg.click("#dockBody .cuefoot button:has-text('+ Cue')"); time.sleep(0.3)
     a1 = E(f"{L}.cues[0].actions.map(a => [a.zone, a.scene, a.level])")
-    check("+ Cue records the list's zones (all three now): each its scene and its level", E(f"{L}.cues[0].num") == "1" and sorted(a1) == sorted([[Z[i], sc(i, 0), 1 if i == 0 else 0] for i in range(len(Z))]), a1)
+    check("+ Cue records every zone: its scene and its level", E(f"{L}.cues[0].num") == "1" and sorted(a1) == sorted([[Z[i], sc(i, 0), 1 if i == 0 else 0] for i in range(len(Z))]), a1)
     check("…the new cue is picked (its editor open) and on standby", pg.locator("#dockBody .cue.sel.standby").count() == 1 and pg.locator("#dockBody .cueedit").count() == 1)
     E(f"(() => {{ for (const [i, z] of project.zones.entries()) {{ recallScene(z, z.scenes[1], 0); z.opacity = 1; }} }})()")
     pg.click("#dockBody .cuefoot button:has-text('+ Cue')"); time.sleep(0.3)
@@ -116,21 +102,13 @@ try:
     ed.locator("input[aria-label='Cue name']").fill("Big look"); ed.locator("input[aria-label='Cue name']").press("Enter"); time.sleep(0.3)
     check("the name typed in its editor", E(f"{L}.cues[1].name") == "Big look" and "Big look" in pg.locator("#dockBody .cue").nth(1).inner_text())
     n0 = E(f"{L}.cues[1].actions.length")
+    ed = pg.locator("#dockBody .cueedit"); ed.locator(".caction button[aria-label='Remove action']").first.click(); time.sleep(0.3)
+    check("× removes an action", E(f"{L}.cues[1].actions.length") == n0 - 1)
+    ed = pg.locator("#dockBody .cueedit"); ed.locator("button:has-text('+ Action')").click(); time.sleep(0.3)
+    check("+ Action adds one for a zone it lacked", E(f"{L}.cues[1].actions.length") == n0)
     ed = pg.locator("#dockBody .cueedit")
-    check("its editor has a tick box per zone, ticked for the zones it acts on, and a row for each",
-          ed.locator(".czone").count() == 3 and ed.locator(".czone.on").count() == n0 and ed.locator(".caction").count() == n0)
-    zn = ed.locator(".czone.on").first.inner_text().strip()
-    ed.locator(f"input[aria-label='This cue acts on {zn}']").click(); time.sleep(0.3)
-    ed = pg.locator("#dockBody .cueedit")
-    check("unticking a zone takes it out of the cue", E(f"{L}.cues[1].actions.length") == n0 - 1 and ed.locator(".caction").count() == n0 - 1 and zn not in ed.locator(".cacts-ed").inner_text())
-    zi = E(f"project.zones.findIndex(z => z.name === '{zn}')")
-    E(f"(() => {{ const z = project.zones[{zi}]; recallScene(z, z.scenes[2], 0); z.opacity = 0.3; }})()")
-    pg.locator(f"#dockBody .cueedit input[aria-label='This cue acts on {zn}']").click(); time.sleep(0.3)
-    a = E(f"(() => {{ const z = project.zones[{zi}]; const a = {L}.cues[1].actions.find(a => a.zone === z.id); return a && [a.scene === z.scenes[2].id, a.level]; }})()")
-    check("ticking it again adds it with what it shows now", E(f"{L}.cues[1].actions.length") == n0 and a == [True, 0.3], a)
-    ed = pg.locator("#dockBody .cueedit")
-    ed.locator(".caction").first.locator("input[aria-label='Fade (s)']").fill("4.5"); ed.locator(".caction").first.locator("input[aria-label='Fade (s)']").press("Enter"); time.sleep(0.3)
-    check("a fade typed", 4.5 in E(f"{L}.cues[1].actions.map(a => a.fade)"))
+    ed.locator(".caction").last.locator("input[aria-label='Fade (s)']").fill("4.5"); ed.locator(".caction").last.locator("input[aria-label='Fade (s)']").press("Enter"); time.sleep(0.3)
+    check("a fade typed", E(f"{L}.cues[1].actions.at(-1).fade") == 4.5)
     ed = pg.locator("#dockBody .cueedit")
     ed.locator("select[aria-label='Then']").select_option("goto"); time.sleep(0.3)
     check("Then: Go to a cue offers the others", E(f"{L}.cues[1].then") == "goto" and pg.locator("#dockBody .cueedit select[aria-label='Go to cue'] option").count() == 2)
@@ -158,11 +136,11 @@ try:
     saved = json.loads(E("serialize()"))
     check("cue lists are saved in the project", len(saved["cueLists"]) == 1 and len(saved["cueLists"][0]["cues"]) == n)
     bad = {"name": "B", "zones": [{"id": "z1", "name": "Z", "scenes": [{"id": "s1", "name": "S", "layers": []}]}],
-           "cueLists": [{"id": "l", "zones": ["gone"], "cues": [{"num": 7, "actions": [{"zone": "z1", "scene": "nope", "level": 3, "fade": -1}, {"zone": "gone"}], "then": "goto", "target": "nobody"}]}, "junk"]}
+           "cueLists": [{"id": "l", "cues": [{"num": 7, "actions": [{"zone": "z1", "scene": "nope", "level": 3, "fade": -1}, {"zone": "gone"}], "then": "goto", "target": "nobody"}]}, "junk"]}
     fixed = E("p => hydrate(p).cueLists", bad)
     c = fixed[0]["cues"][0]
-    check("files are repaired: a scene not there, a level and fade out of range, a zone gone (the list's zones back to the general one), a target not there",
-          len(fixed) == 1 and fixed[0]["zones"] == ["z1"] and c["num"] == "7" and c["actions"] == [{"zone": "z1", "scene": "", "level": 1, "fade": 0}] and c["then"] == "wait" and c["target"] == "", fixed)
+    check("files are repaired: a scene not there, a level and fade out of range, a zone gone, a target not there",
+          len(fixed) == 1 and c["num"] == "7" and c["actions"] == [{"zone": "z1", "scene": "", "level": 1, "fade": 0}] and c["then"] == "wait" and c["target"] == "", fixed)
     check("no errors in the page", not errs, errs[:3])
     br.close()
 finally:

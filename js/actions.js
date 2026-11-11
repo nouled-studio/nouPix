@@ -457,27 +457,11 @@ function resizeSel(w, h) {
 function addCueList() {
   let n = project.cueLists.length + 1;
   while (project.cueLists.some(L => L.name === 'Cue list ' + n)) n++;
-  const g = generalZone();
-  const L = newCueList({ name: 'Cue list ' + n, zones: g ? [g.id] : [] });
+  const L = newCueList({ name: 'Cue list ' + n });
   project.cueLists.push(L);
   ui.cueList = L.id; ui.cueSel = null;
   commit({ lists: false }); refreshCues();
   return L;
-}
-// A zone the list's new cues act on, or not (at least one stays)
-function toggleCueZone(L, id) {
-  const on = L.zones.includes(id);
-  if (on && L.zones.length === 1) { toast('A cue list acts on one zone at least.', 'warn'); return; }
-  L.zones = on ? L.zones.filter(z => z !== id) : project.zones.map(z => z.id).filter(z => z === id || L.zones.includes(z));
-  commit({ lists: false }); refreshCues();
-}
-// A zone ticked in a cue: it acts on it, with what it shows now (its scene and level); unticked, not any more
-function toggleCueAction(c, id) {
-  const z = zoneById(id);
-  if (!z) return;
-  if (c.actions.some(a => a.zone === id)) c.actions = c.actions.filter(a => a.zone !== id);
-  else c.actions.push(newCueAction(id, { scene: z.scene || '', level: z.opacity, fade: project.settings.fade }));
-  commit({ lists: false }); refreshCues();
 }
 function deleteCueList(L) {
   project.cueLists = project.cueLists.filter(o => o !== L);
@@ -498,13 +482,10 @@ function insertCue(L, c) {
 }
 const addCue = L => insertCue(L, newCue({ num: nextCueNum(L) }));
 // What every zone shows now: its scene and its level
-// What the list's zones show now (top zone first): each its scene and its level
-const actionsNow = L => project.zones.slice().reverse().filter(z => L.zones.includes(z.id))
-  .map(z => newCueAction(z.id, { scene: z.scene || '', level: z.opacity, fade: project.settings.fade }));
+const actionsNow = () => project.zones.slice().reverse().map(z => newCueAction(z.id, { scene: z.scene || '', level: z.opacity, fade: project.settings.fade }));
 function recordCue(L) {
-  const c = insertCue(L, newCue({ num: nextCueNum(L), actions: actionsNow(L) }));
-  const names = c.actions.map(a => zoneById(a.zone).name).join(', ');
-  toast(c.actions.length ? `Cue ${c.num}: what ${names} show${c.actions.length === 1 ? 's' : ''} now. Click it to change its actions and fades.` : `Cue ${c.num} has no zones: pick the list's zones, or + Action in it.`);
+  const c = insertCue(L, newCue({ num: nextCueNum(L), actions: actionsNow() }));
+  toast(`Cue ${c.num}: what every zone shows now. Click it to change its actions and fades.`);
   return c;
 }
 // Its zones as they show now (their scene and level), keeping each action's fade
