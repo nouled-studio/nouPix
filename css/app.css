@@ -1280,10 +1280,11 @@ body.sceneswin > .dockbody { height: 100%; }
 .cue { position: relative; flex: none; display: grid; grid-template-columns: 20px 14px 40px minmax(80px, 1fr) minmax(0, 1.6fr) 52px 86px 22px; align-items: center; gap: 8px; height: 34px; padding: 0 4px 0 8px;
   background: var(--bg2); border: 1px solid var(--line); border-left: 2px solid transparent; cursor: pointer; font-size: 13px; user-select: none; }
 .cue:hover { border-color: var(--line2); }
-/* the cue on standby, the one GO plays next: selected, white; the one playing: its ▶ and its progress line */
-.cue.standby { background: var(--sel-soft); border-color: var(--sel); box-shadow: inset 2px 0 0 var(--sel); }
-.cue.standby .cname, .cue.standby .cnum { color: var(--sel); }
-.cue.sel:not(.standby) { border-color: var(--line3); }
+/* the cue on standby, the one GO fires next: red, as what acts; the one playing: white, a light on, with its ▶ and progress */
+.cue.standby { border-color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+.cue.live { background: var(--sel-soft); border-color: var(--live); box-shadow: inset 2px 0 0 var(--live); }
+.cue.live .cname, .cue.live .cnum { color: var(--live); }
+.cue.sel:not(.standby):not(.live) { border-color: var(--line3); }
 .cue .cfold { width: 20px; height: 22px; padding: 0; margin-left: -4px; border: 0; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
 .cue .cfold:hover { color: var(--text); }
 .cue .cfold svg { width: 11px; height: 11px; transform: rotate(-90deg); transition: transform .12s; }
