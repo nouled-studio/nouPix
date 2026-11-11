@@ -1277,12 +1277,16 @@ body.sceneswin > .dockbody { height: 100%; }
 .cuebtns { display: flex; gap: 6px; }
 .cuerows { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; padding: 6px 12px; display: flex; flex-direction: column; gap: 3px; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
 .cuerows .rowhint { color: var(--muted); font-size: 12.5px; margin: 8px 0; }
-.cue { position: relative; flex: none; display: grid; grid-template-columns: 14px 40px minmax(80px, 1fr) minmax(0, 1.6fr) 52px 86px 22px; align-items: center; gap: 8px; height: 34px; padding: 0 4px 0 8px;
+.cue { position: relative; flex: none; display: grid; grid-template-columns: 20px 14px 40px minmax(80px, 1fr) minmax(0, 1.6fr) 52px 86px 22px; align-items: center; gap: 8px; height: 34px; padding: 0 4px 0 8px;
   background: var(--bg2); border: 1px solid var(--line); border-left: 2px solid transparent; cursor: pointer; font-size: 13px; user-select: none; }
 .cue:hover { border-color: var(--line2); }
 .cue.sel { background: var(--sel-soft); border-color: var(--line3); }
 .cue.standby { border-left-color: var(--accent); }
 .cue.live { border-left-color: var(--live); }
+.cue .cfold { width: 20px; height: 22px; padding: 0; margin-left: -4px; border: 0; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.cue .cfold:hover { color: var(--text); }
+.cue .cfold svg { width: 11px; height: 11px; transform: rotate(-90deg); transition: transform .12s; }
+.cue .cfold.open svg { transform: none; color: var(--sel); }
 .cue .cmark { font-size: 9px; color: var(--accent); }
 .cue.live .cmark { color: var(--live); }
 .cue .cnum { font-family: var(--mono); font-size: 12px; color: var(--text2); }
@@ -1309,7 +1313,7 @@ body.sceneswin > .dockbody { height: 100%; }
 .caction select { max-width: 180px; }
 .cuefoot { flex: none; display: flex; gap: 6px; padding: 6px 12px 8px; border-top: 1px solid var(--line); }
 @container cues (max-width: 620px) {
-  .cue { grid-template-columns: 14px 34px minmax(0, 1fr) 46px 70px 22px; }
+  .cue { grid-template-columns: 20px 14px 34px minmax(0, 1fr) 46px 70px 22px; }
   .cue .cacts { display: none; }
   .cuegobtn { width: 76px; height: 46px; font-size: 17px; }
 }

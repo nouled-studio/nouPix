@@ -97,7 +97,15 @@ try:
     check("Space with GO focused plays one cue, not two", E(f"cueProgress({L}).cur.num") == "1" and E(f"cueProgress({L}).standby.num") == "2")
 
     # ---------- the editor
+    E("ui.cueSel = null; refreshCues()"); time.sleep(0.2)
     pg.locator("#dockBody .cue").nth(1).click(); time.sleep(0.2)
+    check("clicking a cue puts it on standby without opening it", E(f"cueProgress({L}).standby.num") == "2" and pg.locator("#dockBody .cueedit").count() == 0)
+    pg.locator("#dockBody .cue").nth(1).locator(".cfold").click(); time.sleep(0.2)
+    check("its arrow opens its settings under it, standby staying", pg.locator("#dockBody .cueedit").count() == 1 and pg.locator("#dockBody .cue").nth(1).locator(".cfold").get_attribute("aria-expanded") == "true"
+          and E(f"cueProgress({L}).standby.num") == "2")
+    pg.locator("#dockBody .cue").nth(1).locator(".cfold").click(); time.sleep(0.2)
+    check("…and folds them again", pg.locator("#dockBody .cueedit").count() == 0)
+    pg.locator("#dockBody .cue").nth(1).locator(".cfold").click(); time.sleep(0.2)
     ed = pg.locator("#dockBody .cueedit")
     ed.locator("input[aria-label='Cue name']").fill("Big look"); ed.locator("input[aria-label='Cue name']").press("Enter"); time.sleep(0.3)
     check("the name typed in its editor", E(f"{L}.cues[1].name") == "Big look" and "Big look" in pg.locator("#dockBody .cue").nth(1).inner_text())

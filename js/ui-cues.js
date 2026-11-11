@@ -66,9 +66,12 @@ function renderCues(body) {
   for (const c of L.cues) {
     const live = st.cur === c, sb = st.standby === c, sel = ui.cueSel === c.id;
     const r = h('div', { class: 'cue' + (live ? ' live' : '') + (sb ? ' standby' : '') + (sel ? ' sel' : ''), 'data-cue': c.id, tabindex: 0,
-      title: 'Click: put it on standby and edit it. Double-click: GO from it.',
-      onclick: () => { ui.cueSel = sel ? null : c.id; cueStandby(L, c); },
-      ondblclick: () => { ui.cueSel = c.id; cueGo(L, c); } },
+      title: 'Click: put it on standby. Double-click: GO from it. The arrow opens its settings.',
+      onclick: () => cueStandby(L, c),
+      ondblclick: () => cueGo(L, c) },
+      // its settings fold open under it, apart from picking it
+      h('button', { type: 'button', class: 'cfold' + (sel ? ' open' : ''), html: ICONS.chev, title: sel ? 'Fold its settings' : 'Open its settings',
+        'aria-label': (sel ? 'Fold' : 'Open') + ' cue ' + c.num, 'aria-expanded': String(sel), onclick: e => { e.stopPropagation(); ui.cueSel = sel ? null : c.id; refreshCues(); } }),
       h('span', { class: 'cmark' }, live ? '▶' : sb ? '●' : ''),
       h('span', { class: 'cnum' }, c.num),
       h('span', { class: 'cname' }, cueTitle(c)),

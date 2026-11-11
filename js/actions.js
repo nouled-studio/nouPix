@@ -474,7 +474,8 @@ function deleteCueList(L) {
 const nextCueNum = L => String(Math.floor(L.cues.reduce((m, c) => Math.max(m, parseFloat(c.num) || 0), 0)) + 1);
 // A new cue after the one picked (or at the end), picked and on standby
 function insertCue(L, c) {
-  const at = L.cues.findIndex(o => o.id === ui.cueSel);
+  // after the cue open, or else the one on standby
+  const at = L.cues.findIndex(o => o.id === (ui.cueSel || (cueRun.get(L.id) || {}).standby));
   L.cues.splice(at >= 0 ? at + 1 : L.cues.length, 0, c);
   ui.cueSel = c.id;
   commit({ lists: false }); cueStandby(L, c);
