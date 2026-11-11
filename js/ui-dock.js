@@ -100,6 +100,18 @@ function openScenesWindow() {
     else if (!mod && k === 'b') toggleBlackout();
   });
   w.addEventListener('pagehide', () => { if (scenesWin === w) { scenesWin = null; renderDock(); } });
+  // With this page minimized or behind another, the browser stops its frames (frameLoop): the Scenes window's own
+  // frames then draw the X-Fader's previews and the fades' progress there
+  const frame = () => {
+    if (scenesWin !== w || w.closed) return;
+    w.requestAnimationFrame(frame);
+    if (!document.hidden || !project) return;
+    try {
+      if (project.xfade.on) drawXfPreviews();
+      drawSceneProgress();
+    } catch (e) { report('scenes window', e); }
+  };
+  w.requestAnimationFrame(frame);
   renderDock();
 }
 function closeScenesWindow() { if (scenesWinOpen()) scenesWin.close(); scenesWin = null; renderDock(); }
@@ -354,11 +366,11 @@ function xfPvSize(c, z) {
   if (c.width !== w * d || c.height !== hh * d) { c.width = w * d; c.height = hh * d; }
   if (c.style.width !== w + 'px' || c.style.height !== hh + 'px') { c.style.width = w + 'px'; c.style.height = hh + 'px'; }
 }
-// The previews of A and B, about 15 times a second
-let xfShownAt = 0;
-function drawXfPreviews(now) {
-  if (now - xfShownAt < 66 || !mixer.ok) return;
-  xfShownAt = now;
+// The previews of A and B, on the view frames (viewEvery), as the stage and the other previews
+let xfShownFrame = -1;
+function drawXfPreviews(force) {
+  if (!mixer.ok || (!force && (frameIndex === xfShownFrame || !viewFrame()))) return;
+  xfShownFrame = frameIndex;
   for (const c of scenesRoots().flatMap(r => $$('canvas[data-xf-pv]', r))) {
     const z = zoneById(project.xfade[c.dataset.xfPv]);
     if (!z) continue;

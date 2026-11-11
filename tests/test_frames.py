@@ -1,6 +1,6 @@
 # The output's frame rate holds while the interface works: a frame that takes most of its period still leaves the
 # next on time (the clock); moving the mouse over the panels draws nothing, over the stage only when it reaches
-# another fixture or pixel; the stage is drawn at most about 30 times a second for moving content; the pixel under
+# another fixture or pixel; the stage is drawn on every output frame up to 60 a second for moving content (every second one at 100); the pixel under
 # the mouse is the nearest one, as before; resizing the bottom panel never shows the stage empty; many pixels on screen
 # are drawn as the content through a mask of their circles, dimmed by dimmers, group levels, master and blackout.
 import os, sys, time
@@ -42,9 +42,9 @@ try:
     check("and 40 a second when set to 40", 36 < fps < 44, round(fps, 1))
     ev("(() => { olm.project.settings.fps = 100; startClock(); })()"); time.sleep(0.5)
 
-    # ---------- the stage: drawn at most about 30 times a second for moving content
+    # ---------- the stage: on the view frames, every second output frame at 100 a second
     _, draws = rate(3)
-    check("moving content redraws the stage about 30 times a second at most", draws < 36, round(draws, 1))
+    check("moving content redraws the stage on every second frame at 100 a second: 50 at most", draws < 56, round(draws, 1))
 
     # ---------- the mouse over the panels: no redraw of the stage for it
     # one frame a second now: what redraws the stage beyond that comes from the mouse
