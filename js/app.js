@@ -211,6 +211,7 @@ function initUI() {
   showLeft(!ui.leftHidden);
   showRight(!ui.rightHidden);
   $('#btnDock').addEventListener('click', () => { ui.dockCollapsed = !ui.dockCollapsed; savePrefs(); renderDock(); });
+  initScenesCol();
   const grip = $('#dockGrip');
   grip.addEventListener('pointerdown', e => {
     grip.setPointerCapture(e.pointerId);
@@ -349,7 +350,7 @@ function frameLoop(now) {
     if (monCanvas) drawMonitor(now);
     if (tempoLive) tempoFrame(now);
     beatDotFrame(now);
-    if (ui.dockTab === 'scenes' && !ui.dockCollapsed) drawSceneProgress();
+    if (scenesHere()) drawSceneProgress();
     if (project.xfade.on && !document.hidden) drawXfPreviews();
     if (now - (frameLoop.last || 0) > 200) { frameLoop.last = now; updateStatus(); }
   } catch (e) { report('panels', e); }

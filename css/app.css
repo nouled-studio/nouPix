@@ -120,6 +120,35 @@ input, select, textarea { font-weight: 400; }
 #btnTheme svg { width: 15px; height: 15px; }
 .right .tabs button { padding: 0 10px; }
 .center { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; border-inline: 1px solid var(--line); }
+/* the scenes beside the stage: a column the full height, the stage and the bottom panel (Patch) sharing the rest; its
+   width dragged on its inner edge, never leaving the stage less than 240px */
+.center.at-left, .center.at-right { --sw: minmax(0, 1fr); }
+.center.at-right { grid-template-columns: minmax(240px, 1fr) var(--sw); }
+.center.at-left { grid-template-columns: var(--sw) minmax(240px, 1fr); }
+.center.at-right > .stagewrap, .center.at-right > .dock { grid-column: 1; }
+.center.at-left > .stagewrap, .center.at-left > .dock { grid-column: 2; }
+.center.at-left > .stagewrap { grid-row: 1; } .center.at-left > .dock { grid-row: 2; }
+.center.at-right > .scol { grid-column: 2; grid-row: 1 / 3; border-left: 1px solid var(--line); }
+.center.at-left > .scol { grid-column: 1; grid-row: 1 / 3; border-right: 1px solid var(--line); }
+.scol { position: relative; display: grid; grid-template-rows: 32px minmax(0, 1fr); background: var(--bg1); min-width: 0; min-height: 0; container: scenes / inline-size; }
+.scol[hidden] { display: none; }
+.scol .sgrip { position: absolute; top: 0; bottom: 0; width: 7px; z-index: 4; cursor: ew-resize; touch-action: none; user-select: none; }
+.center.at-right .scol .sgrip { left: -4px; } .center.at-left .scol .sgrip { right: -4px; }
+.scol .sgrip:hover, .scol .sgrip.on { background: color-mix(in srgb, var(--fader) 35%, transparent); }
+.scol .tabs button { cursor: default; }
+/* there the scenes wrap in a grid that fits the width, instead of a row scrolling sideways; A above B when narrow */
+.scol .scenerow.wrap { flex-direction: column; align-items: stretch; }
+.scol .scenerow.wrap .stiles, .scol .scenerow.xfcol .stiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; align-items: start; }
+.scol .scenerow.wrap .scene { width: auto; min-width: 0; }
+.scol .scenerow.wrap .stiles > .rowhint { grid-column: 1 / -1; }
+@container scenes (max-width: 640px) { .scol .xfpair { grid-template-columns: minmax(0, 1fr); } }
+/* where the scenes go: below, left, right, a window of their own */
+.spos { display: flex; border: 1px solid var(--line2); }
+.spos button { width: 28px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; background: var(--bg3); color: var(--muted); cursor: pointer; }
+.spos button + button { border-left: 1px solid var(--line2); }
+.spos button:hover { color: var(--text); }
+.spos button.on { background: var(--sel-soft); color: var(--sel); box-shadow: inset 0 -2px 0 var(--accent); }
+.spos svg { width: 16px; height: 16px; }
 aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: column; }
 
 /* ---------- top bar ---------- */

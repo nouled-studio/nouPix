@@ -54,6 +54,9 @@ const ui = {
   outputOn: false, blackout: false, outputMode: 'content', hlMode: 'trace', pickPx: null, zone: null, layer: null, hoverSrc: null,
   showContent: true, contentOp: 0.35, showGuide: true, guideOp: 0.5, showGrid: true, snap: true, showLabels: true, showWiring: false, showZones: true,
   dockTab: 'patch', rightTab: 'inspector', rightHidden: false, leftHidden: false, scanOff: [], selCtrl: null, monitorKey: null, dockH: 250, dockCollapsed: false,
+  // where the scenes are: 'bottom' (the bottom panel's Scenes tab), 'left' or 'right' of the stage, and the width they
+  // take there (0: half)
+  scenesAt: 'bottom', scenesW: 0,
   srcH: 0.42,   // the share of the left column the sources take (dragged on their top edge)
   hoverFx: null, hoverGroup: null, hoverPx: null, cursor: null, colorMode: 'wheel',
   // the Scenes panel's playlists: which one each zone shows open (zone id -> playlist id), the step being edited,
@@ -69,7 +72,7 @@ const ui = {
   autosave: false,   // every change written to the project's file too (project-io.js)
   updates: true, updateAt: 0, updateSkip: '',   // looking for a new version once a day; when it last looked; a version not to tell of (app.js)
 };
-const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
+const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'scenesAt', 'scenesW', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
   'tempoSrc', 'tempoIn', 'tempoTrim', 'tempoBpb', 'tempoOn', 'tempoBpm', 'tempoLo', 'tempoHi'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };

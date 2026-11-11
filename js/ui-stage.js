@@ -45,12 +45,13 @@ function resizeView() {
 // Holding the canvas's size while a panel is dragged: from the start it is as tall as the window, so the drag
 // needn't make it bigger; when the drag ends it takes the stage's size again
 let stageHeld = false;
-function holdStage(on) {
+function holdStage(on, across) {
   if (on === stageHeld) return;
   stageHeld = on;
   if (on) {
+    // as tall as the window while the bottom panel's edge is dragged; as wide as it while the scenes' column's is
     const old = cv.width > 1 && cv.height > 1 && SC ? stageCopy() : null, r = stageEl.getBoundingClientRect();
-    const w = Math.max(cv.width, Math.round(r.width * DPR)), hh = Math.max(cv.height, Math.round(innerHeight * DPR));
+    const w = Math.max(cv.width, Math.round((across ? innerWidth : r.width) * DPR)), hh = Math.max(cv.height, Math.round((across ? r.height : innerHeight) * DPR));
     if (w !== cv.width || hh !== cv.height) {
       cv.width = w; cv.height = hh;
       if (old) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = SC.out; ctx.fillRect(0, 0, w, hh); ctx.drawImage(old, 0, 0); }
