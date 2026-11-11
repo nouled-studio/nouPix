@@ -5,7 +5,8 @@
 /* ---------- right panel ---------- */
 function renderRight() {
   binders = []; preview = null;
-  $$('#rightTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.rightTab));
+  // (none of its own lit while a tab moved there is open)
+  $$('#rightTabs button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.rightTab && !sideOpen('right')));
   const body = $('#rightBody');
   const keep = body.scrollTop;
   body.replaceChildren();
@@ -723,6 +724,7 @@ function showRight(on) {
   $('#btnRight').setAttribute('aria-pressed', String(!ui.rightHidden));
   savePrefs();
   updateMidiUI();
+  if (project && !ui.rightHidden && sideOpen('right')) renderSides();   // a panel moved there, drawn as it shows
 }
 // The left column (fixtures and sources) too, from its « or the stage bar's button (Shift H)
 function showLeft(on) {
@@ -731,6 +733,7 @@ function showLeft(on) {
   $('#btnLeft').classList.toggle('on', !ui.leftHidden);
   $('#btnLeft').setAttribute('aria-pressed', String(!ui.leftHidden));
   savePrefs();
+  if (project && !ui.leftHidden && sideOpen('left')) renderSides();
 }
 // Rename: open the Inspector (showing the panel if it is hidden) with the name selected
 function focusName(id) { if (ui.rightHidden) showRight(true); ui.rightTab = 'inspector'; renderRight(); const i = $('#' + id); if (i) { i.focus(); i.select(); } }

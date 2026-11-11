@@ -157,14 +157,14 @@ try:
     E(f"(() => {{ const c = {L}.cues[0]; c.actions = []; ui.cueSel = null; commit(); refreshCues(); }})()")
 
     # ---------- beside the stage
-    E("setScenesAt('right')"); time.sleep(0.5)
-    pg.click("#colTabs [data-ctab=cues]"); time.sleep(0.4)
-    check("beside the stage: the column's Cues tab shows them, the bottom panel's Cues tab goes", pg.locator("#scenesBody .cue").count() == 3 and not pg.locator("#dockTabs [data-tab=cues]").is_visible())
-    pg.click("#scenesBody .cuegobtn"); time.sleep(0.2)
+    pg.locator("#dockBody .cuetabs .spos button[data-place=right]").click(); time.sleep(0.5)
+    check("sent right: a Cue list tab in the right panel (with a ✕), the bottom panel's goes", pg.locator("#rightHost .cue").count() == 3 and pg.locator("#rightTabs .mtab[data-panel=cues] .mx").count() == 1
+          and not pg.locator("#dockTabs [data-tab=cues]").is_visible())
+    pg.click("#rightHost .cuegobtn"); time.sleep(0.2)
     check("…GO there", E(f"cueProgress({L}).cur.num") == "2")
-    pg.click("#colTabs [data-ctab=scenes]"); time.sleep(0.3)
-    check("…and its Scenes tab back", pg.locator("#scenesBody .scene").count() > 0 and pg.locator("#dockTabs [data-tab=cues]").is_visible())
-    E("setScenesAt('bottom'); ui.dockTab = 'cues'; renderDock()"); time.sleep(0.3)
+    pg.click("#rightTabs .mtab[data-panel=cues] .mx"); time.sleep(0.4)
+    check("…its ✕ brings it back to the bottom", pg.locator("#dockBody .cue").count() == 3 and pg.locator("#rightTabs .mtab").count() == 0)
+    E("ui.dockTab = 'cues'; renderDock()"); time.sleep(0.3)
 
     # ---------- undo, files
     n = E(f"{L}.cues.length")

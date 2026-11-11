@@ -38,15 +38,15 @@ try:
           and E("[...$$('#dockBody .tltrack')].map(e => e.dataset.zone)") == Z[::-1])
 
     # ---------- clips
-    E("setScenesAt('right')"); time.sleep(0.6)
+    E("setPanelPlace('scenes', 'right')"); time.sleep(0.6)
     E("ui.dockTab = 'timeline'; ui.dockCollapsed = false; ui.dockH = 420; renderDock()"); time.sleep(0.4)
-    tile = pg.locator(f"#scenesBody .zoneblock[data-zone='{Z[0]}'] .scene").first
+    tile = pg.locator(f"#rightHost .zoneblock[data-zone='{Z[0]}'] .scene").first
     lane = pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}']")
     lb = lane.bounding_box()
     tile.drag_to(lane, target_position={"x": 2 * 40 + 3, "y": lb["height"] / 2}); time.sleep(0.4)
     c = E(f"({T}.tracks['{Z[0]}'] || [])[0]")
     check("a scene dragged onto its zone's track makes a clip there (snapped to 2 s)", c and c["scene"] == sc(0, 0) and abs(c["start"] - 2) < 0.01 and c["dur"] == 8, c)
-    other = pg.locator(f"#scenesBody .zoneblock[data-zone='{Z[1]}'] .scene").first
+    other = pg.locator(f"#rightHost .zoneblock[data-zone='{Z[1]}'] .scene").first
     other.drag_to(lane, target_position={"x": 14 * 40, "y": lb["height"] / 2}); time.sleep(0.3)
     check("…another zone's scene isn't taken there", len(E(f"{T}.tracks['{Z[0]}']")) == 1)
     lane.dblclick(position={"x": 12 * 40 + 2, "y": lb["height"] / 2}); time.sleep(0.3)
@@ -195,9 +195,9 @@ try:
     check("…and goes into packages", "beat.wav" in E("packageMedia().map(s => s.name)"))
 
     # ---------- beside the stage
-    pg.click("#colTabs [data-ctab=timeline]"); time.sleep(0.4)
-    check("the side column's Timeline tab shows it, the bottom panel's goes", pg.locator("#scenesBody .tlpanel .tltrack").count() == 3 and not pg.locator("#dockTabs [data-tab=timeline]").is_visible())
-    pg.click("#colTabs [data-ctab=scenes]"); time.sleep(0.3)
+    E("setPanelPlace('timeline', 'left')"); time.sleep(0.4)
+    check("sent left: a Timeline tab in the left panel, the bottom panel's goes", pg.locator("#leftHost .tlpanel .tltrack").count() == 3 and not pg.locator("#dockTabs [data-tab=timeline]").is_visible())
+    E("setPanelPlace('timeline', 'bottom'); setPanelPlace('scenes', 'bottom'); ui.dockTab = 'timeline'; renderDock()"); time.sleep(0.3)
 
     # ---------- files
     saved = json.loads(E("serialize()"))

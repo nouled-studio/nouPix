@@ -108,11 +108,11 @@ input, select, textarea { font-weight: 400; }
 
 /* ---------- app frame ---------- */
 #app { height: 100%; overflow: hidden; display: grid; grid-template-rows: 46px minmax(0, 1fr) 24px; }
-.workspace { display: grid; grid-template-columns: 250px minmax(0, 1fr) 300px; min-height: 0; }
-.workspace.noright { grid-template-columns: 250px minmax(0, 1fr); }
+.workspace { display: grid; grid-template-columns: var(--lw, 250px) minmax(0, 1fr) var(--rw, 300px); min-height: 0; }
+.workspace.noright { grid-template-columns: var(--lw, 250px) minmax(0, 1fr); }
 .workspace.noright > .right { display: none; }
 /* the left column folded too (or alone): the stage takes its room */
-.workspace.noleft { grid-template-columns: minmax(0, 1fr) 300px; }
+.workspace.noleft { grid-template-columns: minmax(0, 1fr) var(--rw, 300px); }
 .workspace.noleft.noright { grid-template-columns: minmax(0, 1fr); }
 .workspace.noleft > .left { display: none; }
 .fixtures .phead #btnHideLeft { margin-left: 2px; }
@@ -120,27 +120,12 @@ input, select, textarea { font-weight: 400; }
 #btnTheme svg { width: 15px; height: 15px; }
 .right .tabs button { padding: 0 10px; }
 .center { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; border-inline: 1px solid var(--line); }
-/* the scenes beside the stage: a column the full height, the stage and the bottom panel (Patch) sharing the rest; its
-   width dragged on its inner edge, never leaving the stage less than 240px */
-.center.at-left, .center.at-right { --sw: minmax(0, 1fr); }
-.center.at-right { grid-template-columns: minmax(240px, 1fr) var(--sw); }
-.center.at-left { grid-template-columns: var(--sw) minmax(240px, 1fr); }
-.center.at-right > .stagewrap, .center.at-right > .dock { grid-column: 1; }
-.center.at-left > .stagewrap, .center.at-left > .dock { grid-column: 2; }
-.center.at-left > .stagewrap { grid-row: 1; } .center.at-left > .dock { grid-row: 2; }
-.center.at-right > .scol { grid-column: 2; grid-row: 1 / 3; border-left: 1px solid var(--line); }
-.center.at-left > .scol { grid-column: 1; grid-row: 1 / 3; border-right: 1px solid var(--line); }
-.scol { position: relative; display: grid; grid-template-rows: 32px minmax(0, 1fr); background: var(--bg1); min-width: 0; min-height: 0; container: scenes / inline-size; }
-.scol[hidden] { display: none; }
-.scol .sgrip { position: absolute; top: 0; bottom: 0; width: 7px; z-index: 4; cursor: ew-resize; touch-action: none; user-select: none; }
-.center.at-right .scol .sgrip { left: -4px; } .center.at-left .scol .sgrip { right: -4px; }
-.scol .sgrip:hover, .scol .sgrip.on { background: color-mix(in srgb, var(--fader) 35%, transparent); }
 /* there the scenes wrap in a grid that fits the width, instead of a row scrolling sideways; A above B when narrow */
-.scol .scenerow.wrap { flex-direction: column; align-items: stretch; }
-.scol .scenerow.wrap .stiles, .scol .scenerow.xfcol .stiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; align-items: start; }
-.scol .scenerow.wrap .scene { width: auto; min-width: 0; }
-.scol .scenerow.wrap .stiles > .rowhint { grid-column: 1 / -1; }
-@container scenes (max-width: 640px) { .scol .xfpair { grid-template-columns: minmax(0, 1fr); } }
+.panelhost .scenerow.wrap { flex-direction: column; align-items: stretch; }
+.panelhost .scenerow.wrap .stiles, .panelhost .scenerow.xfcol .stiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; align-items: start; }
+.panelhost .scenerow.wrap .scene { width: auto; min-width: 0; }
+.panelhost .scenerow.wrap .stiles > .rowhint { grid-column: 1 / -1; }
+@container scenes (max-width: 640px) { .panelhost .xfpair { grid-template-columns: minmax(0, 1fr); } }
 /* where the scenes go: below, left, right, a window of their own */
 .spos { display: flex; border: 1px solid var(--line2); }
 .spos > button, .tabs .spos > button { width: 28px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-bottom: 0; background: var(--bg3); color: var(--muted); cursor: pointer; }
@@ -1408,3 +1393,22 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlablock .tlhdr { color: var(--text2); }
 .tlablock .tlstrip { background: var(--bg1); }
 .tlwave { position: absolute; left: 0; top: 2px; opacity: .85; }
+
+/* panels moved to a side: one more tab there, with a ✕; their body; the side's inner edge dragged for its width */
+aside { position: relative; }
+.panelhost { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; container: scenes / inline-size; }
+.panelhost[hidden], aside > section[hidden] { display: none; }
+.panelhost > * { flex: 1; min-height: 0; }
+.movedtabs { display: flex; align-items: stretch; }
+.sidetabs { flex: none; height: 32px; }
+.sidetabs[hidden] { display: none; }
+.mtab { display: flex; align-items: center; gap: 6px; border: 0; background: none; padding: 0 8px 0 12px; font: 600 10.5px/1 var(--label); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
+.mtab:hover { color: var(--text2); }
+.mtab.on { color: var(--text); border-bottom-color: var(--accent); }
+.mtab .mx { display: grid; place-items: center; width: 16px; height: 16px; font: 11px/1 var(--mono); color: var(--muted); letter-spacing: 0; }
+.mtab .mx:hover { color: var(--text); background: var(--bg3); }
+.sidegrip { display: none; position: absolute; top: 0; bottom: 0; width: 7px; z-index: 6; cursor: ew-resize; touch-action: none; }
+aside.wide > .sidegrip { display: block; }
+aside.left > .sidegrip { right: -4px; } aside.right > .sidegrip { left: -4px; }
+.sidegrip:hover, .sidegrip.on { background: color-mix(in srgb, var(--fader) 35%, transparent); }

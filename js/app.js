@@ -198,7 +198,7 @@ function initUI() {
   $('#btnFit').addEventListener('click', fitView);
   initTips();
   $$('#rail button').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
-  $$('#rightTabs button').forEach(b => b.addEventListener('click', () => { ui.rightTab = b.dataset.tab; savePrefs(); renderRight(); }));
+  $$('#rightTabs button[data-tab]').forEach(b => b.addEventListener('click', () => { ui.rightTab = b.dataset.tab; ui.sideOpen = Object.assign({}, ui.sideOpen, { right: null }); savePrefs(); renderRight(); renderSides(); }));
   $$('#dockTabs button[data-tab]').forEach(b => b.addEventListener('click', () => { ui.dockTab = b.dataset.tab; ui.dockCollapsed = false; savePrefs(); renderDock(); }));
   $('#btnGroup').addEventListener('click', () => { groupAction() === 'ungroup' ? ungroupSel() : groupSel(); });
   $('#btnLock').addEventListener('click', toggleLockSel);
@@ -211,7 +211,7 @@ function initUI() {
   showLeft(!ui.leftHidden);
   showRight(!ui.rightHidden);
   $('#btnDock').addEventListener('click', () => { ui.dockCollapsed = !ui.dockCollapsed; savePrefs(); renderDock(); });
-  initScenesCol();
+  initSides();
   const grip = $('#dockGrip');
   grip.addEventListener('pointerdown', e => {
     grip.setPointerCapture(e.pointerId);

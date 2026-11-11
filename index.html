@@ -38,6 +38,9 @@
 
   <div class="workspace">
     <aside class="left">
+      <div class="sidegrip" id="leftGrip" title="Drag to make this panel wider or narrower"></div>
+      <div class="tabs sidetabs" id="leftTabs" hidden></div>
+      <div class="panelhost" id="leftHost" hidden></div>
       <section class="fixtures">
         <div class="phead"><h2>Fixtures</h2>
           <button class="btn sm" id="btnImportSvg" type="button" title="Import an SVG as fixtures and/or guide">SVG…</button>
@@ -104,11 +107,6 @@
         </div>
         <div class="dockbody" id="dockBody"></div>
       </section>
-      <section class="scol" id="scenesCol" hidden>
-        <div class="sgrip" id="scenesGrip" title="Drag to share the width with the stage. Double-click: half and half."></div>
-        <div class="tabs" id="colTabs"><button type="button" data-ctab="scenes">Scenes</button><button type="button" data-ctab="cues">Cue list</button><button type="button" data-ctab="timeline">Timeline</button><span class="fill"></span><span class="tabtools" id="scenesTools"></span></div>
-        <div class="dockbody" id="scenesBody"></div>
-      </section>
     </main>
 
     <aside class="right">
@@ -116,10 +114,13 @@
         <button type="button" data-tab="inspector">Inspector</button>
         <button type="button" data-tab="content">Content</button>
         <button type="button" data-tab="settings">Settings</button>
+        <span class="movedtabs" id="rightMoved"></span>
         <span class="fill"></span>
         <span class="tabtools"><button class="btn ghost sm" id="btnHideRight" type="button" title="Hide this panel (H)" aria-label="Hide the right panel">»</button></span>
       </div>
       <div class="pbody" id="rightBody"></div>
+      <div class="panelhost" id="rightHost" hidden></div>
+      <div class="sidegrip" id="rightGrip" title="Drag to make this panel wider or narrower"></div>
     </aside>
   </div>
 

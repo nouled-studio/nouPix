@@ -7,7 +7,7 @@
 // clicked or dragged to move the playhead; the loop's region by its two markers on the ruler.
 
 const shownTimeline = () => tlOf(ui.tlId) || project.timelines[0] || null;
-const tlRoots = () => [ui.dockTab === 'timeline' && !ui.dockCollapsed && $('#dockBody'), scenesSide() && !scenesWinOpen() && ui.colTab === 'timeline' && $('#scenesBody')].filter(Boolean);
+const tlRoots = () => [panelRoot('timeline')].filter(Boolean);
 const timelineShown = () => tlRoots().length > 0;
 const TL_LABEL = 132, TL_ROW = 50;
 let tlDrag = false, tlPending = false, tlSnap = true;
@@ -50,7 +50,7 @@ function renderTimeline(body) {
     project.timelines.map(K => h('button', { type: 'button', class: 'cltab' + (K === T ? ' on' : ''), title: K === T ? 'Right-click for its menu' : 'Show ' + K.name,
       onclick: () => { ui.tlId = K.id; ui.tlSel = null; refreshTimeline(); }, oncontextmenu: e => { e.preventDefault(); timelineMenu(e.currentTarget, K); } }, K.name)),
     h('button', { type: 'button', class: 'btn sm', title: 'A new timeline: scenes on a track per zone, with an audio file', onclick: () => addTimeline() }, '+ New timeline'),
-    h('span', { class: 'fill' }),
+    h('span', { class: 'fill' }), panelPlaces('timeline'),
     T ? h('button', { type: 'button', class: 'btn sm icon', title: T.name + ': rename, length, delete', 'aria-label': T.name + ' menu', onclick: e => timelineMenu(e.currentTarget, T) }, '⋯') : null));
   if (!T) {
     panel.append(h('div', { class: 'cueempty' }, h('p', null, 'No timelines yet. A timeline plays scenes on a track per zone, in time with an audio file.'),

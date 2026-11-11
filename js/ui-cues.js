@@ -7,7 +7,7 @@
 // The list the panel shows: the one picked, or the first
 const shownCueList = () => cueListOf(ui.cueList) || project.cueLists[0] || null;
 // Where the cues show now: the bottom panel's tab, the column's
-const cueRoots = () => [ui.dockTab === 'cues' && !ui.dockCollapsed && $('#dockBody'), scenesSide() && !scenesWinOpen() && ui.colTab === 'cues' && $('#scenesBody')].filter(Boolean);
+const cueRoots = () => [panelRoot('cues')].filter(Boolean);
 const cuesShown = () => cueRoots().length > 0;
 // While something in the panel is typed in, a redraw waits for it to be done
 let cuesPending = false;
@@ -55,7 +55,7 @@ function renderCues(body) {
     project.cueLists.map(K => h('button', { type: 'button', class: 'cltab' + (K === L ? ' on' : ''), title: K === L ? 'Right-click for its menu' : 'Show ' + K.name,
       onclick: () => { ui.cueList = K.id; ui.cueSel = null; refreshCues(); }, oncontextmenu: e => { e.preventDefault(); cueListMenu(e.currentTarget, K); } }, K.name)),
     h('button', { type: 'button', class: 'btn sm', title: 'A new cue list: cues that go one after the other, by GO or by themselves', onclick: () => addCueList() }, '+ New cue list'),
-    h('span', { class: 'fill' }),
+    h('span', { class: 'fill' }), panelPlaces('cues'),
     L ? h('button', { type: 'button', class: 'btn sm icon', title: L.name + ': rename, delete', 'aria-label': L.name + ' menu', onclick: e => cueListMenu(e.currentTarget, L) }, '⋯') : null);
   panel.append(tabs);
   if (!L) {

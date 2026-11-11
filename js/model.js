@@ -55,12 +55,12 @@ const ui = {
   showContent: true, contentOp: 0.35, showGuide: true, guideOp: 0.5, showGrid: true, snap: true, showLabels: true, showWiring: false, showZones: true,
   dockTab: 'patch', rightTab: 'inspector', rightHidden: false, leftHidden: false, scanOff: [], selCtrl: null, monitorKey: null, dockH: 250, dockCollapsed: false,
   // the cue lists' panel: the list shown, the cue picked (its editor open); the side column's tab (scenes or cues)
-  cueList: null, cueSel: null, colTab: 'scenes',
+  cueList: null, cueSel: null,
   // the timeline shown, how wide a second is on it (px), the clip picked
   tlId: null, tlZoom: 40, tlSel: null,
-  // where the scenes are: 'bottom' (the bottom panel's Scenes tab), 'left' or 'right' of the stage, and the width they
-  // take there (0: half)
-  scenesAt: 'bottom', scenesW: 0,
+  // where the bottom panel's Scenes, Cue list and Timeline are: 'bottom', or a tab of the 'left' or 'right' panel; the
+  // moved tab open on each side (null: the side's own), and each side's width while one is open
+  places: { scenes: 'bottom', cues: 'bottom', timeline: 'bottom' }, sideOpen: { left: null, right: null }, sideW: { left: 480, right: 520 },
   srcH: 0.42,   // the share of the left column the sources take (dragged on their top edge)
   hoverFx: null, hoverGroup: null, hoverPx: null, cursor: null, colorMode: 'wheel',
   // the Scenes panel's playlists: which one each zone shows open (zone id -> playlist id), the step being edited,
@@ -76,7 +76,7 @@ const ui = {
   autosave: false,   // every change written to the project's file too (project-io.js)
   updates: true, updateAt: 0, updateSkip: '',   // looking for a new version once a day; when it last looked; a version not to tell of (app.js)
 };
-const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'scenesAt', 'scenesW', 'colTab', 'tlZoom', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
+const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'places', 'sideOpen', 'sideW', 'tlZoom', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
   'tempoSrc', 'tempoIn', 'tempoTrim', 'tempoBpb', 'tempoOn', 'tempoBpm', 'tempoLo', 'tempoHi'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
