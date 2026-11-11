@@ -202,7 +202,10 @@ function renderSides() {
     } else {
       const tabs = $('#leftTabs');
       tabs.hidden = !moved.length;
-      tabs.replaceChildren(h('button', { type: 'button', class: 'mtab' + (open ? '' : ' on'), onclick: () => openSideTab('left', null) }, 'Fixtures'), ...moved.map(tab));
+      // the tab row stands for the Fixtures head meanwhile: its « at the end
+      aside.classList.toggle('tabbed', moved.length > 0);
+      tabs.replaceChildren(h('button', { type: 'button', class: 'mtab' + (open ? '' : ' on'), onclick: () => openSideTab('left', null) }, 'Fixtures'), ...moved.map(tab),
+        h('span', { class: 'fill' }), h('span', { class: 'tabtools' }, h('button', { class: 'btn ghost sm', type: 'button', title: 'Hide this panel (Shift H)', 'aria-label': 'Hide the left panel', onclick: () => showLeft(false) }, '\u00ab')));
       for (const sec of $$('aside.left > section')) sec.hidden = !!open;
     }
     host.hidden = !open;

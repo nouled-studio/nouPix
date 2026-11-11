@@ -43,13 +43,16 @@
       <div class="panelhost" id="leftHost" hidden></div>
       <section class="fixtures">
         <div class="phead"><h2>Fixtures</h2>
-          <button class="btn sm" id="btnImportSvg" type="button" title="Import an SVG as fixtures and/or guide">SVG…</button>
-          <button class="btn sm" id="btnAddFx" type="button">+ Add</button>
-          <button class="btn sm grpbtn" id="btnGroup" type="button" disabled></button>
-          <button class="btn sm grpbtn" id="btnLock" type="button" disabled></button>
           <button class="btn ghost sm" id="btnHideLeft" type="button" title="Hide this panel (Shift H)" aria-label="Hide the left panel">«</button>
         </div>
         <div class="pbody"><ul class="list" id="fxList"></ul></div>
+        <div class="pfoot fxfoot">
+          <button class="btn sm" id="btnAddFx" type="button">+ Add</button>
+          <button class="btn sm" id="btnImportSvg" type="button" title="Import an SVG as fixtures and/or guide">SVG…</button>
+          <span class="fill"></span>
+          <button class="btn sm grpbtn" id="btnGroup" type="button" disabled></button>
+          <button class="btn sm grpbtn" id="btnLock" type="button" disabled></button>
+        </div>
       </section>
       <section class="sources">
         <div class="grip" id="srcGrip" title="Drag to make the sources taller or shorter; double-click for the usual height"></div>

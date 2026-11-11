@@ -1397,7 +1397,7 @@ body.sceneswin > .dockbody { height: 100%; }
 /* panels moved to a side: one more tab there, with a ✕; their body; the side's inner edge dragged for its width */
 aside { position: relative; }
 .panelhost { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; container: scenes / inline-size; }
-.panelhost[hidden], aside > section[hidden] { display: none; }
+.panelhost[hidden], aside.left > section[hidden] { display: none; }
 .panelhost > * { flex: 1; min-height: 0; }
 .movedtabs { display: flex; align-items: stretch; }
 .sidetabs { flex: none; height: 32px; }
@@ -1412,3 +1412,8 @@ aside { position: relative; }
 aside.wide > .sidegrip { display: block; }
 aside.left > .sidegrip { right: -4px; } aside.right > .sidegrip { left: -4px; }
 .sidegrip:hover, .sidegrip.on { background: color-mix(in srgb, var(--fader) 35%, transparent); }
+/* the fixture list's tools at its foot: + Add, SVG…, Group, Lock; its head hidden while the left panel shows tabs */
+.pfoot { flex: none; display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 8px 0 10px; border-top: 1px solid var(--line); }
+.pfoot .fill { flex: 1; }
+aside.left.tabbed .fixtures .phead { display: none; }
+.sidetabs .fill { flex: 1; }
