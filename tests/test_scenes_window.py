@@ -86,6 +86,15 @@ try:
     check("the pad plays it", ev(f"zoneById('{Z}').scene === '{sid}'"))
     check("its tag is there", row.locator(".scene").nth(4).locator(".ftag").text_content() == "N50")
 
+    # ---------- this page minimized: its frames stop, the Scenes window's draw the X-Fader's previews
+    ev("setXfadeOn(true)"); settle(0.6)
+    W.keyboard.press("Escape"); settle(0.2)   # (the advice to make A and B full size, if it showed there)
+    ev("Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); window._pv = 0; window._thumb = mixer.thumb; mixer.thumb = (z, c) => { if (c.ownerDocument !== document) window._pv++; return window._thumb(z, c); }; 0")
+    settle(1.0)
+    n = ev("window._pv")
+    check("with this page minimized, the X-Fader's previews in the Scenes window keep moving", W.locator("canvas[data-xf-pv]").count() == 2 and n >= 20, n)
+    ev("mixer.thumb = window._thumb; delete document.hidden; setXfadeOn(false)"); settle(0.4)
+
     # ---------- closing
     W.locator("button[aria-label='Back to the panel']").click(); settle(0.6)
     check("Back to the panel closes it, and the scenes are in the bottom panel again", W.is_closed() and pg.locator("#dockBody .scene").count() == 36)

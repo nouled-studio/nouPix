@@ -100,6 +100,18 @@ function openScenesWindow() {
     else if (!mod && k === 'b') toggleBlackout();
   });
   w.addEventListener('pagehide', () => { if (scenesWin === w) { scenesWin = null; renderDock(); } });
+  // With this page minimized or behind another, the browser stops its frames (frameLoop): the Scenes window's own
+  // frames then draw the X-Fader's previews and the fades' progress there
+  const frame = () => {
+    if (scenesWin !== w || w.closed) return;
+    w.requestAnimationFrame(frame);
+    if (!document.hidden || !project) return;
+    try {
+      if (project.xfade.on) drawXfPreviews();
+      drawSceneProgress();
+    } catch (e) { report('scenes window', e); }
+  };
+  w.requestAnimationFrame(frame);
   renderDock();
 }
 function closeScenesWindow() { if (scenesWinOpen()) scenesWin.close(); scenesWin = null; renderDock(); }
