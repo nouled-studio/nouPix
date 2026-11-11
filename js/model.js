@@ -56,6 +56,8 @@ const ui = {
   dockTab: 'patch', rightTab: 'inspector', rightHidden: false, leftHidden: false, scanOff: [], selCtrl: null, monitorKey: null, dockH: 250, dockCollapsed: false,
   // the cue lists' panel: the list shown, the cue picked (its editor open); the side column's tab (scenes or cues)
   cueList: null, cueSel: null, colTab: 'scenes',
+  // the timeline shown, how wide a second is on it (px), the clip picked
+  tlId: null, tlZoom: 40, tlSel: null,
   // where the scenes are: 'bottom' (the bottom panel's Scenes tab), 'left' or 'right' of the stage, and the width they
   // take there (0: half)
   scenesAt: 'bottom', scenesW: 0,
@@ -74,7 +76,7 @@ const ui = {
   autosave: false,   // every change written to the project's file too (project-io.js)
   updates: true, updateAt: 0, updateSkip: '',   // looking for a new version once a day; when it last looked; a version not to tell of (app.js)
 };
-const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'scenesAt', 'scenesW', 'colTab', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
+const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'scenesAt', 'scenesW', 'colTab', 'tlZoom', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
   'tempoSrc', 'tempoIn', 'tempoTrim', 'tempoBpb', 'tempoOn', 'tempoBpm', 'tempoLo', 'tempoHi'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
@@ -88,7 +90,7 @@ function blankProject(name = 'Untitled') {
     fixtures: [], groups: [], controllers: [], sources: builtinSources(), zones: [newZone({ w: settings.compW, h: settings.compH, layers: [newLayer('b-rainbow')] })], guide: null,
     midi: { maps: [], order: [] }, macros: defaultMacros(), macroLinks: {},
     xfade: { on: false, a: '', b: '', x: 0, mode: 'mix', phone: false, own: true },
-    cueLists: [],
+    cueLists: [], timelines: [],
   };
 }
 // A MIDI mapping (midi.js): a control (key: midi:<port>:<channel>:cc|note:<number>) drives a target (to: master,
@@ -165,6 +167,12 @@ function newCueList(props = {}) { return Object.assign({ id: uid(), name: 'Cue l
 function newCue(props = {}) { return Object.assign({ id: uid(), num: '1', name: '', actions: [], then: 'wait', wait: 0, target: '' }, props); }
 // An action is of a kind: 'scene' (scene, level) or 'param', a control of an effect the zone plays (src, ctl) taken to
 // value; the action's fade takes it there from where it is.
+// A timeline (timeline.js) is the project's: a track per zone of clips, each one of the zone's scenes from start for dur
+// seconds, its level rising over fadeIn (or crossfading from the clip just before) and falling over fadeOut (unless one
+// follows at once); an audio file (audio: { name, media }) playing with it; the ruler in seconds or bars (grid, bpm);
+// a loop: 'off', 'all' or the region a..b.
+function newTimeline(props = {}) { return Object.assign({ id: uid(), name: 'Timeline 1', length: 60, audio: null, grid: 'sec', bpm: 120, loop: { mode: 'off', a: 0, b: 8 }, tracks: {} }, props); }
+const newClip = (scene, start, dur, props = {}) => Object.assign({ id: uid(), scene, start, dur, fadeIn: 1, fadeOut: 1 }, props);
 const newCueAction = (zone, props = {}) => Object.assign({ zone, kind: 'scene', scene: '', level: null, fade: 2 }, props);
 function clampZone(z, s = project.settings) {
   z.w = clamp(Math.round(z.w) || 1, 1, s.compW); z.h = clamp(Math.round(z.h) || 1, 1, s.compH);

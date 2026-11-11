@@ -453,6 +453,66 @@ function resizeSel(w, h) {
   markGeom(); commit(); renderRight();
 }
 
+/* ---------- timelines ---------- */
+function addTimeline() {
+  let n = project.timelines.length + 1;
+  while (project.timelines.some(T => T.name === 'Timeline ' + n)) n++;
+  const T = newTimeline({ name: 'Timeline ' + n });
+  project.timelines.push(T);
+  ui.tlId = T.id; ui.tlSel = null;
+  commit({ lists: false }); refreshTimeline();
+  return T;
+}
+function deleteTimeline(T) {
+  if (tl.id === T.id) { tlHalt(); tl.id = null; }
+  project.timelines = project.timelines.filter(o => o !== T);
+  if (ui.tlId === T.id) ui.tlId = null;
+  commit({ lists: false }); refreshTimeline();
+  toast(`${T.name} deleted. ${MOD}Z brings it back.`);
+}
+// Its length: never shorter than its clips; the loop's region kept inside
+function setTimelineLength(T, len) {
+  const ends = Object.values(T.tracks).flat().reduce((m, c) => Math.max(m, c.start + c.dur), 0);
+  T.length = clamp(Math.max(+len || T.length, ends), 1, 36000);
+  T.loop.b = Math.min(T.loop.b, T.length); T.loop.a = Math.min(T.loop.a, T.loop.b - 0.1);
+}
+// An audio file plays with it: copied into the media library (played from the file meanwhile); the timeline at least
+// as long as the audio
+function setTimelineAudio(T, file) {
+  tlHalt();
+  T.audio = { name: file.name, _url: URL.createObjectURL(file) };
+  storeMedia(T.audio, file);
+  const a = new Audio(T.audio._url);
+  a.addEventListener('loadedmetadata', () => { if (isFinite(a.duration) && a.duration > T.length) { setTimelineLength(T, Math.ceil(a.duration)); commit({ lists: false }); refreshTimeline(); } });
+  commit({ lists: false }); refreshTimeline();
+}
+// A clip of one of a zone's scenes at a time: as long as there is room before the next clip (8 s at most)
+function addClip(T, z, sceneId, t) {
+  const clips = T.tracks[z.id] || (T.tracks[z.id] = []);
+  t = clamp(t, 0, T.length - 0.1);
+  if (clips.some(c => c.start <= t && t < c.start + c.dur)) { toast('There is a clip there already: drop it on an empty part of the track.', 'warn'); return null; }
+  const next = clips.filter(c => c.start > t).reduce((m, c) => Math.min(m, c.start), T.length);
+  const sc = z.scenes.find(s => s.id === sceneId), dur = Math.min(8, next - t);
+  if (!sc || dur < 0.1) return null;
+  const c = newClip(sceneId, t, dur, { fadeIn: Math.min(1, dur / 4), fadeOut: Math.min(1, dur / 4) });
+  clips.push(c); clips.sort((a, b) => a.start - b.start);
+  ui.tlSel = c.id; tl.clips[z.id] = undefined;
+  commit({ lists: false }); refreshTimeline();
+  return c;
+}
+function deleteClip(T, z, c) {
+  const clips = T.tracks[z.id] || [];
+  T.tracks[z.id] = clips.filter(o => o !== c);
+  if (!T.tracks[z.id].length) delete T.tracks[z.id];
+  if (ui.tlSel === c.id) ui.tlSel = null;
+  tl.clips[z.id] = undefined;
+  commit({ lists: false }); refreshTimeline();
+}
+function duplicateClip(T, z, c) {
+  const d = addClip(T, z, c.scene, c.start + c.dur);
+  if (d) { d.dur = Math.min(c.dur, d.dur); d.fadeIn = Math.min(c.fadeIn, d.dur); d.fadeOut = Math.min(c.fadeOut, d.dur - d.fadeIn); commit({ lists: false }); refreshTimeline(); }
+}
+
 /* ---------- cue lists ---------- */
 function addCueList() {
   let n = project.cueLists.length + 1;
@@ -794,7 +854,7 @@ function setSceneOnOpen(z, sc, on) {
 
 // Emptying the media library of all but this project's files (other projects that use them then ask to relink)
 function cleanLibraryDialog() {
-  const keep = [...new Set(project.sources.map(s => s.media).filter(Boolean))];
+  const keep = [...new Set(project.sources.map(s => s.media).concat(project.timelines.map(T => T.audio && T.audio.media)).filter(Boolean))];
   const close = () => bg.remove();
   const go = async () => {
     close();

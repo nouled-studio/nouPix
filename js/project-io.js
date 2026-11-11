@@ -134,6 +134,29 @@ function fixCueLists(list, zones) {
     return { id: uniqueId(L.id, ids), name: typeof L.name === 'string' && L.name ? L.name : 'Cue list ' + (i + 1), cues };
   });
 }
+// Timelines: clips on tracks of zones that exist, of their zone's scenes, in range, in order; an audio file from the
+// media library; the loop's region inside the length
+function fixTimelines(list, zones) {
+  const ids = new Set(), zs = new Map(zones.map(z => [z.id, z]));
+  return (Array.isArray(list) ? list : []).filter(isObj).map((T, i) => {
+    const length = clamp(numOr(T.length, 60), 1, 36000), tracks = {}, clipIds = new Set();
+    for (const [zid, clips] of Object.entries(isObj(T.tracks) ? T.tracks : {})) {
+      const z = zs.get(zid);
+      if (!z || !Array.isArray(clips)) continue;
+      const ok = clips.filter(c => isObj(c) && z.scenes.some(sc => sc.id === c.scene)).map(c => {
+        const start = clamp(numOr(c.start, 0), 0, length), dur = clamp(numOr(c.dur, 4), 0.1, length);
+        return { id: uniqueId(c.id, clipIds), scene: c.scene, start, dur, fadeIn: clamp(numOr(c.fadeIn, 1), 0, dur), fadeOut: clamp(numOr(c.fadeOut, 1), 0, dur) };
+      }).sort((a, b) => a.start - b.start);
+      if (ok.length) tracks[zid] = ok;
+    }
+    const L = isObj(T.loop) ? T.loop : {}, a = clamp(numOr(L.a, 0), 0, length), b = clamp(numOr(L.b, Math.min(8, length)), 0, length);
+    const A = isObj(T.audio) && typeof T.audio.name === 'string' ? { name: T.audio.name } : null;
+    if (A && typeof T.audio.media === 'string' && /^[0-9a-f]{32}\.[a-z0-9]{1,5}$/.test(T.audio.media)) A.media = T.audio.media;
+    return { id: uniqueId(T.id, ids), name: typeof T.name === 'string' && T.name ? T.name : 'Timeline ' + (i + 1), length, audio: A,
+      grid: T.grid === 'bars' ? 'bars' : 'sec', bpm: clamp(numOr(T.bpm, 120), 20, 300),
+      loop: { mode: ['off', 'all', 'region'].includes(L.mode) ? L.mode : 'off', a: Math.min(a, b), b: Math.max(b, Math.min(a, b) + 0.1) }, tracks };
+  });
+}
 function hydrate(p) {
   if (!isObj(p)) p = {};
   const base = blankProject(typeof p.name === 'string' && p.name ? p.name : 'Untitled');
@@ -214,6 +237,7 @@ function hydrate(p) {
     return z;
   });
   out.cueLists = fixCueLists(p.cueLists, out.zones);
+  out.timelines = fixTimelines(p.timelines, out.zones);
   out.midi = fixMidi(p.midi);
   out.macros = fixMacros(p.macros);
   out.macroLinks = fixMacroLinks(p.macroLinks, known);
@@ -436,7 +460,8 @@ function openStartupProject(p) {
 // name.noupixpkg is a zip (made and read by the bridge) of project.noupix and the images and videos it uses, from the
 // media library, to take a project to another computer. Opening one puts its media into this computer's library.
 // Shaders and the guide image are inside the project already.
-const packageMedia = () => project.sources.filter(s => (s.kind === 'image' || s.kind === 'video') && !s.builtin);
+// (and the timelines' audio, { name, media } like a source's)
+const packageMedia = () => project.sources.filter(s => (s.kind === 'image' || s.kind === 'video') && !s.builtin).concat(project.timelines.filter(T => T.audio).map(T => T.audio));
 async function exportPackage(name) {
   const media = [...new Set(packageMedia().map(s => s.media).filter(Boolean))];
   const r = await fetch('/package', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project: projectText(), media }) });

@@ -15,7 +15,7 @@ try:
     page = get('/')[2].decode()
     import re
     files = re.findall(r'(?:src|href)="((?:js|css)/[^"]+)"', page)
-    check("the page loads its styles (fonts.css, app.css) and 35 scripts", len(files) == 37 and files[:2] == ['css/fonts.css', 'css/app.css'], files)
+    check("the page loads its styles (fonts.css, app.css) and 37 scripts", len(files) == 39 and files[:2] == ['css/fonts.css', 'css/app.css'], files)
     for f in files:
         st, ct, body = get('/' + f)
         check(f"/{f} is served as {'CSS' if f.endswith('.css') else 'JavaScript'}", st == 200 and (('css' in ct) if f.endswith('.css') else ('javascript' in ct)) and body == open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), f), 'rb').read(), (st, ct))

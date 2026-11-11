@@ -294,6 +294,8 @@ function onKey(e) {
   if (digit) { const z = selZone(), sc = z && z.scenes[+digit[1] - 1]; if (sc) goScene(z, sc, e.shiftKey); return; }
   // Space is GO while a cue list shows and the mouse is off the stage (on it, Space held pans the view)
   if (e.code === 'Space' && !e.repeat && cuesShown() && shownCueList() && !stageEl.matches(':hover')) { e.preventDefault(); cueGo(shownCueList()); return; }
+  // and plays or pauses the timeline shown
+  if (e.code === 'Space' && !e.repeat && timelineShown() && shownTimeline() && !stageEl.matches(':hover')) { e.preventDefault(); const T = shownTimeline(); if (tl.playing && tl.id === T.id) tlPause(); else tlPlay(T); return; }
   if (e.code === 'Space') { spaceHeld = true; cv.style.cursor = 'grab'; e.preventDefault(); return; }
   if ((ui.tool === 'path' || ui.tool === 'pen') && pathDraft) {
     if (e.key === 'Enter') { finishPath(); return; }
@@ -354,6 +356,7 @@ function frameLoop(now) {
     beatDotFrame(now);
     if (scenesHere()) drawSceneProgress();
     drawCueProgress();
+    drawTimelineHead();
     if (project.xfade.on && !document.hidden) drawXfPreviews();
     if (now - (frameLoop.last || 0) > 200) { frameLoop.last = now; updateStatus(); }
   } catch (e) { report('panels', e); }
