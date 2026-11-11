@@ -136,6 +136,14 @@ function drawScenesWindow() {
 }
 // Where the scenes go: four buttons, at the bottom, left or right of the stage, in a window of their own. Beside the
 // stage, the fixtures and the Inspector fold, for the stage and the scenes alone (their buttons bring them back)
+// (their icons one set: the window's frame, square, with the part the scenes take shaded)
+const placeIcon = inner => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">${inner}</svg>`;
+const PLACE_ICONS = {
+  bottom: placeIcon('<rect x="2" y="3" width="12" height="10"/><rect x="2.65" y="9" width="10.7" height="3.35" fill="currentColor" stroke="none" opacity=".55"/><path d="M2 9h12"/>'),
+  left: placeIcon('<rect x="2" y="3" width="12" height="10"/><rect x="2.65" y="3.65" width="3.35" height="8.7" fill="currentColor" stroke="none" opacity=".55"/><path d="M6 3v10"/>'),
+  right: placeIcon('<rect x="2" y="3" width="12" height="10"/><rect x="10" y="3.65" width="3.35" height="8.7" fill="currentColor" stroke="none" opacity=".55"/><path d="M10 3v10"/>'),
+  window: placeIcon('<rect x="2" y="5" width="9" height="8"/><path d="M5 5V2.5h9V10h-3"/>'),
+};
 const SCENES_PLACES = [
   ['bottom', 'panelBottom', 'Scenes at the bottom', 'In the bottom panel, next to Patch'],
   ['left', 'panelLeft', 'Scenes left of the stage', 'A column the full height, the stage beside it'],
@@ -145,7 +153,7 @@ const SCENES_PLACES = [
 function scenesPlaces() {
   const now = scenesWinOpen() ? 'window' : ui.scenesAt;
   return h('div', { class: 'spos', role: 'group', 'aria-label': 'Where the scenes are' },
-    SCENES_PLACES.map(([k, ic, name, what]) => h('button', { type: 'button', class: k === now ? 'on' : '', html: ICONS[ic], 'data-place': k,
+    SCENES_PLACES.map(([k, ic, name, what]) => h('button', { type: 'button', class: k === now ? 'on' : '', html: PLACE_ICONS[k], 'data-place': k,
       'aria-label': name, 'aria-pressed': String(k === now), 'data-tip': name + '|' + what, onclick: () => setScenesAt(k) })));
 }
 function setScenesAt(k) {
