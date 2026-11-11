@@ -162,7 +162,7 @@ try:
       let inPv = false;   // only the previews' reads (the output frame reads back too, between rounds)
       P.readPixels = function (...a) { if (inPv) { all++; if (typeof a[6] === 'object') n++; } return rp.apply(this, a); };   // into an array: the page waits for the GPU
       // until both previews have been read back at least once more (the GPU may take a few rounds to finish)
-      return new Promise(res => { let i = 0; const go = () => { inPv = true; try { ++i; drawXfPreviews(true); } finally { inPv = false; }
+      return new Promise(res => { let i = 0; const go = () => { inPv = true; try { drawXfPreviews(performance.now() + 1e5 * ++i); } finally { inPv = false; }
         if (all >= 4 || i > 200) { P.readPixels = rp; res([n, all]); } else setTimeout(go, 15); }; go(); }); })()""")
     check("the previews are read back without making the page wait for the GPU", waits[0] == 0 and waits[1] >= 4, waits)
     ev("setXfade(0)"); time.sleep(0.4)
