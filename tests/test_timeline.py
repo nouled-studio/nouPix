@@ -156,7 +156,7 @@ try:
     check("− takes off the top lane once it is empty", not E(f"(project.timelines[0].lanes || {{}})['{Z[0]}']") and pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}']").count() == 1)
     # a scene's snapshot at the start of its clips
     E(f"(() => {{ const s = zoneById('{Z[0]}').scenes[0]; s.thumb = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA='; commit(); refreshTimeline(); }})()"); time.sleep(0.3)
-    check("a scene with a snapshot shows it at the start of its clips", pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}'] .tlclip img.tlshot").count() >= 1)
+    check("a scene with a snapshot fills its clips with it, as a filmstrip", pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}'] .tlclip .tlstrip.shot").count() >= 1 and 'url(' in pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}'] .tlclip .tlstrip.shot").first.get_attribute('style'))
 
     # ---------- zoom: the slider dragged smoothly (the bar isn't drawn again under the mouse)
     E("window._zs = $('#dockBody .tlzoom')")
@@ -166,7 +166,7 @@ try:
     mid = E("[ui.tlZoom, window._zs.isConnected]")
     pg.mouse.up(); time.sleep(0.2)
     check("dragging the zoom slider: it stays the same slider under the mouse and the zoom follows it", mid[1] and mid[0] > z0 + 40 and E("window._zs.isConnected"), (z0, mid))
-    check("…the tracks drawn at the new zoom", abs(E("parseFloat($('#dockBody .tlgrid').style.width)") - (112 + E("project.timelines[0].length * ui.tlZoom"))) < 1)
+    check("…the tracks drawn at the new zoom", abs(E("parseFloat($('#dockBody .tlgrid').style.width)") - (132 + E("project.timelines[0].length * ui.tlZoom"))) < 1)
     E("tlZoomTo(40)")
 
     # ---------- the grid in bars

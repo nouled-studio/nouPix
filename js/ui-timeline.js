@@ -9,7 +9,7 @@
 const shownTimeline = () => tlOf(ui.tlId) || project.timelines[0] || null;
 const tlRoots = () => [ui.dockTab === 'timeline' && !ui.dockCollapsed && $('#dockBody'), scenesSide() && !scenesWinOpen() && ui.colTab === 'timeline' && $('#scenesBody')].filter(Boolean);
 const timelineShown = () => tlRoots().length > 0;
-const TL_LABEL = 112, TL_ROW = 38;
+const TL_LABEL = 132, TL_ROW = 50;
 let tlDrag = false, tlPending = false, tlSnap = true;
 function refreshTimeline() {
   if (!timelineShown()) return;
@@ -119,13 +119,20 @@ function tlTracks(T, mine) {
     ruler.addEventListener('pointermove', mv); ruler.addEventListener('pointerup', up); ruler.addEventListener('pointercancel', up);
   });
   grid.append(h('div', { class: 'tlrow tlhead-row' }, h('div', { class: 'tllabel' }), ruler));
+  const section = name => h('div', { class: 'tlrow tlsec' }, h('div', { class: 'tllabel' }, name), h('div', { class: 'tllane', style: { width: W + 'px' } }));
+  grid.append(section('Audio'));
   // the audio
   const alane = h('div', { class: 'tllane tlaudio', style: { width: W + 'px' }, title: 'Drop an audio file here' });
   alane.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); alane.classList.add('drop'); } });
   alane.addEventListener('dragleave', () => alane.classList.remove('drop'));
   alane.addEventListener('drop', e => { alane.classList.remove('drop'); const f = [...e.dataTransfer.files].find(f => /^audio\//.test(f.type) || /\.(mp3|wav|ogg|oga|opus|m4a|aac|flac)$/i.test(f.name)); if (!f) return; e.preventDefault(); setTimelineAudio(T, f); });
-  if (T.audio) alane.append(waveform(T)); else alane.append(h('span', { class: 'tlhint' }, 'Drop an audio file here, or + Audio'));
-  grid.append(h('div', { class: 'tlrow' }, h('div', { class: 'tllabel' }, h('span', { class: 'tlz' }, 'Audio')), alane));
+  if (T.audio) {
+    const a = tlAudio(T), P = tlPeaks.get(T.audio.media || T.audio._url), dur = P && P.dur ? P.dur : (a && isFinite(a.duration) ? a.duration : T.length);
+    alane.append(h('div', { class: 'tlablock', style: { width: Math.min(dur, T.length) * ui.tlZoom + 'px' } },
+      h('span', { class: 'tlin' }, h('span', { class: 'tlhdr' }, T.audio.name), h('span', { class: 'tlstrip' }, waveform(T)))));
+  } else alane.append(h('span', { class: 'tlhint' }, 'Drop an audio file here, or + Audio'));
+  grid.append(h('div', { class: 'tlrow' }, h('div', { class: 'tllabel' }, h('span', { class: 'tlz' }, T.audio ? T.audio.name.replace(/\.[a-z0-9]+$/i, '') : 'No audio')), alane));
+  grid.append(section('Zones'));
   // the zones
   // a zone's lanes, the highest on top: where clips overlap, the highest shows
   for (const z of project.zones.slice().reverse()) {
@@ -186,10 +193,12 @@ function tlZoomTo(z, at) {
   }
 }
 // A clip: where and how long, its scene's name, its fades drawn as the level's line, handles to change each
+// A clip: the logo's two cuts, like a scene's tile; a header with its scene's name over a filmstrip of the scene's
+// snapshot (or a quiet hatch), the strip fading in and out over the clip's fades (a mask), the fades' handles on its top
 function paintClip(el, c) {
-  const z = ui.tlZoom, w = Math.max(2, c.dur * z), fi = Math.min(c.fadeIn * z, w), fo = Math.min(c.fadeOut * z, w), H = TL_ROW - 8;
+  const z = ui.tlZoom, w = Math.max(4, c.dur * z), fi = Math.min(c.fadeIn * z, w), fo = Math.min(c.fadeOut * z, w);
   el.style.left = c.start * z + 'px'; el.style.width = w + 'px';
-  el.querySelector('.tlenv').innerHTML = `<svg width="${w}" height="${H}" viewBox="0 0 ${w} ${H}"><path d="M0 ${H} L${fi} 1 L${w - fo} 1 L${w} ${H}" /></svg>`;
+  el.style.setProperty('--fi', fi + 'px'); el.style.setProperty('--fo', fo + 'px');
   el.querySelector('.tlfin').style.left = fi + 'px';
   el.querySelector('.tlfout').style.left = w - fo + 'px';
 }
@@ -197,8 +206,8 @@ function clipEl(T, z, c) {
   const sc = z.scenes.find(s => s.id === c.scene);
   const el = h('div', { class: 'tlclip' + (ui.tlSel === c.id ? ' sel' : ''), 'data-clip': c.id, style: z.tag ? { '--tag': z.tag } : null,
     title: `${sc ? sc.name : '?'}: ${fmtTime(c.start)} for ${fmtV(Math.round(c.dur * 100) / 100)} s. Drag to move, its edges to resize, the top corners for its fades. Right-click for more.` },
-    h('span', { class: 'tlenv' }), sc && sc.thumb ? h('img', { class: 'tlshot', src: sc.thumb, alt: '', draggable: false }) : null,
-    h('span', { class: 'tlcname' + (sc && sc.thumb ? ' shot' : '') }, sc ? sc.name : '?'),
+    h('span', { class: 'tlin' }, h('span', { class: 'tlhdr' }, sc ? sc.name : '?'),
+      h('span', { class: 'tlstrip' + (sc && sc.thumb ? ' shot' : ''), style: sc && sc.thumb ? { backgroundImage: `url("${sc.thumb}")` } : null })),
     h('span', { class: 'tledge l' }), h('span', { class: 'tledge r' }),
     h('span', { class: 'tlfin', title: 'Fade in: drag' }), h('span', { class: 'tlfout', title: 'Fade out: drag' }));
   paintClip(el, c);
@@ -238,12 +247,14 @@ function clipEl(T, z, c) {
       paintClip(el, c);
     };
     const up = () => {
-      for (const t of ['pointermove', 'pointerup', 'pointercancel']) el.removeEventListener(t, t === 'pointermove' ? mv : up);
+      for (const t of ['pointermove', 'pointerup', 'pointercancel']) win.removeEventListener(t, t === 'pointermove' ? mv : up);
       tlDrag = false;
       if (moved) { tl.clips[z.id] = undefined; commit({ lists: false }); }
       refreshTimeline();
     };
-    el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    // on the window: moved to another lane, the clip leaves its place in the page and the browser lets go of it
+    const win = el.ownerDocument.defaultView;
+    win.addEventListener('pointermove', mv); win.addEventListener('pointerup', up); win.addEventListener('pointercancel', up);
   });
   el.addEventListener('dblclick', e => { e.stopPropagation(); tlSeek(T, c.start); refreshTimeline(); });
   onRightClick(el, e => clipMenu(e, T, z, c));
@@ -288,8 +299,8 @@ function waveform(T) {
         refreshTimeline();
       }).catch(() => tlPeaks.set(key, { failed: true }));
   }
-  if (!P || !P.pk) return h('span', { class: 'tlhint' }, (P && P.failed ? 'Can\'t read ' : 'Reading ') + T.audio.name + (P && P.failed ? '' : '…'));
-  const w = Math.max(1, Math.min(16000, Math.round(dur * ui.tlZoom))), H = TL_ROW - 6, c = h('canvas', { class: 'tlwave', width: w, height: H, style: { width: dur * ui.tlZoom + 'px', height: H + 'px' } });
+  if (!P || !P.pk) return h('span', { class: 'tlhint in' }, (P && P.failed ? 'Can\'t read ' : 'Reading ') + T.audio.name + (P && P.failed ? '' : '…'));
+  const w = Math.max(1, Math.min(16000, Math.round(dur * ui.tlZoom))), H = TL_ROW - 26, c = h('canvas', { class: 'tlwave', width: w, height: H, style: { width: dur * ui.tlZoom + 'px', height: H + 'px' } });
   const g = c.getContext('2d');
   g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--fader').trim() || '#999';
   for (let x = 0; x < w; x++) { const v = P.pk[Math.min(P.pk.length - 1, Math.floor(x / w * P.pk.length))], hh = Math.max(1, v * H); g.fillRect(x, (H - hh) / 2, 1, hh); }
@@ -331,6 +342,9 @@ function drawTimelineHead() {
       if (x - sc.scrollLeft > TL_LABEL + vis - 20 || x - sc.scrollLeft < TL_LABEL) sc.scrollLeft = Math.max(0, x - TL_LABEL - 40);
     }
   }
+  // the clips showing now: a white edge and a small red square, as a scene playing
+  const live = tl.id === T.id ? Object.values(tl.clips).filter(Boolean).join(' ') : '';
+  for (const r of tlRoots()) if (r._tlLive !== live) { r._tlLive = live; for (const el of $$('.tlclip', r)) el.classList.toggle('live', live.includes(el.dataset.clip)); }
   // the play button follows a timeline that stopped by itself
   const pb = tlRoots().map(r => $('.tlplay', r)).find(Boolean);
   if (pb && pb.classList.contains('on') !== (tl.playing && tl.id === T.id)) refreshTimeline();

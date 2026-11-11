@@ -1346,42 +1346,65 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlbpm input { width: 58px; height: 22px; }
 .tlbar input.tlzoom { width: 110px; flex: none; }
 .tlaudioname { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text2); }
-.tlscroll { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+.tlscroll { flex: 1; min-height: 0; overflow: auto; background: var(--bg0); scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
 .tlgrid { position: relative; min-height: 100%; }
-.tlrow { display: flex; height: 38px; border-bottom: 1px solid var(--line); }
-.tlhead-row { height: 26px; position: sticky; top: 0; z-index: 3; background: var(--bg1); }
-.tllabel { position: sticky; left: 0; z-index: 2; flex: none; width: 112px; display: flex; align-items: center; padding: 0 10px; background: var(--bg1); border-right: 1px solid var(--line); border-left: 2px solid var(--tag, transparent); }
-.tlz { font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tllane { position: relative; flex: none; }
-.tllane.drop { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-.tlruler { cursor: pointer; background: var(--bg2); }
-.tltick { position: absolute; bottom: 0; height: 5px; border-left: 1px solid var(--line3); }
-.tltick.major { height: 26px; border-left-color: var(--line3); padding: 3px 0 0 4px; font: 10px var(--mono); color: var(--muted); white-space: nowrap; }
-.tlloop { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 14%, transparent); border-left: 1px solid var(--accent); border-right: 1px solid var(--accent); pointer-events: none; }
-.tlmark { position: absolute; top: 0; width: 12px; height: 12px; margin-left: -6px; background: var(--accent); clip-path: polygon(0 0, 100% 0, 50% 100%); cursor: ew-resize; z-index: 2; }
-.tlloopcol { position: absolute; top: 26px; bottom: 0; background: color-mix(in srgb, var(--accent) 6%, transparent); pointer-events: none; }
-.tlhead { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -0.5px; background: var(--accent); pointer-events: none; z-index: 4; }
-.tlhead::before { content: ''; position: absolute; top: 0; left: -5px; border: 5px solid transparent; border-top: 7px solid var(--accent); }
-.tlaudio { background: var(--bg1); }
-.tlwave { position: absolute; left: 0; top: 3px; opacity: .8; }
-.tlhint { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; white-space: nowrap; pointer-events: none; }
-.tltrack { background: var(--bg1); }
-.tlclip { position: absolute; top: 4px; height: 30px; box-sizing: border-box; background: var(--bg3); border: 1px solid var(--line2); border-left: 2px solid var(--tag, var(--line3)); cursor: grab; overflow: hidden; user-select: none; touch-action: none; }
-.tlclip:hover { border-color: var(--line3); }
-.tlclip.sel { border-color: var(--sel); background: var(--sel-soft); }
-.tlclip .tlenv { position: absolute; left: 0; top: 0; pointer-events: none; }
-.tlclip .tlenv path { fill: color-mix(in srgb, var(--fader) 16%, transparent); stroke: var(--fader); stroke-width: 1; }
-.tlclip .tlcname { position: absolute; left: 8px; top: 7px; right: 8px; font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
-.tlclip .tledge { position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
-.tlclip .tledge.l { left: 0; } .tlclip .tledge.r { right: 0; }
-.tlclip .tlfin, .tlclip .tlfout { position: absolute; top: -1px; width: 9px; height: 9px; margin-left: -4px; background: var(--fader); cursor: ew-resize; z-index: 1; }
-.tlclip:not(:hover):not(.sel) .tlfin, .tlclip:not(:hover):not(.sel) .tlfout { opacity: .45; }
-.tlrow.sub .tllabel { border-left-color: color-mix(in srgb, var(--tag, transparent) 50%, transparent); }
-.tlrow.sub { border-bottom-style: dashed; }
-.tllabel .tlz { flex: 1; min-width: 0; }
-.tllabel .tlln { font-size: 10px; color: var(--muted); }
-.tllbtns { display: flex; gap: 2px; margin-left: 6px; }
+/* rows: a label column that stays put, lanes that scroll */
+.tlrow { display: flex; height: 50px; border-bottom: 1px solid var(--line); }
+.tlrow.sub { border-bottom: 1px dashed var(--line); }
+.tllabel { position: sticky; left: 0; z-index: 2; flex: none; width: 132px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 12px;
+  background: var(--bg1); border-right: 1px solid var(--line); box-shadow: inset 2px 0 0 var(--tag, transparent); }
+.tlrow.sub .tllabel { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--tag, transparent) 45%, transparent); }
+.tlz { flex: 1; min-width: 0; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tllabel .tlln { font: 400 10px var(--mono); color: var(--muted); }
+.tllbtns { display: flex; gap: 2px; }
 .tllb { width: 18px; height: 18px; padding: 0; border: 1px solid var(--line2); background: var(--bg3); color: var(--muted); font-size: 12px; line-height: 1; cursor: pointer; }
-.tllb:hover { color: var(--text); }
-.tlclip .tlshot { position: absolute; left: 0; top: 0; height: 100%; width: auto; max-width: 56px; object-fit: cover; pointer-events: none; opacity: .9; }
-.tlclip .tlcname.shot { left: 62px; }
+.tllb:hover { color: var(--text); border-color: var(--line3); }
+/* the sections: Audio, Zones, in the label voice */
+.tlrow.tlsec { height: 22px; background: var(--bg1); }
+.tlrow.tlsec .tllabel { font: 600 9.5px var(--label); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); box-shadow: none; }
+.tllane { position: relative; flex: none; }
+.tllane.drop { background: color-mix(in srgb, var(--sel) 7%, transparent); box-shadow: inset 0 0 0 1px var(--line3); }
+/* the ruler: numbers in mono; the loop's region a neutral tint between two red markers */
+.tlhead-row { height: 24px; position: sticky; top: 0; z-index: 3; background: var(--bg1); }
+.tlruler { cursor: pointer; }
+.tltick { position: absolute; bottom: 0; height: 5px; border-left: 1px solid var(--line2); }
+.tltick.major { height: 24px; border-left-color: var(--line3); padding: 4px 0 0 4px; box-sizing: border-box; font: 400 10px var(--mono); color: var(--muted); white-space: nowrap; }
+.tlloop { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--sel) 9%, transparent); pointer-events: none; }
+.tlmark { position: absolute; top: 0; width: 10px; height: 12px; margin-left: -5px; background: var(--accent); clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); cursor: ew-resize; z-index: 2; }
+.tlloopcol { position: absolute; top: 24px; bottom: 0; background: color-mix(in srgb, var(--sel) 4%, transparent); border-left: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); pointer-events: none; }
+.tlhead { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -0.5px; background: var(--accent); pointer-events: none; z-index: 4; }
+.tlhead::before { content: ''; position: absolute; top: 0; left: -4px; width: 9px; height: 9px; background: var(--accent); }
+.tlhint { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; white-space: nowrap; pointer-events: none; }
+.tlhint.in { position: static; transform: none; display: block; padding: 8px; }
+/* a clip, and the audio's block: the logo's two cuts; an edge layer under the fill, a header over a strip */
+.tlclip, .tlablock { position: absolute; top: 4px; bottom: 4px; box-sizing: border-box; background: var(--line2);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+.tlablock { left: 0; }
+.tlclip { cursor: grab; touch-action: none; }
+.tlclip:hover { background: var(--line3); }
+.tlclip.sel { background: var(--sel); }
+.tlclip.live { background: var(--live); }
+.tlin { position: absolute; inset: 1px; display: flex; flex-direction: column; background: var(--bg2); overflow: hidden;
+  clip-path: polygon(5.5px 0, 100% 0, 100% calc(100% - 5.5px), calc(100% - 5.5px) 100%, 0 100%, 0 5.5px); }
+.tlclip .tlin { box-shadow: inset 2px 0 0 var(--tag, transparent); }
+.tlhdr { flex: none; height: 15px; padding: 1px 8px 0 9px; font-size: 11.5px; font-weight: 600; line-height: 14px; color: var(--text); background: var(--bg3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+.tlclip.sel .tlhdr { background: var(--sel-soft); color: var(--sel); }
+.tlstrip { position: relative; flex: 1; min-height: 0; pointer-events: none; }
+/* the clip's strip: its scene's snapshot over and over, or a hatch; faded in and out over its fades */
+.tlclip .tlstrip { background-color: var(--bg1); background-image: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--line2) 60%, transparent) 5px 6px);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--fi, 0px), #000 calc(100% - var(--fo, 0px)), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--fi, 0px), #000 calc(100% - var(--fo, 0px)), transparent 100%); }
+.tlclip .tlstrip.shot { background-size: auto 100%; background-repeat: repeat-x; background-position: left center; }
+/* the playing one's small red square, in its top right corner */
+.tlclip.live .tlhdr::after { content: ''; position: absolute; top: 3px; right: 4px; width: 5px; height: 5px; background: var(--accent); }
+.tlclip .tledge { position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize; z-index: 1; }
+.tlclip .tledge.l { left: 0; } .tlclip .tledge.r { right: 0; }
+/* the fades' handles: aluminium, what you move, where the strip begins */
+.tlclip .tlfin, .tlclip .tlfout { position: absolute; top: 12px; width: 7px; height: 7px; margin-left: -3.5px; background: var(--fader); cursor: ew-resize; z-index: 2; opacity: 0; }
+.tlclip:hover .tlfin, .tlclip:hover .tlfout, .tlclip.sel .tlfin, .tlclip.sel .tlfout { opacity: 1; }
+/* the audio: its waveform in aluminium */
+.tlablock .tlhdr { color: var(--text2); }
+.tlablock .tlstrip { background: var(--bg1); }
+.tlwave { position: absolute; left: 0; top: 2px; opacity: .85; }
