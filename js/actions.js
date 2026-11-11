@@ -453,6 +453,66 @@ function resizeSel(w, h) {
   markGeom(); commit(); renderRight();
 }
 
+/* ---------- cue lists ---------- */
+function addCueList() {
+  let n = project.cueLists.length + 1;
+  while (project.cueLists.some(L => L.name === 'Cue list ' + n)) n++;
+  const L = newCueList({ name: 'Cue list ' + n });
+  project.cueLists.push(L);
+  ui.cueList = L.id; ui.cueSel = null;
+  commit({ lists: false }); refreshCues();
+  return L;
+}
+function deleteCueList(L) {
+  project.cueLists = project.cueLists.filter(o => o !== L);
+  cueRun.delete(L.id);
+  if (ui.cueList === L.id) ui.cueList = null;
+  commit({ lists: false }); refreshCues();
+  toast(`${L.name} deleted. ${MOD}Z brings it back.`);
+}
+// The number after the highest whole number in the list
+const nextCueNum = L => String(Math.floor(L.cues.reduce((m, c) => Math.max(m, parseFloat(c.num) || 0), 0)) + 1);
+// A new cue after the one picked (or at the end), picked and on standby
+function insertCue(L, c) {
+  const at = L.cues.findIndex(o => o.id === ui.cueSel);
+  L.cues.splice(at >= 0 ? at + 1 : L.cues.length, 0, c);
+  ui.cueSel = c.id;
+  commit({ lists: false }); cueStandby(L, c);
+  return c;
+}
+const addCue = L => insertCue(L, newCue({ num: nextCueNum(L) }));
+// What every zone shows now: its scene and its level
+const actionsNow = () => project.zones.slice().reverse().map(z => newCueAction(z.id, { scene: z.scene || '', level: z.opacity, fade: project.settings.fade }));
+function recordCue(L) {
+  const c = insertCue(L, newCue({ num: nextCueNum(L), actions: actionsNow() }));
+  toast(`Cue ${c.num}: what every zone shows now. Click it to change its actions and fades.`);
+  return c;
+}
+// Its zones as they show now (their scene and level), keeping each action's fade
+function updateCueFromNow(c) {
+  for (const a of c.actions) { const z = zoneById(a.zone); if (z) { a.scene = z.scene || ''; a.level = z.opacity; } }
+  commit({ lists: false }); refreshCues();
+}
+function moveCue(L, c, d) {
+  const i = L.cues.indexOf(c), j = i + d;
+  if (i < 0 || j < 0 || j >= L.cues.length) return;
+  L.cues.splice(i, 1); L.cues.splice(j, 0, c);
+  commit({ lists: false }); refreshCues();
+}
+function duplicateCue(L, c) {
+  const d = JSON.parse(JSON.stringify(c));
+  d.id = uid(); d.num = nextCueNum(L);
+  ui.cueSel = c.id;
+  insertCue(L, d);
+}
+function deleteCue(L, c) {
+  L.cues = L.cues.filter(o => o !== c);
+  for (const o of L.cues) if (o.then === 'goto' && o.target === c.id) { o.then = 'wait'; o.target = ''; }
+  if (ui.cueSel === c.id) ui.cueSel = null;
+  commit({ lists: false }); refreshCues();
+  toast(`Cue ${c.num} deleted. ${MOD}Z brings it back.`);
+}
+
 /* ---------- scenes ---------- */
 // Each zone has its own scenes. A scene is a copy of the zone's layers; recalling it crossfades that zone to it.
 const lookOf = layers => JSON.stringify(layers.map(L => [L.src, L.on, L.opacity, L.blend, L.params[L.src] || {}]));

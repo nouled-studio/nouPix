@@ -54,6 +54,8 @@ const ui = {
   outputOn: false, blackout: false, outputMode: 'content', hlMode: 'trace', pickPx: null, zone: null, layer: null, hoverSrc: null,
   showContent: true, contentOp: 0.35, showGuide: true, guideOp: 0.5, showGrid: true, snap: true, showLabels: true, showWiring: false, showZones: true,
   dockTab: 'patch', rightTab: 'inspector', rightHidden: false, leftHidden: false, scanOff: [], selCtrl: null, monitorKey: null, dockH: 250, dockCollapsed: false,
+  // the cue lists' panel: the list shown, the cue picked (its editor open); the side column's tab (scenes or cues)
+  cueList: null, cueSel: null, colTab: 'scenes',
   // where the scenes are: 'bottom' (the bottom panel's Scenes tab), 'left' or 'right' of the stage, and the width they
   // take there (0: half)
   scenesAt: 'bottom', scenesW: 0,
@@ -72,7 +74,7 @@ const ui = {
   autosave: false,   // every change written to the project's file too (project-io.js)
   updates: true, updateAt: 0, updateSkip: '',   // looking for a new version once a day; when it last looked; a version not to tell of (app.js)
 };
-const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'scenesAt', 'scenesW', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
+const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'scenesAt', 'scenesW', 'colTab', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
   'tempoSrc', 'tempoIn', 'tempoTrim', 'tempoBpb', 'tempoOn', 'tempoBpm', 'tempoLo', 'tempoHi'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
@@ -86,6 +88,7 @@ function blankProject(name = 'Untitled') {
     fixtures: [], groups: [], controllers: [], sources: builtinSources(), zones: [newZone({ w: settings.compW, h: settings.compH, layers: [newLayer('b-rainbow')] })], guide: null,
     midi: { maps: [], order: [] }, macros: defaultMacros(), macroLinks: {},
     xfade: { on: false, a: '', b: '', x: 0, mode: 'mix', phone: false, own: true },
+    cueLists: [],
   };
 }
 // A MIDI mapping (midi.js): a control (key: midi:<port>:<channel>:cc|note:<number>) drives a target (to: master,
@@ -154,6 +157,13 @@ function newZone(props = {}) { return Object.assign({ id: uid(), name: 'Zone 1',
 // and the playlist's null follows each scene's own. end: 'loop', 'stop', or the id of the playlist to play next.
 function newPlaylist(props = {}) { return Object.assign({ id: uid(), name: 'Playlist 1', steps: [], fade: null, end: 'loop', autoplay: false }, props); }
 const newStep = (scene, time = 30, fade = null) => ({ id: uid(), scene, time, fade });
+// A cue list (cues.js) is the project's: its cues go one after the other, each by GO or after the one before. A cue
+// has a number and a name, and actions on zones: each plays one of the zone's scenes (scene: its id, '' keeps what
+// plays) and/or takes its level somewhere (level 0..1, null keeps it), over fade seconds. After it (then): 'wait' for
+// GO, 'next' cue by itself, or 'goto' the cue target, those two after wait seconds.
+function newCueList(props = {}) { return Object.assign({ id: uid(), name: 'Cue list 1', cues: [] }, props); }
+function newCue(props = {}) { return Object.assign({ id: uid(), num: '1', name: '', actions: [], then: 'wait', wait: 0, target: '' }, props); }
+const newCueAction = (zone, props = {}) => Object.assign({ zone, scene: '', level: null, fade: 2 }, props);
 function clampZone(z, s = project.settings) {
   z.w = clamp(Math.round(z.w) || 1, 1, s.compW); z.h = clamp(Math.round(z.h) || 1, 1, s.compH);
   z.x = clamp(Math.round(z.x) || 0, 0, s.compW - z.w); z.y = clamp(Math.round(z.y) || 0, 0, s.compH - z.h);

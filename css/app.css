@@ -135,7 +135,6 @@ input, select, textarea { font-weight: 400; }
 .scol .sgrip { position: absolute; top: 0; bottom: 0; width: 7px; z-index: 4; cursor: ew-resize; touch-action: none; user-select: none; }
 .center.at-right .scol .sgrip { left: -4px; } .center.at-left .scol .sgrip { right: -4px; }
 .scol .sgrip:hover, .scol .sgrip.on { background: color-mix(in srgb, var(--fader) 35%, transparent); }
-.scol .tabs button { cursor: default; }
 /* there the scenes wrap in a grid that fits the width, instead of a row scrolling sideways; A above B when narrow */
 .scol .scenerow.wrap { flex-direction: column; align-items: stretch; }
 .scol .scenerow.wrap .stiles, .scol .scenerow.xfcol .stiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; align-items: start; }
@@ -1255,3 +1254,62 @@ body.sceneswin > .dockbody { height: 100%; }
 .chlist .chstep { padding: 3px 8px; gap: 8px; border-bottom: 1px solid var(--line); }
 .chlist .chstep .ix { color: var(--muted); font-size: 10.5px; width: 18px; }
 .chlist .chstep.off .nm { color: var(--muted); }
+
+/* ---------- cue lists ---------- */
+.cuepanel { height: 100%; display: flex; flex-direction: column; min-height: 0; container: cues / inline-size; }
+.cuetabs { flex: none; display: flex; align-items: center; gap: 6px; padding: 8px 12px 6px; flex-wrap: wrap; }
+.cuetabs .fill { flex: 1; }
+.cltab { height: 24px; padding: 0 10px; border: 1px solid var(--line2); background: var(--bg3); color: var(--text2); font: 600 10.5px/1 var(--label); letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
+.cltab:hover { color: var(--text); }
+.cltab.on { background: var(--sel-soft); color: var(--sel); box-shadow: inset 0 -2px 0 var(--accent); }
+.cueempty { flex: 1; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--text2); font-size: 13px; text-align: center; padding: 20px; }
+.cueempty p { margin: 0; max-width: 420px; }
+.cuego { flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 6px 12px 10px; border-bottom: 1px solid var(--line); }
+.cuegobtn { width: 96px; height: 52px; border: 1px solid var(--accent); background: var(--bg3); color: var(--text); font: 700 20px/1 var(--label); letter-spacing: .16em; cursor: pointer; }
+.cuegobtn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 18%, var(--bg3)); }
+.cuegobtn:active:not(:disabled) { background: color-mix(in srgb, var(--accent) 35%, var(--bg3)); }
+.cuegobtn:disabled { border-color: var(--line2); color: var(--muted); cursor: default; }
+.cuenext { display: grid; gap: 4px; min-width: 0; font-size: 13px; }
+.cuenext .cnl { display: flex; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cuenext .lbl { flex: none; width: 58px; font: 600 9.5px var(--label); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.cuenext b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.cuenext .cauto { color: var(--accent); font-size: 11px; margin-left: 6px; }
+.cuebtns { display: flex; gap: 6px; }
+.cuerows { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; padding: 6px 12px; display: flex; flex-direction: column; gap: 3px; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+.cuerows .rowhint { color: var(--muted); font-size: 12.5px; margin: 8px 0; }
+.cue { position: relative; flex: none; display: grid; grid-template-columns: 14px 40px minmax(80px, 1fr) minmax(0, 1.6fr) 52px 86px 22px; align-items: center; gap: 8px; height: 34px; padding: 0 4px 0 8px;
+  background: var(--bg2); border: 1px solid var(--line); border-left: 2px solid transparent; cursor: pointer; font-size: 13px; user-select: none; }
+.cue:hover { border-color: var(--line2); }
+.cue.sel { background: var(--sel-soft); border-color: var(--line3); }
+.cue.standby { border-left-color: var(--accent); }
+.cue.live { border-left-color: var(--live); }
+.cue .cmark { font-size: 9px; color: var(--accent); }
+.cue.live .cmark { color: var(--live); }
+.cue .cnum { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+.cue .cname { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cue .cacts { display: flex; gap: 4px; min-width: 0; overflow: hidden; }
+.cue .cact { flex: none; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 6px; border: 1px solid var(--line2); color: var(--text2); font-size: 11.5px; }
+.cue .cfade, .cue .cthen { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cue .cthen:not(.muted) { color: var(--accent); }
+.cue .x { width: 22px; height: 22px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; }
+.cue .x:hover { color: var(--text); }
+.cue .prog { position: absolute; left: 0; bottom: 0; height: 2px; width: 0; background: var(--live); }
+.cueedit { flex: none; display: grid; gap: 8px; padding: 10px 10px 12px 24px; margin: -3px 0 4px; background: var(--bg1); border: 1px solid var(--line3); border-top: 0; font-size: 12.5px; }
+.cueedit .cerow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cueedit .cerow .fill { flex: 1; }
+.cueedit label { display: flex; align-items: center; gap: 6px; color: var(--text2); }
+.cueedit label.grow { flex: 1; min-width: 160px; }
+.cueedit label.grow input { flex: 1; }
+.cueedit input[type=text], .cueedit input[type=number], .cueedit select { height: 24px; }
+.cueedit .cnumin { width: 56px; }
+.cueedit input[type=number] { width: 64px; }
+.cacts-ed { display: grid; gap: 4px; }
+.cacts-ed .muted { margin: 0; }
+.caction { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.caction select { max-width: 180px; }
+.cuefoot { flex: none; display: flex; gap: 6px; padding: 6px 12px 8px; border-top: 1px solid var(--line); }
+@container cues (max-width: 620px) {
+  .cue { grid-template-columns: 14px 34px minmax(0, 1fr) 46px 70px 22px; }
+  .cue .cacts { display: none; }
+  .cuegobtn { width: 76px; height: 46px; font-size: 17px; }
+}

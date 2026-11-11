@@ -96,6 +96,7 @@
         <div class="grip" id="dockGrip"></div>
         <div class="tabs" id="dockTabs">
           <button type="button" data-tab="scenes">Scenes</button>
+          <button type="button" data-tab="cues">Cues</button>
           <button type="button" data-tab="patch">Patch</button>
           <span class="fill"></span>
           <span class="tabtools"><button class="btn sm" id="btnMon" type="button" title="Channel monitor: the values going out, channel by channel" hidden></button><button class="btn sm" id="btnOutSet" type="button" title="Output settings: what goes out, and how often" hidden></button><button class="btn ghost sm" id="btnDock" type="button" title="Collapse panel">▾</button></span>
@@ -104,7 +105,7 @@
       </section>
       <section class="scol" id="scenesCol" hidden>
         <div class="sgrip" id="scenesGrip" title="Drag to share the width with the stage. Double-click: half and half."></div>
-        <div class="tabs"><button type="button" class="on" tabindex="-1">Scenes</button><span class="fill"></span><span class="tabtools" id="scenesTools"></span></div>
+        <div class="tabs" id="colTabs"><button type="button" data-ctab="scenes">Scenes</button><button type="button" data-ctab="cues">Cues</button><span class="fill"></span><span class="tabtools" id="scenesTools"></span></div>
         <div class="dockbody" id="scenesBody"></div>
       </section>
     </main>
@@ -143,6 +144,7 @@
 <script src="js/project-io.js"></script>
 <script src="js/remote.js"></script>
 <script src="js/playlists.js"></script>
+<script src="js/cues.js"></script>
 <script src="js/tempo.js"></script>
 <script src="js/touch.js"></script>
 <script src="js/midi.js"></script>
@@ -154,6 +156,7 @@
 <script src="js/ui-inspector.js"></script>
 <script src="js/ui-dock.js"></script>
 <script src="js/ui-playlists.js"></script>
+<script src="js/ui-cues.js"></script>
 <script src="js/ui-menus.js"></script>
 <script src="js/ui-remote.js"></script>
 <script src="js/ui-midi.js"></script>

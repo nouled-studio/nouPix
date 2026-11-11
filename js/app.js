@@ -292,6 +292,8 @@ function onKey(e) {
   if (mod) return;
   const digit = /^Digit([1-9])$/.exec(e.code);
   if (digit) { const z = selZone(), sc = z && z.scenes[+digit[1] - 1]; if (sc) goScene(z, sc, e.shiftKey); return; }
+  // Space is GO while a cue list shows and the mouse is off the stage (on it, Space held pans the view)
+  if (e.code === 'Space' && !e.repeat && cuesShown() && shownCueList() && !stageEl.matches(':hover')) { e.preventDefault(); cueGo(shownCueList()); return; }
   if (e.code === 'Space') { spaceHeld = true; cv.style.cursor = 'grab'; e.preventDefault(); return; }
   if ((ui.tool === 'path' || ui.tool === 'pen') && pathDraft) {
     if (e.key === 'Enter') { finishPath(); return; }
@@ -351,6 +353,7 @@ function frameLoop(now) {
     if (tempoLive) tempoFrame(now);
     beatDotFrame(now);
     if (scenesHere()) drawSceneProgress();
+    drawCueProgress();
     if (project.xfade.on && !document.hidden) drawXfPreviews();
     if (now - (frameLoop.last || 0) > 200) { frameLoop.last = now; updateStatus(); }
   } catch (e) { report('panels', e); }

@@ -3,9 +3,11 @@
 
 /* ---------- bottom dock ---------- */
 function renderDock() {
-  // the scenes beside the stage: the bottom panel keeps Patch
-  if (scenesSide() && ui.dockTab === 'scenes') ui.dockTab = 'patch';
+  // the scenes beside the stage: the bottom panel keeps Patch (and the cues, unless the column shows them)
+  const colCues = !!scenesSide() && !scenesWinOpen() && ui.colTab === 'cues';
+  if ((scenesSide() && ui.dockTab === 'scenes') || (colCues && ui.dockTab === 'cues')) ui.dockTab = 'patch';
   $('#dockTabs button[data-tab="scenes"]').hidden = !!scenesSide();
+  $('#dockTabs button[data-tab="cues"]').hidden = colCues;
   $$('#dockTabs button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.dockTab));
   renderScenesCol();
   const dock = $('#dock');
@@ -26,6 +28,7 @@ function renderDock() {
     if (ui.dockCollapsed) return;
     if (ui.dockTab === 'scenes' && scenesWinOpen()) renderScenesAway(body);
     else if (ui.dockTab === 'scenes') renderScenes(body);
+    else if (ui.dockTab === 'cues') renderCues(body);
     else if (ui.dockTab === 'patch') {
       renderPatch(body);
       if (mappingLocked()) { const ce = body.querySelector('.ctrl-edit'); if (ce) lockPanel(ce, 'Operator: you can see the patch but not change it.'); body.querySelectorAll('.ctrl-list .foot button').forEach(b => { b.disabled = true; }); }
@@ -81,11 +84,11 @@ let scenesWin = null;
 const scenesWinOpen = () => !!(scenesWin && !scenesWin.closed);
 const scenesDoc = () => (scenesWinOpen() ? scenesWin.document : null);
 // Where the scenes are drawn now: the bottom panel's, the column beside the stage, the Scenes window's
-const scenesRoots = () => [$('#dockBody'), scenesSide() && !scenesWinOpen() && $('#scenesBody'), scenesDoc() && $('#dockBody', scenesDoc())].filter(Boolean);
+const scenesRoots = () => [$('#dockBody'), scenesSide() && !scenesWinOpen() && ui.colTab !== 'cues' && $('#scenesBody'), scenesDoc() && $('#dockBody', scenesDoc())].filter(Boolean);
 // The side of the stage the scenes are on ('left', 'right'), or null at the bottom
 const scenesSide = () => (ui.scenesAt === 'left' || ui.scenesAt === 'right' ? ui.scenesAt : null);
 // Whether the scenes show in this page now (for the fades' progress)
-const scenesHere = () => !scenesWinOpen() && (scenesSide() ? true : ui.dockTab === 'scenes' && !ui.dockCollapsed);
+const scenesHere = () => !scenesWinOpen() && (scenesSide() ? ui.colTab !== 'cues' : ui.dockTab === 'scenes' && !ui.dockCollapsed);
 function openScenesWindow() {
   if (scenesWinOpen()) { raiseWindow(scenesWin); return; }
   const w = window.open('', 'olm-scenes', 'popup,width=1180,height=460');
@@ -149,7 +152,7 @@ function setScenesAt(k) {
   if (k === 'window') { openScenesWindow(); renderDock(); return; }
   const was = ui.scenesAt;
   ui.scenesAt = k;
-  if (k !== 'bottom' && (was !== k || scenesWinOpen())) { showLeft(false); showRight(false); }
+  if (k !== 'bottom' && (was !== k || scenesWinOpen())) { showLeft(false); showRight(false); ui.colTab = 'scenes'; }
   if (k === 'bottom') { ui.dockTab = 'scenes'; ui.dockCollapsed = false; }
   else if (was === 'bottom') ui.dockCollapsed = true;   // Patch, folded to its tab bar until wanted
   savePrefs();
@@ -168,14 +171,16 @@ function renderScenesCol() {
   col.hidden = !on;
   const body = $('#scenesBody');
   if (!on) { if (body.firstChild) body.replaceChildren(); return; }
+  for (const b of $$('#colTabs [data-ctab]')) b.classList.toggle('on', b.dataset.ctab === ui.colTab);
   $('#scenesTools').replaceChildren(scenesPlaces());
-  keepScroll(body, () => { body.replaceChildren(); renderScenes(body, 'side'); });
+  keepScroll(body, () => { body.replaceChildren(); if (ui.colTab === 'cues') renderCues(body); else renderScenes(body, 'side'); });
 }
 // Its inner edge dragged shares the width with the stage, once per drawn frame, the stage's canvas keeping its size
 // until the drag ends (holdStage); double-click for half and half
 function initScenesCol() {
   const grip = $('#scenesGrip'), center = $('.center');
   if (!grip) return;
+  for (const b of $$('#colTabs [data-ctab]')) b.addEventListener('click', () => { ui.colTab = b.dataset.ctab; savePrefs(); renderDock(); });
   grip.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     // (no text selection or native drag starting under it, which would cancel the pointer)

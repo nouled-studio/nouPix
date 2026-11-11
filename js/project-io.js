@@ -110,6 +110,24 @@ function fixPlaylists(list, scenes) {
   }
   return out;
 }
+// Cue lists: actions on zones that exist, scenes of their zone (or none), levels and times in range, numbers as text,
+// targets that are cues of the same list
+function fixCueLists(list, zones) {
+  const ids = new Set(), zs = new Map(zones.map(z => [z.id, z]));
+  return (Array.isArray(list) ? list : []).filter(isObj).map((L, i) => {
+    const cueIds = new Set();
+    const cues = (Array.isArray(L.cues) ? L.cues : []).filter(isObj).map((c, j) => ({
+      id: uniqueId(c.id, cueIds), num: c.num != null && String(c.num).trim() ? String(c.num).trim().slice(0, 12) : String(j + 1),
+      name: typeof c.name === 'string' ? c.name : '',
+      actions: (Array.isArray(c.actions) ? c.actions : []).filter(a => isObj(a) && zs.has(a.zone)).map(a => ({
+        zone: a.zone, scene: zs.get(a.zone).scenes.some(sc => sc.id === a.scene) ? a.scene : '',
+        level: a.level == null || !isFinite(a.level) ? null : clamp(+a.level, 0, 1), fade: clamp(numOr(a.fade, 2), 0, 3600) })),
+      then: ['wait', 'next', 'goto'].includes(c.then) ? c.then : 'wait', wait: clamp(numOr(c.wait, 0), 0, 86400), target: c.target,
+    }));
+    for (const c of cues) if (c.then !== 'goto' || !cueIds.has(c.target)) { c.target = ''; if (c.then === 'goto') c.then = 'wait'; }
+    return { id: uniqueId(L.id, ids), name: typeof L.name === 'string' && L.name ? L.name : 'Cue list ' + (i + 1), cues };
+  });
+}
 function hydrate(p) {
   if (!isObj(p)) p = {};
   const base = blankProject(typeof p.name === 'string' && p.name ? p.name : 'Untitled');
@@ -189,6 +207,7 @@ function hydrate(p) {
     clampZone(z, out.settings);
     return z;
   });
+  out.cueLists = fixCueLists(p.cueLists, out.zones);
   out.midi = fixMidi(p.midi);
   out.macros = fixMacros(p.macros);
   out.macroLinks = fixMacroLinks(p.macroLinks, known);
