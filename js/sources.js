@@ -386,10 +386,9 @@ function drawThumb(src, still) {
 }
 function updateThumbs() {
   if (!gl || gl.isContextLost()) return;
-  // the source under the mouse plays in its thumbnail: on a steady share of the frames (eyeEvery), as each copy out
-  // of the GPU makes the page wait for it
+  // the source under the mouse plays in its thumbnail, on the view frames (viewEvery)
   const hov = ui.hoverSrc && srcById(ui.hoverSrc);
-  if (hov && thumbs.has(hov.id) && !(frameIndex % eyeEvery())) drawThumb(hov, false);
+  if (hov && thumbs.has(hov.id) && viewFrame()) drawThumb(hov, false);
   let n = 0;
   for (const s of project.sources) {
     const c = thumbs.get(s.id);

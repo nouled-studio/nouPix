@@ -329,13 +329,17 @@ function renderLook(layers, slot, z) {
     mixer.layer(slot, c, BLEND_IDX[L.blend] || 0, L.opacity * project.macros.intensity.v);   // the Intensity macro
   }
 }
-// Copying the picture out of the GPU makes the page wait for it, so the preview (for the eye only) is drawn on a
-// steady share of the output's frames, as the stage is: every one up to 20 a second, every second one at 40
-const eyeEvery = () => Math.max(1, Math.ceil(1000 / tickPeriod / 20));
+// Everything that only shows the picture (the stage, a layer's preview, the source under the mouse, the X-Fader's
+// previews) is drawn on the same output frames, the view frames: every one up to 30 a second, every second one at 40
+// or 60. So a strobe or a fast line looks the same in all of them and keeps step with the LEDs, where each drawing at
+// a rate of its own beat against the output in its own way. (Each copy out of the GPU also makes the page wait for
+// it, so none is made more often than that.)
+const viewEvery = () => Math.max(1, Math.ceil(1000 / tickPeriod / 30));
+const viewFrame = () => frameIndex % viewEvery() === 0;
 function drawPreview(c, z) {
   const p = preview.canvas;
   if (!p.isConnected) { preview = null; return; }
-  if (frameIndex % eyeEvery()) return;
+  if (!viewFrame()) return;
   p.getContext('2d').drawImage(c, 0, c.height - z.h, z.w, z.h, 0, 0, p.width, p.height);
 }
 // A zone's picture now, w × hh, in a 2D canvas (a scene's picture). A zone the output doesn't draw (hidden under
