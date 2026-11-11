@@ -92,13 +92,12 @@ that needs most of its period still leaves the next on time, and frames never pi
 from now. A frame that took longer than its period makes the next wait half a period, so a slow machine
 keeps an interface that answers. Drawing the stage is separate: `frameLoop` in app.js redraws on `requestAnimationFrame` when something
 changed, and only as often as leaves the output its time (for moving content on the view frames, `viewEvery` in
-render.js: every output frame up to 30 a second, every second one at 40 or 60; 60 a second while working on it, at
+render.js: every output frame up to 60 a second, every second one above that; 60 a second while working on it, at
 least 10 or once every 4 frames; fewer when drawing is slow; in the gap after an output frame). Everything that only
 shows the picture draws on those same frames (`viewFrame()`): the stage, the Content tab's preview of a layer
 (`drawPreview`), the thumbnail of the source under the mouse (`updateThumbs`) and the X-Fader's previews
 (`drawXfPreviews`). So a strobe or a fast line looks the same in all of them and keeps step with the LEDs, where each
-drawing at a rate of its own beat against the output in its own way; and no copy out of the GPU, each of which makes
-the page wait for it, is made more often than that. A new size clears the stage's canvas: `resizeView` puts the last picture back at once, so resizing a panel never flashes it empty before the next drawing. While the bottom panel's edge is dragged, its height goes on once per drawn frame and the canvas keeps one size, as tall as the window (`holdStage`), taking the stage's size again when the drag ends: a new canvas on every step stalled the output. The pixels on the stage cost the same however many there are: with 800 or more on screen (`MASK_MIN_DOTS`), `dotsMasked` keeps two
+drawing at a rate of its own beat against the output in its own way. A new size clears the stage's canvas: `resizeView` puts the last picture back at once, so resizing a panel never flashes it empty before the next drawing. While the bottom panel's edge is dragged, its height goes on once per drawn frame and the canvas keeps one size, as tall as the window (`holdStage`), taking the stage's size again when the drag ends: a new canvas on every step stalled the output. The pixels on the stage cost the same however many there are: with 800 or more on screen (`MASK_MIN_DOTS`), `dotsMasked` keeps two
 layers drawn once, the rings with the dark "off" dots and a mask of the circles (each fixture's as opaque as its dimmer × its
 group's level, none for a disabled one), and each redraw draws the content through the mask, dimmed by the master and blackout.
 The layers are drawn again when the layout, the look or a level changes, and when the view stays still 200 ms after a zoom or pan

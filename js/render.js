@@ -330,11 +330,10 @@ function renderLook(layers, slot, z) {
   }
 }
 // Everything that only shows the picture (the stage, a layer's preview, the source under the mouse, the X-Fader's
-// previews) is drawn on the same output frames, the view frames: every one up to 30 a second, every second one at 40
-// or 60. So a strobe or a fast line looks the same in all of them and keeps step with the LEDs, where each drawing at
-// a rate of its own beat against the output in its own way. (Each copy out of the GPU also makes the page wait for
-// it, so none is made more often than that.)
-const viewEvery = () => Math.max(1, Math.ceil(1000 / tickPeriod / 30));
+// previews) is drawn on the same output frames, the view frames: every one up to 60 a second (as many as a screen
+// shows), every second one above that. So a strobe or a fast line looks the same in all of them and as the LEDs get
+// it, frame for frame, where each drawing at a rate of its own beat against the output in its own way.
+const viewEvery = () => Math.max(1, Math.ceil(1000 / tickPeriod / 60));
 const viewFrame = () => frameIndex % viewEvery() === 0;
 function drawPreview(c, z) {
   const p = preview.canvas;

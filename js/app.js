@@ -320,11 +320,10 @@ function onKey(e) {
 /* ---------- boot ---------- */
 // The stage is drawn when something on it may have changed (a new frame of content, a drag, a click, the mouse
 // over another fixture), and only as often as leaves the output its time, so the Art-Net frame rate holds:
-// - for moving content, on a steady share of the output frames: every one up to 30 a second, every second one at 40
-//   or 60, and so on (viewEvery, render.js: the previews draw on the same ones), so what it shows keeps step with the LEDs: drawn at moments of its own, a strobe
-//   or a fast line beat against the output's frames and looked random; 60 a second while you work on it, and at least
-//   10 if it is waiting (but frames that don't fit their period get the stage drawn once every 4 of them: the output
-//   comes first);
+// - for moving content, on the view frames (viewEvery, render.js: the previews draw on the same ones): every output
+//   frame up to 60 a second, every second one above that, so a strobe or a fast line shows as the LEDs get it; 60 a
+//   second while you work on it, and at least 10 if it is waiting (but frames that don't fit their period get the
+//   stage drawn once every 4 of them: the output comes first);
 // - fewer when drawing it is slow: it may take about half the time the output leaves free;
 // - in the gap after an output frame, not just before the next one is due.
 let stageDirty = true, drawnFrame = -1, drawCost = 0, drawnAt = 0;
