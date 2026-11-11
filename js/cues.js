@@ -38,9 +38,12 @@ function cueGo(L, c) {
 // Its actions: scenes fade in over their action's fade, levels move there over it
 function playCue(c) {
   let scenes = false;
-  for (const a of c.actions) {
+  // scenes first, so a control set by the same cue lands on the layers they bring
+  const acts = c.actions.filter(a => a.kind !== 'param').concat(c.actions.filter(a => a.kind === 'param'));
+  for (const a of acts) {
     const z = zoneById(a.zone);
     if (!z) continue;
+    if (a.kind === 'param') { cueParam(z, a); continue; }
     const sc = a.scene && z.scenes.find(s => s.id === a.scene);
     if (sc) { playlistManual(z, sc.id); recallScene(z, sc, a.fade); scenes = true; }
     if (a.level != null) {
@@ -51,6 +54,30 @@ function playCue(c) {
   if (scenes) { syncMedia(); refreshScenes(); renderSrcList(); }
   remoteLiveChanged();
 }
+// A control of an effect, in a zone's layers that play it: where it is now, and set
+const cueInput = (src, ctl) => { const s = srcById(src); return s ? controlsOf(s).find(i => i.NAME === ctl) || null : null; };
+function cueParamNow(z, src, ctl) {
+  const s = srcById(src), inp = cueInput(src, ctl), L = z.layers.find(l => l.src === src);
+  return s && inp && L ? paramValue(L, s, inp) : undefined;
+}
+function cueParamSet(z, src, ctl, v) {
+  const s = srcById(src);
+  if (s) for (const L of z.layers) if (L.src === src) setParam(L, s, ctl, Array.isArray(v) ? v.slice() : v);
+}
+// Controls on their way to a cue's value: { zone, src, ctl, from, to, start, dur, set }
+let cueFades = [];
+const sameVal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// Numbers and colours move there over the fade; switches and lists change at once
+function cueParam(z, a) {
+  cueFades = cueFades.filter(f => !(f.zone === z.id && f.src === a.src && f.ctl === a.ctl));
+  const from = cueParamNow(z, a.src, a.ctl), to = a.value, inp = cueInput(a.src, a.ctl);
+  const smooth = inp && ['float', 'int', 'color', 'point2D'].includes(inp.TYPE);
+  const fades = smooth && a.fade > 0.01 && from !== undefined && (typeof from === 'number' && typeof to === 'number'
+    || Array.isArray(from) && Array.isArray(to) && from.length === to.length);
+  if (fades) cueFades.push({ zone: z.id, src: a.src, ctl: a.ctl, from: Array.isArray(from) ? from.slice() : from, to, start: clockT, dur: a.fade, set: from, whole: inp.TYPE === 'int' });
+  else cueParamSet(z, a.src, a.ctl, to);
+}
+const lerpVal = (a, b, k) => (Array.isArray(a) ? a.map((x, i) => x + (b[i] - x) * k) : a + (b - a) * k);
 // Back: the cue before the one on standby goes on standby (nothing plays)
 function cueBack(L) {
   if (!L) return;
@@ -66,6 +93,7 @@ function cueStop(L) {
   const r = L && cueState(L);
   if (r) r.auto = null;
   for (const z of project.zones) z._lvl = null;
+  cueFades = [];
   refreshCues();
 }
 // Every frame on the main window: levels fading, cues going on by themselves
@@ -80,6 +108,17 @@ function cueTick() {
     setZoneOpacity(z, f.set);
     if (k >= 1) z._lvl = null;
   }
+  // controls: moved meanwhile by hand (the Content tab, MIDI), or gone with their layer, the fade lets go
+  cueFades = cueFades.filter(f => {
+    const z = zoneById(f.zone), now = z && cueParamNow(z, f.src, f.ctl);
+    if (now === undefined || !sameVal(now, f.set)) return false;
+    const k = clamp((clockT - f.start) / f.dur, 0, 1);
+    f.set = k >= 1 ? f.to : lerpVal(f.from, f.to, k);
+    if (f.whole) f.set = Math.round(f.set);
+    cueParamSet(z, f.src, f.ctl, f.set);
+    f.set = cueParamNow(z, f.src, f.ctl);
+    return k < 1;
+  });
   for (const L of project.cueLists) {
     const r = cueRun.get(L.id);
     if (r && r.auto && clockT >= r.auto.at) { const c = cueOf(L, r.auto.cue); r.auto = null; if (c) cueGo(L, c); }

@@ -163,7 +163,9 @@ const newStep = (scene, time = 30, fade = null) => ({ id: uid(), scene, time, fa
 // GO, 'next' cue by itself, or 'goto' the cue target, those two after wait seconds.
 function newCueList(props = {}) { return Object.assign({ id: uid(), name: 'Cue list 1', cues: [] }, props); }
 function newCue(props = {}) { return Object.assign({ id: uid(), num: '1', name: '', actions: [], then: 'wait', wait: 0, target: '' }, props); }
-const newCueAction = (zone, props = {}) => Object.assign({ zone, scene: '', level: null, fade: 2 }, props);
+// An action is of a kind: 'scene' (scene, level) or 'param', a control of an effect the zone plays (src, ctl) taken to
+// value; the action's fade takes it there from where it is.
+const newCueAction = (zone, props = {}) => Object.assign({ zone, kind: 'scene', scene: '', level: null, fade: 2 }, props);
 function clampZone(z, s = project.settings) {
   z.w = clamp(Math.round(z.w) || 1, 1, s.compW); z.h = clamp(Math.round(z.h) || 1, 1, s.compH);
   z.x = clamp(Math.round(z.x) || 0, 0, s.compW - z.w); z.y = clamp(Math.round(z.y) || 0, 0, s.compH - z.h);

@@ -1312,7 +1312,14 @@ body.sceneswin > .dockbody { height: 100%; }
 .cacts-ed { display: grid; gap: 4px; }
 .cacts-ed .muted { margin: 0; }
 .caction { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.caction select { max-width: 180px; }
+.caction { flex-wrap: nowrap; }
+.caction select { width: 150px; min-width: 0; flex: 0 1 auto; }
+.caction select[aria-label=Zone], .caction select[aria-label=Action] { width: 112px; }
+.caction select.cctl { width: 170px; }
+.caction .cval input[type=number], .caction input[aria-label='Level %'], .caction input[aria-label='Fade (s)'] { width: 54px; }
+.caction .cval input[type=range] { width: 90px; }
+.caction .cval { display: inline-flex; align-items: center; gap: 6px; }
+.caction input[type=color].cval, .caction .cval input[type=color] { width: 40px; height: 24px; padding: 0 2px; border: 1px solid var(--line2); background: var(--bg3); }
 .cuefoot { flex: none; display: flex; gap: 6px; padding: 6px 12px 8px; border-top: 1px solid var(--line); }
 @container cues (max-width: 620px) {
   .cue { grid-template-columns: 20px 14px 34px minmax(0, 1fr) 46px 70px 22px; }

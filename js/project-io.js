@@ -119,9 +119,15 @@ function fixCueLists(list, zones) {
     const cues = (Array.isArray(L.cues) ? L.cues : []).filter(isObj).map((c, j) => ({
       id: uniqueId(c.id, cueIds), num: c.num != null && String(c.num).trim() ? String(c.num).trim().slice(0, 12) : String(j + 1),
       name: typeof c.name === 'string' ? c.name : '',
-      actions: (Array.isArray(c.actions) ? c.actions : []).filter(a => isObj(a) && zs.has(a.zone)).map(a => ({
-        zone: a.zone, scene: zs.get(a.zone).scenes.some(sc => sc.id === a.scene) ? a.scene : '',
-        level: a.level == null || !isFinite(a.level) ? null : clamp(+a.level, 0, 1), fade: clamp(numOr(a.fade, 2), 0, 3600) })),
+      actions: (Array.isArray(c.actions) ? c.actions : []).filter(a => isObj(a) && zs.has(a.zone)).map(a => {
+        const fade = clamp(numOr(a.fade, 2), 0, 3600);
+        if (a.kind === 'param') {
+          const v = a.value, ok = typeof v === 'boolean' || (typeof v === 'number' && isFinite(v)) || (Array.isArray(v) && v.length && v.length <= 4 && v.every(x => typeof x === 'number' && isFinite(x)));
+          return typeof a.src === 'string' && a.src && typeof a.ctl === 'string' && a.ctl && ok ? { zone: a.zone, kind: 'param', src: a.src, ctl: a.ctl, value: v, fade } : null;
+        }
+        return { zone: a.zone, kind: 'scene', scene: zs.get(a.zone).scenes.some(sc => sc.id === a.scene) ? a.scene : '',
+          level: a.level == null || !isFinite(a.level) ? null : clamp(+a.level, 0, 1), fade };
+      }).filter(Boolean),
       then: ['wait', 'next', 'goto'].includes(c.then) ? c.then : 'wait', wait: clamp(numOr(c.wait, 0), 0, 86400), target: c.target,
     }));
     for (const c of cues) if (c.then !== 'goto' || !cueIds.has(c.target)) { c.target = ''; if (c.then === 'goto') c.then = 'wait'; }

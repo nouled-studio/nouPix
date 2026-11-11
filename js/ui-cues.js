@@ -22,7 +22,21 @@ function refreshCues() {
 document.addEventListener('focusout', e => { if (cuesPending && e.target.closest && e.target.closest('.cuepanel')) setTimeout(() => { if (!cuesBusy()) refreshCues(); }); }, true);
 
 // How a cue's actions read: "Strips ▸ Blue ▲100%" each
+// A control's value as read: a number as typed, a colour as its hex, a switch On or Off, a list's label
+function valueText(inp, v) {
+  if (!inp) return String(v);
+  if (inp.TYPE === 'color' && Array.isArray(v)) return toHex(v);
+  if (inp.TYPE === 'bool' || inp.TYPE === 'event') return v ? 'On' : 'Off';
+  if (inp.TYPE === 'long' && inp.VALUES) { const i = inp.VALUES.indexOf(v); return inp.LABELS && i >= 0 ? inp.LABELS[i] : String(v); }
+  if (Array.isArray(v)) return v.map(x => fmtV(Math.round(x * 100) / 100)).join(', ');
+  return fmtV(Math.round(v * 100) / 100);
+}
+const ctlName = (src, inp) => (srcById(src) || { name: '?' }).name + ' · ' + (inp ? inp.LABEL || inp.NAME : '?');
 function actionText(a) {
+  if (a.kind === 'param') {
+    const z = zoneById(a.zone), inp = cueInput(a.src, a.ctl);
+    return (z ? z.name : '?') + ' ▸ ' + ctlName(a.src, inp) + ' → ' + valueText(inp, a.value);
+  }
   const z = zoneById(a.zone), sc = z && z.scenes.find(s => s.id === a.scene);
   return [z ? z.name : '?', sc ? '▸ ' + sc.name : '', a.level != null ? (a.level > 0 ? '▲' : '▼') + pct(a.level) : ''].filter(Boolean).join(' ');
 }
@@ -88,23 +102,70 @@ function renderCues(body) {
     h('button', { type: 'button', class: 'btn sm', title: 'A cue of what every zone shows now: its scene and its level', onclick: () => recordCue(L) }, '+ Cue'),
     h('button', { type: 'button', class: 'btn sm', title: 'A cue with no actions, to fill in', onclick: () => addCue(L) }, '+ Empty cue')));
 }
+// The controls a zone's effects have: those it plays now, then those in its scenes
+function zoneControls(z) {
+  if (!z) return [];
+  const srcs = [...new Set(z.layers.map(L => L.src).concat(z.scenes.flatMap(sc => sc.layers.map(L => L.src))))].map(srcById).filter(s => s && s.kind === 'isf');
+  return srcs.flatMap(s => controlsOf(s).map(inp => ({ key: s.id + '|' + inp.NAME, label: ctlName(s.id, inp), src: s.id, ctl: inp.NAME })));
+}
+// A control's value to start from: where it is now in the zone, or else its default
+function controlStart(z, src, ctl) {
+  const now = z && cueParamNow(z, src, ctl);
+  if (now !== undefined) return Array.isArray(now) ? now.slice() : now;
+  const s = srcById(src), inp = cueInput(src, ctl);
+  return s && inp ? paramValue({ params: {} }, s, inp) : 0;
+}
+function firstControl(z) {
+  const o = zoneControls(z)[0];
+  return o ? { kind: 'param', src: o.src, ctl: o.ctl, value: controlStart(z, o.src, o.ctl) } : null;
+}
+// The value a control is taken to, edited as the Content tab would: a number, a colour, a switch, a list
+function valueEditor(a, ch) {
+  const inp = cueInput(a.src, a.ctl), t = inp ? inp.TYPE : 'float';
+  if (t === 'color') return h('input', { type: 'color', class: 'cval', value: toHex(a.value || [1, 1, 1, 1]).toLowerCase(), 'aria-label': 'Value',
+    onchange: ch(e => { const x = e.value; a.value = [1, 3, 5].map(k => parseInt(x.slice(k, k + 2), 16) / 255).concat(1); }) });
+  if (t === 'bool' || t === 'event') return h('label', { class: 'cval' }, h('input', { type: 'checkbox', checked: !!a.value, 'aria-label': 'Value', onchange: ch(e => { a.value = e.checked; }) }), 'On');
+  if (t === 'long' && inp.VALUES) return h('select', { class: 'cval', 'aria-label': 'Value', onchange: ch(e => { a.value = +e.value; }) },
+    inp.VALUES.map((v, i) => h('option', { value: v, selected: v === a.value }, inp.LABELS ? inp.LABELS[i] : String(v))));
+  if (t === 'point2D') return h('span', { class: 'cval' }, [0, 1].map(k => h('input', { type: 'number', step: 0.01, value: fmtV((a.value || [0, 0])[k]), 'aria-label': k ? 'Y' : 'X',
+    onchange: ch(e => { a.value = (a.value || [0, 0]).slice(); a.value[k] = +e.value || 0; }) })));
+  const lo = inp && isFinite(inp.MIN) ? inp.MIN : 0, hi = inp && isFinite(inp.MAX) ? inp.MAX : 1;
+  return h('span', { class: 'cval', title: `From ${fmtV(lo)} to ${fmtV(hi)}` },
+    h('input', { type: 'range', min: lo, max: hi, step: t === 'int' ? 1 : (hi - lo) / 200, value: a.value, 'aria-label': 'Value slider',
+      oninput: e => { const n = e.target.nextSibling; if (n) n.value = fmtV(Math.round(+e.target.value * 100) / 100); }, onchange: ch(e => { a.value = +e.value; }) }),
+    h('input', { type: 'number', min: lo, max: hi, step: t === 'int' ? 1 : 0.01, value: fmtV(Math.round(+a.value * 100) / 100), 'aria-label': 'Value',
+      onchange: ch(e => { a.value = clamp(+e.value || 0, lo, hi); if (t === 'int') a.value = Math.round(a.value); }) }));
+}
 // The picked cue's settings, under its row
 function cueEditor(L, c) {
   const ch = (fn, soft) => e => { fn(e.target); if (soft) commitSoft(); else { commit({ lists: false }); refreshCues(); } };
   const zs = project.zones.slice().reverse();
   const acts = c.actions.map((a, i) => {
     const z = zoneById(a.zone);
-    return h('div', { class: 'caction' },
-      h('select', { 'aria-label': 'Zone', onchange: ch(t => { a.zone = t.value; a.scene = ''; }) }, zs.map(o => h('option', { value: o.id, selected: o.id === a.zone }, o.name))),
+    const zone = h('select', { 'aria-label': 'Zone', onchange: ch(t => { a.zone = t.value; Object.assign(a, a.kind === 'param' ? firstControl(zoneById(t.value)) || { kind: 'scene', scene: '' } : { scene: '' }); }) },
+      zs.map(o => h('option', { value: o.id, selected: o.id === a.zone }, o.name)));
+    const kind = h('select', { 'aria-label': 'Action', title: 'Play a scene (and set the level), or set a control of an effect the zone plays',
+      onchange: ch(t => { if (t.value === 'param') { const f = firstControl(z); if (f) Object.assign(a, f); else toast(`${z.name} plays no effect with controls.`, 'warn'); } else { a.kind = 'scene'; delete a.src; delete a.ctl; delete a.value; a.scene = a.scene || ''; } }) },
+      h('option', { value: 'scene', selected: a.kind !== 'param' }, 'Play scene'), h('option', { value: 'param', selected: a.kind === 'param' }, 'Set control'));
+    const fade = h('label', { class: 'cfadein', title: a.kind === 'param' ? 'How long it takes: the control moves from where it is to this' : 'How long it takes: the scene fades in, the level moves over this' }, 'Fade',
+      h('input', { type: 'number', min: 0, max: 3600, step: 0.1, value: fmtV(a.fade), 'aria-label': 'Fade (s)', onchange: ch(t => { a.fade = clamp(+t.value || 0, 0, 3600); }) }), 's');
+    const del = h('button', { type: 'button', class: 'btn sm icon', title: 'Remove this action', 'aria-label': 'Remove action', onclick: () => { c.actions.splice(i, 1); commit({ lists: false }); refreshCues(); } }, '×');
+    if (a.kind === 'param') {
+      const opts = zoneControls(z), key = a.src + '|' + a.ctl;
+      return h('div', { class: 'caction' }, zone, kind,
+        h('select', { 'aria-label': 'Control', class: 'cctl', onchange: ch(t => { const [src, ctl] = t.value.split('|'); a.src = src; a.ctl = ctl; a.value = controlStart(z, src, ctl); }) },
+          opts.some(o => o.key === key) ? null : h('option', { value: key, selected: true }, ctlName(a.src, cueInput(a.src, a.ctl))),
+          opts.map(o => h('option', { value: o.key, selected: o.key === key }, o.label))),
+        valueEditor(a, ch), fade, del);
+    }
+    return h('div', { class: 'caction' }, zone, kind,
       h('select', { 'aria-label': 'Scene', title: 'The scene it plays (Keep: what plays stays)', onchange: ch(t => { a.scene = t.value; }) },
         h('option', { value: '', selected: !a.scene }, 'Keep scene'), (z ? z.scenes : []).map(sc => h('option', { value: sc.id, selected: sc.id === a.scene }, sc.name))),
       h('label', { class: 'clevel', title: 'Its level goes to this (off: the level stays)' },
         h('input', { type: 'checkbox', checked: a.level != null, onchange: ch(t => { a.level = t.checked ? 1 : null; }) }), 'Level',
         h('input', { type: 'number', min: 0, max: 100, step: 1, value: a.level != null ? Math.round(a.level * 100) : '', disabled: a.level == null, 'aria-label': 'Level %',
           onchange: ch(t => { a.level = clamp((+t.value || 0) / 100, 0, 1); }) }), '%'),
-      h('label', { class: 'cfadein', title: 'How long it takes: the scene fades in, the level moves over this' }, 'Fade',
-        h('input', { type: 'number', min: 0, max: 3600, step: 0.1, value: fmtV(a.fade), 'aria-label': 'Fade (s)', onchange: ch(t => { a.fade = clamp(+t.value || 0, 0, 3600); }) }), 's'),
-      h('button', { type: 'button', class: 'btn sm icon', title: 'Remove this action', 'aria-label': 'Remove action', onclick: () => { c.actions.splice(i, 1); commit({ lists: false }); refreshCues(); } }, '×'));
+      fade, del);
   });
   const others = L.cues.filter(o => o !== c);
   // Enter takes what was typed (and leaves the field, so the panel shows it)
@@ -164,6 +225,7 @@ function renameCueList(L) {
 }
 // The fade of the cue playing on its row, and the time left before one goes by itself, once a frame
 function drawCueProgress() {
+  if (cueFades.length) syncContentSoon();
   if (!cuesShown()) return;
   const L = shownCueList();
   if (!L) return;

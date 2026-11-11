@@ -126,6 +126,36 @@ try:
     E(f"(() => {{ const c = {L}.cues[0]; c.actions = [newCueAction('{Z[0]}', {{ scene: '{sc(0, 0)}', fade: 0 }})]; commit(); cueGo({L}, c); }})()"); time.sleep(0.3)
     check("a scene changed after the cue was made: the cue plays it as it is now", E("project.zones[0].layers.map(l => l.src)") == ["b-solid"])
 
+    # ---------- actions that set a control of an effect
+    E(f"(() => {{ const z = project.zones[0]; z.layers = [Object.assign(newLayer(), {{ src: 'b-plasma' }})]; z.layers[0].params['b-plasma'] = {{ speed: 0, colorA: [1, 0, 0, 1], palette: 0 }}; commit(); }})()")
+    sp = lambda: E("project.zones[0].layers[0].params['b-plasma'].speed")
+    E(f"(() => {{ const c = {L}.cues[0]; c.actions = [newCueAction('{Z[0]}', {{ kind: 'param', src: 'b-plasma', ctl: 'speed', value: 3, fade: 1.2 }})]; commit(); cueGo({L}, c); }})()"); time.sleep(0.6)
+    mid = sp(); time.sleep(0.9); end = sp()
+    check("a control set by a cue moves there over its fade (speed 0 to full in the fade)", 0.6 < mid < 2.4 and end == 3, (mid, end))
+    E(f"(() => {{ const c = {L}.cues[0]; c.actions = [newCueAction('{Z[0]}', {{ kind: 'param', src: 'b-plasma', ctl: 'colorA', value: [0, 0, 1, 1], fade: 1.2 }})]; commit(); cueGo({L}, c); }})()"); time.sleep(0.6)
+    col = E("project.zones[0].layers[0].params['b-plasma'].colorA"); time.sleep(0.9); col2 = E("project.zones[0].layers[0].params['b-plasma'].colorA")
+    check("a colour blends to the cue's", 0.1 < col[0] < 0.9 and 0.1 < col[2] < 0.9 and col2 == [0, 0, 1, 1], (col, col2))
+    E(f"(() => {{ const c = {L}.cues[0]; c.actions = [newCueAction('{Z[0]}', {{ kind: 'param', src: 'b-plasma', ctl: 'palette', value: 2, fade: 3 }})]; commit(); cueGo({L}, c); }})()"); time.sleep(0.2)
+    check("a list's choice changes at once", E("project.zones[0].layers[0].params['b-plasma'].palette") == 2)
+    E(f"(() => {{ const c = {L}.cues[0]; c.actions = [newCueAction('{Z[0]}', {{ kind: 'param', src: 'b-plasma', ctl: 'speed', value: 0, fade: 3 }})]; commit(); cueGo({L}, c); }})()"); time.sleep(0.4)
+    E("setParam(project.zones[0].layers[0], srcById('b-plasma'), 'speed', 2.5)"); time.sleep(0.5)
+    check("a control moved by hand during the fade: the hand wins", sp() == 2.5, sp())
+    E(f"(() => {{ const z = project.zones[0], c = {L}.cues[0]; c.actions = [newCueAction(z.id, {{ scene: z.scenes[0].id, fade: 0 }})]; ui.cueSel = c.id; refreshCues(); }})()"); time.sleep(0.3)
+    row = pg.locator("#dockBody .cueedit .caction").first
+    row.locator("select[aria-label='Action']").select_option("param"); time.sleep(0.3)
+    row = pg.locator("#dockBody .cueedit .caction").first
+    check("an action's type set to Set control offers the zone's effects' controls", E(f"{L}.cues[0].actions[0].kind") == "param"
+          and "Plasma" in " ".join(row.locator("select[aria-label='Control'] option").all_inner_texts()))
+    row.locator("select[aria-label='Control']").select_option("b-plasma|speed"); time.sleep(0.3)
+    row = pg.locator("#dockBody .cueedit .caction").first
+    row.locator("input[aria-label='Value']").fill("1.5"); row.locator("input[aria-label='Value']").press("Enter"); time.sleep(0.3)
+    a = E(f"{L}.cues[0].actions[0]")
+    check("…its control and value set there, the row saying so", a["src"] == "b-plasma" and a["ctl"] == "speed" and a["value"] == 1.5
+          and "→ 1.5" in pg.locator("#dockBody .cue").first.inner_text(), (a, pg.locator("#dockBody .cue").first.inner_text()))
+    E(f"(() => {{ const c = {L}.cues[0]; c.actions = [newCueAction('{Z[0]}', {{ kind: 'param', src: 'b-plasma', ctl: 'colorA', value: [0, 1, 0, 1], fade: 0 }})]; ui.cueSel = c.id; commit(); refreshCues(); }})()"); time.sleep(0.3)
+    check("a colour is edited with a colour well", pg.locator("#dockBody .cueedit input[type=color]").input_value() == "#00ff00")
+    E(f"(() => {{ const c = {L}.cues[0]; c.actions = []; ui.cueSel = null; commit(); refreshCues(); }})()")
+
     # ---------- beside the stage
     E("setScenesAt('right')"); time.sleep(0.5)
     pg.click("#colTabs [data-ctab=cues]"); time.sleep(0.4)
@@ -144,11 +174,11 @@ try:
     saved = json.loads(E("serialize()"))
     check("cue lists are saved in the project", len(saved["cueLists"]) == 1 and len(saved["cueLists"][0]["cues"]) == n)
     bad = {"name": "B", "zones": [{"id": "z1", "name": "Z", "scenes": [{"id": "s1", "name": "S", "layers": []}]}],
-           "cueLists": [{"id": "l", "cues": [{"num": 7, "actions": [{"zone": "z1", "scene": "nope", "level": 3, "fade": -1}, {"zone": "gone"}], "then": "goto", "target": "nobody"}]}, "junk"]}
+           "cueLists": [{"id": "l", "cues": [{"num": 7, "actions": [{"zone": "z1", "scene": "nope", "level": 3, "fade": -1}, {"zone": "gone"}, {"zone": "z1", "kind": "param", "src": "b-plasma", "ctl": "speed", "value": 2, "fade": 1}, {"zone": "z1", "kind": "param", "src": "b-plasma", "ctl": "speed", "value": "x"}], "then": "goto", "target": "nobody"}]}, "junk"]}
     fixed = E("p => hydrate(p).cueLists", bad)
     c = fixed[0]["cues"][0]
-    check("files are repaired: a scene not there, a level and fade out of range, a zone gone, a target not there",
-          len(fixed) == 1 and c["num"] == "7" and c["actions"] == [{"zone": "z1", "scene": "", "level": 1, "fade": 0}] and c["then"] == "wait" and c["target"] == "", fixed)
+    check("files are repaired: a scene not there, a level and fade out of range, a zone gone, a control's value not a value, a target not there",
+          len(fixed) == 1 and c["num"] == "7" and c["actions"] == [{"zone": "z1", "kind": "scene", "scene": "", "level": 1, "fade": 0}, {"zone": "z1", "kind": "param", "src": "b-plasma", "ctl": "speed", "value": 2, "fade": 1}] and c["then"] == "wait" and c["target"] == "", fixed)
     check("no errors in the page", not errs, errs[:3])
     br.close()
 finally:
