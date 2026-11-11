@@ -44,6 +44,9 @@ function renderCues(body) {
     h('span', { class: 'fill' }),
     L ? h('button', { type: 'button', class: 'btn sm icon', title: L.name + ': rename, delete', 'aria-label': L.name + ' menu', onclick: e => cueListMenu(e.currentTarget, L) }, '⋯') : null);
   panel.append(tabs);
+  // the zones its new cues act on, ticked
+  if (L) panel.append(h('div', { class: 'cuezones', title: 'What + Cue records: these zones\' scenes and levels' }, h('span', { class: 'lbl' }, 'New cues'),
+    zoneTicks(id => L.zones.includes(id), id => toggleCueZone(L, id), 'New cues act on')));
   if (!L) {
     panel.append(h('div', { class: 'cueempty' }, h('p', null, 'No cue lists yet. A cue list plays scenes and zone levels one cue after the other, by GO.'),
       h('button', { type: 'button', class: 'btn primary', onclick: () => addCueList() }, '+ New cue list')));
@@ -62,7 +65,7 @@ function renderCues(body) {
       h('button', { type: 'button', class: 'btn sm', title: 'Stop: nothing goes on by itself, the levels stop where they are', onclick: () => cueStop(L) }, 'Stop'))));
   // the cues
   const rows = h('div', { class: 'cuerows', 'data-keep': 'cuerows' });
-  if (!L.cues.length) rows.append(h('p', { class: 'rowhint' }, 'No cues yet. Set the zones as the first cue should show them (scenes and levels), then + Cue.'));
+  if (!L.cues.length) rows.append(h('p', { class: 'rowhint' }, 'No cues yet. Set the list\'s zones as the first cue should show them (scenes and levels), then + Cue.'));
   for (const c of L.cues) {
     const live = st.cur === c, sb = st.standby === c, sel = ui.cueSel === c.id;
     const r = h('div', { class: 'cue' + (live ? ' live' : '') + (sb ? ' standby' : '') + (sel ? ' sel' : ''), 'data-cue': c.id, tabindex: 0,
@@ -82,17 +85,21 @@ function renderCues(body) {
     if (sel) rows.append(cueEditor(L, c));
   }
   panel.append(rows, h('div', { class: 'cuefoot' },
-    h('button', { type: 'button', class: 'btn sm', title: 'A cue of what every zone shows now: its scene and its level', onclick: () => recordCue(L) }, '+ Cue'),
+    h('button', { type: 'button', class: 'btn sm', title: 'A cue of what the list\'s zones show now: each its scene and its level', onclick: () => recordCue(L) }, '+ Cue'),
     h('button', { type: 'button', class: 'btn sm', title: 'A cue with no actions, to fill in', onclick: () => addCue(L) }, '+ Empty cue')));
 }
+// A tick box per zone (top zone first), in its colour
+const zoneTicks = (on, flip, what) => project.zones.slice().reverse().map(z => h('label', { class: 'czone' + (on(z.id) ? ' on' : ''), style: z.tag ? { '--tag': z.tag } : null, title: what + ' ' + z.name },
+  h('input', { type: 'checkbox', checked: on(z.id), 'aria-label': what + ' ' + z.name, onchange: () => flip(z.id) }), z.name));
 // The picked cue's settings, under its row
 function cueEditor(L, c) {
   const ch = (fn, soft) => e => { fn(e.target); if (soft) commitSoft(); else { commit({ lists: false }); refreshCues(); } };
   const zs = project.zones.slice().reverse();
-  const acts = c.actions.map((a, i) => {
+  // one action per zone ticked, top zone first
+  const acts = zs.map(z => c.actions.find(a => a.zone === z.id)).filter(Boolean).map(a => {
     const z = zoneById(a.zone);
     return h('div', { class: 'caction' },
-      h('select', { 'aria-label': 'Zone', onchange: ch(t => { a.zone = t.value; a.scene = ''; }) }, zs.map(o => h('option', { value: o.id, selected: o.id === a.zone }, o.name))),
+      h('span', { class: 'czname', style: z.tag ? { '--tag': z.tag } : null }, z.name),
       h('select', { 'aria-label': 'Scene', title: 'The scene it plays (Keep: what plays stays)', onchange: ch(t => { a.scene = t.value; }) },
         h('option', { value: '', selected: !a.scene }, 'Keep scene'), (z ? z.scenes : []).map(sc => h('option', { value: sc.id, selected: sc.id === a.scene }, sc.name))),
       h('label', { class: 'clevel', title: 'Its level goes to this (off: the level stays)' },
@@ -100,8 +107,7 @@ function cueEditor(L, c) {
         h('input', { type: 'number', min: 0, max: 100, step: 1, value: a.level != null ? Math.round(a.level * 100) : '', disabled: a.level == null, 'aria-label': 'Level %',
           onchange: ch(t => { a.level = clamp((+t.value || 0) / 100, 0, 1); }) }), '%'),
       h('label', { class: 'cfadein', title: 'How long it takes: the scene fades in, the level moves over this' }, 'Fade',
-        h('input', { type: 'number', min: 0, max: 3600, step: 0.1, value: fmtV(a.fade), 'aria-label': 'Fade (s)', onchange: ch(t => { a.fade = clamp(+t.value || 0, 0, 3600); }) }), 's'),
-      h('button', { type: 'button', class: 'btn sm icon', title: 'Remove this action', 'aria-label': 'Remove action', onclick: () => { c.actions.splice(i, 1); commit({ lists: false }); refreshCues(); } }, '×'));
+        h('input', { type: 'number', min: 0, max: 3600, step: 0.1, value: fmtV(a.fade), 'aria-label': 'Fade (s)', onchange: ch(t => { a.fade = clamp(+t.value || 0, 0, 3600); }) }), 's'));
   });
   const others = L.cues.filter(o => o !== c);
   // Enter takes what was typed (and leaves the field, so the panel shows it)
@@ -110,13 +116,10 @@ function cueEditor(L, c) {
     h('div', { class: 'cerow' },
       h('label', null, 'Number', h('input', { type: 'text', class: 'cnumin', value: c.num, 'aria-label': 'Cue number', onchange: ch(t => { c.num = t.value.trim() || c.num; }) })),
       h('label', { class: 'grow' }, 'Name', h('input', { type: 'text', value: c.name, placeholder: cueTitle(Object.assign({}, c, { name: '' })), 'aria-label': 'Cue name', onchange: ch(t => { c.name = t.value.trim(); }) }))),
-    h('div', { class: 'cacts-ed' }, acts.length ? acts : h('p', { class: 'muted' }, 'No actions: it changes nothing.')),
+    h('div', { class: 'cerow cuezones', title: 'Tick a zone and the cue acts on it: what it shows now, to change below' }, h('span', { class: 'lbl' }, 'Zones'),
+      zoneTicks(id => c.actions.some(a => a.zone === id), id => toggleCueAction(c, id), 'This cue acts on')),
+    h('div', { class: 'cacts-ed' }, acts.length ? acts : h('p', { class: 'muted' }, 'No zone ticked: it changes nothing.')),
     h('div', { class: 'cerow' },
-      h('button', { type: 'button', class: 'btn sm', title: 'An action on a zone: a scene and/or a level', onclick: () => {
-        const used = new Set(c.actions.map(a => a.zone)), z = zs.find(o => !used.has(o.id)) || zs[0];
-        if (!z) return;
-        c.actions.push(newCueAction(z.id, { scene: z.scene || '', fade: project.settings.fade })); commit({ lists: false }); refreshCues();
-      } }, '+ Action'),
       h('span', { class: 'fill' }),
       h('label', null, 'Then',
         h('select', { 'aria-label': 'Then', onchange: ch(t => { c.then = t.value; if (c.then === 'goto' && !cueOf(L, c.target)) c.target = (others[0] || {}).id || ''; if (c.then === 'goto' && !c.target) c.then = 'wait'; }) },

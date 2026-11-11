@@ -112,7 +112,7 @@ function fixPlaylists(list, scenes) {
 }
 // Cue lists: actions on zones that exist, scenes of their zone (or none), levels and times in range, numbers as text,
 // targets that are cues of the same list
-function fixCueLists(list, zones) {
+function fixCueLists(list, zones, out) {
   const ids = new Set(), zs = new Map(zones.map(z => [z.id, z]));
   return (Array.isArray(list) ? list : []).filter(isObj).map((L, i) => {
     const cueIds = new Set();
@@ -125,7 +125,9 @@ function fixCueLists(list, zones) {
       then: ['wait', 'next', 'goto'].includes(c.then) ? c.then : 'wait', wait: clamp(numOr(c.wait, 0), 0, 86400), target: c.target,
     }));
     for (const c of cues) if (c.then !== 'goto' || !cueIds.has(c.target)) { c.target = ''; if (c.then === 'goto') c.then = 'wait'; }
-    return { id: uniqueId(L.id, ids), name: typeof L.name === 'string' && L.name ? L.name : 'Cue list ' + (i + 1), cues };
+    const own = (Array.isArray(L.zones) ? L.zones : []).filter((id, k, a) => zs.has(id) && a.indexOf(id) === k);
+    const gen = generalZone({ settings: out.settings, zones });
+    return { id: uniqueId(L.id, ids), name: typeof L.name === 'string' && L.name ? L.name : 'Cue list ' + (i + 1), zones: own.length || !gen ? own : [gen.id], cues };
   });
 }
 function hydrate(p) {
@@ -207,7 +209,7 @@ function hydrate(p) {
     clampZone(z, out.settings);
     return z;
   });
-  out.cueLists = fixCueLists(p.cueLists, out.zones);
+  out.cueLists = fixCueLists(p.cueLists, out.zones, out);
   out.midi = fixMidi(p.midi);
   out.macros = fixMacros(p.macros);
   out.macroLinks = fixMacroLinks(p.macroLinks, known);
