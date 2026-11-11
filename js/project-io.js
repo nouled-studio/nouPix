@@ -145,16 +145,23 @@ function fixTimelines(list, zones) {
       if (!z || !Array.isArray(clips)) continue;
       const ok = clips.filter(c => isObj(c) && z.scenes.some(sc => sc.id === c.scene)).map(c => {
         const start = clamp(numOr(c.start, 0), 0, length), dur = clamp(numOr(c.dur, 4), 0.1, length);
-        return { id: uniqueId(c.id, clipIds), scene: c.scene, start, dur, fadeIn: clamp(numOr(c.fadeIn, 1), 0, dur), fadeOut: clamp(numOr(c.fadeOut, 1), 0, dur) };
+        return { id: uniqueId(c.id, clipIds), scene: c.scene, start, dur, fadeIn: clamp(numOr(c.fadeIn, 1), 0, dur), fadeOut: clamp(numOr(c.fadeOut, 1), 0, dur), lane: clamp(Math.round(numOr(c.lane, 0)), 0, 15) };
       }).sort((a, b) => a.start - b.start);
       if (ok.length) tracks[zid] = ok;
+    }
+    // lanes: as many as asked for, and as its clips need
+    const lanes = {};
+    for (const zid of new Set(Object.keys(isObj(T.lanes) ? T.lanes : {}).concat(Object.keys(tracks)))) {
+      if (!zs.has(zid)) continue;
+      const n = Math.max(clamp(Math.round(numOr((T.lanes || {})[zid], 1)), 1, 16), ...(tracks[zid] || []).map(c => c.lane + 1));
+      if (n > 1) lanes[zid] = n;
     }
     const L = isObj(T.loop) ? T.loop : {}, a = clamp(numOr(L.a, 0), 0, length), b = clamp(numOr(L.b, Math.min(8, length)), 0, length);
     const A = isObj(T.audio) && typeof T.audio.name === 'string' ? { name: T.audio.name } : null;
     if (A && typeof T.audio.media === 'string' && /^[0-9a-f]{32}\.[a-z0-9]{1,5}$/.test(T.audio.media)) A.media = T.audio.media;
     return { id: uniqueId(T.id, ids), name: typeof T.name === 'string' && T.name ? T.name : 'Timeline ' + (i + 1), length, audio: A,
       grid: T.grid === 'bars' ? 'bars' : 'sec', bpm: clamp(numOr(T.bpm, 120), 20, 300),
-      loop: { mode: ['off', 'all', 'region'].includes(L.mode) ? L.mode : 'off', a: Math.min(a, b), b: Math.max(b, Math.min(a, b) + 0.1) }, tracks };
+      loop: { mode: ['off', 'all', 'region'].includes(L.mode) ? L.mode : 'off', a: Math.min(a, b), b: Math.max(b, Math.min(a, b) + 0.1) }, tracks, lanes };
   });
 }
 function hydrate(p) {

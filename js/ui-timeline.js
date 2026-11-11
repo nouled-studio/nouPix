@@ -123,28 +123,39 @@ function renderTimeline(body) {
   if (T.audio) alane.append(waveform(T)); else alane.append(h('span', { class: 'tlhint' }, 'Drop an audio file here, or + Audio'));
   grid.append(h('div', { class: 'tlrow' }, h('div', { class: 'tllabel' }, h('span', { class: 'tlz' }, 'Audio')), alane));
   // the zones
+  // a zone's lanes, the highest on top: where clips overlap, the highest shows
   for (const z of project.zones.slice().reverse()) {
-    const lane = h('div', { class: 'tllane tltrack', style: { width: W + 'px' }, 'data-zone': z.id, title: 'Drag a scene of ' + z.name + ' here, or double-click to pick one' });
-    const clips = T.tracks[z.id] || [];
-    for (const c of clips) lane.append(clipEl(T, z, c));
-    lane.addEventListener('dragover', e => { if (e.dataTransfer.types.includes(dragType('scene'))) { e.preventDefault(); lane.classList.add('drop'); } });
-    lane.addEventListener('dragleave', () => lane.classList.remove('drop'));
-    lane.addEventListener('drop', e => {
-      lane.classList.remove('drop');
-      const d = e.dataTransfer.getData(dragType('scene'));
-      if (!d) return;
-      e.preventDefault();
-      const [zid, sid] = d.split(':');
-      if (zid !== z.id) { toast(`That scene is ${(zoneById(zid) || {}).name}'s: drop it on its own track.`, 'warn'); return; }
-      addClip(T, z, sid, tlSnapT(T, (e.clientX - lane.getBoundingClientRect().left) / ui.tlZoom));
-    });
-    lane.addEventListener('dblclick', e => {
-      if (e.target !== lane) return;
-      const t = tlSnapT(T, (e.clientX - lane.getBoundingClientRect().left) / ui.tlZoom);
-      if (!z.scenes.length) { toast(`${z.name} has no scenes yet: store one first.`, 'warn'); return; }
-      menu({ x: e.clientX, y: e.clientY }, [{ head: `${z.name} at ${fmtTime(t)}` }, ...z.scenes.map(sc => [sc.name, () => addClip(T, z, sc.id, t)])]);
-    });
-    grid.append(h('div', { class: 'tlrow' }, h('div', { class: 'tllabel', style: z.tag ? { '--tag': z.tag } : null }, h('span', { class: 'tlz' }, z.name)), lane));
+    const n = (T.lanes && T.lanes[z.id]) || 1, clips = T.tracks[z.id] || [];
+    for (let k = n - 1; k >= 0; k--) {
+      const lane = h('div', { class: 'tllane tltrack', style: { width: W + 'px' }, 'data-zone': z.id, 'data-lane': k,
+        title: 'Drag a scene of ' + z.name + ' here, or double-click to pick one' + (n > 1 ? '. Where clips overlap, the highest lane\'s shows.' : '') });
+      for (const c of clips) if ((c.lane || 0) === k) lane.append(clipEl(T, z, c));
+      lane.addEventListener('dragover', e => { if (e.dataTransfer.types.includes(dragType('scene'))) { e.preventDefault(); lane.classList.add('drop'); } });
+      lane.addEventListener('dragleave', () => lane.classList.remove('drop'));
+      lane.addEventListener('drop', e => {
+        lane.classList.remove('drop');
+        const d = e.dataTransfer.getData(dragType('scene'));
+        if (!d) return;
+        e.preventDefault();
+        const [zid, sid] = d.split(':');
+        if (zid !== z.id) { toast(`That scene is ${(zoneById(zid) || {}).name}'s: drop it on its own track.`, 'warn'); return; }
+        addClip(T, z, sid, tlSnapT(T, (e.clientX - lane.getBoundingClientRect().left) / ui.tlZoom), k);
+      });
+      lane.addEventListener('dblclick', e => {
+        if (e.target !== lane) return;
+        const t = tlSnapT(T, (e.clientX - lane.getBoundingClientRect().left) / ui.tlZoom);
+        if (!z.scenes.length) { toast(`${z.name} has no scenes yet: store one first.`, 'warn'); return; }
+        menu({ x: e.clientX, y: e.clientY }, [{ head: `${z.name} at ${fmtTime(t)}` }, ...z.scenes.map(sc => [sc.name, () => addClip(T, z, sc.id, t, k)])]);
+      });
+      const top = k === n - 1;
+      const label = h('div', { class: 'tllabel' + (top ? '' : ' sub'), style: z.tag ? { '--tag': z.tag } : null },
+        h('span', { class: 'tlz' }, top ? z.name : ''),
+        n > 1 ? h('span', { class: 'tlln mono', title: 'Lane ' + (k + 1) + (top ? ': shows over the lanes below' : '') }, String(k + 1)) : null,
+        top ? h('span', { class: 'tllbtns' },
+          h('button', { type: 'button', class: 'tllb', title: 'A lane on top: its clips show over the ones below, and hand back to them as they end', 'aria-label': 'Add a lane to ' + z.name, onclick: () => addLane(T, z) }, '+'),
+          n > 1 ? h('button', { type: 'button', class: 'tllb', title: 'Remove the top lane (when it has no clips)', 'aria-label': 'Remove a lane from ' + z.name, onclick: () => removeLane(T, z) }, '−') : null) : null);
+      grid.append(h('div', { class: 'tlrow' + (top ? '' : ' sub') }, label, lane));
+    }
   }
   // over all of it: the loop's region and the playhead
   if (T.loop.mode === 'region') grid.append(h('div', { class: 'tlloopcol', style: { left: TL_LABEL + T.loop.a * ui.tlZoom + 'px', width: (T.loop.b - T.loop.a) * ui.tlZoom + 'px' } }));
@@ -163,7 +174,8 @@ function clipEl(T, z, c) {
   const sc = z.scenes.find(s => s.id === c.scene);
   const el = h('div', { class: 'tlclip' + (ui.tlSel === c.id ? ' sel' : ''), 'data-clip': c.id, style: z.tag ? { '--tag': z.tag } : null,
     title: `${sc ? sc.name : '?'}: ${fmtTime(c.start)} for ${fmtV(Math.round(c.dur * 100) / 100)} s. Drag to move, its edges to resize, the top corners for its fades. Right-click for more.` },
-    h('span', { class: 'tlenv' }), h('span', { class: 'tlcname' }, sc ? sc.name : '?'),
+    h('span', { class: 'tlenv' }), sc && sc.thumb ? h('img', { class: 'tlshot', src: sc.thumb, alt: '', draggable: false }) : null,
+    h('span', { class: 'tlcname' + (sc && sc.thumb ? ' shot' : '') }, sc ? sc.name : '?'),
     h('span', { class: 'tledge l' }), h('span', { class: 'tledge r' }),
     h('span', { class: 'tlfin', title: 'Fade in: drag' }), h('span', { class: 'tlfout', title: 'Fade out: drag' }));
   paintClip(el, c);
@@ -172,15 +184,29 @@ function clipEl(T, z, c) {
     e.preventDefault(); e.stopPropagation();
     const part = e.target.classList.contains('tlfin') ? 'fin' : e.target.classList.contains('tlfout') ? 'fout' : e.target.classList.contains('tledge') ? (e.target.classList.contains('l') ? 'l' : 'r') : 'move';
     if (ui.tlSel !== c.id) { ui.tlSel = c.id; for (const o of $$('.tlclip.sel', el.ownerDocument)) o.classList.remove('sel'); el.classList.add('sel'); }
-    const clips = T.tracks[z.id], i = clips.indexOf(c), prev = clips[i - 1], next = clips[i + 1];
-    const lo = prev ? prev.start + prev.dur : 0, hi = next ? next.start : T.length, x0 = e.clientX, o = { start: c.start, dur: c.dur, fadeIn: c.fadeIn, fadeOut: c.fadeOut };
+    // its neighbours on its lane bound it; dragged up or down onto another lane with room, it goes there
+    const clips = T.tracks[z.id], x0 = e.clientX, y0 = e.clientY, o = { start: c.start, dur: c.dur, fadeIn: c.fadeIn, fadeOut: c.fadeOut, lane: c.lane || 0 };
+    let lo = 0, hi = T.length;
+    const bounds = () => {
+      const mine = clips.filter(x => x !== c && (x.lane || 0) === (c.lane || 0));
+      lo = mine.filter(x => x.start < c.start).reduce((m, x) => Math.max(m, x.start + x.dur), 0);
+      hi = mine.filter(x => x.start >= c.start).reduce((m, x) => Math.min(m, x.start), T.length);
+    };
+    bounds();
+    const lanes = [...el.ownerDocument.querySelectorAll('.tltrack[data-zone="' + z.id + '"]')];
+    const fits = k => !clips.some(x => x !== c && (x.lane || 0) === k && x.start < c.start + c.dur - 1e-6 && c.start < x.start + x.dur - 1e-6);
     el.setPointerCapture(e.pointerId); tlDrag = true;
     let moved = false;
     const mv = ev => {
       const d = (ev.clientX - x0) / ui.tlZoom;
-      if (Math.abs(ev.clientX - x0) > 2) moved = true;
+      if (Math.abs(ev.clientX - x0) > 2 || Math.abs(ev.clientY - y0) > 4) moved = true;
       if (!moved) return;
-      if (part === 'move') { c.start = clamp(tlSnapT(T, o.start + d, c), lo, hi - c.dur); const e2 = tlSnapT(T, c.start + c.dur, c); if (e2 !== c.start + c.dur && e2 - c.dur >= lo && e2 <= hi) c.start = e2 - c.dur; }
+      if (part === 'move') {
+        const to = lanes.find(L => { const r = L.getBoundingClientRect(); return ev.clientY >= r.top && ev.clientY < r.bottom; });
+        const k = to ? +to.dataset.lane : c.lane || 0;
+        if (k !== (c.lane || 0) && fits(k)) { c.lane = k; to.append(el); bounds(); }
+        c.start = clamp(tlSnapT(T, o.start + d, c), lo, hi - c.dur); const e2 = tlSnapT(T, c.start + c.dur, c); if (e2 !== c.start + c.dur && e2 - c.dur >= lo && e2 <= hi) c.start = e2 - c.dur;
+      }
       else if (part === 'l') { const s = clamp(tlSnapT(T, o.start + d, c), lo, o.start + o.dur - 0.1); c.dur = o.start + o.dur - s; c.start = s; }
       else if (part === 'r') { const en = clamp(tlSnapT(T, o.start + o.dur + d, c), o.start + 0.1, hi); c.dur = en - o.start; }
       else if (part === 'fin') c.fadeIn = clamp(o.fadeIn + d, 0, c.dur - c.fadeOut);

@@ -123,6 +123,41 @@ try:
     E("undo()"); time.sleep(0.3)
     check("undo brings it back", len(E(f"project.timelines[0].tracks['{Z[0]}']")) == n)
 
+    # ---------- lanes: the top lane shows over the one under, handing back to it
+    E("tlPause()")
+    pg.locator(f"#dockBody button[aria-label='Add a lane to {E(f'zoneById({chr(39)}{Z[0]}{chr(39)}).name')}']").click(); time.sleep(0.3)
+    check("+ on a zone's track adds a lane on top", E(f"project.timelines[0].lanes['{Z[0]}']") == 2 and pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}']").count() == 2)
+    E(f"""(() => {{ const zid = '{Z[0]}', s = zoneById(zid).scenes, T = project.timelines[0];
+      T.loop.mode = 'off'; T.length = 12; T.tracks[zid] = [newClip(s[0].id, 0, 10, {{ fadeIn: 0, fadeOut: 1, lane: 0 }}), newClip(s[1].id, 3, 3, {{ fadeIn: 1, fadeOut: 1, lane: 1 }})];
+      commit(); tlStop(T); }})()"""); time.sleep(0.2)
+    E("tlSeek(project.timelines[0], 2)"); time.sleep(0.05)
+    check("under nothing: the lower lane's clip", zone() == [sc(0, 0), 1])
+    E("tlSeek(project.timelines[0], 4.5)"); time.sleep(0.05)
+    check("where they overlap: the top lane's, at full level (no dip)", zone() == [sc(0, 1), 1], zone())
+    E("tlSeek(project.timelines[0], 2.6); tlPlay(project.timelines[0])"); time.sleep(0.75)
+    f = E(f"(() => {{ const f = zoneById('{Z[0]}')._fade; return f ? [f.scene, Math.round(f.dur * 10) / 10] : null; }})()")
+    check("playing into the top clip: a crossfade up over its fade-in", zone()[0] == sc(0, 1) and f and f[0] == sc(0, 1) and 0.5 <= f[1] <= 1 and zone()[1] == 1, (zone(), f))
+    E("tlPause(); tlSeek(project.timelines[0], 4.6); tlPlay(project.timelines[0])"); time.sleep(0.7)
+    f = E(f"(() => {{ const f = zoneById('{Z[0]}')._fade; return f ? [f.scene, Math.round(f.dur * 10) / 10] : null; }})()")
+    check("as it ends: back down to the clip under over its fade-out, done by its end", zone()[0] == sc(0, 0) and f and f[0] == sc(0, 0) and 0.4 <= f[1] <= 1 and E("tlPos()") < 6 and zone()[1] == 1, (zone(), f, E("tlPos()")))
+    E("tlPause()")
+    pg.locator(f"#dockBody button[aria-label^='Remove a lane']").click(); time.sleep(0.3)
+    check("− won't take off a lane with clips", E(f"project.timelines[0].lanes['{Z[0]}']") == 2)
+    top = E(f"project.timelines[0].tracks['{Z[0]}'][1].id")
+    cl = pg.locator(f"#dockBody .tlclip[data-clip='{top}']"); b = cl.bounding_box()
+    low = pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}'][data-lane='0']").bounding_box()
+    pg.mouse.move(b["x"] + 20, b["y"] + 15); pg.mouse.down(); pg.mouse.move(b["x"] + 20, low["y"] + 15, steps=5); pg.mouse.up(); time.sleep(0.3)
+    check("a clip dragged down onto a lane with no room there stays on its own", E(f"project.timelines[0].tracks['{Z[0]}'].find(c => c.id === '{top}').lane") == 1)
+    E(f"(() => {{ const c = project.timelines[0].tracks['{Z[0]}'][0]; c.dur = 2; c.fadeOut = 0; commit(); refreshTimeline(); }})()"); time.sleep(0.3)
+    cl = pg.locator(f"#dockBody .tlclip[data-clip='{top}']"); b = cl.bounding_box()
+    pg.mouse.move(b["x"] + 20, b["y"] + 15); pg.mouse.down(); pg.mouse.move(b["x"] + 20, low["y"] + 15, steps=5); pg.mouse.up(); time.sleep(0.3)
+    check("…onto a lane with room, it goes there", E(f"project.timelines[0].tracks['{Z[0]}'].find(c => c.id === '{top}').lane") == 0)
+    pg.locator(f"#dockBody button[aria-label^='Remove a lane']").click(); time.sleep(0.3)
+    check("− takes off the top lane once it is empty", not E(f"(project.timelines[0].lanes || {{}})['{Z[0]}']") and pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}']").count() == 1)
+    # a scene's snapshot at the start of its clips
+    E(f"(() => {{ const s = zoneById('{Z[0]}').scenes[0]; s.thumb = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA='; commit(); refreshTimeline(); }})()"); time.sleep(0.3)
+    check("a scene with a snapshot shows it at the start of its clips", pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}'] .tlclip img.tlshot").count() >= 1)
+
     # ---------- the grid in bars
     pg.locator("#dockBody .tlseg[aria-label='Grid'] button:has-text('Bars')").click(); time.sleep(0.3)
     labels = E("[...$$('#dockBody .tltick.major')].slice(0, 3).map(e => e.textContent)")
@@ -159,13 +194,13 @@ try:
           and "_url" not in saved["timelines"][0]["audio"])
     bad = {"name": "B", "zones": [{"id": "z1", "name": "Z", "scenes": [{"id": "s1", "name": "S", "layers": []}]}],
            "timelines": [{"id": "t", "length": 20, "grid": "x", "bpm": 999, "loop": {"mode": "region", "a": 30, "b": 5},
-                          "tracks": {"z1": [{"scene": "s1", "start": 12, "dur": 4, "fadeIn": 9}, {"scene": "nope", "start": 0}, {"scene": "s1", "start": 2, "dur": 3}], "gone": [{"scene": "s1"}]},
+                          "tracks": {"z1": [{"scene": "s1", "start": 12, "dur": 4, "fadeIn": 9, "lane": 2}, {"scene": "nope", "start": 0}, {"scene": "s1", "start": 2, "dur": 3}], "gone": [{"scene": "s1"}]},
                           "audio": {"name": "a.wav", "media": "../evil"}}, "junk"]}
     fx = E("p => hydrate(p).timelines", bad)
     t0 = fx[0] if fx else {}
-    check("files are repaired: clips of scenes not there or zones gone dropped, in order, fades in range, the loop inside, a bad media name dropped",
+    check("files are repaired: clips of scenes not there or zones gone dropped, in order, fades in range, the loop inside, a bad media name dropped, lanes as many as the clips need",
           len(fx) == 1 and [c["start"] for c in t0["tracks"]["z1"]] == [2, 12] and t0["tracks"]["z1"][1]["fadeIn"] == 4 and "gone" not in t0["tracks"]
-          and t0["grid"] == "sec" and t0["bpm"] == 300 and t0["loop"]["a"] <= t0["loop"]["b"] <= 20 and t0["audio"] == {"name": "a.wav"}, fx)
+          and t0["lanes"] == {"z1": 3} and t0["grid"] == "sec" and t0["bpm"] == 300 and t0["loop"]["a"] <= t0["loop"]["b"] <= 20 and t0["audio"] == {"name": "a.wav"}, fx)
     check("no errors in the page", not errs, errs[:3])
     br.close()
 finally:

@@ -171,8 +171,9 @@ function newCue(props = {}) { return Object.assign({ id: uid(), num: '1', name: 
 // seconds, its level rising over fadeIn (or crossfading from the clip just before) and falling over fadeOut (unless one
 // follows at once); an audio file (audio: { name, media }) playing with it; the ruler in seconds or bars (grid, bpm);
 // a loop: 'off', 'all' or the region a..b.
-function newTimeline(props = {}) { return Object.assign({ id: uid(), name: 'Timeline 1', length: 60, audio: null, grid: 'sec', bpm: 120, loop: { mode: 'off', a: 0, b: 8 }, tracks: {} }, props); }
-const newClip = (scene, start, dur, props = {}) => Object.assign({ id: uid(), scene, start, dur, fadeIn: 1, fadeOut: 1 }, props);
+// A zone's track has lanes (lanes[zone], 1 at first; clip.lane 0 the lowest): where clips overlap, the highest shows.
+function newTimeline(props = {}) { return Object.assign({ id: uid(), name: 'Timeline 1', length: 60, audio: null, grid: 'sec', bpm: 120, loop: { mode: 'off', a: 0, b: 8 }, tracks: {}, lanes: {} }, props); }
+const newClip = (scene, start, dur, props = {}) => Object.assign({ id: uid(), scene, start, dur, fadeIn: 1, fadeOut: 1, lane: 0 }, props);
 const newCueAction = (zone, props = {}) => Object.assign({ zone, kind: 'scene', scene: '', level: null, fade: 2 }, props);
 function clampZone(z, s = project.settings) {
   z.w = clamp(Math.round(z.w) || 1, 1, s.compW); z.h = clamp(Math.round(z.h) || 1, 1, s.compH);

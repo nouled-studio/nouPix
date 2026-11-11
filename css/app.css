@@ -1375,3 +1375,12 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlclip .tledge.l { left: 0; } .tlclip .tledge.r { right: 0; }
 .tlclip .tlfin, .tlclip .tlfout { position: absolute; top: -1px; width: 9px; height: 9px; margin-left: -4px; background: var(--fader); cursor: ew-resize; z-index: 1; }
 .tlclip:not(:hover):not(.sel) .tlfin, .tlclip:not(:hover):not(.sel) .tlfout { opacity: .45; }
+.tlrow.sub .tllabel { border-left-color: color-mix(in srgb, var(--tag, transparent) 50%, transparent); }
+.tlrow.sub { border-bottom-style: dashed; }
+.tllabel .tlz { flex: 1; min-width: 0; }
+.tllabel .tlln { font-size: 10px; color: var(--muted); }
+.tllbtns { display: flex; gap: 2px; margin-left: 6px; }
+.tllb { width: 18px; height: 18px; padding: 0; border: 1px solid var(--line2); background: var(--bg3); color: var(--muted); font-size: 12px; line-height: 1; cursor: pointer; }
+.tllb:hover { color: var(--text); }
+.tlclip .tlshot { position: absolute; left: 0; top: 0; height: 100%; width: auto; max-width: 56px; object-fit: cover; pointer-events: none; opacity: .9; }
+.tlclip .tlcname.shot { left: 62px; }

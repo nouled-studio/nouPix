@@ -487,18 +487,32 @@ function setTimelineAudio(T, file) {
   commit({ lists: false }); refreshTimeline();
 }
 // A clip of one of a zone's scenes at a time: as long as there is room before the next clip (8 s at most)
-function addClip(T, z, sceneId, t) {
-  const clips = T.tracks[z.id] || (T.tracks[z.id] = []);
+function addClip(T, z, sceneId, t, lane = 0) {
+  const clips = T.tracks[z.id] || (T.tracks[z.id] = []), mine = clips.filter(c => (c.lane || 0) === lane);
   t = clamp(t, 0, T.length - 0.1);
-  if (clips.some(c => c.start <= t && t < c.start + c.dur)) { toast('There is a clip there already: drop it on an empty part of the track.', 'warn'); return null; }
-  const next = clips.filter(c => c.start > t).reduce((m, c) => Math.min(m, c.start), T.length);
+  if (mine.some(c => c.start <= t && t < c.start + c.dur)) { toast('There is a clip there already: drop it on an empty part of the lane, or on another lane.', 'warn'); return null; }
+  const next = mine.filter(c => c.start > t).reduce((m, c) => Math.min(m, c.start), T.length);
   const sc = z.scenes.find(s => s.id === sceneId), dur = Math.min(8, next - t);
   if (!sc || dur < 0.1) return null;
-  const c = newClip(sceneId, t, dur, { fadeIn: Math.min(1, dur / 4), fadeOut: Math.min(1, dur / 4) });
+  const c = newClip(sceneId, t, dur, { fadeIn: Math.min(1, dur / 4), fadeOut: Math.min(1, dur / 4), lane });
   clips.push(c); clips.sort((a, b) => a.start - b.start);
   ui.tlSel = c.id; tl.clips[z.id] = undefined;
   commit({ lists: false }); refreshTimeline();
   return c;
+}
+// Lanes: one more on top of a zone's track; the top one taken off when it has no clips
+function addLane(T, z) {
+  const lanes = T.lanes || (T.lanes = {}), n = lanes[z.id] || 1;
+  if (n >= 16) return;
+  lanes[z.id] = n + 1;
+  commit({ lists: false }); refreshTimeline();
+}
+function removeLane(T, z) {
+  const lanes = T.lanes || (T.lanes = {}), n = lanes[z.id] || 1;
+  if (n <= 1) return;
+  if ((T.tracks[z.id] || []).some(c => (c.lane || 0) === n - 1)) { toast('Its top lane has clips: move or delete them first.', 'warn'); return; }
+  if (n - 1 > 1) lanes[z.id] = n - 1; else delete lanes[z.id];
+  commit({ lists: false }); refreshTimeline();
 }
 function deleteClip(T, z, c) {
   const clips = T.tracks[z.id] || [];
@@ -509,7 +523,7 @@ function deleteClip(T, z, c) {
   commit({ lists: false }); refreshTimeline();
 }
 function duplicateClip(T, z, c) {
-  const d = addClip(T, z, c.scene, c.start + c.dur);
+  const d = addClip(T, z, c.scene, c.start + c.dur, c.lane || 0);
   if (d) { d.dur = Math.min(c.dur, d.dur); d.fadeIn = Math.min(c.fadeIn, d.dur); d.fadeOut = Math.min(c.fadeOut, d.dur - d.fadeIn); commit({ lists: false }); refreshTimeline(); }
 }
 

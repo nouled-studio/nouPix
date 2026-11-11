@@ -61,29 +61,39 @@ function tlSeek(T, t) {
   tlApply(T, tl.pos, true);
   if (tl.playing) tlAudioSync(T, tl.pos, true);
 }
-// Each zone with clips: the clip under the playhead, its scene and its level
+// A zone's track can have several lanes (clip.lane, 0 the lowest): where clips overlap, the highest lane's shows. A
+// clip lying over another hands back to it over its own fade-out, so the clip under shows fully by the time it ends.
+const tlEndOf = c => c.start + c.dur;
+const tlOver = (clips, t, skip) => clips.some(x => x !== skip && x.start <= t + 1e-6 && t < tlEndOf(x) - 1e-6);
+const tlHandEnd = (clips, c) => (clips.some(x => x !== c && x.lane < c.lane && x.start < tlEndOf(c) - 1e-6 && tlEndOf(x) >= tlEndOf(c) - 1e-6) ? tlEndOf(c) - c.fadeOut : tlEndOf(c));
+function tlWinner(clips, p) {
+  let w = null;
+  for (const c of clips) if (c.start <= p && p < tlHandEnd(clips, c) && (!w || c.lane > w.lane || (c.lane === w.lane && c.start > w.start))) w = c;
+  return w;
+}
+// Each zone with clips: the clip showing at the playhead, its scene and its level
 function tlApply(T, p, jump) {
   let scenes = false;
   for (const [zid, clips] of Object.entries(T.tracks)) {
     const z = zoneById(zid);
     if (!z || !clips.length) continue;
-    const c = clips.find(x => x.start <= p && p < x.start + x.dur) || null;
-    const before = c && clips.find(x => x !== c && Math.abs(x.start + x.dur - c.start) < 0.01);
-    const after = c && clips.find(x => x !== c && Math.abs(x.start - (c.start + c.dur)) < 0.01);
-    if ((c ? c.id : null) !== (tl.clips[zid] ?? undefined)) {
-      const sc = c && z.scenes.find(s => s.id === c.scene);
+    const c = tlWinner(clips, p), prevId = tl.clips[zid] ?? undefined;
+    if ((c ? c.id : null) !== prevId) {
+      const sc = c && z.scenes.find(s => s.id === c.scene), old = prevId ? clips.find(x => x.id === prevId) : null;
       if (sc) {
-        // from the clip just before: a crossfade over this one's fade-in; jumped to, or from a gap: a cut
-        const cross = !jump && before && tl.clips[zid] === before.id;
-        playlistManual(z, sc.id); recallScene(z, sc, cross ? Math.min(c.fadeIn, Math.max(0, c.start + c.dur - p)) : 0); scenes = true;
+        // from the clip that showed: up a lane over this one's fade-in, back down over that one's fade-out, along a
+        // lane over this one's fade-in; jumped to, or from nothing: a cut
+        const d = !jump && old ? (c.lane < old.lane ? Math.max(0, tlEndOf(old) - p) : c.fadeIn) : 0;
+        playlistManual(z, sc.id); recallScene(z, sc, Math.min(d, Math.max(0, tlEndOf(c) - p))); scenes = true;
       }
       tl.clips[zid] = c ? c.id : null;
     }
+    // the level fades only where nothing else is: in from a gap, out into one; dark in a gap
     let lv = 0;
     if (c) {
       lv = 1;
-      if (!before && c.fadeIn > 0) lv = Math.min(lv, (p - c.start) / c.fadeIn);
-      if (!after && c.fadeOut > 0) lv = Math.min(lv, (c.start + c.dur - p) / c.fadeOut);
+      if (c.fadeIn > 0 && !tlOver(clips, c.start - 0.001, c)) lv = Math.min(lv, (p - c.start) / c.fadeIn);
+      if (c.fadeOut > 0 && !tlOver(clips, tlEndOf(c), c)) lv = Math.min(lv, (tlEndOf(c) - p) / c.fadeOut);
       lv = clamp(lv, 0, 1);
     }
     if (Math.abs(z.opacity - lv) > 1e-4) setZoneOpacity(z, lv);
