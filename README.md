@@ -1,4 +1,4 @@
-# nouPix 1.5.4
+# nouPix 1.5.5
 
 <img src="icons/noupix-256.png" alt="" width="96" align="right">
 
@@ -25,6 +25,8 @@ A pixel-mapping tool for LED installations, by nouled studio. Draw or import you
 **Scenes and playlists.** Store looks per zone, with a snapshot of each on its button; the scene playing keeps what you change live. Fade between them, play them in playlists, mix two zones with the X-Fader, their scenes side by side.
 
 ![The Scenes panel with the X-Fader on: its two zones side by side, their scenes showing a snapshot of what each plays, a playlist under each, and the X-Fader under them](docs/images/feature-scenes.webp)
+
+**Cue lists and a timeline (both in beta).** Run a show cue by cue with GO: each cue plays scenes, sets levels and effects' controls over its fade, and can go on by itself. Or lay scenes on a timeline, a track per zone, in time with an audio file, with fades, lanes and loops. Both are betas: they work, and they are still growing.
 
 **Send it out.** Art-Net, sACN and DDP together (each controller on its own), outputs by universes or by pixels, automatic addressing, discovery (WLED too), 8 or 16-bit fixtures with dimming curves, a Channel monitor in its own window and test patterns to check the installation on site.
 

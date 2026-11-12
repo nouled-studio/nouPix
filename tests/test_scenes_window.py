@@ -96,8 +96,9 @@ try:
     ev("mixer.thumb = window._thumb; delete document.hidden; setXfadeOn(false)"); settle(0.4)
 
     # ---------- closing
-    W.locator("button[aria-label='Back to the panel']").click(); settle(0.6)
-    check("Back to the panel closes it, and the scenes are in the bottom panel again", W.is_closed() and pg.locator("#dockBody .scene").count() == 36)
+    check("in the window, the place buttons show it there", W.locator(".spos button.on").get_attribute("data-place") == "window")
+    W.locator("button[aria-label='Scenes at the bottom']").click(); settle(0.6)
+    check("Scenes at the bottom closes it, and the scenes are in the bottom panel again", W.is_closed() and pg.locator("#dockBody .scene").count() == 36)
     with pg.expect_popup() as pi: pg.click("#dockBody button[aria-label='Open in a window']")
     W = pi.value; settle(0.6)
     pg.click("#dockBody button:has-text('Back here')"); settle(0.6)

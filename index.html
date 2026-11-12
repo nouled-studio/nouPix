@@ -38,15 +38,21 @@
 
   <div class="workspace">
     <aside class="left">
+      <div class="sidegrip" id="leftGrip" title="Drag to make this panel wider or narrower"></div>
+      <div class="tabs sidetabs" id="leftTabs" hidden></div>
+      <div class="panelhost" id="leftHost" hidden></div>
       <section class="fixtures">
         <div class="phead"><h2>Fixtures</h2>
-          <button class="btn sm" id="btnImportSvg" type="button" title="Import an SVG as fixtures and/or guide">SVG…</button>
-          <button class="btn sm" id="btnAddFx" type="button">+ Add</button>
-          <button class="btn sm grpbtn" id="btnGroup" type="button" disabled></button>
-          <button class="btn sm grpbtn" id="btnLock" type="button" disabled></button>
           <button class="btn ghost sm" id="btnHideLeft" type="button" title="Hide this panel (Shift H)" aria-label="Hide the left panel">«</button>
         </div>
         <div class="pbody"><ul class="list" id="fxList"></ul></div>
+        <div class="pfoot fxfoot">
+          <button class="btn sm" id="btnAddFx" type="button">+ Add</button>
+          <button class="btn sm" id="btnImportSvg" type="button" title="Import an SVG as fixtures and/or guide">SVG…</button>
+          <span class="fill"></span>
+          <button class="btn sm grpbtn" id="btnGroup" type="button" disabled></button>
+          <button class="btn sm grpbtn" id="btnLock" type="button" disabled></button>
+        </div>
       </section>
       <section class="sources">
         <div class="grip" id="srcGrip" title="Drag to make the sources taller or shorter; double-click for the usual height"></div>
@@ -96,6 +102,8 @@
         <div class="grip" id="dockGrip"></div>
         <div class="tabs" id="dockTabs">
           <button type="button" data-tab="scenes">Scenes</button>
+          <button type="button" data-tab="cues">Cue lists (Beta)</button>
+          <button type="button" data-tab="timeline">Timeline (Beta)</button>
           <button type="button" data-tab="patch">Patch</button>
           <span class="fill"></span>
           <span class="tabtools"><button class="btn sm" id="btnMon" type="button" title="Channel monitor: the values going out, channel by channel" hidden></button><button class="btn sm" id="btnOutSet" type="button" title="Output settings: what goes out, and how often" hidden></button><button class="btn ghost sm" id="btnDock" type="button" title="Collapse panel">▾</button></span>
@@ -109,10 +117,13 @@
         <button type="button" data-tab="inspector">Inspector</button>
         <button type="button" data-tab="content">Content</button>
         <button type="button" data-tab="settings">Settings</button>
+        <span class="movedtabs" id="rightMoved"></span>
         <span class="fill"></span>
         <span class="tabtools"><button class="btn ghost sm" id="btnHideRight" type="button" title="Hide this panel (H)" aria-label="Hide the right panel">»</button></span>
       </div>
       <div class="pbody" id="rightBody"></div>
+      <div class="panelhost" id="rightHost" hidden></div>
+      <div class="sidegrip" id="rightGrip" title="Drag to make this panel wider or narrower"></div>
     </aside>
   </div>
 
@@ -138,6 +149,8 @@
 <script src="js/project-io.js"></script>
 <script src="js/remote.js"></script>
 <script src="js/playlists.js"></script>
+<script src="js/cues.js"></script>
+<script src="js/timeline.js"></script>
 <script src="js/tempo.js"></script>
 <script src="js/touch.js"></script>
 <script src="js/midi.js"></script>
@@ -149,6 +162,8 @@
 <script src="js/ui-inspector.js"></script>
 <script src="js/ui-dock.js"></script>
 <script src="js/ui-playlists.js"></script>
+<script src="js/ui-cues.js"></script>
+<script src="js/ui-timeline.js"></script>
 <script src="js/ui-menus.js"></script>
 <script src="js/ui-remote.js"></script>
 <script src="js/ui-midi.js"></script>

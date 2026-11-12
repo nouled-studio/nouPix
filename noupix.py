@@ -46,7 +46,7 @@ import urllib.parse
 import uuid
 import webbrowser
 
-VERSION = "1.5.4"
+VERSION = "1.5.5"
 HERE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 ARTNET_PORT = 6454
 WS_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -1337,7 +1337,10 @@ MEDIA_DIR = os.environ.get("NOUPIX_MEDIA_DIR") or os.path.join(os.path.expanduse
 MEDIA_NAME = re.compile(r"^[0-9a-f]{32}\.[a-z0-9]{1,5}$")
 MEDIA_TYPES = {"mp4": "video/mp4", "m4v": "video/mp4", "mov": "video/quicktime", "webm": "video/webm", "mkv": "video/x-matroska",
                "ogv": "video/ogg", "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif",
-               "webp": "image/webp", "avif": "image/avif", "bmp": "image/bmp", "svg": "image/svg+xml"}
+               "webp": "image/webp", "avif": "image/avif", "bmp": "image/bmp", "svg": "image/svg+xml",
+               # a timeline's audio
+               "mp3": "audio/mpeg", "wav": "audio/wav", "ogg": "audio/ogg", "oga": "audio/ogg", "opus": "audio/ogg",
+               "m4a": "audio/mp4", "aac": "audio/aac", "flac": "audio/flac"}
 PACKAGES = {}   # token -> (project text, media names, made at): a package asked for, then fetched by its link
 
 

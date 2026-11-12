@@ -164,6 +164,8 @@ function tick() {
   if (geomDirty) rebuildGeometry();
   ensurePatch();
   if (!REMOTE_CLIENT) try { playlistTick(); } catch (e) { report('playlists', e); }   // on a device the main computer plays them
+  if (!REMOTE_CLIENT) try { cueTick(); } catch (e) { report('cues', e); }
+  if (!REMOTE_CLIENT) try { tlTick(); } catch (e) { report('timeline', e); }
   sizeContent();
   if (ui.outputMode === 'content' || ui.showContent) try { renderContent(); } catch (e) { report('content', e); }
   if (ui.outputMode !== 'content') testPattern(ui.outputMode);

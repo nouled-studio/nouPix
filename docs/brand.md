@@ -72,6 +72,12 @@ same without the internet; the bridge serves them. They are under the SIL Open F
   layers clipped to that shape (`::before`, `::after`), so tags and outlines around the tile aren't clipped. The
   playing one has a white edge and one small red square in its top right corner; the fade bar is white. A zone's
   colour, when it has one, is a line on the left. While learning MIDI, a tile's edge turns yellow along the cut.
+- **Timeline clips** (and the audio's block): the same two cuts and layers as a scene's tile, the zone's colour a line on
+  the left. A slim header carries the scene's name; under it a filmstrip of the scene's snapshot, over and over (a quiet
+  hatch without one), masked to nothing over the clip's fade-in and fade-out. The fade handles are small aluminium
+  squares. Selected: a white edge; playing: a white edge and the small red square, as a scene. The playhead is a red
+  line with a small square; the loop's region a neutral tint between two red markers, never a red area. Sections
+  (Audio, Zones) in the label voice; the waveform aluminium.
 - **Sliders:** a 2 px track, aluminium up to the value and dark after it, and a 3 × 14 px bar as the handle (the
   phone: 3 px and 6 × 30 px, for fingers). The colour picker's gradient sliders keep their round thumbs.
 - **Checkboxes:** red.

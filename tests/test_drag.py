@@ -29,6 +29,9 @@ try:
       window._lists = 0; const r = renderFxList; renderFxList = function () { window._lists++; return r.apply(this, arguments); };
       window._dock = 0; const d = renderDock; renderDock = function () { window._dock++; return d.apply(this, arguments); }; })()""")
     time.sleep(1.5)
+    # the sources' thumbnails compile their effects after the page opens, some taking most of a second each: done
+    # before the drag is timed, so the gap measured is the drag's (and not which compile happens to land in it)
+    pg.wait_for_function("[...thumbs.values()].every(c => !c._stale)", timeout=60000)
 
     # ---------- an oval's arc: kept until its shape changes, and the same as working it out afresh
     same = ev("""(() => { let bad = 0; const f = JSON.parse(JSON.stringify(olm.project.fixtures[3], replacer)), keys = ['cx', 'cy', 'r', 'ry', 'rot', 'start', 'sweep'];

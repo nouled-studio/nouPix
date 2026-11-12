@@ -198,7 +198,7 @@ function initUI() {
   $('#btnFit').addEventListener('click', fitView);
   initTips();
   $$('#rail button').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
-  $$('#rightTabs button').forEach(b => b.addEventListener('click', () => { ui.rightTab = b.dataset.tab; savePrefs(); renderRight(); }));
+  $$('#rightTabs button[data-tab]').forEach(b => b.addEventListener('click', () => { ui.rightTab = b.dataset.tab; ui.sideOpen = Object.assign({}, ui.sideOpen, { right: null }); savePrefs(); renderRight(); renderSides(); }));
   $$('#dockTabs button[data-tab]').forEach(b => b.addEventListener('click', () => { ui.dockTab = b.dataset.tab; ui.dockCollapsed = false; savePrefs(); renderDock(); }));
   $('#btnGroup').addEventListener('click', () => { groupAction() === 'ungroup' ? ungroupSel() : groupSel(); });
   $('#btnLock').addEventListener('click', toggleLockSel);
@@ -211,6 +211,7 @@ function initUI() {
   showLeft(!ui.leftHidden);
   showRight(!ui.rightHidden);
   $('#btnDock').addEventListener('click', () => { ui.dockCollapsed = !ui.dockCollapsed; savePrefs(); renderDock(); });
+  initSides();
   const grip = $('#dockGrip');
   grip.addEventListener('pointerdown', e => {
     grip.setPointerCapture(e.pointerId);
@@ -291,6 +292,10 @@ function onKey(e) {
   if (mod) return;
   const digit = /^Digit([1-9])$/.exec(e.code);
   if (digit) { const z = selZone(), sc = z && z.scenes[+digit[1] - 1]; if (sc) goScene(z, sc, e.shiftKey); return; }
+  // Space is GO while a cue list shows and the mouse is off the stage (on it, Space held pans the view)
+  if (e.code === 'Space' && !e.repeat && cuesShown() && shownCueList() && !stageEl.matches(':hover')) { e.preventDefault(); cueGo(shownCueList()); return; }
+  // and plays or pauses the timeline shown
+  if (e.code === 'Space' && !e.repeat && timelineShown() && shownTimeline() && !stageEl.matches(':hover')) { e.preventDefault(); const T = shownTimeline(); if (tl.playing && tl.id === T.id) tlPause(); else tlPlay(T); return; }
   if (e.code === 'Space') { spaceHeld = true; cv.style.cursor = 'grab'; e.preventDefault(); return; }
   if ((ui.tool === 'path' || ui.tool === 'pen') && pathDraft) {
     if (e.key === 'Enter') { finishPath(); return; }
@@ -349,7 +354,9 @@ function frameLoop(now) {
     if (monCanvas) drawMonitor(now);
     if (tempoLive) tempoFrame(now);
     beatDotFrame(now);
-    if (ui.dockTab === 'scenes' && !ui.dockCollapsed) drawSceneProgress();
+    if (scenesHere()) drawSceneProgress();
+    drawCueProgress();
+    drawTimelineHead();
     if (project.xfade.on && !document.hidden) drawXfPreviews();
     if (now - (frameLoop.last || 0) > 200) { frameLoop.last = now; updateStatus(); }
   } catch (e) { report('panels', e); }

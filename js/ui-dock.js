@@ -3,7 +3,11 @@
 
 /* ---------- bottom dock ---------- */
 function renderDock() {
+  // a panel moved to a side leaves the bottom panel's tabs
+  for (const k of Object.keys(PANELS)) $(`#dockTabs button[data-tab="${k}"]`).hidden = placeOf(k) !== 'bottom';
+  if (PANELS[ui.dockTab] && placeOf(ui.dockTab) !== 'bottom') ui.dockTab = Object.keys(PANELS).find(k => placeOf(k) === 'bottom') || 'patch';
   $$('#dockTabs button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.dockTab));
+  renderSides();
   const dock = $('#dock');
   dock.classList.toggle('collapsed', ui.dockCollapsed);
   dock.style.setProperty('--bottom-h', ui.dockH + 'px');
@@ -22,6 +26,8 @@ function renderDock() {
     if (ui.dockCollapsed) return;
     if (ui.dockTab === 'scenes' && scenesWinOpen()) renderScenesAway(body);
     else if (ui.dockTab === 'scenes') renderScenes(body);
+    else if (ui.dockTab === 'cues') renderCues(body);
+    else if (ui.dockTab === 'timeline') renderTimeline(body);
     else if (ui.dockTab === 'patch') {
       renderPatch(body);
       if (mappingLocked()) { const ce = body.querySelector('.ctrl-edit'); if (ce) lockPanel(ce, 'Operator: you can see the patch but not change it.'); body.querySelectorAll('.ctrl-list .foot button').forEach(b => { b.disabled = true; }); }
@@ -51,22 +57,23 @@ function schedulePanels() {
 // While a slider or a fade is dragged, something is dragged and dropped, or a field is typed in, in the Scenes panel,
 // a redraw from elsewhere (a playlist moving on, another device) waits until it is over
 let scenesHeld = false, scenesDragging = false, scenesPending = false;
-const scenesBusy = () => scenesHeld || scenesDragging || [document, scenesDoc()].some(d => d && typingIn(d.activeElement) && d.activeElement.closest('#dockBody'));
+const scenesBusy = () => scenesHeld || scenesDragging || [document, scenesDoc()].some(d => d && typingIn(d.activeElement) && d.activeElement.closest('#dockBody, .panelhost'));
 function refreshScenes() {
-  const here = ui.dockTab === 'scenes' && !ui.dockCollapsed;
-  if (!here && !scenesWinOpen()) return;
+  const root = panelRoot('scenes'), here = root && root.id === 'dockBody';
+  if (!root && !scenesWinOpen()) return;
   if (scenesBusy()) { scenesPending = true; return; }
   scenesPending = false;
-  if (here) renderDock(); else drawScenesWindow();
+  if (here) renderDock();
+  else { if (root) keepScroll(root, () => { root.replaceChildren(); renderScenes(root, 'side'); }); drawScenesWindow(); }
 }
 const scenesLetGo = () => { if (scenesPending) setTimeout(() => { if (scenesPending && !scenesBusy()) refreshScenes(); }); };
 // in this page, and in the Scenes window when it opens
 function watchScenes(d) {
-  d.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest('#dockBody input[type=range], #dockBody .fd')) scenesHeld = true; }, true);
-  d.addEventListener('dragstart', e => { if (e.target.closest && e.target.closest('#dockBody')) scenesDragging = true; }, true);
+  d.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest(':is(#dockBody, .panelhost) :is(input[type=range], .fd)')) scenesHeld = true; }, true);
+  d.addEventListener('dragstart', e => { if (e.target.closest && e.target.closest('#dockBody, .panelhost')) scenesDragging = true; }, true);
   for (const t of ['pointerup', 'pointercancel']) d.addEventListener(t, () => { if (scenesHeld) { scenesHeld = false; scenesLetGo(); } }, true);
   for (const t of ['dragend', 'drop']) d.addEventListener(t, () => { if (scenesDragging) { scenesDragging = false; scenesLetGo(); } }, true);
-  d.addEventListener('focusout', e => { if (e.target.closest && e.target.closest('#dockBody')) scenesLetGo(); }, true);
+  d.addEventListener('focusout', e => { if (e.target.closest && e.target.closest('#dockBody, .panelhost')) scenesLetGo(); }, true);
 }
 watchScenes(document);
 
@@ -76,8 +83,10 @@ watchScenes(document);
 let scenesWin = null;
 const scenesWinOpen = () => !!(scenesWin && !scenesWin.closed);
 const scenesDoc = () => (scenesWinOpen() ? scenesWin.document : null);
-// Where the scenes are drawn now: the bottom panel's, the Scenes window's
-const scenesRoots = () => [$('#dockBody'), scenesDoc() && $('#dockBody', scenesDoc())].filter(Boolean);
+// Where the scenes are drawn now: the bottom panel's, a side's, the Scenes window's
+const scenesRoots = () => [$('#dockBody'), placeOf('scenes') !== 'bottom' && panelRoot('scenes'), scenesDoc() && $('#dockBody', scenesDoc())].filter(Boolean);
+// Whether the scenes show in this page now (for the fades' progress)
+const scenesHere = () => !scenesWinOpen() && !!panelRoot('scenes');
 function openScenesWindow() {
   if (scenesWinOpen()) { raiseWindow(scenesWin); return; }
   const w = window.open('', 'olm-scenes', 'popup,width=1180,height=460');
@@ -121,7 +130,121 @@ setInterval(() => { if (scenesWin && scenesWin.closed) { scenesWin = null; rende
 function drawScenesWindow() {
   const D = scenesDoc(), root = D && $('#dockBody', D);
   if (!root) return;
-  keepScroll(root, () => { root.replaceChildren(); renderScenes(root, true); });
+  keepScroll(root, () => { root.replaceChildren(); renderScenes(root, 'window'); });
+}
+// Where the bottom panel's Scenes, Cue list and Timeline are: at the bottom, or one more tab in the left or right panel
+// (next to the side's own: Inspector, Content, Settings on the right; Fixtures on the left), with a ✕ that sends it back
+// to the bottom; the scenes also in a window of their own. Each panel's head has the same place buttons.
+// (their icons one set: the window's frame, square, with the part the panel takes shaded)
+const placeIcon = inner => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">${inner}</svg>`;
+const PLACE_ICONS = {
+  bottom: placeIcon('<rect x="2" y="3" width="12" height="10"/><rect x="2.65" y="9" width="10.7" height="3.35" fill="currentColor" stroke="none" opacity=".55"/><path d="M2 9h12"/>'),
+  left: placeIcon('<rect x="2" y="3" width="12" height="10"/><rect x="2.65" y="3.65" width="3.35" height="8.7" fill="currentColor" stroke="none" opacity=".55"/><path d="M6 3v10"/>'),
+  right: placeIcon('<rect x="2" y="3" width="12" height="10"/><rect x="10" y="3.65" width="3.35" height="8.7" fill="currentColor" stroke="none" opacity=".55"/><path d="M10 3v10"/>'),
+  window: placeIcon('<rect x="2" y="5" width="9" height="8"/><path d="M5 5V2.5h9V10h-3"/>'),
+};
+// (the cue lists and the timeline are betas, and say so)
+const PANELS = { scenes: 'Scenes', cues: 'Cue lists (Beta)', timeline: 'Timeline (Beta)' };
+const PANEL_DRAW = { scenes: b => renderScenes(b, 'side'), cues: b => renderCues(b), timeline: b => renderTimeline(b) };
+const placeOf = k => { const p = (ui.places || {})[k]; return p === 'left' || p === 'right' ? p : 'bottom'; };
+const movedTo = side => Object.keys(PANELS).filter(k => placeOf(k) === side);
+const sideShown = side => !(side === 'left' ? ui.leftHidden : ui.rightHidden);
+// The side's moved tab open now, or null (its own)
+const sideOpen = side => { const k = (ui.sideOpen || {})[side]; return k && placeOf(k) === side && !(k === 'scenes' && scenesWinOpen()) ? k : null; };
+// Where a panel shows now (the bottom panel's body or a side's), or null
+function panelRoot(k) {
+  const p = placeOf(k);
+  if (p === 'bottom') return ui.dockTab === k && !ui.dockCollapsed ? $('#dockBody') : null;
+  return sideShown(p) && sideOpen(p) === k ? $('#' + p + 'Host') : null;
+}
+function panelPlaces(k) {
+  const now = k === 'scenes' && scenesWinOpen() ? 'window' : placeOf(k), n = PANELS[k];
+  const list = [['bottom', `${n} at the bottom`, 'In the bottom panel'], ['left', `${n} in the left panel`, 'One more tab there; its ✕ brings it back'],
+    ['right', `${n} in the right panel`, 'One more tab there, next to Inspector, Content and Settings; its ✕ brings it back']];
+  if (k === 'scenes') list.push(['window', 'Open in a window', 'The scenes and playlists in a window of their own, to put on another screen']);
+  return h('div', { class: 'spos', role: 'group', 'aria-label': 'Where the ' + n.toLowerCase() + ' are' },
+    list.map(([p, name, what]) => h('button', { type: 'button', class: p === now ? 'on' : '', html: PLACE_ICONS[p], 'data-place': p,
+      'aria-label': name, 'aria-pressed': String(p === now), 'data-tip': name + '|' + what, onclick: () => setPanelPlace(k, p) })));
+}
+function setPanelPlace(k, p) {
+  if (k === 'scenes' && p === 'window') { openScenesWindow(); renderDock(); return; }
+  ui.places = Object.assign({}, ui.places, { [k]: p });
+  if (p === 'bottom') { ui.dockTab = k; ui.dockCollapsed = false; }
+  else {
+    ui.sideOpen = Object.assign({}, ui.sideOpen, { [p]: k });
+    if (!sideShown(p)) (p === 'left' ? showLeft : showRight)(true);
+  }
+  savePrefs();
+  if (k === 'scenes' && scenesWinOpen()) closeScenesWindow(); else renderDock();
+  // the stage has another size: the whole canvas in view again
+  requestAnimationFrame(() => { resizeView(); fitView(); redrawStage(); });
+}
+// A side's tab picked: a moved one, or (null) the side's own
+function openSideTab(side, k) {
+  ui.sideOpen = Object.assign({}, ui.sideOpen, { [side]: k });
+  savePrefs(); renderSides();
+  requestAnimationFrame(() => { resizeView(); redrawStage(); });
+}
+// The side panels: their moved tabs (each with its ✕), the one open drawn in the side's own body for it, the side as
+// wide as set for it meanwhile (the side's own content stays as it was, under)
+function renderSides() {
+  const ws = $('.workspace');
+  for (const side of ['left', 'right']) {
+    const moved = movedTo(side), open = sideOpen(side), host = $('#' + side + 'Host'), aside = $('aside.' + side);
+    if (!host) continue;
+    const tab = k => h('button', { type: 'button', class: 'mtab' + (k === open ? ' on' : ''), 'data-panel': k, title: PANELS[k] + ' (moved here from the bottom panel)',
+      onclick: () => openSideTab(side, k) }, PANELS[k],
+      h('span', { class: 'mx', role: 'button', tabindex: 0, 'aria-label': 'Close ' + PANELS[k] + ' here', title: 'Close it here: back to the bottom panel',
+        onclick: e => { e.stopPropagation(); setPanelPlace(k, 'bottom'); } }, '✕'));
+    if (side === 'right') {
+      $('#rightMoved').replaceChildren(...moved.map(tab));
+      $$('#rightTabs button[data-tab]').forEach(b => b.classList.toggle('on', !open && b.dataset.tab === ui.rightTab));
+      $('#rightBody').hidden = !!open;
+    } else {
+      const tabs = $('#leftTabs');
+      tabs.hidden = !moved.length;
+      // the tab row stands for the Fixtures head meanwhile: its « at the end
+      aside.classList.toggle('tabbed', moved.length > 0);
+      tabs.replaceChildren(h('button', { type: 'button', class: 'mtab' + (open ? '' : ' on'), onclick: () => openSideTab('left', null) }, 'Fixtures'), ...moved.map(tab),
+        h('span', { class: 'fill' }), h('span', { class: 'tabtools' }, h('button', { class: 'btn ghost sm', type: 'button', title: 'Hide this panel (Shift H)', 'aria-label': 'Hide the left panel', onclick: () => showLeft(false) }, '\u00ab')));
+      for (const sec of $$('aside.left > section')) sec.hidden = !!open;
+    }
+    host.hidden = !open;
+    aside.classList.toggle('wide', !!open);
+    if (open) ws.style.setProperty(side === 'left' ? '--lw' : '--rw', ((ui.sideW || {})[side] || (side === 'left' ? 480 : 520)) + 'px');
+    else ws.style.removeProperty(side === 'left' ? '--lw' : '--rw');
+    if (open) keepScroll(host, () => { host.replaceChildren(); PANEL_DRAW[open](host); });
+    else if (host.firstChild) host.replaceChildren();
+  }
+}
+// A side's inner edge dragged sets its width while a moved tab is open (the stage at least 240px), once per drawn
+// frame, the stage's canvas keeping its size until the drag ends (holdStage)
+function initSides() {
+  for (const side of ['left', 'right']) {
+    const grip = $('#' + side + 'Grip'), aside = $('aside.' + side);
+    if (!grip) continue;
+    grip.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      grip.setPointerCapture(e.pointerId); grip.classList.add('on');
+      const w0 = aside.getBoundingClientRect().width, stage = $('.center').getBoundingClientRect().width, x0 = e.clientX;
+      let x = x0, raf = 0;
+      const apply = () => {
+        raf = 0;
+        const w = Math.round(clamp(w0 + (side === 'right' ? x0 - x : x - x0), 260, Math.max(260, w0 + stage - 240)));
+        ui.sideW = Object.assign({}, ui.sideW, { [side]: w });
+        $('.workspace').style.setProperty(side === 'left' ? '--lw' : '--rw', w + 'px');
+      };
+      const mv = ev => { x = ev.clientX; if (!raf) raf = requestAnimationFrame(apply); };
+      const up = () => {
+        for (const t of ['pointermove', 'pointerup', 'pointercancel']) grip.removeEventListener(t, t === 'pointermove' ? mv : up);
+        if (raf) { cancelAnimationFrame(raf); apply(); }
+        grip.classList.remove('on'); holdStage(false); savePrefs();
+      };
+      holdStage(true, true);
+      grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+    });
+  }
 }
 // The Scenes tab while the scenes have their own window
 function renderScenesAway(body) {
@@ -266,7 +389,8 @@ function sceneTile(z, sc, i, keys, look) {
   });
   return tile;
 }
-function renderScenes(body, inWindow = false) {
+function renderScenes(body, where = 'dock') {
+  const inWindow = where === 'window';
   // along the bottom: on the left the X-Fader's button (where it stays, on or off) and its mode, its strip in the
   // middle while it is on, the window button on the right
   const X = project.xfade, mode = XF_MODES.find(m => m[0] === X.mode) || XF_MODES[0];
@@ -278,9 +402,7 @@ function renderScenes(body, inWindow = false) {
       X.on ? h('button', { class: 'btn sm xfmode', type: 'button', title: mode[2] + '. Click to choose another mode.', 'aria-label': 'X-Fader mode: ' + mode[1], 'aria-haspopup': 'menu',
         onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi' }, xfGraph(m), m[1]), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
     X.on ? xfadeStrip() : h('span'),
-    h('div', { class: 'sbtns' },
-      inWindow ? h('button', { class: 'btn sm icon', type: 'button', html: ICONS.panel, title: 'Back to the panel: close this window, the scenes go back to the bottom panel', 'aria-label': 'Back to the panel', onclick: closeScenesWindow })
-        : h('button', { class: 'btn sm icon', type: 'button', html: ICONS.popout, title: 'Open in a window: the scenes and playlists in a window of their own, to put on another screen', 'aria-label': 'Open in a window', onclick: openScenesWindow })));
+    h('div', { class: 'sbtns' }, panelPlaces('scenes')));
   const rows = h('div', { class: 'zonerows', 'data-keep': 'zonerows' });
   const sel = selZone();
   // with the X-Fader on, its zones A and B side by side at the top (A on the left, B on the right, as on the fader),
@@ -312,7 +434,9 @@ function renderScenes(body, inWindow = false) {
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
     // the zone's head stays put; its scenes scroll sideways beside it
     const tiles = h('div', { class: 'stiles' });
-    const r = h('div', { class: 'scenerow' + (z === sel ? ' sel' : '') + (side >= 0 ? ' xfcol' : '') }, head, side >= 0 ? tiles : hscroller(tiles, 'scenes:' + z.id));
+    // beside the stage they wrap in a grid instead
+    const wrap = where === 'side' && side < 0;
+    const r = h('div', { class: 'scenerow' + (z === sel ? ' sel' : '') + (side >= 0 ? ' xfcol' : '') + (wrap ? ' wrap' : '') }, head, side >= 0 || wrap ? tiles : hscroller(tiles, 'scenes:' + z.id));
     head.title += '\nDrag it to change the order of the zones.';
     reorderable(head, r, 'zone', () => [z.id], ([id], after) => moveZoneTo(id, z, after));
     onRightClick(head, e => zoneMenu(e, z));
