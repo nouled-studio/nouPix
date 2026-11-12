@@ -143,7 +143,8 @@ const PLACE_ICONS = {
   right: placeIcon('<rect x="2" y="3" width="12" height="10"/><rect x="10" y="3.65" width="3.35" height="8.7" fill="currentColor" stroke="none" opacity=".55"/><path d="M10 3v10"/>'),
   window: placeIcon('<rect x="2" y="5" width="9" height="8"/><path d="M5 5V2.5h9V10h-3"/>'),
 };
-const PANELS = { scenes: 'Scenes', cues: 'Cue list', timeline: 'Timeline' };
+// (the cue lists and the timeline are betas, and say so)
+const PANELS = { scenes: 'Scenes', cues: 'Cue lists (Beta)', timeline: 'Timeline (Beta)' };
 const PANEL_DRAW = { scenes: b => renderScenes(b, 'side'), cues: b => renderCues(b), timeline: b => renderTimeline(b) };
 const placeOf = k => { const p = (ui.places || {})[k]; return p === 'left' || p === 'right' ? p : 'bottom'; };
 const movedTo = side => Object.keys(PANELS).filter(k => placeOf(k) === side);
