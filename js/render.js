@@ -296,7 +296,7 @@ function startFade(z, dur, scene = null) {
 function recallScene(z, sc, fade) {
   startFade(z, fade, sc.id);
   z.layers = cloneLayers(sc.layers).map(L => Object.assign(L, { src: srcById(L.src) ? L.src : null }));
-  z.scene = sc.id;
+  z.scene = sc.id; z._tlAnim = false;
 }
 // Play a source in a layer of the selected zone (the selected layer by default), crossfading over the transition time
 function loadSource(id, L = selLayer()) {

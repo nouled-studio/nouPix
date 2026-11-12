@@ -4,12 +4,18 @@
 // snap, zoom, the audio), and under the ruler an audio track (its waveform) and a track per zone, top zone first. Scenes
 // are dragged onto their zone's track as clips (or picked with a double-click there); a clip is moved by dragging,
 // made longer or shorter by its edges, its fade-in and fade-out by the handles at its top corners; the ruler is
-// clicked or dragged to move the playhead; the loop's region by its two markers on the ruler.
+// clicked or dragged to move the playhead; the loop's region by its two markers on the ruler. A clip unfolds (its ▸, or a
+// double-click) to show its keyframes: a row per curve (its level, a control of its scene's effects) with its line and
+// keys; a key is dragged in time and value, added with a double-click or ◆ (at the playhead), right-clicked for its ease
+// (Linear, Ease, Hold), its value or Delete; + Control adds a curve.
 
 const shownTimeline = () => tlOf(ui.tlId) || project.timelines[0] || null;
 const tlRoots = () => [panelRoot('timeline')].filter(Boolean);
 const timelineShown = () => tlRoots().length > 0;
-const TL_LABEL = 132, TL_ROW = 50;
+const TL_LABEL = 132, TL_ROW = 50, TL_KROW = 26;
+let tlKeySel = null;   // the key picked (Delete takes it)
+const tlIsOpen = c => ui.tlOpen.includes(c.id);
+function tlToggleOpen(c) { ui.tlOpen = tlIsOpen(c) ? ui.tlOpen.filter(x => x !== c.id) : ui.tlOpen.concat(c.id); refreshTimeline(); }
 let tlDrag = false, tlPending = false, tlSnap = true;
 function refreshTimeline() {
   if (!timelineShown()) return;
@@ -159,13 +165,15 @@ function tlTracks(T, mine) {
         menu({ x: e.clientX, y: e.clientY }, [{ head: `${z.name} at ${fmtTime(t)}` }, ...z.scenes.map(sc => [sc.name, () => addClip(T, z, sc.id, t, k)])]);
       });
       const top = k === n - 1;
+      // a lane with a clip unfolded is as tall as its keyframes need
+      const rows = clips.filter(c => (c.lane || 0) === k && tlIsOpen(c)).reduce((m, c) => Math.max(m, (c.curves || []).length + 1), 0);
       const label = h('div', { class: 'tllabel' + (top ? '' : ' sub'), style: z.tag ? { '--tag': z.tag } : null },
         h('span', { class: 'tlz' }, top ? z.name : ''),
         n > 1 ? h('span', { class: 'tlln mono', title: 'Lane ' + (k + 1) + (top ? ': shows over the lanes below' : '') }, String(k + 1)) : null,
         top ? h('span', { class: 'tllbtns' },
           h('button', { type: 'button', class: 'tllb', title: 'A lane on top: its clips show over the ones below, and hand back to them as they end', 'aria-label': 'Add a lane to ' + z.name, onclick: () => addLane(T, z) }, '+'),
           n > 1 ? h('button', { type: 'button', class: 'tllb', title: 'Remove the top lane (when it has no clips)', 'aria-label': 'Remove a lane from ' + z.name, onclick: () => removeLane(T, z) }, '−') : null) : null);
-      grid.append(h('div', { class: 'tlrow' + (top ? '' : ' sub') }, label, lane));
+      grid.append(h('div', { class: 'tlrow' + (top ? '' : ' sub'), style: rows ? { height: TL_ROW + rows * TL_KROW + 'px' } : null }, label, lane));
     }
   }
   // over all of it: the loop's region and the playhead
@@ -204,13 +212,19 @@ function paintClip(el, c) {
 }
 function clipEl(T, z, c) {
   const sc = z.scenes.find(s => s.id === c.scene);
-  const el = h('div', { class: 'tlclip' + (ui.tlSel === c.id ? ' sel' : ''), 'data-clip': c.id, style: z.tag ? { '--tag': z.tag } : null,
-    title: `${sc ? sc.name : '?'}: ${fmtTime(c.start)} for ${fmtV(Math.round(c.dur * 100) / 100)} s. Drag to move, its edges to resize, the top corners for its fades. Right-click for more.` },
+  const open = tlIsOpen(c), keyed = !!(c.curves && c.curves.length);
+  const el = h('div', { class: 'tlclip' + (ui.tlSel === c.id ? ' sel' : '') + (open ? ' open' : '') + (keyed ? ' keyed' : ''), 'data-clip': c.id, style: z.tag ? { '--tag': z.tag } : null,
+    title: `${sc ? sc.name : '?'}: ${fmtTime(c.start)} for ${fmtV(Math.round(c.dur * 100) / 100)} s. Drag to move, its edges to resize, the top corners for its fades, double-click for its keyframes. Right-click for more.` },
     h('span', { class: 'tlin' }, h('span', { class: 'tlhdr' }, sc ? sc.name : '?'),
-      h('span', { class: 'tlstrip' + (sc && sc.thumb ? ' shot' : ''), style: sc && sc.thumb ? { backgroundImage: `url("${sc.thumb}")` } : null })),
+      h('span', { class: 'tlstrip' + (sc && sc.thumb ? ' shot' : ''), style: sc && sc.thumb ? { backgroundImage: `url("${sc.thumb}")` } : null }),
+      open ? h('span', { class: 'tlkeys' }) : null),
     h('span', { class: 'tledge l' }), h('span', { class: 'tledge r' }),
-    h('span', { class: 'tlfin', title: 'Fade in: drag' }), h('span', { class: 'tlfout', title: 'Fade out: drag' }));
+    h('span', { class: 'tlfin', title: 'Fade in: drag' }), h('span', { class: 'tlfout', title: 'Fade out: drag' }),
+    h('button', { type: 'button', class: 'tlunf', 'aria-expanded': String(open), 'aria-label': (open ? 'Fold ' : 'Unfold ') + (sc ? sc.name : 'the clip') + '\'s keyframes',
+      title: open ? 'Fold its keyframes' : keyed ? 'Its keyframes (' + c.curves.length + ')' : 'Keyframes: animate its level and its effects\' controls',
+      onpointerdown: e => e.stopPropagation(), onclick: e => { e.stopPropagation(); tlToggleOpen(c); } }, keyed ? '◆' : ''));
   paintClip(el, c);
+  if (open) paintKeys(el, T, z, c);
   el.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
@@ -218,6 +232,9 @@ function clipEl(T, z, c) {
     if (ui.tlSel !== c.id) { ui.tlSel = c.id; for (const o of $$('.tlclip.sel', el.ownerDocument)) o.classList.remove('sel'); el.classList.add('sel'); }
     // its neighbours on its lane bound it; dragged up or down onto another lane with room, it goes there
     const clips = T.tracks[z.id], x0 = e.clientX, y0 = e.clientY, o = { start: c.start, dur: c.dur, fadeIn: c.fadeIn, fadeOut: c.fadeOut, lane: c.lane || 0 };
+    // its keys stay where they are in time when its start is trimmed
+    const kt = (c.curves || []).map(cv => cv.keys.map(k => k.t));
+    tlKeySel = null;
     let lo = 0, hi = T.length;
     const bounds = () => {
       const mine = clips.filter(x => x !== c && (x.lane || 0) === (c.lane || 0));
@@ -239,24 +256,29 @@ function clipEl(T, z, c) {
         if (k !== (c.lane || 0) && fits(k)) { c.lane = k; to.append(el); bounds(); }
         c.start = clamp(tlSnapT(T, o.start + d, c), lo, hi - c.dur); const e2 = tlSnapT(T, c.start + c.dur, c); if (e2 !== c.start + c.dur && e2 - c.dur >= lo && e2 <= hi) c.start = e2 - c.dur;
       }
-      else if (part === 'l') { const s = clamp(tlSnapT(T, o.start + d, c), lo, o.start + o.dur - 0.1); c.dur = o.start + o.dur - s; c.start = s; }
+      else if (part === 'l') {
+        const s = clamp(tlSnapT(T, o.start + d, c), lo, o.start + o.dur - 0.1); c.dur = o.start + o.dur - s; c.start = s;
+        (c.curves || []).forEach((cv, i) => cv.keys.forEach((k, j) => { k.t = kt[i][j] - (s - o.start); }));
+      }
       else if (part === 'r') { const en = clamp(tlSnapT(T, o.start + o.dur + d, c), o.start + 0.1, hi); c.dur = en - o.start; }
       else if (part === 'fin') c.fadeIn = clamp(o.fadeIn + d, 0, c.dur - c.fadeOut);
       else c.fadeOut = clamp(o.fadeOut - d, 0, c.dur - c.fadeIn);
       c.fadeIn = Math.min(c.fadeIn, c.dur); c.fadeOut = Math.min(c.fadeOut, c.dur - c.fadeIn);
       paintClip(el, c);
+      if ((part === 'l' || part === 'r') && tlIsOpen(c)) paintKeys(el, T, z, c);
     };
     const up = () => {
       for (const t of ['pointermove', 'pointerup', 'pointercancel']) win.removeEventListener(t, t === 'pointermove' ? mv : up);
       tlDrag = false;
-      if (moved) { tl.clips[z.id] = undefined; commit({ lists: false }); }
-      refreshTimeline();
+      // a click alone only picks it (drawn already): drawn again, a double-click would land on another element
+      if (moved) { tl.clips[z.id] = undefined; commit({ lists: false }); refreshTimeline(); }
+      else if (tlPending) refreshTimeline();
     };
     // on the window: moved to another lane, the clip leaves its place in the page and the browser lets go of it
     const win = el.ownerDocument.defaultView;
     win.addEventListener('pointermove', mv); win.addEventListener('pointerup', up); win.addEventListener('pointercancel', up);
   });
-  el.addEventListener('dblclick', e => { e.stopPropagation(); tlSeek(T, c.start); refreshTimeline(); });
+  el.addEventListener('dblclick', e => { e.stopPropagation(); if (!e.target.closest('.tlkeys')) tlToggleOpen(c); });
   onRightClick(el, e => clipMenu(e, T, z, c));
   return el;
 }
@@ -265,6 +287,7 @@ function clipMenu(anchor, T, z, c) {
   menu(anchor, [
     { head: (z.scenes.find(s => s.id === c.scene) || { name: '?' }).name + ' · ' + z.name },
     ['Play from here', () => { tlSeek(T, c.start); tlPlay(T); }],
+    [tlIsOpen(c) ? 'Fold keyframes' : 'Keyframes', () => tlToggleOpen(c)],
     ['Scene', null, { sub: z.scenes.map(sc => [sc.name, () => { c.scene = sc.id; tl.clips[z.id] = undefined; commit({ lists: false }); refreshTimeline(); }, { key: sc.id === c.scene ? '✓' : '' }]) }],
     ['Duplicate after it', () => duplicateClip(T, z, c)],
     ['Delete', () => deleteClip(T, z, c), { key: 'Del' }],
@@ -351,10 +374,177 @@ function drawTimelineHead() {
 }
 // The clip picked goes with Delete or Backspace while the timeline shows
 document.addEventListener('keydown', e => {
-  if (!ui.tlSel || !timelineShown() || typingIn(e.target) || !(e.key === 'Delete' || e.key === 'Backspace')) return;
+  if (!(ui.tlSel || tlKeySel) || !timelineShown() || typingIn(e.target) || !(e.key === 'Delete' || e.key === 'Backspace')) return;
   const T = shownTimeline();
+  // a key picked goes before its clip
+  if (tlKeySel) for (const cs of Object.values((T && T.tracks) || {})) for (const c of cs) for (const cv of c.curves || []) {
+    if (cv.keys.includes(tlKeySel)) { e.preventDefault(); e.stopPropagation(); const k = tlKeySel; tlKeySel = null; deleteKey(T, c, cv, k); return; }
+  }
   for (const [zid, cs] of Object.entries((T && T.tracks) || {})) {
     const c = cs.find(x => x.id === ui.tlSel);
     if (c) { e.preventDefault(); e.stopPropagation(); deleteClip(T, zoneById(zid), c); return; }
   }
 }, true);
+
+/* ---------- keyframes ---------- */
+// A value as a share of its control's range (0 to 1), and back; colours and points have no one height
+function tlRange(inp, k) {
+  const at = (m, d) => (Array.isArray(m) ? m[k] : m) ?? d;
+  const lo = at(inp.MIN, 0), hi = at(inp.MAX, 1);
+  return isFinite(lo) && isFinite(hi) && hi > lo ? [lo, hi] : [0, 1];
+}
+function tlNorm(inp, v, k = 0) {
+  if (!inp) return 0.5;
+  if (inp.TYPE === 'bool' || inp.TYPE === 'event') return v ? 1 : 0;
+  if (inp.TYPE === 'long' && inp.VALUES) { const i = inp.VALUES.indexOf(v); return inp.VALUES.length > 1 ? Math.max(0, i) / (inp.VALUES.length - 1) : 0.5; }
+  const [lo, hi] = tlRange(inp, k), x = Array.isArray(v) ? v[k] : v;
+  return clamp(((+x || 0) - lo) / (hi - lo), 0, 1);
+}
+function tlFromNorm(inp, f) {
+  if (!inp || inp.TYPE === 'color' || inp.TYPE === 'point2D') return undefined;
+  f = clamp(f, 0, 1);
+  if (inp.TYPE === 'bool' || inp.TYPE === 'event') return f >= 0.5;
+  if (inp.TYPE === 'long' && inp.VALUES) return inp.VALUES[Math.round(f * (inp.VALUES.length - 1))];
+  const [lo, hi] = tlRange(inp, 0), v = lo + f * (hi - lo);
+  return inp.TYPE === 'int' ? Math.round(v) : Math.round(v * 1000) / 1000;
+}
+const tlCurveName = (cv, inp) => (cv.kind === 'level' ? 'Level' : inp ? inp.LABEL || inp.NAME : cv.ctl);
+const tlKeyY = f => 3 + (1 - f) * (TL_KROW - 7);
+const tlRgb = v => 'rgb(' + [0, 1, 2].map(i => Math.round(clamp((v || [])[i] ?? 0, 0, 1) * 255)).join(',') + ')';
+// A clip's keyframe rows, drawn again after its size or a key changes
+function paintKeys(el, T, z, c) {
+  const box = el.querySelector('.tlkeys');
+  if (!box) return;
+  box.replaceChildren(...(c.curves || []).map(cv => keyRow(T, z, c, cv)), addRow(T, z, c));
+}
+function keyRow(T, z, c, cv) {
+  const inp = tlCurveInput(cv), name = tlCurveName(cv, inp);
+  const graph = h('span', { class: 'tlkgraph', title: 'Double-click to add a key' });
+  const row = h('span', { class: 'tlkrow' + (inp ? '' : ' gone'), 'data-curve': cv.kind === 'level' ? 'level' : cv.src + '|' + cv.ctl }, graph,
+    h('span', { class: 'tlklab', title: cv.kind === 'level' ? 'The clip\'s level, within its fades' : (srcById(cv.src) || { name: 'Missing effect' }).name + ' · ' + name + (inp ? '' : ': not in this clip\'s scene') },
+      h('span', { class: 'tlkname' }, name),
+      h('button', { type: 'button', class: 'tlkb', title: 'A key at the playhead', 'aria-label': 'Add a key to ' + name + ' at the playhead',
+        onclick: () => { const t = (tl.id === T.id ? tlPos() : 0) - c.start; if (t < 0 || t > c.dur) { toast('Put the playhead over the clip first.', 'warn'); return; } tlKeySel = setKey(T, c, cv, t, tlCurveAt(cv, t, inp)); } }, '◆'),
+      h('button', { type: 'button', class: 'tlkb', title: 'Remove this curve', 'aria-label': 'Remove the curve of ' + name, onclick: () => removeCurve(T, c, cv) }, '×')));
+  for (const b of row.querySelectorAll('.tlklab, .tlkb')) b.addEventListener('pointerdown', e => e.stopPropagation());
+  const paint = () => paintCurve(graph, T, c, cv, inp);
+  paint();
+  // on the line: a key dragged in time (snapped) and value; a double-click adds one
+  const tAt = ev => tlSnapT(T, c.start + (ev.clientX - graph.getBoundingClientRect().left) / ui.tlZoom, null) - c.start;
+  const fAt = ev => { const r = graph.getBoundingClientRect(); return 1 - (ev.clientY - r.top - 3) / (TL_KROW - 7); };
+  graph.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    const kel = e.target.closest('.tlkey');
+    if (!kel || e.button !== 0) return;
+    e.preventDefault();
+    const k = cv.keys[+kel.dataset.i], i = cv.keys.indexOf(k), x0 = e.clientX, y0 = e.clientY;
+    tlKeySel = k;
+    for (const o of $$('.tlkey.sel', el0(graph))) o.classList.remove('sel');
+    kel.classList.add('sel');
+    const prev = cv.keys[i - 1], next = cv.keys[i + 1];
+    let moved = false;
+    tlDrag = true;
+    const mv = ev => {
+      if (!moved && Math.abs(ev.clientX - x0) < 3 && Math.abs(ev.clientY - y0) < 3) return;
+      moved = true;
+      k.t = clamp(tAt(ev), Math.max(0, prev ? prev.t + 0.01 : -Infinity), Math.min(c.dur, next ? next.t - 0.01 : Infinity));
+      const v = tlFromNorm(inp, fAt(ev));
+      if (v !== undefined) k.v = v;
+      paint();
+      if (tl.id === T.id) tlApply(T, tlPos(), false);
+    };
+    const win = graph.ownerDocument.defaultView;
+    const up = () => {
+      for (const t of ['pointermove', 'pointerup', 'pointercancel']) win.removeEventListener(t, t === 'pointermove' ? mv : up);
+      tlDrag = false;
+      if (moved) { commit({ lists: false }); tlKeysChanged(T); }
+    };
+    win.addEventListener('pointermove', mv); win.addEventListener('pointerup', up); win.addEventListener('pointercancel', up);
+  });
+  graph.addEventListener('dblclick', e => {
+    e.stopPropagation();
+    if (!inp) return;
+    const kel = e.target.closest('.tlkey');
+    if (kel) { keyDialog(T, c, cv, cv.keys[+kel.dataset.i]); return; }
+    const t = clamp(tAt(e), 0, c.dur), v = tlFromNorm(inp, fAt(e));
+    tlKeySel = setKey(T, c, cv, t, v !== undefined ? v : tlCurveAt(cv, t, inp));
+  });
+  graph.addEventListener('contextmenu', e => {
+    const kel = e.target.closest('.tlkey');
+    if (!kel) return;
+    e.preventDefault(); e.stopPropagation();
+    const k = cv.keys[+kel.dataset.i];
+    tlKeySel = k;
+    const ease = v => () => { k.ease = v; commit({ lists: false }); tlKeysChanged(T); };
+    menu({ x: e.clientX, y: e.clientY }, [
+      { head: name + ' at ' + fmtTime(c.start + k.t) },
+      ['Linear', ease('linear'), { key: k.ease === 'linear' ? '✓' : '' }],
+      ['Ease in and out', ease('ease'), { key: k.ease === 'ease' ? '✓' : '' }],
+      ['Hold', ease('hold'), { key: k.ease === 'hold' ? '✓' : '' }],
+      ['Value…', () => keyDialog(T, c, cv, k)],
+      ['Delete', () => { tlKeySel = null; deleteKey(T, c, cv, k); }, { key: 'Del' }],
+    ]);
+  });
+  return row;
+}
+const el0 = n => n.closest('.tlclip') || n;
+// A curve's line (numbers, switches, lists; a point's two) or its colours as a band, and its keys
+function paintCurve(graph, T, c, cv, inp) {
+  const z = ui.tlZoom, w = Math.max(4, c.dur * z), H = TL_KROW;
+  // its value through the clip, at about every 2px and on each side of every key (a step shows as a step)
+  const ts = new Set();
+  const step = Math.max(2, w / 1500) / z;
+  for (let t = 0; t <= c.dur + 1e-9; t += step) ts.add(+t.toFixed(4));
+  ts.add(+c.dur.toFixed(4));
+  for (const k of cv.keys) if (k.t >= 0 && k.t <= c.dur) { ts.add(k.t); ts.add(Math.max(0, k.t - 0.0005)); }
+  const T2 = [...ts].sort((a, b) => a - b);
+  let svg = '';
+  if (inp && inp.TYPE === 'color') {
+    const stops = T2.filter((t, i) => i % Math.max(1, Math.floor(T2.length / 120)) === 0 || cv.keys.some(k => Math.abs(k.t - t) < 0.001 || Math.abs(k.t - 0.0005 - t) < 0.001));
+    graph.style.background = 'linear-gradient(to right,' + stops.map(t => tlRgb(tlCurveAt(cv, t, inp)) + ' ' + (t / c.dur * 100).toFixed(3) + '%').join(',') + ')';
+  } else {
+    graph.style.background = '';
+    const parts = inp && inp.TYPE === 'point2D' ? [0, 1] : [0];
+    for (const k of parts) {
+      const d = T2.map((t, i) => (i ? 'L' : 'M') + (t * z).toFixed(1) + ' ' + tlKeyY(tlNorm(inp, tlCurveAt(cv, t, inp), k)).toFixed(1)).join('');
+      svg += `<path d="${d}" class="${k ? 'y' : ''}"/>`;
+    }
+  }
+  graph.innerHTML = `<svg width="${w}" height="${H}" viewBox="0 0 ${w} ${H}">${svg}</svg>`;
+  cv.keys.forEach((k, i) => {
+    if (k.t < -1e-6 || k.t > c.dur + 1e-6) return;
+    const y = inp && inp.TYPE !== 'color' && inp.TYPE !== 'point2D' ? tlKeyY(tlNorm(inp, k.v)) : H / 2 - 1;
+    graph.append(h('span', { class: 'tlkey ' + k.ease + (k === tlKeySel ? ' sel' : ''), 'data-i': i, style: { left: k.t * z + 'px', top: y + 'px' },
+      title: fmtTime(c.start + k.t) + ' · ' + (inp ? valueText(inp, k.v) : '') + '. Drag it; right-click for its ease or value' }));
+  });
+}
+// + Control: the clip's level, or a control of one of its scene's effects
+function addRow(T, z, c) {
+  const has = key => (c.curves || []).some(cv => (cv.kind === 'level' ? 'level' : cv.src + '|' + cv.ctl) === key);
+  const pick = e => {
+    const sc = z.scenes.find(s => s.id === c.scene), srcs = sc ? [...new Set(sc.layers.map(L => L.src))].map(srcById).filter(s => s && s.kind === 'isf') : [];
+    const items = [{ head: 'Animate in this clip' }];
+    if (!has('level')) items.push(['Level', () => addCurve(T, z, c, { kind: 'level' })]);
+    for (const s of srcs) {
+      const sub = controlsOf(s).filter(inp => !has(s.id + '|' + inp.NAME)).map(inp => [inp.LABEL || inp.NAME, () => addCurve(T, z, c, { kind: 'param', src: s.id, ctl: inp.NAME })]);
+      if (sub.length) items.push([s.name, null, { sub }]);
+    }
+    if (items.length === 1) items.push(['Nothing more to animate', null, { disabled: true }]);
+    menu(e.currentTarget, items);
+  };
+  const b = h('button', { type: 'button', class: 'tlkadd', title: 'Animate the clip\'s level or a control of its effects', onclick: pick }, '+ Control');
+  b.addEventListener('pointerdown', e => e.stopPropagation());
+  return h('span', { class: 'tlkrow add' }, b);
+}
+// A key's value typed or chosen, as its control takes it
+function keyDialog(T, c, cv, k) {
+  const tmp = { src: cv.kind === 'level' ? '' : cv.src, ctl: cv.kind === 'level' ? '' : cv.ctl, value: Array.isArray(k.v) ? k.v.slice() : k.v };
+  const close = () => bg.remove();
+  const save = () => { k.v = cv.kind === 'level' ? clamp(+tmp.value || 0, 0, 1) : tmp.value; close(); commit({ lists: false }); tlKeysChanged(T); };
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal', role: 'dialog', 'aria-label': 'Key' },
+      h('header', null, tlCurveName(cv, tlCurveInput(cv)) + ' at ' + fmtTime(c.start + k.t)),
+      h('div', { class: 'mb' }, row('Value', valueEditor(tmp, fn => e => fn(e.target)))),
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'), h('button', { class: 'btn primary', type: 'button', onclick: save }, 'Save'))));
+  uiDocNow().body.append(bg);
+}

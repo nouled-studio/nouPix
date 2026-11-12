@@ -136,6 +136,23 @@ function fixCueLists(list, zones) {
 }
 // Timelines: clips on tracks of zones that exist, of their zone's scenes, in range, in order; an audio file from the
 // media library; the loop's region inside the length
+// A clip's keyframes: its level, or a control of an effect by its source and name; keys in time with a value of a
+// kind the controls take (a number, a switch, a colour or a point); none twice for the same thing
+function fixCurves(list) {
+  const seen = new Set(), okV = v => (typeof v === 'number' && isFinite(v)) || typeof v === 'boolean' || (Array.isArray(v) && v.length >= 2 && v.length <= 4 && v.every(x => typeof x === 'number' && isFinite(x)));
+  return (Array.isArray(list) ? list : []).filter(isObj).map(cv => {
+    const level = cv.kind === 'level';
+    if (!level && !(cv.kind === 'param' && typeof cv.src === 'string' && typeof cv.ctl === 'string' && cv.src && cv.ctl)) return null;
+    const key = level ? 'level' : cv.src + '|' + cv.ctl;
+    if (seen.has(key)) return null;
+    seen.add(key);
+    const keys = (Array.isArray(cv.keys) ? cv.keys : []).filter(k => isObj(k) && okV(k.v))
+      .map(k => ({ t: clamp(numOr(k.t, 0), -36000, 36000), v: Array.isArray(k.v) ? k.v.slice() : level ? clamp(+k.v || 0, 0, 1) : k.v, ease: ['linear', 'ease', 'hold'].includes(k.ease) ? k.ease : 'linear' }))
+      .sort((a, b) => a.t - b.t);
+    if (!keys.length) return null;
+    return level ? { kind: 'level', keys } : { kind: 'param', src: cv.src, ctl: cv.ctl, keys };
+  }).filter(Boolean);
+}
 function fixTimelines(list, zones) {
   const ids = new Set(), zs = new Map(zones.map(z => [z.id, z]));
   return (Array.isArray(list) ? list : []).filter(isObj).map((T, i) => {
@@ -145,7 +162,10 @@ function fixTimelines(list, zones) {
       if (!z || !Array.isArray(clips)) continue;
       const ok = clips.filter(c => isObj(c) && z.scenes.some(sc => sc.id === c.scene)).map(c => {
         const start = clamp(numOr(c.start, 0), 0, length), dur = clamp(numOr(c.dur, 4), 0.1, length);
-        return { id: uniqueId(c.id, clipIds), scene: c.scene, start, dur, fadeIn: clamp(numOr(c.fadeIn, 1), 0, dur), fadeOut: clamp(numOr(c.fadeOut, 1), 0, dur), lane: clamp(Math.round(numOr(c.lane, 0)), 0, 15) };
+        const out = { id: uniqueId(c.id, clipIds), scene: c.scene, start, dur, fadeIn: clamp(numOr(c.fadeIn, 1), 0, dur), fadeOut: clamp(numOr(c.fadeOut, 1), 0, dur), lane: clamp(Math.round(numOr(c.lane, 0)), 0, 15) };
+        const curves = fixCurves(c.curves);
+        if (curves.length) out.curves = curves;
+        return out;
       }).sort((a, b) => a.start - b.start);
       if (ok.length) tracks[zid] = ok;
     }

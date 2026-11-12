@@ -57,7 +57,7 @@ const ui = {
   // the cue lists' panel: the list shown, the cue picked (its editor open); the side column's tab (scenes or cues)
   cueList: null, cueSel: null,
   // the timeline shown, how wide a second is on it (px), the clip picked
-  tlId: null, tlZoom: 40, tlSel: null,
+  tlId: null, tlZoom: 40, tlSel: null, tlOpen: [],
   // where the bottom panel's Scenes, Cue list and Timeline are: 'bottom', or a tab of the 'left' or 'right' panel; the
   // moved tab open on each side (null: the side's own), and each side's width while one is open
   places: { scenes: 'bottom', cues: 'bottom', timeline: 'bottom' }, sideOpen: { left: null, right: null }, sideW: { left: 480, right: 520 },

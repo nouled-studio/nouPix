@@ -1,8 +1,9 @@
 // nouPix · js/timeline.js
-// Timelines (alpha): one plays at a time on the frame clock. Each zone with clips on it follows the clip under the
+// Timelines (beta): one plays at a time on the frame clock. Each zone with clips on it follows the clip under the
 // playhead: its scene (cut when jumped to, crossfaded over the clip's fade-in from the clip just before it) and its
 // level (rising over the fade-in from a gap, falling over the fade-out into one; dark where there is no clip); zones
-// with no clips are left alone. The audio plays with it, kept in step. Loop: the whole timeline or a region.
+// with no clips are left alone. A clip's keyframes (c.curves) move its level and its scene's effects' controls while it
+// shows. The audio plays with it, kept in step. Loop: the whole timeline or a region.
 // Nothing of it is saved but the timelines; only the main window plays them.
 
 // Where it is: the timeline (id), playing or not, the position (pos, seconds) when it last started or stopped and the
@@ -71,6 +72,32 @@ function tlWinner(clips, p) {
   for (const c of clips) if (c.start <= p && p < tlHandEnd(clips, c) && (!w || c.lane > w.lane || (c.lane === w.lane && c.start > w.start))) w = c;
   return w;
 }
+// Keyframes: a clip's curves, each the clip's level ({ kind: 'level' }) or a control of an effect of its scene
+// ({ kind: 'param', src, ctl }), with keys { t (seconds from the clip's start), v, ease: 'linear' | 'ease' | 'hold' }.
+// Numbers, colours and points move from key to key (straight, or eased in and out); switches and lists step at each key,
+// as does a key on Hold. Before the first key and after the last, the curve stays at their values.
+const TL_EASES = ['linear', 'ease', 'hold'];
+const TL_LEVEL = { NAME: 'level', LABEL: 'Level', TYPE: 'float', MIN: 0, MAX: 1, DEFAULT: 1 };
+const tlCurveInput = cv => (cv.kind === 'level' ? TL_LEVEL : cueInput(cv.src, cv.ctl));
+const tlStepped = inp => !inp || !['float', 'int', 'color', 'point2D'].includes(inp.TYPE);
+function tlCurveAt(cv, t, inp = tlCurveInput(cv)) {
+  const K = cv.keys;
+  if (!K.length) return undefined;
+  if (t <= K[0].t) return K[0].v;
+  const n = K.length - 1;
+  if (t >= K[n].t) return K[n].v;
+  let i = 0;
+  while (i < n - 1 && K[i + 1].t <= t) i++;
+  const a = K[i], b = K[i + 1];
+  if (a.ease === 'hold' || tlStepped(inp) || b.t - a.t < 1e-6) return a.v;
+  let f = (t - a.t) / (b.t - a.t);
+  if (a.ease === 'ease') f = f * f * (3 - 2 * f);
+  const mix = (x, y) => x + (y - x) * f;
+  if (Array.isArray(a.v) && Array.isArray(b.v)) return a.v.map((x, k) => mix(x, b.v[k] ?? x));
+  if (typeof a.v === 'number' && typeof b.v === 'number') return inp && inp.TYPE === 'int' ? Math.round(mix(a.v, b.v)) : mix(a.v, b.v);
+  return a.v;
+}
+const tlSortKeys = cv => cv.keys.sort((a, b) => a.t - b.t);
 // Each zone with clips: the clip showing at the playhead, its scene and its level
 function tlApply(T, p, jump) {
   let scenes = false;
@@ -95,6 +122,16 @@ function tlApply(T, p, jump) {
       if (c.fadeIn > 0 && !tlOver(clips, c.start - 0.001, c)) lv = Math.min(lv, (p - c.start) / c.fadeIn);
       if (c.fadeOut > 0 && !tlOver(clips, tlEndOf(c), c)) lv = Math.min(lv, (tlEndOf(c) - p) / c.fadeOut);
       lv = clamp(lv, 0, 1);
+    }
+    // its keyframes: the level within its fades, the controls of its scene's effects (only when they change)
+    if (c && c.curves && c.curves.length) {
+      const t = p - c.start;
+      for (const cv of c.curves) {
+        const inp = tlCurveInput(cv), v = inp ? tlCurveAt(cv, t, inp) : undefined;
+        if (v === undefined) continue;
+        if (cv.kind === 'level') lv *= clamp(+v || 0, 0, 1);
+        else if (!sameVal(cueParamNow(z, cv.src, cv.ctl), v)) { cueParamSet(z, cv.src, cv.ctl, v); z._tlAnim = true; }
+      }
     }
     if (Math.abs(z.opacity - lv) > 1e-4) setZoneOpacity(z, lv);
   }

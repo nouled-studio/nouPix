@@ -1368,7 +1368,8 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlclip, .tlablock { position: absolute; top: 4px; bottom: 4px; box-sizing: border-box; background: var(--line2);
   clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
 .tlablock { left: 0; }
-.tlclip { cursor: grab; touch-action: none; }
+.tlclip { cursor: grab; touch-action: none; bottom: auto; height: 42px; }
+.tlclip.open { height: auto; bottom: 4px; }
 .tlclip:hover { background: var(--line3); }
 .tlclip.sel { background: var(--sel); }
 .tlclip.live { background: var(--live); }
@@ -1395,6 +1396,38 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlablock .tlhdr { color: var(--text2); }
 .tlablock .tlstrip { background: var(--bg1); }
 .tlwave { position: absolute; left: 0; top: 2px; opacity: .85; }
+/* keyframes: a clip unfolded shows a row per curve under its strip, the line in aluminium (what you move), keys as
+   small diamonds (a square on Hold, hollow when eased), the one picked white; colours as a band */
+.tlclip .tlhdr { padding-right: 30px; }
+.tlunf { position: absolute; top: 1px; right: 12px; height: 14px; min-width: 14px; padding: 0 2px; border: 0; background: none; color: var(--fader);
+  font-size: 8px; line-height: 14px; cursor: pointer; z-index: 3; opacity: 0; }
+.tlunf::after { content: '\25B8'; margin-left: 2px; color: var(--muted); font-size: 9px; }
+.tlclip.open .tlunf::after { content: '\25BE'; }
+.tlclip:hover .tlunf, .tlclip.sel .tlunf, .tlclip.keyed .tlunf, .tlclip.open .tlunf { opacity: 1; }
+.tlunf:hover::after { color: var(--text); }
+.tlclip.open .tlstrip { flex: none; height: 25px; }
+.tlkeys { flex: 1; display: flex; flex-direction: column; border-top: 1px solid var(--line); background: var(--bg1); cursor: default; }
+.tlkrow { position: relative; flex: none; height: 26px; border-bottom: 1px dashed var(--line); }
+.tlkrow.add { border-bottom: 0; }
+.tlkgraph { position: absolute; inset: 0; cursor: crosshair; }
+.tlkgraph svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.tlkgraph path { fill: none; stroke: var(--fader); stroke-width: 1.5; }
+.tlkgraph path.y { stroke-dasharray: 3 2; }
+.tlkey { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; box-sizing: border-box; background: var(--fader); outline: 1px solid var(--bg0);
+  transform: rotate(45deg); cursor: grab; z-index: 1; }
+.tlkey.hold { transform: none; }
+.tlkey.ease { background: var(--bg1); border: 2px solid var(--fader); }
+.tlkey.sel { background: var(--sel); }
+.tlkey.ease.sel { background: var(--bg1); border-color: var(--sel); }
+.tlklab { position: absolute; left: 4px; top: 4px; z-index: 2; display: flex; align-items: center; gap: 2px; max-width: calc(100% - 8px); height: 18px; padding: 0 2px 0 5px;
+  box-sizing: border-box; background: color-mix(in srgb, var(--bg2) 88%, transparent); font-size: 10.5px; color: var(--text2); }
+.tlkname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tlkrow.gone .tlkname { color: var(--muted); text-decoration: line-through; }
+.tlkb { flex: none; width: 16px; height: 16px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 10px; line-height: 16px; cursor: pointer; }
+.tlkb:hover { color: var(--text); }
+.tlkadd { margin: 4px; height: 18px; padding: 0 8px; border: 1px solid var(--line2); background: var(--bg3); color: var(--text2);
+  font: 600 9.5px var(--label); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+.tlkadd:hover { color: var(--text); border-color: var(--line3); }
 
 /* panels moved to a side: one more tab there, with a ✕; their body; the side's inner edge dragged for its width */
 aside { position: relative; }
