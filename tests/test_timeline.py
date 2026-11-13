@@ -188,17 +188,18 @@ try:
       v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
       for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.sin(i / sr * 2 * Math.PI * 220) * 12000 * ((i / sr) % 2 < 1 ? 1 : 0.2), true);
       project.timelines[0].length = 4;
-      setTimelineAudio(project.timelines[0], new File([b], 'beat.wav', { type: 'audio/wav' }));
+      addTimelineAudio(project.timelines[0], new File([b], 'beat.wav', { type: 'audio/wav' }));
     })()"""); time.sleep(2.5)
-    A = E("project.timelines[0].audio")
-    check("an audio file: shown by name, stored in the media library", A and A["name"] == "beat.wav" and isinstance(A.get("media"), str) and "beat.wav" in pg.locator("#dockBody .tlbar").inner_text(), A)
+    A = E("project.timelines[0].audios[0]")
+    check("an audio file: shown by name on its track, stored in the media library", A and A["name"] == "beat.wav" and isinstance(A.get("media"), str) and "beat.wav" in pg.locator("#dockBody .tlaclip").inner_text(), A)
+    check("…as long as the file, from the start", A and A["start"] == 0 and A["trim"] == 0 and abs(A["dur"] - 10) < 0.01, A)
     check("…its waveform drawn on the audio track", pg.locator("#dockBody .tlaudio canvas.tlwave").count() == 1)
     check("…and the timeline as long as the audio at least", E("project.timelines[0].length") >= 10, E("project.timelines[0].length"))
     E("tlSeek(project.timelines[0], 1); tlPlay(project.timelines[0])"); time.sleep(1.2)
-    at = E("(() => { const a = tlAudios.get(project.timelines[0].id); return a ? [a.paused, a.currentTime] : null; })()")
+    at = E("(() => { const a = tlAudios.get(project.timelines[0].audios[0].id); return a ? [a.paused, a.currentTime] : null; })()")
     check("…it plays with the timeline, in step", at and not at[0] and abs(at[1] - E("tlPos()")) < 0.3, (at, E("tlPos()")))
     E("tlPause()"); time.sleep(0.2)
-    check("…and pauses with it", E("tlAudios.get(project.timelines[0].id).paused"))
+    check("…and pauses with it", E("tlAudios.get(project.timelines[0].audios[0].id).paused"))
     check("…and goes into packages", "beat.wav" in E("packageMedia().map(s => s.name)"))
 
     # ---------- beside the stage
@@ -208,8 +209,8 @@ try:
 
     # ---------- files
     saved = json.loads(E("serialize()"))
-    check("timelines are saved in the project (not the playhead)", len(saved["timelines"]) == 1 and "tl" not in saved and saved["timelines"][0]["audio"]["name"] == "beat.wav"
-          and "_url" not in saved["timelines"][0]["audio"])
+    check("timelines are saved in the project (not the playhead)", len(saved["timelines"]) == 1 and "tl" not in saved and saved["timelines"][0]["audios"][0]["name"] == "beat.wav"
+          and "_url" not in saved["timelines"][0]["audios"][0])
     bad = {"name": "B", "zones": [{"id": "z1", "name": "Z", "scenes": [{"id": "s1", "name": "S", "layers": []}]}],
            "timelines": [{"id": "t", "length": 20, "grid": "x", "bpm": 999, "loop": {"mode": "region", "a": 30, "b": 5},
                           "tracks": {"z1": [{"scene": "s1", "start": 12, "dur": 4, "fadeIn": 9, "lane": 2}, {"scene": "nope", "start": 0}, {"scene": "s1", "start": 2, "dur": 3}], "gone": [{"scene": "s1"}]},
@@ -218,7 +219,7 @@ try:
     t0 = fx[0] if fx else {}
     check("files are repaired: clips of scenes not there or zones gone dropped, in order, fades in range, the loop inside, a bad media name dropped, lanes as many as the clips need",
           len(fx) == 1 and [c["start"] for c in t0["tracks"]["z1"]] == [2, 12] and t0["tracks"]["z1"][1]["fadeIn"] == 4 and "gone" not in t0["tracks"]
-          and t0["lanes"] == {"z1": 3} and t0["grid"] == "sec" and t0["bpm"] == 300 and t0["loop"]["a"] <= t0["loop"]["b"] <= 20 and t0["audio"] == {"name": "a.wav"}, fx)
+          and t0["lanes"] == {"z1": 3} and t0["grid"] == "sec" and t0["bpm"] == 300 and t0["loop"]["a"] <= t0["loop"]["b"] <= 20 and [{k: v for k, v in a.items() if k != "id"} for a in t0["audios"]] == [{"name": "a.wav", "start": 0, "trim": 0, "dur": 20, "vol": 1}], fx)
     check("no errors in the page", not errs, errs[:3])
     br.close()
 finally:

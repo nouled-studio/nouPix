@@ -399,7 +399,7 @@ function layersSection(z) {
     const mv = (txt, d, off, label) => h('button', { type: 'button', disabled: off, title: label, 'aria-label': `${label}: layer ${i}`, onclick: e => { e.stopPropagation(); moveLayer(z, L, d); } }, txt);
     const li = h('li', { class: (L === cur ? 'sel ' : '') + (L.on ? '' : 'off ') + (src ? '' : 'nosrc'), 'data-id': L.id, title: `Drag, or ↑ ↓, to change the order: layers higher in the list cover the ones below. ${MOD}D duplicates the selected layer`, onclick: () => { ui.layer = L.id; renderRight(); renderSrcList(); } },
       h('span', { class: 'pgrip', 'aria-hidden': 'true' }), eye, h('span', { class: 'meta' }, i), h('span', { class: 'nm' }, src ? src.name : 'Empty'),
-      h('span', { class: 'meta' }, L.blend === 'alpha' ? '' : BLENDS[BLEND_IDX[L.blend]][1]),
+      h('span', { class: 'meta bl', title: L.blend === 'alpha' ? null : BLENDS[BLEND_IDX[L.blend]][1] }, L.blend === 'alpha' ? '' : BLEND_SHORT[L.blend] || BLENDS[BLEND_IDX[L.blend]][1]),
       h('span', { class: 'mv' }, mv('↑', 1, i === z.layers.length, 'Move up'), mv('↓', -1, i === 1, 'Move down')), op, trashBtn(`Remove layer ${i}`, () => removeLayer(z, L)));
     reorderable(li, li, 'layer', () => [L.id], ([id], after) => moveLayerTo(z, id, L, after));
     onRightClick(li, e => layerMenu(e, z, L));
@@ -438,6 +438,7 @@ function renderContentTab(body) {
   if (src.kind === 'isf' && rt && rt.R) {
     const ctl = [], roles = macroRolesOf(src, rt);
     for (const inp of isfInputs(src)) {
+      if (!inputShown(inp, L, src)) continue;   // (the Rainbow's colours past how many it uses)
       const label = inp.LABEL || inp.NAME, t = `p:${src.id}:${inp.NAME}`;   // t: what a MIDI control drives through it
       // the layer's own value, read again on each sync (a MIDI control may have moved it)
       const set = v => setParam(L, src, inp.NAME, v);
@@ -459,7 +460,9 @@ function renderContentTab(body) {
         ctl.push(sliderRow(label, holder, 'v', { min, max, step: inp.TYPE === 'int' ? 1 : (max - min) / 500, int: inp.TYPE === 'int', fmt: v => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)), onCommit: commit, midi: t }));
       } else if (inp.TYPE === 'long') {
         const vals = inp.VALUES || [], labs = inp.LABELS || vals;
-        const sel = selectEl(vals.map((v, i) => [v, labs[i]]), holder.v, v => { set(parseInt(v, 10)); commit(); }, { aria: label });
+        // (a choice others are shown by draws the tab again, so they come and go)
+        const shows = isfInputs(src).some(o => isObj(o.OLM_IF) && inp.NAME in o.OLM_IF);
+        const sel = selectEl(vals.map((v, i) => [v, labs[i]]), holder.v, v => { set(parseInt(v, 10)); commit(); if (shows) renderRight(); }, { aria: label });
         binders.push(() => { if (document.activeElement !== sel) sel.value = String(holder.v); });
         ctl.push(row(label, midiSlot(sel, t)));
       } else if (inp.TYPE === 'bool') {

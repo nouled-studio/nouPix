@@ -240,6 +240,13 @@ try:
             d[174 + i] = 0x80 if out else 0; d[182 + i] = 0x01 if sacn else 0; d[190 + i] = i
         d[212] = 0x10 if switch else 0
         return noupix.parse_poll_reply(bytes(d), (ip, 6454))
+    # a node on Art-Net that sets the sACN bit on a port that isn't an output, or on one output of two, is still Art-Net
+    def reply2(ip, bits, outs):
+        d = bytearray(239); d[0:8] = b"Art-Net\x00"; d[8:10] = (0x2100).to_bytes(2, "little"); d[10:14] = socket.inet_aton(ip); d[173] = len(bits)
+        for i, (b, o) in enumerate(zip(bits, outs)): d[174 + i] = 0x80 if o else 0; d[182 + i] = b; d[190 + i] = i
+        return noupix.parse_poll_reply(bytes(d), (ip, 6454))
+    mixed = [reply2("10.0.0.70", [0, 1], [True, False])["sacn"], reply2("10.0.0.71", [1, 0], [True, True])["sacn"], reply2("10.0.0.72", [1, 1], [True, True])["sacn"]]
+    check("the sACN bit counts on outputs only, and on all of them", mixed == [False, False, True], mixed)
     a, s_ = reply("10.0.0.61"), reply("10.0.0.62", sacn=True, switch=True, out=False)
     check("the bridge reads what a device receives: Art-Net, or sACN and that it can switch", a["sacn"] is False and a["canSwitch"] is False and s_["sacn"] is True and s_["canSwitch"] is True and s_["outUniverses"] == [], (a, s_))
     E("nodes => { olm.bridge.nodes.clear(); nodes.forEach(n => olm.bridge.nodes.set(n.ip + '#0', n)); olm.ui.scanOff = []; olm.ui.discFilter = 'both'; }", [a, s_])
@@ -257,6 +264,16 @@ try:
     c = E("olm.project.controllers.find(c => c.ip === '10.0.0.62')")
     check("added on sACN, even with no Art-Net universes: one output of one universe, to set as the device is", c and c["protocol"] == "sacn" and c["outputs"] == 1 and c["upo"] == 1, c)
     check("the window says it is now known", pg.locator(".modal .nodes tbody tr", has_text="10.0.0.62").locator("button").text_content() == "Refresh")
+    # Refresh keeps the protocol set by hand (a device can report it wrong); its menu sets either
+    E("(() => { const c = olm.project.controllers.find(c => c.ip === '10.0.0.62'); c.protocol = 'artnet'; markPatch(); commit(); updateDiscoveryUI(); })()"); time.sleep(0.3)
+    pg.locator(".modal .nodes tbody tr", has_text="10.0.0.62").locator("button").click(); time.sleep(0.3)
+    check("Refresh keeps the protocol it was set to, and says what the device reports", E("olm.project.controllers.find(c => c.ip === '10.0.0.62').protocol") == "artnet"
+          and "device says sACN" in E("[...document.querySelectorAll('.toast')].map(t => t.textContent).join(' ')"))
+    pg.locator(".modal .nodes tbody tr", has_text="10.0.0.62").click(button="right"); time.sleep(0.2)
+    items = E("[...document.querySelectorAll('.menu button')].map(b => b.textContent)")
+    check("its menu offers Use Art-Net (ticked, as it is) and Use sACN", any(t.startswith("Use Art-Net") and "✓" in t for t in items) and any(t.startswith("Use sACN") and "✓" not in t for t in items), items)
+    pg.locator(".menu button", has_text="Use sACN").click(); time.sleep(0.3)
+    check("…Use sACN sets it", E("olm.project.controllers.find(c => c.ip === '10.0.0.62').protocol") == "sacn")
     E("$$('.modal-bg').forEach(m => m.remove()); olm.project.controllers = olm.project.controllers.filter(c => c.ip !== '10.0.0.62'); markPatch(); commit()")
 
     # ---------- output off, and the window closing

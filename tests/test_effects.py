@@ -1,6 +1,7 @@
 # The built-in effects added after 1.1.0: each compiles, has Speed from -1 (full, reverse) through 0 (still) to 1 (full),
 # moves only by it, follows the Color 1 and 2 macros with its colours, shows a lit thumbnail, and has its place in
-# the source list's filters. Rainbow and Plasma: their own hues as before, or between their two colours.
+# the source list's filters. Rainbow and Plasma: their own hues as before, or between their two colours; the Rainbow's
+# own colors, 1 to 5, each with its alpha over the layers below.
 import os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import CHROME_ARGS, start_bridge, app_error
@@ -84,8 +85,8 @@ try:
     pal = ev("""['rainbow', 'plasma'].map(id => { const src = srcById('b-' + id), hdr = runtimeOf(src).hdr, e = effectRt(src), roles = macroRoles(e);
       const inp = n => (hdr.INPUTS || []).find(i => i.NAME === n) || {};
       return { id, palette: inp('palette').DEFAULT, labels: inp('palette').LABELS, a: roles.colorA, b: roles.colorB }; })""")
-    check("Rainbow and Plasma have Colors (Rainbow by default) and two colours on Color 1 and 2",
-          all(o["palette"] == 0 and o["labels"] == ["Rainbow", "Color A to B"] and o["a"] == "color1" and o["b"] == "color2" for o in pal), pal)
+    check("Plasma has Colors (Rainbow by default); both have their first two colours on Color 1 and 2; the Rainbow no Colors choice",
+          pal[1]["palette"] == 0 and pal[1]["labels"] == ["Rainbow", "Color A to B"] and pal[0]["palette"] is None and all(o["a"] == "color1" and o["b"] == "color2" for o in pal), pal)
     # the picture: rainbow by default; red to blue with Color A to B only reds, blues and their mixes (no green), still at speed 0
     shot = ev("""([id, P]) => { const src = srcById('b-' + id), rt = runtimeOf(src), c = document.createElement('canvas'); c.width = 64; c.height = 8;
       isfTime = 1; applyParams(rt, { params: { ['b-' + id]: Object.assign({ speed: 0 }, P) } }, src); rt.R.draw({ width: 64, height: 8 }); isfTime = null;
@@ -96,9 +97,75 @@ try:
         d = ev("""([id, P]) => { const src = srcById('b-' + id), rt = runtimeOf(src), c = document.createElement('canvas'); c.width = 64; c.height = 8;
           isfTime = 1; applyParams(rt, { params: { ['b-' + id]: Object.assign({ speed: 0 }, P) } }, src); rt.R.draw({ width: 64, height: 8 }); isfTime = null;
           c.getContext('2d').drawImage(glCanvas, 0, glCanvas.height - 8, 64, 8, 0, 0, 64, 8); return Array.from(c.getContext('2d').getImageData(0, 0, 64, 8).data); }""",
-          [id, {"palette": 1, "colorA": [1, 0, 0, 1], "colorB": [0, 0, 1, 1], "saturation": 1}])
+          [id, {"palette": 1, "count": 2, "colorA": [1, 0, 0, 1], "colorB": [0, 0, 1, 1], "saturation": 1}])
         reds, blues = max(d[i] for i in range(0, len(d), 4)), max(d[i + 2] for i in range(0, len(d), 4))
         check(f"{id} with Color A to B goes between its two colours (red to blue: no green)", greens(d) < 12 and reds > 200 and blues > 200, (greens(d), reds, blues))
+
+    # ---------- Rainbow's own colors: 1 to 5, red to violet at first (the rainbow), each with its alpha over the layers below
+    rb = ev("(() => { const ins = controlsOf(srcById('b-rainbow')), c = ins.find(i => i.NAME === 'count'); return [c.DEFAULT, c.VALUES, ins.filter(i => i.TYPE === 'color').map(i => i.LABEL)]; })()")
+    check("Rainbow's colors: how many (1 to 5, 5 at first), Color 1 to 5", rb == [5, [1, 2, 3, 4, 5], ["Color 1", "Color 2", "Color 3", "Color 4", "Color 5"]], rb)
+    solid = ev("project.sources.find(s => /solid/i.test(s.name)).id")
+    pic = """async ([solid, P, under]) => { const z = project.zones[0];
+      z.layers = [Object.assign(newLayer(), { src: 'b-rainbow', params: { 'b-rainbow': Object.assign({ speed: 0, palette: 1, saturation: 1 }, P) } })];
+      if (under) z.layers.unshift(Object.assign(newLayer(), { src: solid, params: { [solid]: { color: [1, 1, 1, 1] } } }));
+      z._fade = null; await new Promise(r => setTimeout(r, 600));
+      const c = zonePicture(z, 40, 4), d = c.getContext('2d').getImageData(0, 2, 40, 1).data, out = [];
+      for (let i = 0; i < 40; i++) out.push([d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]); return out; }"""
+    # its five colours as they start: the rainbow, as before (each pixel as the hue it stands for)
+    hues = ev(pic, [solid, {}, False])
+    import colorsys
+    sat = [colorsys.rgb_to_hsv(*(c / 255 for c in p)) for p in hues]
+    check("as it starts: the rainbow, every hue at full", all(x[1] > 0.95 and x[2] > 0.95 for x in sat) and len({round(x[0] * 6) % 6 for x in sat}) >= 5, hues[:6])
+    one = ev(pic, [solid, {"count": 1, "colorA": [1, 0, 0, 1]}, False])
+    check("1 color: all of it", all(p == [255, 0, 0] for p in one), one[:3])
+    three = ev(pic, [solid, {"count": 3, "colorA": [1, 0, 0, 1], "colorB": [0, 1, 0, 1], "colorC": [0, 0, 1, 1]}, False])
+    near = lambda c: sum(1 for p in three if all(abs(p[k] - c[k]) < 40 for k in range(3)))
+    check("3 colors: each of them in turn", near([255, 0, 0]) and near([0, 255, 0]) and near([0, 0, 255]), three[:8])
+    five = ev(pic, [solid, {"count": 5, "colorA": [1, 0, 0, 1], "colorB": [0, 1, 0, 1], "colorC": [0, 0, 1, 1], "colorD": [1, 1, 0, 1], "colorE": [1, 1, 1, 1]}, False])
+    check("5 colors: the fifth one shows too", any(min(p) > 215 for p in five), five[:10])
+    half = ev(pic, [solid, {"count": 1, "colorA": [1, 0, 0, 0.4]}, True])
+    check("a color at 40% alpha over a white layer: 60% white and 40% red", all(abs(p[0] - 255) < 3 and abs(p[1] - 153) < 3 and abs(p[2] - 153) < 3 for p in half), half[:3])
+    clear = ev(pic, [solid, {"count": 1, "colorA": [1, 0, 0, 0]}, True])
+    check("…clear: the layer below as it is", all(p == [255, 255, 255] for p in clear), clear[:3])
+    # ---------- every effect's colours: alpha over the layers below (drawn again with each colour as its alpha)
+    fx = """async ([solid, id, P]) => { const z = project.zones[0];
+      z.layers = [Object.assign(newLayer(), { src: solid, params: { [solid]: { color: [0, 0, 1, 1] } } }), Object.assign(newLayer(), { src: 'b-' + id, params: { ['b-' + id]: Object.assign({ speed: 0 }, P) } })];
+      z._fade = null; await new Promise(r => setTimeout(r, 600));
+      const c = zonePicture(z, 60, 4), d = c.getContext('2d').getImageData(0, 2, 60, 1).data, out = [];
+      for (let i = 0; i < 60; i++) out.push([d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]); return out; }"""
+    opaque = ev(fx, [solid, "bars", {"color": [1, 0, 0, 1], "background": [0, 0, 0, 1]}])
+    see = ev(fx, [solid, "bars", {"color": [1, 0, 0, 1], "background": [0, 0, 0, 0]}])
+    check("Bars with its background at 100%: red bars on black, nothing of the blue layer below", any(p[0] > 200 for p in opaque) and all(p[2] < 20 for p in opaque), opaque[:8])
+    check("…its background at 0%: red bars over the blue layer, no black", any(p[0] > 200 for p in see) and all(p[0] + p[2] > 200 for p in see) and any(p[2] > 200 for p in see), see[:8])
+    half = ev(fx, [solid, "solid", {"color": [1, 0, 0, 0.5]}])
+    check("Solid color red at 50% over blue: half and half", all(abs(p[0] - 128) < 4 and abs(p[2] - 127) < 4 for p in half), half[:3])
+    # the colour picker: Alpha
+    ev("""(() => { const z = project.zones[0]; z.layers = [Object.assign(newLayer(), { src: 'b-bars', params: {} })]; ui.zone = z.id; ui.layer = z.layers[0].id; ui.rightTab = 'content'; renderRight(); })()"""); time.sleep(0.3)
+    pg.locator("#rightBody .cswatch").first.click(); time.sleep(0.3)
+    a = pg.locator(".cpop input[type=range][aria-label=Alpha]")
+    check("the colour picker has Alpha", a.count() == 1 and a.input_value() == "100")
+    a.evaluate("e => { e.value = 30; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }"); time.sleep(0.2)
+    av = ev("(() => { const L = project.zones[0].layers[0]; return L.params['b-bars'] && (L.params['b-bars'].color || L.params['b-bars'].background); })()")
+    check("…its value goes to the colour's alpha", av and abs(av[3] - 0.3) < 1e-6, av)
+    pg.keyboard.press("Escape")
+    time.sleep(0.3)
+    sw = ev("""[...document.querySelectorAll('#rightBody .cswatch')].map(b => [b.querySelector('i').style.background, b.textContent])""")
+    check("…the swatch in the Content tab over a checkerboard, its alpha beside the hex", any("conic" in x[0] and x[1].endswith("30%") for x in sw), sw)
+
+    # the Content tab shows as many colours as it uses
+    shown = ev("""async n => { const z = project.zones[0]; z.layers = [Object.assign(newLayer(), { src: 'b-rainbow', params: { 'b-rainbow': { count: n } } })];
+      ui.zone = z.id; ui.layer = z.layers[0].id; ui.rightTab = 'content'; showRight(true); renderRight(); await new Promise(r => setTimeout(r, 300));
+      return [...document.querySelectorAll('#rightBody .row .lbl')].map(e => e.textContent).filter(t => /^Color \\d$/.test(t)); }""", 2)
+    check("the Content tab shows as many colours as it uses (2)", shown == ["Color 1", "Color 2"], shown)
+    sel = pg.locator("#rightBody select[aria-label='Colors']")
+    sel.select_option("4"); time.sleep(0.3)
+    shown = ev("[...document.querySelectorAll('#rightBody .row .lbl')].map(e => e.textContent).filter(t => /^Color \\d$/.test(t))")
+    check("…4 chosen: four, at once", shown == ["Color 1", "Color 2", "Color 3", "Color 4"], shown)
+    # files from before: Color A to B its two colours; Rainbow the rainbow (colours set meanwhile showed nothing then)
+    old = ev("""(() => { const p = JSON.parse(serialize()), z = p.zones[0];
+      z.layers = [{ src: 'b-rainbow', params: { 'b-rainbow': { palette: 1, colorA: [1, 0, 0, 1], colorB: [0, 0, 1, 1] } } }, { src: 'b-rainbow', params: { 'b-rainbow': { palette: 0, colorA: [0, 1, 0, 1] } } }];
+      return hydrate(p).zones[0].layers.map(L => L.params['b-rainbow']); })()""")
+    check("files from before: Color A to B as its 2 colours, Rainbow as the rainbow", old[0] == {"colorA": [1, 0, 0, 1], "colorB": [0, 0, 1, 1], "count": 2} and old[1] == {}, old)
     check("no errors", not errs, errs[:3])
     br.close()
 finally:

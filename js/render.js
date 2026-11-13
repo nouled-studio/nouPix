@@ -17,7 +17,7 @@ const mixer = (() => {
   const gl2 = typeof WebGL2RenderingContext !== 'undefined' && g instanceof WebGL2RenderingContext;
   if (!g) return { ok: false, canvas };
   const VS = 'attribute vec2 p; varying vec2 uv; void main() { uv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }';
-  const BLEND = `precision mediump float; varying vec2 uv; uniform sampler2D base, top; uniform vec2 scale; uniform float opacity; uniform int mode;
+  const BLEND = `precision mediump float; varying vec2 uv; uniform sampler2D base, top, topA; uniform vec2 scale; uniform float opacity; uniform int mode, useA;
 vec3 blend(vec3 b, vec3 t) {
   if (mode == 1) return b + t;
   if (mode == 2) return 1.0 - (1.0 - b) * (1.0 - t);
@@ -30,7 +30,9 @@ vec3 blend(vec3 b, vec3 t) {
 }
 void main() {
   vec4 b = texture2D(base, uv * scale), t = texture2D(top, uv * scale);
-  gl_FragColor = vec4(mix(b.rgb, clamp(blend(b.rgb, t.rgb), 0.0, 1.0), t.a * opacity), 1.0);
+  // an effect with see-through colours: how see-through each point is, drawn with its colours as their alpha
+  float a = useA == 1 ? t.a * texture2D(topA, uv * scale).r : t.a;
+  gl_FragColor = vec4(mix(b.rgb, clamp(blend(b.rgb, t.rgb), 0.0, 1.0), a * opacity), 1.0);
 }`;
   const MIX = 'precision mediump float; varying vec2 uv; uniform sampler2D a, b; uniform vec2 sa, sb; uniform float t;\nvoid main() { gl_FragColor = vec4(mix(texture2D(a, uv * sa).rgb, texture2D(b, uv * sb).rgb, t), 1.0); }';
   // Sampling: every fixture pixel is one point of a small target that reads the output at the pixel's position,
@@ -43,7 +45,7 @@ void main() {
     g.bindAttribLocation(p, 0, 'p');
     g.linkProgram(p);
     const u = {};
-    for (const n of ['base', 'top', 'scale', 'opacity', 'mode', 'a', 'b', 'sa', 'sb', 't', 'dsz', 'frame']) u[n] = g.getUniformLocation(p, n);
+    for (const n of ['base', 'top', 'topA', 'useA', 'scale', 'opacity', 'mode', 'a', 'b', 'sa', 'sb', 't', 'dsz', 'frame']) u[n] = g.getUniformLocation(p, n);
     return { p, u, ok: !!g.getProgramParameter(p, g.LINK_STATUS) };
   };
   const texture = () => {
@@ -63,7 +65,7 @@ void main() {
     g.framebufferTexture2D(g.FRAMEBUFFER, g.COLOR_ATTACHMENT0, g.TEXTURE_2D, t.tex, 0);
   };
   // GPU resources. They are made again when the browser restores the context after losing it (a GPU reset).
-  let blendP, mixP, quad, slots, cur, area, upload, zones, TW, TH, CW, CH, smp, small, smallBuf;
+  let blendP, mixP, quad, slots, cur, area, upload, uploadA, zones, TW, TH, CW, CH, smp, small, smallBuf;
   const reads = new Map();   // preview canvas -> its read under way: { buf, fence, w, h }
   // A zone's last picture drawn at w × hh into the small target, to be read back (a preview, a scene's picture)
   function drawSmall(Z, w, hh) {
@@ -83,7 +85,7 @@ void main() {
     g.pixelStorei(g.UNPACK_COLORSPACE_CONVERSION_WEBGL, g.NONE);
     slots = [[target(), target()], [target(), target()]]; // ping-pong pairs: 0 = a zone's current look, 1 = the look it fades from
     cur = [0, 0]; area = [[1, 1], [1, 1]];                 // area = the zone size accumulated in each slot
-    upload = texture();
+    upload = texture(); uploadA = texture();
     zones = new Map();                                      // zone id -> { out: its picture, frozen: a copy to fade from }
     TW = 1; TH = 1; CW = 0; CH = 0;
     small = null;                                           // a zone's picture made small, for a preview (thumb)
@@ -122,11 +124,14 @@ void main() {
       g.bindFramebuffer(g.FRAMEBUFFER, slots[slot][0].fb);
       g.clearColor(0, 0, 0, 1); g.clear(g.COLOR_BUFFER_BIT);
     },
-    layer(slot, image, mode, opacity) {
+    // alpha: drawing an effect's see-through colours as greys (sources.js, alphaDraw), after its colours are taken
+    layer(slot, image, mode, opacity, alpha) {
       g.activeTexture(g.TEXTURE1); g.bindTexture(g.TEXTURE_2D, upload);
       g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, g.RGBA, g.UNSIGNED_BYTE, image);
+      const ai = alpha ? alpha() : null;
+      if (ai) { g.activeTexture(g.TEXTURE2); g.bindTexture(g.TEXTURE_2D, uploadA); g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, g.RGBA, g.UNSIGNED_BYTE, ai); }
       const from = slots[slot][cur[slot]], to = slots[slot][1 - cur[slot]], [w, h] = area[slot];
-      pass(to.fb, 0, 0, w, h, blendP, u => { bindTex(0, from.tex, u.base); bindTex(1, upload, u.top); g.uniform2f(u.scale, w / TW, h / TH); g.uniform1f(u.opacity, opacity); g.uniform1i(u.mode, mode); });
+      pass(to.fb, 0, 0, w, h, blendP, u => { bindTex(0, from.tex, u.base); bindTex(1, upload, u.top); bindTex(2, uploadA, u.topA); g.uniform1i(u.useA, ai ? 1 : 0); g.uniform2f(u.scale, w / TW, h / TH); g.uniform1f(u.opacity, opacity); g.uniform1i(u.mode, mode); });
       cur[slot] = 1 - cur[slot];
     },
     // The zone's picture: its current look, crossfaded by t from slot 1 or from its frozen frame (from = null: no fade)
@@ -326,7 +331,7 @@ function renderLook(layers, slot, z) {
     const c = renderSource(srcById(L.src), L, z.w, z.h, z);
     if (!c) continue;
     if (slot === 0 && preview && preview.layer === L) drawPreview(c, z);
-    mixer.layer(slot, c, BLEND_IDX[L.blend] || 0, L.opacity * project.macros.intensity.v);   // the Intensity macro
+    mixer.layer(slot, c, BLEND_IDX[L.blend] || 0, L.opacity * project.macros.intensity.v, alphaDraw);   // the Intensity macro
   }
 }
 // Everything that only shows the picture (the stage, a layer's preview, the source under the mouse, the X-Fader's

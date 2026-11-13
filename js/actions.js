@@ -476,15 +476,31 @@ function setTimelineLength(T, len) {
   T.length = clamp(Math.max(+len || T.length, ends), 1, 36000);
   T.loop.b = Math.min(T.loop.b, T.length); T.loop.a = Math.min(T.loop.a, T.loop.b - 0.1);
 }
-// An audio file plays with it: copied into the media library (played from the file meanwhile); the timeline at least
-// as long as the audio
-function setTimelineAudio(T, file) {
+// An audio file plays with it, on a track of its own from a time (or in place of a track's file): copied into the
+// media library (played from the file meanwhile); as long as the file, and the timeline at least as long as it
+function addTimelineAudio(T, file, start = 0, A = null) {
   tlHalt();
-  T.audio = { name: file.name, _url: URL.createObjectURL(file) };
-  T._detect = true;   // its tempo found once it is read (ui-timeline.js)
-  storeMedia(T.audio, file);
-  const a = new Audio(T.audio._url);
-  a.addEventListener('loadedmetadata', () => { if (isFinite(a.duration) && a.duration > T.length) { setTimelineLength(T, Math.ceil(a.duration)); commit({ lists: false }); refreshTimeline(); } });
+  const props = { name: file.name, _url: URL.createObjectURL(file) };
+  if (A) { delete A.media; Object.assign(A, props, { trim: 0 }); }
+  else { A = newTlAudio(Object.assign(props, { start: clamp(start, 0, T.length - 0.1) })); T.audios.push(A); }
+  // its tempo found once it is read (ui-timeline.js), when it is the timeline's only audio
+  if (T.audios.length === 1) A._detect = true;
+  ui.tlSel = A.id;
+  storeMedia(A, file);
+  const a = new Audio(A._url);
+  a.addEventListener('loadedmetadata', () => {
+    if (!isFinite(a.duration)) return;
+    A.dur = Math.round(Math.max(0.1, a.duration - A.trim) * 1000) / 1000;
+    if (A.start + A.dur > T.length) setTimelineLength(T, Math.ceil(A.start + A.dur));
+    commit({ lists: false }); refreshTimeline();
+  });
+  commit({ lists: false }); refreshTimeline();
+  return A;
+}
+function removeTimelineAudio(T, A) {
+  T.audios = T.audios.filter(x => x !== A);
+  if (ui.tlSel === A.id) ui.tlSel = null;
+  tlAudioSync(T, tlPos(), tl.playing && tl.id === T.id);
   commit({ lists: false }); refreshTimeline();
 }
 // A clip of one of a zone's scenes at a time: as long as there is room before the next clip (8 s at most)
@@ -545,7 +561,7 @@ function deleteMarker(T, m) {
 // Keyframes on a clip: a curve added (the level, or a control of its scene's effects, from where it is in the scene),
 // removed; a key set at a time (where a key is, it takes the value), removed
 function addCurve(T, z, c, cv, quiet) {
-  const sc = z.scenes.find(s => s.id === c.scene), L = sc && cv.kind === 'param' && sc.layers.find(l => l.src === cv.src);
+  const sc = z && z.scenes.find(s => s.id === c.scene), L = sc && cv.kind === 'param' && sc.layers.find(l => l.src === cv.src);
   const s = cv.kind === 'param' && srcById(cv.src), inp = tlCurveInput(cv);
   if (!inp) return null;
   const v = cv.kind === 'level' ? 1 : L && s ? paramValue(L, s, inp) : paramValue({ params: {} }, s, inp);
@@ -584,7 +600,7 @@ function deleteKeys(T, items) {
 }
 // What shows follows at once when the timeline is the one playing or paused
 function tlKeysChanged(T) {
-  if (tl.id === T.id) tlApply(T, tlPos(), false);
+  if (tl.id === T.id) { tlApply(T, tlPos(), false); tlAudioSync(T, tlPos(), tl.playing, false); }
   refreshTimeline();
 }
 
@@ -941,7 +957,7 @@ function setSceneOnOpen(z, sc, on) {
 
 // Emptying the media library of all but this project's files (other projects that use them then ask to relink)
 function cleanLibraryDialog() {
-  const keep = [...new Set(project.sources.map(s => s.media).concat(project.timelines.map(T => T.audio && T.audio.media)).filter(Boolean))];
+  const keep = [...new Set(project.sources.map(s => s.media).concat(project.timelines.flatMap(T => T.audios.map(A => A.media))).filter(Boolean))];
   const close = () => bg.remove();
   const go = async () => {
     close();

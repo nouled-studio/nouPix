@@ -146,18 +146,17 @@ input, select, textarea { font-weight: 400; }
 .zstop { flex: none; width: 22px; height: 22px; padding: 0; display: grid; place-items: center; color: var(--text2); }
 .zstop:hover:not(:disabled) { color: var(--accent); }
 .zstop:disabled { opacity: .35; cursor: default; }
-.ssize { display: flex; margin-right: 6px; border: 1px solid var(--line2); }
-.ssize button { width: 24px; height: 24px; padding: 0; display: grid; place-items: center; border: 0; background: var(--bg3); color: var(--muted); cursor: pointer; }
-.ssize button + button { border-left: 1px solid var(--line2); }
+.ssize { display: flex; gap: 2px; margin-right: 10px; }
+.ssize button { position: relative; width: 24px; height: 24px; padding: 0; display: grid; place-items: center; border: 0; background: none; color: var(--muted); cursor: pointer; }
 .ssize button:hover { color: var(--text); }
-.ssize button.on { color: var(--sel); background: var(--sel-soft); box-shadow: inset 0 -2px 0 var(--accent); }
+.ssize button.on { color: var(--sel); }
 @container scenes (max-width: 640px) { .panelhost .xfpair { grid-template-columns: minmax(0, 1fr); } }
 /* where the scenes go: below, left, right, a window of their own */
-.spos { display: flex; border: 1px solid var(--line2); }
-.spos > button, .tabs .spos > button { width: 28px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-bottom: 0; background: var(--bg3); color: var(--muted); cursor: pointer; }
-.spos > button + button, .tabs .spos > button + button { border-left: 1px solid var(--line2); }
+.spos { display: flex; gap: 2px; }
+.spos > button, .tabs .spos > button { position: relative; width: 26px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-bottom: 0; background: none; color: var(--muted); cursor: pointer; }
 .spos button:hover { color: var(--text); }
-.spos > button.on, .tabs .spos > button.on { background: var(--sel-soft); color: var(--sel); box-shadow: inset 0 -2px 0 var(--accent); }
+.spos > button.on, .tabs .spos > button.on { background: none; color: var(--sel); }
+.spos > button.on::after, .ssize button.on::after { content: ''; position: absolute; left: 7px; right: 7px; bottom: 1px; height: 2px; background: var(--accent); }
 .spos svg { width: 16px; height: 16px; }
 aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: column; }
 
@@ -288,6 +287,8 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .layers .mv button:disabled { opacity: .3; cursor: default; }
 .layers .mv button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
 .layers li.nosrc .nm { color: var(--muted); font-style: italic; }
+.layers li .nm { min-width: 40px; }
+.layers li .bl { max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; letter-spacing: .04em; }
 .layers .eye { width: 20px; height: 20px; }
 .layers .eye svg { width: 14px; height: 14px; }
 .x { width: 18px; height: 18px; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 0; padding: 0; display: grid; place-items: center; }
@@ -1465,6 +1466,11 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlflagname { position: absolute; left: 0; top: 0; height: 16px; padding: 0 6px 0 9px; font: 600 9.5px/16px var(--label); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
   color: var(--bg0); background: var(--tag, var(--fader)); clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
 .tlmline { position: absolute; top: 24px; bottom: 0; width: 0; border-left: 1px dashed color-mix(in srgb, var(--tag, var(--fader)) 45%, transparent); pointer-events: none; z-index: 1; }
+.tllabel.tlalabel { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; }
+.tlvol { display: flex; align-items: center; gap: 5px; }
+.tlvol input.tlvolr { flex: 1; min-width: 0; height: 14px; }
+.tlmute { display: grid; place-items: center; }
+.tlmute.on { color: var(--accent); }
 .tlpresets { display: flex; flex-wrap: wrap; gap: 4px; margin: -2px 0 8px; }
 .swatchdot { display: inline-block; width: 14px; height: 14px; vertical-align: middle; }
 /* keyframes: a clip unfolded shows a row per curve under its strip, the line in aluminium (what you move), keys as
@@ -1541,3 +1547,22 @@ aside.left > .sidegrip { right: -4px; } aside.right > .sidegrip { left: -4px; }
 .pfoot .fill { flex: 1; }
 aside.left.tabbed .fixtures .phead { display: none; }
 .sidetabs .fill { flex: 1; }
+/* an audio track: its waveform in aluminium under its volume's line, which takes keys as a clip's level does */
+.tlaclip .tlhdr { padding-right: 8px; color: var(--text2); }
+.tlaclip .tlstrip { background: var(--bg1); }
+.tlaclip .tllevel { pointer-events: auto; cursor: crosshair; }
+.tlclip.tlaclip .tllevel path { opacity: 1; }
+.tlclip.tlaclip .tllevel .tlkey { display: block; }
+.tlaclip.muted .tlwave { opacity: .3; }
+/* the Scenes panel narrow (beside the stage): the X-Fader's strip on a line of its own under its buttons, as wide as the
+   panel, its fader taking what the previews and zones leave */
+@container scenes (max-width: 820px) {
+  .panelhost .sfoot { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
+  .panelhost .sfoot > .sleft { grid-row: 1; grid-column: 1; }
+  .panelhost .sfoot > .sbtns { grid-row: 1; grid-column: 2; }
+  .panelhost .sfoot > .xfade { grid-row: 2; grid-column: 1 / -1; justify-self: stretch; }
+  .panelhost .sfoot > span:empty { display: none; }
+  .panelhost .xfmid { flex: 1 1 auto; min-width: 70px; }
+  .panelhost .xfwho { flex: 0 1 96px; }
+}
+@container scenes (max-width: 400px) { .panelhost .xfpv { display: none; } }

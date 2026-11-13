@@ -18,6 +18,11 @@ const mediaEls = new Map();   // source id -> <img>/<video> (not saved in projec
 let clockT = 0, clockDT = 1 / 40, frameIndex = 0;
 let isfTime = null;           // a fixed TIME while drawing still thumbnails
 let layerTime = null;         // the TIME of the layer being drawn, when its shader has a speed input (see speedTime)
+// An effect's colours with alpha under 100%: after the effect is drawn, it is drawn again with each colour as its alpha
+// (a grey), which is how see-through each point is (an effect mixes its colours in proportion); the mixer takes it as
+// the layer's alpha (render.js). Null when every colour is opaque (nothing more drawn), or the effect does its own
+// (OLM_ALPHA in its header: the Rainbow)
+let alphaDraw = null;
 let readBuf = new Uint8Array(4);
 function parseISFHeader(code) {
   const a = code.indexOf('/*'), b = code.indexOf('*/');
@@ -125,6 +130,15 @@ function releaseMedia(id) {
 }
 const PARAM_TYPES = ['float', 'long', 'bool', 'color', 'point2D', 'event', 'int'];
 function isfInputs(src) { const rt = runtimeOf(src); return (rt.hdr && rt.hdr.INPUTS || []).filter(i => PARAM_TYPES.includes(i.TYPE) && !(rt.clocks && i.NAME in rt.clocks) && !isAudioInput(i) && !isTouchInput(i)); }
+// A control shown only while another has one of some values (nouPix's own OLM_IF: { count: [2, 3] }), as the
+// Rainbow's colours past the number of colours it uses
+function inputShown(inp, L, src) {
+  if (!isObj(inp.OLM_IF)) return true;
+  return Object.entries(inp.OLM_IF).every(([name, vals]) => {
+    const other = isfInputs(src).find(i => i.NAME === name);
+    return !other || !Array.isArray(vals) || vals.includes(paramValue(L, src, other));
+  });
+}
 // The same from the header alone, without compiling the shader (for an effect that isn't playing)
 function controlsOf(src) {
   const hdr = src.kind === 'isf' ? headerOf(src) : null, clocks = hdr && isObj(hdr.OLM_CLOCKS) ? hdr.OLM_CLOCKS : {};
@@ -170,9 +184,12 @@ function applyParams(rt, L, src) {
   for (const inp of rt.audio || []) { try { rt.R.setValue(inp.NAME, audioInputValue(inp.NAME, L.id == null ? (isfTime ?? clockT) : null, isfTime != null, band)); } catch (e) { /* not used */ } }
   // a finger on the zone it draws in (a made-up one on a thumbnail)
   for (const inp of rt.touch || []) { try { rt.R.setValue(inp.NAME, touchInputValue(inp.NAME, L.id == null ? (isfTime ?? clockT) : null, drawZone)); } catch (e) { /* not used */ } }
+  const alphas = [];
   for (const inp of rt.hdr.INPUTS || []) {
     if (!PARAM_TYPES.includes(inp.TYPE) || (rt.clocks && inp.NAME in rt.clocks) || isAudioInput(inp) || isTouchInput(inp)) continue;
     let v = paramValue(L, src, inp);
+    // (the layer's own alpha, whatever colour a macro gives it)
+    if (inp.TYPE === 'color') alphas.push([inp.NAME, Array.isArray(v) && isFinite(v[3]) ? clamp(v[3], 0, 1) : 1]);
     const role = roles && roles[inp.NAME];
     if (role && role !== 'speed') v = macroOver(role, inp, v);
     if (inp === rt.speed && L.id != null && isfTime == null) {
@@ -182,6 +199,7 @@ function applyParams(rt, L, src) {
     }
     try { rt.R.setValue(inp.NAME, typeof v === 'boolean' ? (v ? 1 : 0) : v); } catch (e) { /* input not used by the shader */ }
   }
+  rt._alphas = !rt.hdr.OLM_ALPHA && L.id != null && alphas.some(a => a[1] < 0.999) ? alphas : null;
   if (rt.clocks) for (const [name, c] of Object.entries(rt.clocks)) {
     const r = numOr(paramValue(L, src, c.from), 0) * c.scale * rate(c.from);
     let ph = isfTime != null ? isfTime * r : L.id != null ? speedTime(L.id + '|' + src.id + '|' + name, r) : clockT * r;
@@ -213,6 +231,7 @@ function drawMedia(src, w, h) {
 let drawZone = null;
 function renderSource(src, L, w, h, z) {
   if (!src) return null;
+  alphaDraw = null;
   if (src.kind === 'chase') return drawChase(src, L, w, h, z, null) ? mediaCanvas : null;
   if (src.kind === 'isf') {
     const rt = runtimeOf(src);
@@ -220,8 +239,11 @@ function renderSource(src, L, w, h, z) {
     drawZone = z || null;
     applyParams(rt, L, src);
     drawZone = null;
+    const lt = layerTime, A = rt._alphas;
     rt.R.draw({ width: w, height: h });
     layerTime = null;
+    // the same moment again, each colour as its alpha (the mixer asks for it once it has the colours)
+    alphaDraw = A ? () => { layerTime = lt; for (const [n, a] of A) { try { rt.R.setValue(n, [a, a, a, 1]); } catch (e) { /* not used */ } } rt.R.draw({ width: w, height: h }); layerTime = null; return glCanvas; } : null;
     return glCanvas;
   }
   return drawMedia(src, w, h) ? mediaCanvas : null;

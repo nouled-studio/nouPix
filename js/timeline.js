@@ -3,7 +3,8 @@
 // playhead: its scene (cut when jumped to, crossfaded over the clip's fade-in from the clip just before it) and its
 // level (rising over the fade-in from a gap, falling over the fade-out into one; dark where there is no clip); zones
 // with no clips are left alone. A clip's keyframes (c.curves) move its level and its scene's effects' controls while it
-// shows. The audio plays with it, kept in step. Loop: the whole timeline or a region.
+// shows. Its audio tracks play with it, kept in step, each at its volume and its volume's keys. Loop: the whole
+// timeline or a region.
 // Nothing of it is saved but the timelines; only the main window plays them.
 
 // Where it is: the timeline (id), playing or not, the position (pos, seconds) when it last started or stopped and the
@@ -14,23 +15,45 @@ const tlClip = (T, id) => { for (const cs of Object.values(T.tracks)) { const c 
 const tlEnd = T => (T.loop.mode === 'region' ? T.loop.b : T.length);
 const tlStart = T => (T.loop.mode === 'region' ? T.loop.a : 0);
 function tlPos() { return tl.playing ? tl.pos + (clockT - tl.at) : tl.pos; }
-// Its audio: one element per timeline, from the media library (or the file dropped, until it is stored)
+// Its audio tracks: one element each, from the media library (or the file dropped, until it is stored)
 const tlAudios = new Map();
-function tlAudio(T) {
-  if (!T || !T.audio) return null;
-  const url = T.audio.media ? mediaUrl(T.audio.media) : T.audio._url;
+function tlAudio(A) {
+  if (!A) return null;
+  const url = A.media ? mediaUrl(A.media) : A._url;
   if (!url) return null;
-  let a = tlAudios.get(T.id);
-  if (!a || a._src !== url) { if (a) a.pause(); a = new Audio(url); a._src = url; a.preload = 'auto'; tlAudios.set(T.id, a); }
+  let a = tlAudios.get(A.id);
+  if (!a || a._src !== url) { if (a) a.pause(); a = new Audio(url); a._src = url; a.preload = 'auto'; tlAudios.set(A.id, a); }
   return a;
 }
-function tlAudioSync(T, p, play) {
-  const a = tlAudio(T);
-  if (!a) return;
-  if (!play) { a.pause(); return; }
-  if (p >= (a.duration || Infinity)) { a.pause(); return; }
-  if (Math.abs(a.currentTime - p) > 0.12) { try { a.currentTime = p; } catch (e) { /* not loaded yet */ } }
-  if (a.paused) a.play().catch(() => {});
+// How long the file is (once known), and how long the track plays: its length, at most to the file's end
+function tlAudioFile(A) {
+  const P = typeof tlPeakOf === 'function' ? tlPeakOf(A) : null, a = tlAudios.get(A.id);
+  return P && P.dur ? P.dur : a && isFinite(a.duration) && a.duration > 0 ? a.duration : null;
+}
+function tlAudioLen(A) { const f = tlAudioFile(A); return Math.max(0.1, f ? Math.min(A.dur, f - A.trim) : A.dur); }
+// Its volume at p on the timeline: muted, or its volume × its keys
+function tlAudioVol(A, p) {
+  if (A.mute) return 0;
+  const cv = (A.curves || []).find(x => x.kind === 'level');
+  return clamp(numOr(A.vol, 1), 0, 1) * (cv ? clamp(+tlCurveAt(cv, p - A.start, TL_LEVEL) || 0, 0, 1) : 1);
+}
+// Each track playing where the playhead is on it (from its trim on), silent elsewhere; its volume set every frame
+function tlAudioSync(T, p, play, seek = true) {
+  const ids = new Set();
+  for (const A of (T && T.audios) || []) {
+    const a = tlAudio(A);
+    if (!a) continue;
+    ids.add(A.id);
+    const v = tlAudioVol(A, p);
+    if (Math.abs(a.volume - v) > 1e-3) a.volume = v;
+    if (!play || p < A.start || p >= A.start + tlAudioLen(A)) { if (!a.paused) a.pause(); continue; }
+    if (!seek && !a.paused) continue;
+    const at = p - A.start + A.trim;
+    if (Math.abs(a.currentTime - at) > 0.12) { try { a.currentTime = at; } catch (e) { /* not loaded yet */ } }
+    if (a.paused) a.play().catch(() => {});
+  }
+  // tracks removed (or of another timeline): quiet
+  for (const [id, a] of tlAudios) if (!ids.has(id) && !a.paused) a.pause();
 }
 function tlPlay(T) {
   if (REMOTE_CLIENT || !T) return;
@@ -299,6 +322,7 @@ function tlTick() {
     return;
   }
   tlApply(T, p, false);
-  // the audio kept in step with the clock (it drifts, and starts late)
-  if (Math.round(clockT * 4) !== Math.round((clockT - 1 / project.settings.fps) * 4)) tlAudioSync(T, p, true);
+  // the audio kept in step with the clock (it drifts, and starts late) four times a second; its volumes, and tracks
+  // starting or ending, every frame
+  tlAudioSync(T, p, true, Math.round(clockT * 4) !== Math.round((clockT - 1 / project.settings.fps) * 4));
 }

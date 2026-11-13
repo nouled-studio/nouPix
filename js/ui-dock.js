@@ -455,8 +455,10 @@ function renderScenes(body, where = 'dock') {
     const stop = () => h('button', { class: 'btn sm icon zstop', type: 'button', disabled: !z.layers.length && !z.scene, 'aria-label': 'Stop ' + z.name,
       title: `Stop ${z.name}: its content fades to black over ${fmtV(project.settings.fade)} s (the fade for new scenes, in Settings)`, html: '<svg viewBox="0 0 12 12" width="10" height="10"><rect x="1" y="1" width="10" height="10" fill="currentColor"/></svg>',
       onclick: e => { e.stopPropagation(); stopZone(z); } });
-    const head = side >= 0 ? h('div', { class: 'zhead compact' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. Its slider is the most it reaches; the X-Fader mixes within it.`, onclick: () => selectZone(z) },
-      h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'xftag' }, side ? 'B' : 'A'), h('span', { class: 'nm' }, z.name),
+    // beside the stage the scenes wrap in a grid, under a one-line head as A's and B's
+    const wrap = where === 'side' && side < 0;
+    const head = side >= 0 || wrap ? h('div', { class: 'zhead compact' + (z === sel ? ' sel' : ''), title: side >= 0 ? `${z.name}: click to select. Its slider is the most it reaches; the X-Fader mixes within it.` : `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
+      h('div', { class: 'zt' }, zoneTag(z), side >= 0 ? h('span', { class: 'xftag' }, side ? 'B' : 'A') : null, h('span', { class: 'nm' }, z.name),
         zoneOpacityInput(z, 110), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists, stop(),
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')))
     : h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
@@ -467,8 +469,6 @@ function renderScenes(body, where = 'dock') {
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
     // the zone's head stays put; its scenes scroll sideways beside it
     const tiles = h('div', { class: 'stiles' });
-    // beside the stage they wrap in a grid instead
-    const wrap = where === 'side' && side < 0;
     const r = h('div', { class: 'scenerow' + (z === sel ? ' sel' : '') + (side >= 0 ? ' xfcol' : '') + (wrap ? ' wrap' : '') }, head, side >= 0 || wrap ? tiles : hscroller(tiles, 'scenes:' + z.id));
     head.title += '\nDrag it to change the order of the zones.';
     reorderable(head, r, 'zone', () => [z.id], ([id], after) => moveZoneTo(id, z, after));
@@ -858,24 +858,29 @@ function nodeDevices() {
     const universes = [...new Set(list.flatMap(n => Array.isArray(n.outUniverses) ? n.outUniverses : []))].sort((a, b) => a - b);
     // a WLED found by mDNS (bind index −1) knows its settings exactly: its protocol wins over an ArtPoll reply's
     const wled = (list.find(n => n.wled) || {}).wled || null;
+    // on sACN when every reply with outputs says so (or, with none listing outputs, any of them)
+    const outs = list.filter(n => (n.outUniverses || []).length || n.outPorts), sacn = outs.length ? outs.every(n => n.sacn) : list.some(n => n.sacn);
     return { ip, replies: list.length, universes, shortName: pick(list, 'shortName'), longName: pick(list, 'longName'), mac: pick(list, 'mac'), report: pick(list, 'report'),
-      sacn: wled ? wled.proto === 'sacn' : list.some(n => n.sacn), ddp: !!wled && wled.proto === 'ddp', canSwitch: list.some(n => n.canSwitch), wled };
+      sacn: wled ? wled.proto === 'sacn' : sacn, ddp: !!wled && wled.proto === 'ddp', canSwitch: list.some(n => n.canSwitch), wled };
   }).sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true }));
 }
 // ArtPoll says which universes a device listens on, not how they are split over its physical outputs (2 outputs
 // of 3 universes, 3 of 2…): only the operator knows. So a device becomes a controller with its IP, its name and
 // the universes it reported, kept as a reminder in the Patch tab; one output from its first universe is just a
 // starting point. Adding a device that is already a controller only refreshes that reminder.
-function addNodeAsController(n) {
-  const u = n.universes, proto = n.sacn ? 'sacn' : 'artnet';
+function addNodeAsController(n, asked) {
+  const u = n.universes, proto = asked || (n.sacn ? 'sacn' : 'artnet');
   const same = project.controllers.find(c => c.ip === n.ip);
   if (n.wled) return addWledAsController(n, same);
   if (same) {
-    if (!isDdp(same)) same.protocol = proto;   // a device set to DDP by hand (Advatek, Falcon…) stays on DDP: ArtPoll can't tell
+    // its protocol stays as set (what a device reports can be wrong), unless one was asked for from its menu
+    const was = protoName(same), says = proto === 'sacn' ? 'sACN' : 'Art-Net';
+    if (asked && !isDdp(same)) same.protocol = asked;
     if (u.length) same.discovered = u.slice();
     ui.selCtrl = same.id; ui.dockTab = 'patch';
     markPatch(); commit(); updateDiscoveryUI();
-    toast(`${same.name}: ${protoName(same)}` + (u.length ? `, reporting ${u.length} universe${u.length === 1 ? '' : 's'} (${universeList(u)}).` : '.') + ' Its outputs are as you set them.');
+    toast(`${same.name}: ${protoName(same)}` + (u.length ? `, reporting ${u.length} universe${u.length === 1 ? '' : 's'} (${universeList(u)}).` : '.') + ' Its outputs are as you set them.'
+      + (!asked && !isDdp(same) && says !== was ? ` The device says ${says}: right-click it here to switch.` : ''));
     return;
   }
   // ArtPoll's universes are a starting point: one output from the first; a device that reports none (one set to

@@ -29,12 +29,18 @@ const recentColors = () => { const r = store.get('noupix.colors', []); return Ar
 function rememberColor(hex) { store.set('noupix.colors', [hex, ...recentColors().filter(x => x !== hex)].slice(0, RECENT_MAX)); }
 
 /* ---------- the swatch in the panel ---------- */
+// A colour as a fill: over a checkerboard while it lets the layers below show through
+const CHECKER = 'repeating-conic-gradient(var(--line3) 0 25%, var(--bg2) 0 50%) 0 0 / 8px 8px';
+function alphaFill(c) {
+  const a = c[3] ?? 1, rgb = c.slice(0, 3).map(x => Math.round(clamp(x, 0, 1) * 255)).join(',');
+  return a >= 1 ? `rgb(${rgb})` : `linear-gradient(rgba(${rgb},${a}), rgba(${rgb},${a})), ${CHECKER}`;
+}
 // get() gives the colour [r, g, b, a], set(c) changes it live, done() makes it one undo step; key names the control,
 // so the picker can find its swatch again when the panel is drawn anew
 function colorRow(label, get, set, done, key) {
   const fill = h('i'), hex = h('span', { class: 'mono' });
   const b = h('button', { class: 'cswatch', type: 'button', 'data-cp': key, 'aria-label': label + ': choose a colour', 'aria-haspopup': 'dialog' }, fill, hex);
-  const show = c => { fill.style.background = toHex(c); hex.textContent = toHex(c); };
+  const show = c => { const a = c[3] ?? 1; fill.style.background = alphaFill(c); hex.textContent = toHex(c) + (a < 1 ? ` ${Math.round(a * 100)}%` : ''); };
   show(get());
   b._show = show;
   b.addEventListener('click', () => (colorPop && colorPop.key === key ? closeColorPicker() : openColorPicker(b, { label, get, set, done, key })));
@@ -64,7 +70,8 @@ function drawWheelImage(px) {
 
 function openColorPicker(anchor, o) {
   closeColorPicker();
-  const before = o.get().slice(), alpha = before[3] ?? 1;
+  const before = o.get().slice();
+  let alpha = before[3] ?? 1;
   let rgb = before.slice(0, 3), hsv = rgbToHsv(...rgb);
   if (!COLOR_MODES.some(([m]) => m === ui.colorMode)) ui.colorMode = 'wheel';
 
@@ -72,7 +79,7 @@ function openColorPicker(anchor, o) {
   const apply = () => {
     o.set([...rgb, alpha]);
     const sw = anchor.isConnected ? anchor : document.querySelector(`.cswatch[data-cp="${CSS.escape(o.key)}"]`);
-    if (sw && sw._show) sw._show(rgb);
+    if (sw && sw._show) sw._show([...rgb, alpha]);
     refresh();
   };
   const fromRGB = c => { rgb = c.map(x => clamp(x, 0, 1)); const n = rgbToHsv(...rgb); hsv = [n[1] ? n[0] : hsv[0], n[2] ? n[1] : hsv[1], n[2]]; apply(); };
@@ -98,7 +105,7 @@ function openColorPicker(anchor, o) {
   const grad = (n, f) => 'linear-gradient(to right,' + Array.from({ length: n }, (_, i) => css(f(i / (n - 1)))).join(',') + ')';
 
   // ---- the parts
-  const was = h('button', { class: 'cpwas', type: 'button', title: 'Before: click to go back to it', 'aria-label': 'Back to the colour before', onclick: () => { fromRGB(before.slice(0, 3)); done(); } });
+  const was = h('button', { class: 'cpwas', type: 'button', title: 'Before: click to go back to it', 'aria-label': 'Back to the colour before', onclick: () => { alpha = before[3] ?? 1; fromRGB(before.slice(0, 3)); done(); } });
   const now = h('div', { class: 'cpnow' });
   const hexIn = h('input', { type: 'text', class: 'mono', 'aria-label': 'Hex colour', spellcheck: false, maxlength: 7 });
   hexIn.addEventListener('change', () => { const c = fromHex(hexIn.value); if (c) { fromRGB(c); done(); } else hexIn.value = toHex(rgb); });
@@ -122,6 +129,10 @@ function openColorPicker(anchor, o) {
     x.beginPath(); x.arc(cx, cy, 6 * dpr, 0, 2 * Math.PI); x.fillStyle = css(rgb); x.fill(); x.stroke();
   };
 
+  // Alpha: how much of the layers below shows through where this colour is (0% all of them, 100% none), its track the
+  // colour over a checkerboard
+  const alphaRow = gslider('Alpha', 0, 100, 1, () => alpha * 100, v => { alpha = v / 100; apply(); },
+    () => `linear-gradient(to right, rgba(${rgb.map(x => Math.round(x * 255)).join(',')},0), ${css(rgb)}), ${CHECKER}`, '%');
   const intensity = () => gslider('Intensity', 0, 100, 1, () => hsv[2] * 100, v => fromHSV([hsv[0], hsv[1], v / 100]), () => grad(2, t => hsvToRgb(hsv[0], hsv[1], t)), '%');
   const parts = {
     wheel: [h('div', { class: 'cpwheelbox' }, wheel), intensity()],
@@ -140,7 +151,9 @@ function openColorPicker(anchor, o) {
   const showRecent = () => { const r = recentColors(); recentBox.replaceChildren(...(r.length ? r.map(x => chip(x, x)) : [h('span', { class: 'muted', style: { gridColumn: '1 / -1' } }, 'Colours you pick show here.')])); };
 
   function refresh() {
-    was.style.background = toHex(before); now.style.background = toHex(rgb);
+    was.style.background = alphaFill(before);
+    now.style.background = alphaFill(rgb.concat(alpha));
+    alphaRow._sync();
     if (document.activeElement !== hexIn) hexIn.value = toHex(rgb);
     if (ui.colorMode === 'wheel') drawWheel();
     for (const el of body.children) if (el._sync) el._sync();
@@ -149,7 +162,7 @@ function openColorPicker(anchor, o) {
   const pop = h('div', { class: 'cpop', role: 'dialog', 'aria-label': 'Colour: ' + o.label },
     h('div', { class: 'cphead' }, h('span', { class: 'cpt' }, o.label), h('button', { class: 'x', type: 'button', 'aria-label': 'Close', onclick: closeColorPicker }, '×')),
     h('div', { class: 'cptop' }, h('div', { class: 'cpcmp' }, was, now), hexIn),
-    tabs, body,
+    tabs, body, alphaRow,
     h('div', { class: 'cplbl' }, 'Presets'), h('div', { class: 'cpchips grid' }, LIGHT_COLORS.map(([n, x]) => chip(n, x))),
     h('div', { class: 'cplbl' }, 'Recent'), recentBox);
   document.body.append(pop);
@@ -174,7 +187,7 @@ function openColorPicker(anchor, o) {
     const n = rgbToHsv(...rgb);
     hsv = [n[1] ? n[0] : hsv[0], n[2] ? n[1] : hsv[1], n[2]];
     const sw = anchor.isConnected ? anchor : document.querySelector(`.cswatch[data-cp="${CSS.escape(o.key)}"]`);
-    if (sw && sw._show) sw._show(rgb);
+    if (sw && sw._show) sw._show(o.get());
     refresh();
   };
   colorPop = { key: o.key, pop, sync, close: () => {
