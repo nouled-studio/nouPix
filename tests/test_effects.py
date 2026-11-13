@@ -148,6 +148,9 @@ try:
     av = ev("(() => { const L = project.zones[0].layers[0]; return L.params['b-bars'] && (L.params['b-bars'].color || L.params['b-bars'].background); })()")
     check("…its value goes to the colour's alpha", av and abs(av[3] - 0.3) < 1e-6, av)
     pg.keyboard.press("Escape")
+    time.sleep(0.3)
+    sw = ev("""[...document.querySelectorAll('#rightBody .cswatch')].map(b => [b.querySelector('i').style.background, b.textContent])""")
+    check("…the swatch in the Content tab over a checkerboard, its alpha beside the hex", any("conic" in x[0] and x[1].endswith("30%") for x in sw), sw)
 
     # the Content tab shows as many colours as it uses
     shown = ev("""async n => { const z = project.zones[0]; z.layers = [Object.assign(newLayer(), { src: 'b-rainbow', params: { 'b-rainbow': { count: n } } })];

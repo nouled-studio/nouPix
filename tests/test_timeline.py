@@ -218,7 +218,7 @@ try:
     t0 = fx[0] if fx else {}
     check("files are repaired: clips of scenes not there or zones gone dropped, in order, fades in range, the loop inside, a bad media name dropped, lanes as many as the clips need",
           len(fx) == 1 and [c["start"] for c in t0["tracks"]["z1"]] == [2, 12] and t0["tracks"]["z1"][1]["fadeIn"] == 4 and "gone" not in t0["tracks"]
-          and t0["lanes"] == {"z1": 3} and t0["grid"] == "sec" and t0["bpm"] == 300 and t0["loop"]["a"] <= t0["loop"]["b"] <= 20 and t0["audio"] == {"name": "a.wav"}, fx)
+          and t0["lanes"] == {"z1": 3} and t0["grid"] == "sec" and t0["bpm"] == 300 and t0["loop"]["a"] <= t0["loop"]["b"] <= 20 and t0["audio"] == {"name": "a.wav", "vol": 1}, fx)
     check("no errors in the page", not errs, errs[:3])
     br.close()
 finally:
