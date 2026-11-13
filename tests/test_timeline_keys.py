@@ -200,6 +200,18 @@ try:
     check("…its menu offers Colour…", pg.locator(".menu button:has-text('Colour…')").count() == 1)
     pg.keyboard.press("Escape")
 
+    # ---------- Speed as the Content tab shows it: still at the bottom, full at the top, never across into reverse
+    sp = E("""(() => { const s = project.sources.find(s => s.kind === 'isf' && controlsOf(s).some(i => /^speed$/i.test(i.NAME) && i.TYPE === 'float' && (i.MIN ?? 0) < 0));
+      const i = controlsOf(s).find(i => /^speed$/i.test(i.NAME)), fw = { kind: 'param', src: s.id, ctl: i.NAME, keys: [{ t: 0, v: 0.25 * i.MAX }] }, rv = { kind: 'param', src: s.id, ctl: i.NAME, keys: [{ t: 0, v: 0.25 * i.MIN }] };
+      const F = tlRowInput(fw), R = tlRowInput(rv);
+      return { max: i.MAX, min: i.MIN, fwRange: [F.MIN, F.MAX], fwBottom: tlFromNorm(F, 0), fwTop: tlFromNorm(F, 1), fwLow: tlFromNorm(F, -0.5),
+        rvBottom: tlFromNorm(R, 0), rvTop: tlFromNorm(R, 1), rvUp: tlFromNorm(R, 0.6) < tlFromNorm(R, 0.3), rvLabel: R.LABEL,
+        magnet: tlFromNorm({ TYPE: 'float', MIN: -1, MAX: 1 }, 0.51), far: tlFromNorm({ TYPE: 'float', MIN: -1, MAX: 1 }, 0.6) }; })()""")
+    check("a Speed row runs from still (bottom) to full (top): pulled up it only gets faster, pulled down it stops at still",
+          sp["fwRange"] == [0, sp["max"]] and sp["fwBottom"] == 0 and sp["fwTop"] == sp["max"] and sp["fwLow"] == 0, sp)
+    check("…a curve running in reverse keeps its direction: still at the bottom, full reverse at the top", sp["rvBottom"] == 0 and sp["rvTop"] == sp["min"] and sp["rvUp"] and "reverse" in sp["rvLabel"], sp)
+    check("a range across zero has a magnet there", sp["magnet"] == 0 and abs(sp["far"] - 0.2) < 1e-6, sp)
+
     # ---------- files
     saved = E(f"JSON.parse(serialize()).timelines[0].tracks['{Z}'][0].curves")
     check("files keep the curves", len(saved) == 3 and saved[2]["keys"][0]["v"] == [1, 0, 0, 1])

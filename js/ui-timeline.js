@@ -559,16 +559,29 @@ function tlNorm(inp, v, k = 0) {
   if (!inp) return 0.5;
   if (inp.TYPE === 'bool' || inp.TYPE === 'event') return v ? 1 : 0;
   if (inp.TYPE === 'long' && inp.VALUES) { const i = inp.VALUES.indexOf(v); return inp.VALUES.length > 1 ? Math.max(0, i) / (inp.VALUES.length - 1) : 0.5; }
-  const [lo, hi] = tlRange(inp, k), x = Array.isArray(v) ? v[k] : v;
-  return clamp(((+x || 0) - lo) / (hi - lo), 0, 1);
+  const [lo, hi] = tlRange(inp, k), x = Array.isArray(v) ? v[k] : v, n = clamp(((+x || 0) - lo) / (hi - lo), 0, 1);
+  return inp._flip ? 1 - n : n;
 }
 function tlFromNorm(inp, f) {
   if (!inp || inp.TYPE === 'color' || inp.TYPE === 'point2D') return undefined;
   f = clamp(f, 0, 1);
+  if (inp._flip) f = 1 - f;
   if (inp.TYPE === 'bool' || inp.TYPE === 'event') return f >= 0.5;
   if (inp.TYPE === 'long' && inp.VALUES) return inp.VALUES[Math.round(f * (inp.VALUES.length - 1))];
-  const [lo, hi] = tlRange(inp, 0), v = lo + f * (hi - lo);
+  const [lo, hi] = tlRange(inp, 0);
+  let v = lo + f * (hi - lo);
+  // a range across zero: a small magnet there, so a still or centred value is easy to land on
+  if (lo < 0 && hi > 0 && Math.abs(v) < (hi - lo) * 0.03) v = 0;
   return inp.TYPE === 'int' ? Math.round(v) : Math.round(v * 1000) / 1000;
+}
+// What a row draws and drags: the control as it is, but an effect's Speed as the Content tab shows it, from still at the
+// bottom to full at the top, in its own direction (a curve whose keys all run in reverse: full reverse at the top), so
+// pulling a key up always makes it faster and never crosses into the other direction
+function tlRowInput(cv) {
+  const inp = tlCurveInput(cv);
+  if (!inp || cv.kind !== 'param' || inp.TYPE !== 'float' || !/^speed$/i.test(inp.NAME) || !((inp.MIN ?? 0) < 0)) return inp;
+  const rev = cv.keys.length > 0 && cv.keys.every(k => +k.v <= 0) && cv.keys.some(k => +k.v < 0);
+  return Object.assign({}, inp, rev ? { MIN: inp.MIN, MAX: 0, _flip: true, LABEL: (inp.LABEL || inp.NAME) + ' (reverse)' } : { MIN: 0, MAX: inp.MAX });
 }
 const tlCurveName = (cv, inp) => (cv.kind === 'level' ? 'Level' : inp ? inp.LABEL || inp.NAME : cv.ctl);
 const tlLevelCurve = c => (c.curves || []).find(cv => cv.kind === 'level') || null;
@@ -650,7 +663,7 @@ function wireLevel(ov, T, z, c, el) {
   };
 }
 function keyRow(T, z, c, cv, el) {
-  const inp = tlCurveInput(cv), name = tlCurveName(cv, inp), isCol = !!inp && inp.TYPE === 'color';
+  const inp = tlRowInput(cv), name = tlCurveName(cv, inp), isCol = !!inp && inp.TYPE === 'color';
   const graph = h('span', { class: 'tlkgraph', title: isCol ? 'Click a key to pick its colour, drag it to move it in time; double-click the band to add a key'
     : 'Double-click to add a key; drag a box to pick several' });
   const row = h('span', { class: 'tlkrow' + (inp ? '' : ' gone') + (isCol ? ' color' : ''), 'data-curve': cv.src + '|' + cv.ctl }, graph,
@@ -700,7 +713,7 @@ function pressKey(e, T, z, c, el, kel) {
 // Keys dragged together: in time by the same amount (snapped by the one held, none past the clip's ends), in value
 // by the same share of each one's range (colours and points keep theirs)
 function dragKeys(e, T, z, c, el, items, inTime, held) {
-  const x0 = e.clientX, y0 = e.clientY, o = items.map(({ k, cv }) => ({ k, cv, t: k.t, inp: tlCurveInput(cv), f: tlNorm(tlCurveInput(cv), k.v), H: cv.kind === 'level' ? tlStripH() : TL_KROW }));
+  const x0 = e.clientX, y0 = e.clientY, o = items.map(({ k, cv }) => ({ k, cv, t: k.t, inp: tlRowInput(cv), f: tlNorm(tlRowInput(cv), k.v), H: cv.kind === 'level' ? tlStripH() : TL_KROW }));
   const lo = -Math.min(...o.map(x => x.t)), hi = c.dur - Math.max(...o.map(x => x.t));
   const h0 = held && o.find(x => x.k === held);
   let moved = false;
