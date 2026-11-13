@@ -143,9 +143,14 @@ input, select, textarea { font-weight: 400; }
 .scenepanel.ss-l .scenerow.xfcol .scene, .scenepanel.ss-l .scenerow.wrap .scene { width: auto; height: 76px; }
 .panelhost .scenepanel.ss-s .scenerow.wrap .stiles, .panelhost .scenepanel.ss-s .scenerow.xfcol .stiles { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
 .panelhost .scenepanel.ss-l .scenerow.wrap .stiles, .panelhost .scenepanel.ss-l .scenerow.xfcol .stiles { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); }
-.zstop { flex: none; width: 22px; height: 22px; padding: 0; display: grid; place-items: center; color: var(--text2); }
-.zstop:hover:not(:disabled) { color: var(--accent); }
-.zstop:disabled { opacity: .35; cursor: default; }
+/* a zone's stop: a small white square on its own, no box around it, turning red when pointed at */
+.btn.zstop, .btn.zstop:hover, .btn.zstop:active { flex: none; width: 22px; height: 22px; padding: 0; display: grid; place-items: center; border: 0; background: none; box-shadow: none;
+  color: var(--text); transition: color .15s ease, transform .15s ease; }
+.btn.zstop svg { width: 9px; height: 9px; }
+.btn.zstop:hover:not(:disabled) { color: var(--accent); transform: scale(1.12); }
+.btn.zstop:disabled { opacity: .3; cursor: default; }
+/* + Store at the right end of the zone's head */
+.zhead .zc > .btn { margin-left: auto; }
 .ssize { display: flex; gap: 2px; margin-right: 10px; }
 .ssize button { position: relative; width: 24px; height: 24px; padding: 0; display: grid; place-items: center; border: 0; background: none; color: var(--muted); cursor: pointer; }
 .ssize button:hover { color: var(--text); }
