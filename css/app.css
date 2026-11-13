@@ -451,7 +451,7 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 /* along the bottom of the Scenes panel: the X-Fader's button and mode on the left, its strip in the middle, the window
    button on the right (both sides as wide while there is room, so the strip is in the middle; on a narrow panel the
    strip keeps its size and moves over) */
-.sfoot { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 8px; min-height: 32px; padding: 4px 8px; border-top: 1px solid var(--line); }
+.sfoot { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 8px 4px; min-height: 32px; padding: 4px 8px; border-top: 1px solid var(--line); }
 .sleft { display: flex; align-items: center; gap: 4px; }
 .sbtns { justify-self: end; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .sbtns .ssize { flex: none; }
@@ -469,8 +469,8 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .xfbtn .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line3); }
 .xfbtn.on { border-color: var(--sel); }
 .xfbtn.on .dot { background: var(--accent); }
-.xfade { align-self: center; display: flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0; }
-.xfside { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.xfade { align-self: center; display: flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; }
+.xfside { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .xfside.b { flex-direction: row-reverse; }
 .xfpv { position: relative; flex: none; line-height: 0; background: var(--canvas); border: 1px solid var(--line2); }
 .xfpv canvas { display: block; }
@@ -1554,15 +1554,18 @@ aside.left.tabbed .fixtures .phead { display: none; }
 .tlclip.tlaclip .tllevel path { opacity: 1; }
 .tlclip.tlaclip .tllevel .tlkey { display: block; }
 .tlaclip.muted .tlwave { opacity: .3; }
-/* the Scenes panel narrow (beside the stage): the X-Fader's strip on a line of its own under its buttons, as wide as the
-   panel, its fader taking what the previews and zones leave */
-@container scenes (max-width: 820px) {
-  .panelhost .sfoot { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
-  .panelhost .sfoot > .sleft { grid-row: 1; grid-column: 1; }
-  .panelhost .sfoot > .sbtns { grid-row: 1; grid-column: 2; }
-  .panelhost .sfoot > .xfade { grid-row: 2; grid-column: 1 / -1; justify-self: stretch; }
-  .panelhost .sfoot > span:empty { display: none; }
-  .panelhost .xfmid { flex: 1 1 auto; min-width: 70px; }
-  .panelhost .xfwho { flex: 0 1 96px; }
+/* the Scenes panel narrow (beside the stage, or the bottom panel between two wide side panels): the X-Fader's strip on
+   a line of its own under its buttons, as wide as the panel, its fader taking what the previews and zones leave */
+.scenepanel { container: spanel / inline-size; }
+@container spanel (max-width: 880px) {
+  .sfoot { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
+  .sfoot > .sleft { grid-row: 1; grid-column: 1; }
+  .sfoot > .sbtns { grid-row: 1; grid-column: 2; }
+  .sfoot > .xfade { grid-row: 2; grid-column: 1 / -1; justify-self: stretch; }
+  .sfoot > span:empty { display: none; }
+  .sfoot .xfmid { flex: 1 1 auto; min-width: 70px; }
+  .sfoot .xfwho { flex: 0 1 96px; }
 }
-@container scenes (max-width: 400px) { .panelhost .xfpv { display: none; } }
+@container spanel (max-width: 400px) { .sfoot .xfpv { display: none; } }
+/* a zone's level as wide at 100% as at 5%, so its slider beside it keeps its length */
+.zhead [data-zone-pct] { flex: none; min-width: 4ch; text-align: right; }

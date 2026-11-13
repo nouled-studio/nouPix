@@ -77,6 +77,22 @@ try:
         heads: $$('#rightHost .zhead').every(e => e.classList.contains('compact')) }; })()""")
     check("narrow, the X-Fader's strip on a line of its own under its buttons, across the panel, nothing overlapping", lay["below"] and lay["wide"] and lay["apart"] and lay["inside"], lay)
     check("…every zone with a one-line head there, as A and B", lay["heads"], lay)
+    # a zone's slider as long at 100% as below it
+    sw = lambda: E("$('#rightHost .zhead input[type=range]').getBoundingClientRect().width")
+    E("ui.sideW.right = 360; renderSides(); setZoneOpacity(project.zones.at(-1), 1); renderSides()"); time.sleep(0.3); w100 = sw()
+    E("setZoneOpacity(project.zones.at(-1), 0.97); renderSides()"); time.sleep(0.3); w97 = sw()
+    E("setZoneOpacity(project.zones.at(-1), 1); ui.sideW.right = 460; renderSides()"); time.sleep(0.3)
+    check("a zone's level slider as long at 100% as at 97%", abs(w100 - w97) < 0.5, (w100, w97))
+    # the bottom panel between two wide side panels: its strip under its buttons too
+    E("setPanelPlace('scenes', 'bottom'); ui.dockTab = 'scenes'; renderDock()"); time.sleep(0.4)
+    E("$('#dock').style.width = '700px'; window.dispatchEvent(new Event('resize'))"); time.sleep(0.4)
+    ov = E("""(() => { const R = s => { const e = $('#dockBody ' + s); return e && e.getBoundingClientRect(); };
+      const parts = ['.sleft', '.xfside.a .xfpv', '.xfside.a .xfwho', '.xfmid', '.xfside.b .xfwho', '.xfside.b .xfpv', '.sbtns'].map(R).filter(Boolean), out = [];
+      for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++) { const a = parts[i], b = parts[j];
+        if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) out.push([i, j]); }
+      return [parts.length, out, R('.sfoot .xfade').top >= R('.xfbtn').bottom]; })()""")
+    check("the bottom panel narrow: the X-Fader's strip under its buttons, nothing overlapping", ov[0] == 7 and not ov[1] and ov[2], ov)
+    E("$('#dock').style.width = ''; window.dispatchEvent(new Event('resize')); setPanelPlace('scenes', 'right')"); time.sleep(0.4)
     E("setXfadeOn(false)"); time.sleep(0.3)
 
     # ---------- the ✕, the left side, several at once
