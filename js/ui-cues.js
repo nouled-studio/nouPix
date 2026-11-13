@@ -55,7 +55,7 @@ function renderCues(body) {
     project.cueLists.map(K => h('button', { type: 'button', class: 'cltab' + (K === L ? ' on' : ''), title: K === L ? 'Right-click for its menu' : 'Show ' + K.name,
       onclick: () => { ui.cueList = K.id; ui.cueSel = null; refreshCues(); }, oncontextmenu: e => { e.preventDefault(); cueListMenu(e.currentTarget, K); } }, K.name)),
     h('button', { type: 'button', class: 'btn sm', title: 'A new cue list: cues that go one after the other, by GO or by themselves', onclick: () => addCueList() }, '+ New cue list'),
-    h('span', { class: 'fill' }), panelPlaces('cues'),
+    h('span', { class: 'fill' }),
     L ? h('button', { type: 'button', class: 'btn sm icon', title: L.name + ': rename, delete', 'aria-label': L.name + ' menu', onclick: e => cueListMenu(e.currentTarget, L) }, '⋯') : null);
   panel.append(tabs);
   if (!L) {

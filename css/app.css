@@ -1569,3 +1569,9 @@ aside.left.tabbed .fixtures .phead { display: none; }
 @container spanel (max-width: 400px) { .sfoot .xfpv { display: none; } }
 /* a zone's level as wide at 100% as at 5%, so its slider beside it keeps its length */
 .zhead [data-zone-pct] { flex: none; min-width: 4ch; text-align: right; }
+/* the place buttons in a frame: the bottom panel's tab row, and after the open tab beside the stage */
+#dockPlaces { display: inline-flex; align-items: center; margin-right: 10px; }
+#dockPlaces:empty { display: none; }
+.mplaces { flex: none; display: inline-flex; align-items: center; margin-right: 6px; }
+.mplaces .spos > button { width: 22px; height: 22px; }
+.mplaces .spos svg { width: 14px; height: 14px; }

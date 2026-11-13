@@ -29,13 +29,14 @@ try:
     places = lambda root: E(f"[...$$('{root} .spos button')].map(b => b.dataset.place + (b.classList.contains('on') ? '*' : ''))")
     rtabs = lambda: E("[...$$('#rightTabs .tabstrip > button, #rightTabs .tabstrip .mtab')].map(b => b.textContent.replace('✕', '').trim() + (b.classList.contains('on') ? '*' : ''))")
 
-    check("the scenes at the bottom at first, with their place buttons", places("#dockBody") == ["bottom*", "left", "right", "window"], places("#dockBody"))
-    pg.click("#dockBody .spos button[data-place=right]"); time.sleep(0.6)
+    check("the scenes at the bottom at first, with their place buttons", places("#dockPlaces") == ["bottom*", "left", "right", "window"], places("#dockPlaces"))
+    pg.click("#dockPlaces .spos button[data-place=right]"); time.sleep(0.6)
     check("sent right: one more tab in the right panel, after Inspector, Content and Settings, open", rtabs() == ["Inspector", "Content", "Settings", "Scenes*"], rtabs())
     check("…the scenes drawn there, the right panel wider, none left at the bottom, whose Scenes tab goes",
           pg.locator("#rightHost .scene").count() == 24 and box("aside.right")["width"] > 450 and pg.locator("#dockBody .scene").count() == 0 and not pg.locator("#dockTabs [data-tab=scenes]").is_visible())
     check("…the left panel left as it was", pg.locator("aside.left").is_visible() and pg.locator("#leftTabs").is_hidden())
-    check("…its tab has a ✕, its place buttons show Right", pg.locator("#rightTabs .mtab .mx").count() == 1 and places("#rightHost") == ["bottom", "left", "right*", "window"])
+    check("…its tab followed by its place buttons, showing Right (no ✕ while open: Bottom brings it back)", pg.locator("#rightTabs .mplaces").count() == 1 and pg.locator("#rightTabs .mtab .mx").count() == 0
+          and places("#rightTabs .mplaces") == ["bottom", "left", "right*", "window"] and pg.locator("#rightHost .spos").count() == 0, places("#rightTabs .mplaces"))
     check("…the scenes wrap there: no row scrolls sideways", pg.locator("#rightHost .hscroll").count() == 0)
     pg.click("#rightTabs button[data-tab=inspector]"); time.sleep(0.3)
     check("Inspector clicked: the Inspector shows, Scenes stays a tab, the panel back to its own width",
@@ -96,10 +97,10 @@ try:
     E("setXfadeOn(false)"); time.sleep(0.3)
 
     # ---------- the ✕, the left side, several at once
-    pg.click("#rightTabs .mtab[data-panel=scenes] .mx"); time.sleep(0.5)
-    check("its ✕ sends it back to the bottom: the right panel's own again, the Scenes tab at the bottom, open",
+    pg.click("#rightTabs .mplaces button[data-place=bottom]"); time.sleep(0.5)
+    check("Bottom after its tab sends it back: the right panel's own again, the Scenes tab at the bottom, open",
           rtabs() == ["Inspector*", "Content", "Settings"] and pg.locator("#dockBody .scene").count() == 24 and E("ui.dockTab") == "scenes" and box("aside.right")["width"] < 320, rtabs())
-    pg.click("#dockBody .spos button[data-place=left]"); time.sleep(0.5)
+    pg.click("#dockPlaces .spos button[data-place=left]"); time.sleep(0.5)
     ltabs = E("[...$$('#leftTabs .mtab')].map(b => b.textContent.replace('✕', '').trim() + (b.classList.contains('on') ? '*' : ''))")
     check("sent left: the left panel gets a tab row, Fixtures then Scenes, open", ltabs == ["Fixtures", "Scenes*"] and pg.locator("#leftHost .scene").count() == 24, ltabs)
     check("…the fixtures and sources hidden meanwhile, the head's « at the end of the tab row", pg.locator("#fxList").is_hidden() and pg.locator("#leftTabs button[aria-label='Hide the left panel']").is_visible())
@@ -108,9 +109,9 @@ try:
           and pg.locator(".fixtures .phead").is_hidden())
     check("…the fixture tools at the list's foot: + Add, SVG…, Group, Lock", E("[...document.querySelectorAll('.fxfoot button')].map(b => b.id)") == ["btnAddFx", "btnImportSvg", "btnGroup", "btnLock"] and pg.locator("#btnAddFx").is_visible())
     E("ui.dockTab = 'cues'; renderDock()"); time.sleep(0.2)
-    pg.locator("#dockBody .cuetabs .spos button[data-place=right]").click(); time.sleep(0.4)
+    pg.locator("#dockPlaces .spos button[data-place=right]").click(); time.sleep(0.4)
     E("ui.dockTab = 'timeline'; renderDock()"); time.sleep(0.2)
-    pg.locator("#dockBody .cuetabs .spos button[data-place=right]").click(); time.sleep(0.4)
+    pg.locator("#dockPlaces .spos button[data-place=right]").click(); time.sleep(0.4)
     tabs_ok = E("(() => { const s = $('#rightTabs .tabstrip'), on = s.querySelector('.on').getBoundingClientRect(), r = s.getBoundingClientRect(); return [s.scrollWidth > s.clientWidth, on.left >= r.left - 1 && on.right <= r.right + 1, $('#rightTabs .hscroll').classList.contains('canl')]; })()")
     check("five tabs don't fit: the row scrolls, the open one in view, ‹ to see the first ones", tabs_ok == [True, True, True], tabs_ok)
     sb = pg.locator("#rightTabs .tabstrip").bounding_box(); pg.mouse.move(sb["x"] + 40, sb["y"] + 10); pg.mouse.wheel(0, -400); time.sleep(0.3)
@@ -121,7 +122,7 @@ try:
     check("kept after a reload", rtabs() == ["Inspector", "Content", "Settings", "Cue lists (Beta)", "Timeline (Beta)*"] and E("[...$$('#leftTabs .mtab')].length") == 2)
     E("(() => { olm.loadProject(demoProject()); })()"); time.sleep(0.4)
     E("openSideTab('left', 'scenes')"); time.sleep(0.3)
-    with pg.expect_popup() as pi: pg.click("#leftHost .spos button[data-place=window]")
+    with pg.expect_popup() as pi: pg.click("#leftTabs .mplaces button[data-place=window]")
     W = pi.value; time.sleep(0.8)
     check("Window: the scenes in their own window, their tab on the left showing nothing meanwhile", W.locator(".scene").count() > 0 and pg.locator("#leftHost").is_hidden())
     E("scenesWin.document.querySelector('.spos button[data-place=bottom]').click()"); time.sleep(0.6)

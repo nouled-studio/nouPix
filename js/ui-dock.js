@@ -19,6 +19,10 @@ function renderDock() {
   mon.hidden = ui.dockTab !== 'patch';
   if (!mon.firstChild) mon.append(h('span', { class: 'ic', html: ICONS.monitor }), 'Channel monitor');
   $('#btnDock').title = ui.dockCollapsed ? 'Expand panel' : 'Collapse panel';
+  // where the panel open here goes (bottom, left, right, the Scenes window): in the tab row, the same spot for each
+  let dp = $('#dockPlaces');
+  if (!dp) { dp = h('span', { id: 'dockPlaces' }); $('#dockTabs .tabtools').prepend(dp); }
+  dp.replaceChildren(...(PANELS[ui.dockTab] ? [panelPlaces(ui.dockTab)] : []));
   const body = $('#dockBody');
   const keep = body.firstElementChild && body.querySelector('.ctrl-edit') ? body.querySelector('.ctrl-edit').scrollTop : 0;
   keepScroll(body, () => {
@@ -185,8 +189,9 @@ function openSideTab(side, k) {
   savePrefs(); renderSides();
   requestAnimationFrame(() => { resizeView(); redrawStage(); });
 }
-// The side panels: their moved tabs (each with its ✕), the one open drawn in the side's own body for it, the side as
-// wide as set for it meanwhile (the side's own content stays as it was, under)
+// The side panels: their moved tabs (the open one followed by its place buttons, the others with a ✕), the one open
+// drawn in the side's own body for it, the side as wide as set for it meanwhile (the side's own content stays as it
+// was, under)
 function renderSides() {
   const ws = $('.workspace');
   for (const side of ['left', 'right']) {
@@ -194,10 +199,11 @@ function renderSides() {
     if (!host) continue;
     const tab = k => h('button', { type: 'button', class: 'mtab' + (k === open ? ' on' : ''), 'data-panel': k, title: PANELS[k] + ' (moved here from the bottom panel)',
       onclick: () => openSideTab(side, k) }, PANELS[k],
-      h('span', { class: 'mx', role: 'button', tabindex: 0, 'aria-label': 'Close ' + PANELS[k] + ' here', title: 'Close it here: back to the bottom panel',
+      k === open ? null : h('span', { class: 'mx', role: 'button', tabindex: 0, 'aria-label': 'Close ' + PANELS[k] + ' here', title: 'Close it here: back to the bottom panel',
         onclick: e => { e.stopPropagation(); setPanelPlace(k, 'bottom'); } }, '✕'));
+    const movedTabs = () => moved.flatMap(k => (k === open ? [tab(k), h('span', { class: 'mplaces' }, panelPlaces(k))] : [tab(k)]));
     if (side === 'right') {
-      $('#rightMoved').replaceChildren(...moved.map(tab));
+      $('#rightMoved').replaceChildren(...movedTabs());
       $$('#rightTabs button[data-tab]').forEach(b => b.classList.toggle('on', !open && b.dataset.tab === ui.rightTab));
       $('#rightBody').hidden = !!open;
       tabsInView($('#rightTabs'));
@@ -206,7 +212,7 @@ function renderSides() {
       tabs.hidden = !moved.length;
       // the tab row stands for the Fixtures head meanwhile: its « at the end
       aside.classList.toggle('tabbed', moved.length > 0);
-      tabs.replaceChildren(tabStrip(h('span', { class: 'tabstrip' }, h('button', { type: 'button', class: 'mtab' + (open ? '' : ' on'), onclick: () => openSideTab('left', null) }, 'Fixtures'), ...moved.map(tab))),
+      tabs.replaceChildren(tabStrip(h('span', { class: 'tabstrip' }, h('button', { type: 'button', class: 'mtab' + (open ? '' : ' on'), onclick: () => openSideTab('left', null) }, 'Fixtures'), ...movedTabs())),
         h('span', { class: 'fill' }), h('span', { class: 'tabtools' }, h('button', { class: 'btn ghost sm', type: 'button', title: 'Hide this panel (Shift H)', 'aria-label': 'Hide the left panel', onclick: () => showLeft(false) }, '\u00ab')));
       for (const sec of $$('aside.left > section')) sec.hidden = !!open;
       tabsInView(tabs);
@@ -431,7 +437,7 @@ function renderScenes(body, where = 'dock') {
       X.on ? h('button', { class: 'btn sm xfmode', type: 'button', title: mode[2] + '. Click to choose another mode.', 'aria-label': 'X-Fader mode: ' + mode[1], 'aria-haspopup': 'menu',
         onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi' }, xfGraph(m), m[1]), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
     X.on ? xfadeStrip() : h('span'),
-    h('div', { class: 'sbtns' }, sceneSizes(place), panelPlaces('scenes')));
+    h('div', { class: 'sbtns' }, sceneSizes(place), inWindow ? panelPlaces('scenes') : null));
   const rows = h('div', { class: 'zonerows', 'data-keep': 'zonerows' });
   const sel = selZone();
   // with the X-Fader on, its zones A and B side by side at the top (A on the left, B on the right, as on the fader),

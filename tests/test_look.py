@@ -74,7 +74,7 @@ try:
 
     # ---------- the windows this page draws into follow
     ev("(() => { olm.loadProject(demoProject()); ui.dockTab = 'scenes'; ui.dockCollapsed = false; renderDock(); })()"); settle(0.6)
-    with pg.expect_popup() as pi: pg.click("#dockBody button[aria-label='Open in a window']")
+    with pg.expect_popup() as pi: pg.click("#dockPlaces button[aria-label='Open in a window']")
     W = pi.value; settle(0.8)
     check("the Scenes window has the same look", W.evaluate("document.documentElement.dataset.theme") == "dark" and W.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(0, 0, 0)")
     ev("setTheme('light')"); settle(0.4)
