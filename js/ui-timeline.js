@@ -650,9 +650,10 @@ function wireLevel(ov, T, z, c, el) {
   };
 }
 function keyRow(T, z, c, cv, el) {
-  const inp = tlCurveInput(cv), name = tlCurveName(cv, inp);
-  const graph = h('span', { class: 'tlkgraph', title: 'Double-click to add a key; drag a box to pick several' });
-  const row = h('span', { class: 'tlkrow' + (inp ? '' : ' gone'), 'data-curve': cv.src + '|' + cv.ctl }, graph,
+  const inp = tlCurveInput(cv), name = tlCurveName(cv, inp), isCol = !!inp && inp.TYPE === 'color';
+  const graph = h('span', { class: 'tlkgraph', title: isCol ? 'Click a key to pick its colour, drag it to move it in time; double-click the band to add a key'
+    : 'Double-click to add a key; drag a box to pick several' });
+  const row = h('span', { class: 'tlkrow' + (inp ? '' : ' gone') + (isCol ? ' color' : ''), 'data-curve': cv.src + '|' + cv.ctl }, graph,
     h('span', { class: 'tlklab', title: (srcById(cv.src) || { name: 'Missing effect' }).name + ' · ' + name + (inp ? '' : ': not in this clip\'s scene') },
       h('span', { class: 'tlkname' }, name),
       h('button', { type: 'button', class: 'tlkb', title: 'A key at the playhead', 'aria-label': 'Add a key to ' + name + ' at the playhead',
@@ -662,18 +663,25 @@ function keyRow(T, z, c, cv, el) {
   paintCurve(graph, c, cv, inp);
   const tAt = ev => clamp(tlSnapT(T, c.start + (ev.clientX - graph.getBoundingClientRect().left) / ui.tlZoom, null) - c.start, 0, c.dur);
   const fAt = ev => tlFOf(ev.clientY - graph.getBoundingClientRect().top, TL_KROW);
+  let down = null;
   graph.addEventListener('pointerdown', e => {
     e.stopPropagation();
     if (e.button !== 0) return;
     e.preventDefault();
     const kel = e.target.closest('.tlkey');
+    down = kel ? { x: e.clientX, y: e.clientY, k: kel._key } : null;
     if (kel) pressKey(e, T, z, c, el, kel); else boxSelect(e, el);
+  });
+  if (isCol) graph.addEventListener('click', e => {
+    const kel = e.target.closest('.tlkey');
+    if (!kel || !down || down.k !== kel._key || e.shiftKey || Math.abs(e.clientX - down.x) > 3 || Math.abs(e.clientY - down.y) > 3) return;
+    colorKeyPicker(T, z, c, cv, kel._key, kel);
   });
   graph.addEventListener('dblclick', e => {
     e.stopPropagation();
     if (!inp) return;
     const kel = e.target.closest('.tlkey');
-    if (kel) { keyDialog(T, c, cv, kel._key); return; }
+    if (kel) { if (isCol) colorKeyPicker(T, z, c, cv, kel._key, kel); else keyDialog(T, c, cv, kel._key); return; }
     const t = tAt(e), v = tlFromNorm(inp, fAt(e)), k = setKey(T, c, cv, t, v !== undefined ? v : tlCurveAt(cv, t, inp));
     tlKeys.clear(); tlKeys.add(k); refreshTimeline();
   });
@@ -750,7 +758,8 @@ function paintCurve(graph, c, cv, inp) {
   let svg = '';
   if (inp && inp.TYPE === 'color') {
     const stops = T2.filter((t, i) => i % Math.max(1, Math.floor(T2.length / 120)) === 0 || cv.keys.some(k => Math.abs(k.t - t) < 0.001 || Math.abs(k.t - 0.0005 - t) < 0.001));
-    graph.style.background = 'linear-gradient(to right,' + stops.map(t => tlRgb(tlCurveAt(cv, t, inp)) + ' ' + (t / c.dur * 100).toFixed(3) + '%').join(',') + ')';
+    // the band under the row's name, so the name never covers a key
+    graph.style.background = 'linear-gradient(to right,' + stops.map(t => tlRgb(tlCurveAt(cv, t, inp)) + ' ' + (t / c.dur * 100).toFixed(3) + '%').join(',') + `) left bottom / 100% ${TL_BAND}px no-repeat`;
   } else {
     graph.style.background = '';
     for (const k of inp && inp.TYPE === 'point2D' ? [0, 1] : [0]) {
@@ -761,9 +770,26 @@ function paintCurve(graph, c, cv, inp) {
   graph.innerHTML = `<svg width="${w}" height="${H}" viewBox="0 0 ${w} ${H}">${svg}</svg>`;
   for (const k of cv.keys) {
     if (k.t < -1e-6 || k.t > c.dur + 1e-6) continue;
-    const y = inp && inp.TYPE !== 'color' && inp.TYPE !== 'point2D' ? tlYOf(tlNorm(inp, k.v), H) : H / 2 - 1;
-    graph.append(keyEl(c, cv, k, k.t * z, y));
+    const col = inp && inp.TYPE === 'color';
+    const y = col ? H - TL_BAND / 2 - 1 : inp && inp.TYPE !== 'point2D' ? tlYOf(tlNorm(inp, k.v), H) : H / 2 - 1;
+    const ke = keyEl(c, cv, k, k.t * z, y);
+    if (col) { ke.classList.add('col'); ke.style.setProperty('--kc', tlRgb(k.v)); }
+    graph.append(ke);
   }
+}
+// A colour key's colour, in nouPix's colour picker beside the key: the band and the light follow as it is picked, one step
+// of undo when let go
+const TL_BAND = 14;
+function colorKeyPicker(T, z, c, cv, k, anchor) {
+  const inp = tlCurveInput(cv);
+  const repaint = () => {
+    for (const r of tlRoots()) { const el = $(`.tlclip[data-clip="${c.id}"]`, r); if (el) paintKeys(el, T, z, c); }
+    if (tl.id === T.id) tlApply(T, tlPos(), false);
+  };
+  openColorPicker(anchor, { label: tlCurveName(cv, inp) + ' at ' + fmtTime(c.start + k.t), key: 'tlkey:' + c.id + ':' + cv.src + ':' + cv.ctl,
+    get: () => (Array.isArray(k.v) ? [0, 1, 2, 3].map(i => k.v[i] ?? 1) : [1, 1, 1, 1]),
+    set: v => { k.v = v.slice(0, 4); repaint(); },
+    done: () => { commit({ lists: false }); if (tl.id === T.id) tlApply(T, tlPos(), false); } });
 }
 // A key's menu: its ease (for every key picked), its value, Delete
 document.addEventListener('contextmenu', e => {
@@ -771,8 +797,8 @@ document.addEventListener('contextmenu', e => {
   if (!kel) return;
   e.preventDefault(); e.stopPropagation();
   const T = shownTimeline(), k = kel._key, cv = kel._cv;
-  let c = null;
-  for (const cs of Object.values((T && T.tracks) || {})) for (const x of cs) if ((x.curves || []).includes(cv)) c = x;
+  let c = null, zc = null;
+  for (const [zid, cs] of Object.entries((T && T.tracks) || {})) for (const x of cs) if ((x.curves || []).includes(cv)) { c = x; zc = zoneById(zid); }
   if (!c) return;
   if (!tlKeys.has(k)) { tlKeys.clear(); tlKeys.add(k); }
   const picked = (c.curves || []).flatMap(v => v.keys.filter(x => tlKeys.has(x)).map(x => ({ c, cv: v, k: x })));
@@ -783,7 +809,7 @@ document.addEventListener('contextmenu', e => {
     ['Linear', ease('linear'), { key: all === 'linear' ? '✓' : '' }],
     ['Ease in and out', ease('ease'), { key: all === 'ease' ? '✓' : '' }],
     ['Hold', ease('hold'), { key: all === 'hold' ? '✓' : '' }],
-    picked.length === 1 ? ['Value…', () => keyDialog(T, c, cv, k)] : null,
+    picked.length === 1 ? (tlCurveInput(cv) && tlCurveInput(cv).TYPE === 'color' ? ['Colour…', () => colorKeyPicker(T, zc, c, cv, k, kel)] : ['Value…', () => keyDialog(T, c, cv, k)]) : null,
     ['Delete', () => { tlKeys.clear(); deleteKeys(T, picked); }, { key: 'Del' }],
   ]);
 }, true);

@@ -179,6 +179,27 @@ try:
           pg.locator("#dockBody .tlclip.open").count() == 0 and pg.locator("#dockBody .tlclip.keyed").count() == 1 and abs(clip().bounding_box()["height"] - 42) < 2
           and pg.locator("#dockBody .tlclip .tllevel path:not(.none)").count() == 1)
 
+    # ---------- a colour's keys: each in its own colour, under the row's name; a click opens the colour picker
+    E(f"(() => {{ const c = {C}; c.curves[2].keys = [{{ t: 0, v: [1, 0, 0, 1], ease: 'linear' }}, {{ t: c.dur, v: [0, 0, 1, 1], ease: 'linear' }}]; ui.tlOpen = [c.id]; tlKeys.clear(); commit({{ lists: false }}); refreshTimeline(); }})()"); time.sleep(0.3)
+    crow = pg.locator(f"#dockBody .tlkrow[data-curve='{S}|{COL}']")
+    look = crow.evaluate("""r => { const k = [...r.querySelectorAll('.tlkey')], n = r.querySelector('.tlklab').getBoundingClientRect();
+      return [k.length, k.map(e => getComputedStyle(e).backgroundColor), k.every(e => e.classList.contains('col') && e.getBoundingClientRect().top >= n.bottom - 0.5)]; }""")
+    check("a colour row's keys in their own colour, all below its name", look[0] == 2 and look[1] == ["rgb(255, 0, 0)", "rgb(0, 0, 255)"] and look[2], look)
+    crow.locator(".tlkey").first.click(); time.sleep(0.3)
+    check("…a click on a key opens the colour picker there", pg.locator(".cpop").count() == 1 and ("at " + E(f"fmtTime({C}.start)")) in pg.locator(".cpop .cpt").text_content(), pg.locator(".cpop").count())
+    hx = pg.locator(".cpop input[aria-label='Hex colour']"); hx.fill("#00ff00"); hx.press("Enter"); time.sleep(0.3)
+    kv = E(f"{C}.curves[2].keys[0].v")
+    E(f"tlSeek({TT}, {C}.start)"); time.sleep(0.2)
+    lit = E(f"cueParamNow(zoneById('{Z}'), '{S}', '{COL}')")
+    check("…the colour picked goes to the key, and to the light there", kv[:3] == [0, 1, 0] and [round(x, 3) for x in lit[:3]] == [0, 1, 0], (kv, lit))
+    check("…the key drawn in it", crow.locator(".tlkey").first.evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(0, 255, 0)")
+    pg.keyboard.press("Escape"); time.sleep(0.2)
+    E("undo()"); time.sleep(0.3)
+    check("…one step of undo brings the red back", E(f"{TT}.tracks['{Z}'][0].curves[2].keys[0].v")[:3] == [1, 0, 0])
+    E(f"(() => {{ const r = $$('#dockBody .tlkrow').find(r => r.dataset.curve === '{S}|{COL}'); r.querySelector('.tlkey').dispatchEvent(new MouseEvent('contextmenu', {{ bubbles: true, clientX: 300, clientY: 300 }})); }})()"); time.sleep(0.2)
+    check("…its menu offers Colour…", pg.locator(".menu button:has-text('Colour…')").count() == 1)
+    pg.keyboard.press("Escape")
+
     # ---------- files
     saved = E(f"JSON.parse(serialize()).timelines[0].tracks['{Z}'][0].curves")
     check("files keep the curves", len(saved) == 3 and saved[2]["keys"][0]["v"] == [1, 0, 0, 1])

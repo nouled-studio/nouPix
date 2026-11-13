@@ -1580,3 +1580,8 @@ aside.left.tabbed .fixtures .phead { display: none; }
 .mplaces { flex: none; display: inline-flex; align-items: center; margin-right: 6px; }
 .mplaces .spos > button { width: 22px; height: 22px; }
 .mplaces .spos svg { width: 14px; height: 14px; }
+/* a colour row: its name on top, the band under it, each key a small diamond in its own colour */
+.tlkrow.color .tlklab { top: 0; height: 12px; background: none; font-size: 9.5px; }
+.tlkey.col { background: var(--kc); outline: 1px solid var(--text); cursor: pointer; }
+.tlkey.col.ease { background: var(--kc); border: 2px solid var(--bg0); }
+.tlkey.col.sel, .tlkey.col.open { outline: 2px solid var(--sel); }
