@@ -57,7 +57,7 @@ const ui = {
   // the cue lists' panel: the list shown, the cue picked (its editor open); the side column's tab (scenes or cues)
   cueList: null, cueSel: null,
   // the timeline shown, how wide a second is on it (px), the clip picked
-  tlId: null, tlZoom: 40, tlSel: null,
+  sceneSize: { bottom: 'm', left: 'm', right: 'm', window: 'm' }, tlId: null, tlZoom: 40, tlRowH: 50, tlAudioFold: false, tlSel: null, tlOpen: [],
   // where the bottom panel's Scenes, Cue list and Timeline are: 'bottom', or a tab of the 'left' or 'right' panel; the
   // moved tab open on each side (null: the side's own), and each side's width while one is open
   places: { scenes: 'bottom', cues: 'bottom', timeline: 'bottom' }, sideOpen: { left: null, right: null }, sideW: { left: 480, right: 520 },
@@ -76,7 +76,7 @@ const ui = {
   autosave: false,   // every change written to the project's file too (project-io.js)
   updates: true, updateAt: 0, updateSkip: '',   // looking for a new version once a day; when it last looked; a version not to tell of (app.js)
 };
-const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'places', 'sideOpen', 'sideW', 'tlZoom', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
+const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'places', 'sideOpen', 'sideW', 'sceneSize', 'tlZoom', 'tlRowH', 'tlAudioFold', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
   'tempoSrc', 'tempoIn', 'tempoTrim', 'tempoBpb', 'tempoOn', 'tempoBpm', 'tempoLo', 'tempoHi'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
@@ -172,7 +172,7 @@ function newCue(props = {}) { return Object.assign({ id: uid(), num: '1', name: 
 // follows at once); an audio file (audio: { name, media }) playing with it; the ruler in seconds or bars (grid, bpm);
 // a loop: 'off', 'all' or the region a..b.
 // A zone's track has lanes (lanes[zone], 1 at first; clip.lane 0 the lowest): where clips overlap, the highest shows.
-function newTimeline(props = {}) { return Object.assign({ id: uid(), name: 'Timeline 1', length: 60, audio: null, grid: 'sec', bpm: 120, loop: { mode: 'off', a: 0, b: 8 }, tracks: {}, lanes: {} }, props); }
+function newTimeline(props = {}) { return Object.assign({ id: uid(), name: 'Timeline 1', length: 60, audio: null, grid: 'sec', bpm: 120, beat0: 0, markers: [], loop: { mode: 'off', a: 0, b: 8 }, tracks: {}, lanes: {} }, props); }
 const newClip = (scene, start, dur, props = {}) => Object.assign({ id: uid(), scene, start, dur, fadeIn: 1, fadeOut: 1, lane: 0 }, props);
 const newCueAction = (zone, props = {}) => Object.assign({ zone, kind: 'scene', scene: '', level: null, fade: 2 }, props);
 function clampZone(z, s = project.settings) {

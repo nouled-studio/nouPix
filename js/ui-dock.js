@@ -200,14 +200,16 @@ function renderSides() {
       $('#rightMoved').replaceChildren(...moved.map(tab));
       $$('#rightTabs button[data-tab]').forEach(b => b.classList.toggle('on', !open && b.dataset.tab === ui.rightTab));
       $('#rightBody').hidden = !!open;
+      tabsInView($('#rightTabs'));
     } else {
       const tabs = $('#leftTabs');
       tabs.hidden = !moved.length;
       // the tab row stands for the Fixtures head meanwhile: its « at the end
       aside.classList.toggle('tabbed', moved.length > 0);
-      tabs.replaceChildren(h('button', { type: 'button', class: 'mtab' + (open ? '' : ' on'), onclick: () => openSideTab('left', null) }, 'Fixtures'), ...moved.map(tab),
+      tabs.replaceChildren(tabStrip(h('span', { class: 'tabstrip' }, h('button', { type: 'button', class: 'mtab' + (open ? '' : ' on'), onclick: () => openSideTab('left', null) }, 'Fixtures'), ...moved.map(tab))),
         h('span', { class: 'fill' }), h('span', { class: 'tabtools' }, h('button', { class: 'btn ghost sm', type: 'button', title: 'Hide this panel (Shift H)', 'aria-label': 'Hide the left panel', onclick: () => showLeft(false) }, '\u00ab')));
       for (const sec of $$('aside.left > section')) sec.hidden = !!open;
+      tabsInView(tabs);
     }
     host.hidden = !open;
     aside.classList.toggle('wide', !!open);
@@ -217,9 +219,26 @@ function renderSides() {
     else if (host.firstChild) host.replaceChildren();
   }
 }
+// A panel's tabs that don't all fit: a row that scrolls sideways, ‹ › at an end with more past it, the wheel scrolling
+// it, the open tab brought into view
+function tabStrip(strip) {
+  strip.addEventListener('wheel', e => { if (strip.scrollWidth > strip.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); strip.scrollLeft += e.deltaY; } }, { passive: false });
+  return hscroller(strip);
+}
+function tabsInView(row) {
+  const strip = row && row.querySelector('.tabstrip'), on = strip && strip.querySelector('.on');
+  if (!strip) return;
+  requestAnimationFrame(() => {
+    if (on) { const a = on.offsetLeft - strip.offsetLeft, b = a + on.offsetWidth; if (a < strip.scrollLeft) strip.scrollLeft = a - 24; else if (b > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = b - strip.clientWidth + 24; }
+    if (strip._hshow) strip._hshow();
+  });
+}
 // A side's inner edge dragged sets its width while a moved tab is open (the stage at least 240px), once per drawn
 // frame, the stage's canvas keeping its size until the drag ends (holdStage)
 function initSides() {
+  // the right panel's tabs (its own and the ones moved there) in a row that scrolls sideways when they don't fit
+  const rt = $('#rightTabs'), strip = h('span', { class: 'tabstrip' }, ...$$('#rightTabs > button[data-tab]'), $('#rightMoved'));
+  rt.insertBefore(tabStrip(strip), rt.querySelector('.fill'));
   for (const side of ['left', 'right']) {
     const grip = $('#' + side + 'Grip'), aside = $('aside.' + side);
     if (!grip) continue;
@@ -389,8 +408,18 @@ function sceneTile(z, sc, i, keys, look) {
   });
   return tile;
 }
+// The scenes' size where they are (bottom, left, right, the window): small, medium (4 to a row for A and B) or large
+const SCENE_SIZES = [['s', 'Small scenes', 5], ['m', 'Medium scenes', 8], ['l', 'Large scenes', 11]];
+const sceneSizeAt = place => ({ s: 's', m: 'm', l: 'l' })[(ui.sceneSize || {})[place]] || 'm';
+function sceneSizes(place) {
+  const now = sceneSizeAt(place);
+  return h('div', { class: 'ssize', role: 'group', 'aria-label': 'Size of the scenes' }, SCENE_SIZES.map(([k, name, n]) =>
+    h('button', { type: 'button', class: k === now ? 'on' : '', 'data-size': k, 'aria-label': name, 'aria-pressed': String(k === now), title: name,
+      html: `<svg viewBox="0 0 14 14" width="14" height="14"><rect x="${(14 - n) / 2}" y="${13 - n}" width="${n}" height="${n}" fill="currentColor"/></svg>`,
+      onclick: () => { ui.sceneSize = Object.assign({}, ui.sceneSize, { [place]: k }); savePrefs(); renderDock(); if (scenesWinOpen()) drawScenesWindow(); } })));
+}
 function renderScenes(body, where = 'dock') {
-  const inWindow = where === 'window';
+  const inWindow = where === 'window', place = inWindow ? 'window' : where === 'side' ? placeOf('scenes') : 'bottom';
   // along the bottom: on the left the X-Fader's button (where it stays, on or off) and its mode, its strip in the
   // middle while it is on, the window button on the right
   const X = project.xfade, mode = XF_MODES.find(m => m[0] === X.mode) || XF_MODES[0];
@@ -402,7 +431,7 @@ function renderScenes(body, where = 'dock') {
       X.on ? h('button', { class: 'btn sm xfmode', type: 'button', title: mode[2] + '. Click to choose another mode.', 'aria-label': 'X-Fader mode: ' + mode[1], 'aria-haspopup': 'menu',
         onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi' }, xfGraph(m), m[1]), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
     X.on ? xfadeStrip() : h('span'),
-    h('div', { class: 'sbtns' }, panelPlaces('scenes')));
+    h('div', { class: 'sbtns' }, sceneSizes(place), panelPlaces('scenes')));
   const rows = h('div', { class: 'zonerows', 'data-keep': 'zonerows' });
   const sel = selZone();
   // with the X-Fader on, its zones A and B side by side at the top (A on the left, B on the right, as on the fader),
@@ -422,14 +451,18 @@ function renderScenes(body, where = 'dock') {
         if (ui.playlistOpen[z.id]) delete ui.playlistOpen[z.id]; else ui.playlistOpen[z.id] = (cur || z.playlists[0]).id;
         if (ui.zone !== z.id) selectZone(z); else renderDock();
       } });
+    // ■: what it plays fades to black
+    const stop = () => h('button', { class: 'btn sm icon zstop', type: 'button', disabled: !z.layers.length && !z.scene, 'aria-label': 'Stop ' + z.name,
+      title: `Stop ${z.name}: its content fades to black over ${fmtV(project.settings.fade)} s (the fade for new scenes, in Settings)`, html: '<svg viewBox="0 0 12 12" width="10" height="10"><rect x="1" y="1" width="10" height="10" fill="currentColor"/></svg>',
+      onclick: e => { e.stopPropagation(); stopZone(z); } });
     const head = side >= 0 ? h('div', { class: 'zhead compact' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. Its slider is the most it reaches; the X-Fader mixes within it.`, onclick: () => selectZone(z) },
       h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'xftag' }, side ? 'B' : 'A'), h('span', { class: 'nm' }, z.name),
-        zoneOpacityInput(z, 110), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists,
+        zoneOpacityInput(z, 110), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists, stop(),
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')))
     : h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
       h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'nm' }, z.name),
         xfDriven(z) ? h('span', { class: 'xftag', title: 'On the X-Fader: it mixes within this level' }, z.id === project.xfade.a ? 'A' : 'B') : null,
-        h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists),
+        h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists, stop()),
       h('div', { class: 'zc' }, zoneOpacityInput(z, 80),
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
     // the zone's head stays put; its scenes scroll sideways beside it
@@ -456,7 +489,7 @@ function renderScenes(body, where = 'dock') {
   }
   if (xf) rows.prepend(h('div', { class: 'xfpair' }, pair[0], pair[1]));
   if (!project.zones.length) rows.append(h('div', { class: 'empty' }, 'No zones yet.'));
-  body.append(h('div', { class: 'scenepanel' }, rows, foot));
+  body.append(h('div', { class: 'scenepanel ss-' + sceneSizeAt(place) }, rows, foot));
 }
 // The crossfader, while it is on: A's preview and zone, the fader, B's zone and preview
 function xfadeStrip() {

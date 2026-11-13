@@ -125,6 +125,8 @@ function remoteFromDevice(cid, role, m) {
   if (m.op === 'scene' && z) {
     const sc = z.scenes.find(s => s.id === m.scene);
     if (sc) goScene(z, sc, !!m.cut);
+  } else if (m.op === 'stop' && z && role !== 'http') {
+    stopZone(z);
   } else if (m.op === 'playlist' && z && PLAYLIST_DO.includes(m.do)) {
     const pl = z.playlists.find(p => String(p.id) === String(m.list)) || null;
     if (pl || !['toggle', 'start', 'play'].includes(m.do)) playlistDo(z, pl, m.do, clamp(Math.round(numOr(m.i, 0)), 0, 1e6));

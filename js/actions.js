@@ -481,6 +481,7 @@ function setTimelineLength(T, len) {
 function setTimelineAudio(T, file) {
   tlHalt();
   T.audio = { name: file.name, _url: URL.createObjectURL(file) };
+  T._detect = true;   // its tempo found once it is read (ui-timeline.js)
   storeMedia(T.audio, file);
   const a = new Audio(T.audio._url);
   a.addEventListener('loadedmetadata', () => { if (isFinite(a.duration) && a.duration > T.length) { setTimelineLength(T, Math.ceil(a.duration)); commit({ lists: false }); refreshTimeline(); } });
@@ -524,7 +525,67 @@ function deleteClip(T, z, c) {
 }
 function duplicateClip(T, z, c) {
   const d = addClip(T, z, c.scene, c.start + c.dur, c.lane || 0);
-  if (d) { d.dur = Math.min(c.dur, d.dur); d.fadeIn = Math.min(c.fadeIn, d.dur); d.fadeOut = Math.min(c.fadeOut, d.dur - d.fadeIn); commit({ lists: false }); refreshTimeline(); }
+  if (d) {
+    d.dur = Math.min(c.dur, d.dur); d.fadeIn = Math.min(c.fadeIn, d.dur); d.fadeOut = Math.min(c.fadeOut, d.dur - d.fadeIn);
+    if (c.curves) d.curves = JSON.parse(JSON.stringify(c.curves));
+    commit({ lists: false }); refreshTimeline();
+  }
+}
+// Markers on the audio: a flag at a time with a name ("Drop", "Break"…) and a colour
+function addMarker(T, t, name, color = '') {
+  const m = { id: uid(), t: clamp(t, 0, T.length), name: name || 'Marker ' + ((T.markers || []).length + 1), color };
+  (T.markers || (T.markers = [])).push(m); T.markers.sort((a, b) => a.t - b.t);
+  commit({ lists: false }); refreshTimeline();
+  return m;
+}
+function deleteMarker(T, m) {
+  T.markers = T.markers.filter(x => x !== m);
+  commit({ lists: false }); refreshTimeline();
+}
+// Keyframes on a clip: a curve added (the level, or a control of its scene's effects, from where it is in the scene),
+// removed; a key set at a time (where a key is, it takes the value), removed
+function addCurve(T, z, c, cv, quiet) {
+  const sc = z.scenes.find(s => s.id === c.scene), L = sc && cv.kind === 'param' && sc.layers.find(l => l.src === cv.src);
+  const s = cv.kind === 'param' && srcById(cv.src), inp = tlCurveInput(cv);
+  if (!inp) return null;
+  const v = cv.kind === 'level' ? 1 : L && s ? paramValue(L, s, inp) : paramValue({ params: {} }, s, inp);
+  const k = v => (Array.isArray(v) ? v.slice() : v);
+  const curve = Object.assign({}, cv, { keys: [{ t: 0, v: k(v), ease: 'linear' }, { t: c.dur, v: k(v), ease: 'linear' }] });
+  (c.curves || (c.curves = [])).push(curve);
+  if (!quiet) { commit({ lists: false }); tlKeysChanged(T); }
+  return curve;
+}
+function removeCurve(T, c, cv) {
+  c.curves = (c.curves || []).filter(x => x !== cv);
+  if (!c.curves.length) delete c.curves;
+  commit({ lists: false }); tlKeysChanged(T);
+}
+function setKey(T, c, cv, t, v, ease) {
+  t = clamp(t, 0, c.dur);
+  let k = cv.keys.find(x => Math.abs(x.t - t) < 0.01);
+  if (k) k.v = v; else { k = { t, v, ease: ease || 'linear' }; cv.keys.push(k); tlSortKeys(cv); }
+  commit({ lists: false }); tlKeysChanged(T);
+  return k;
+}
+function deleteKey(T, c, cv, k) {
+  cv.keys = cv.keys.filter(x => x !== k);
+  if (!cv.keys.length) c.curves = c.curves.filter(x => x !== cv);
+  if (c.curves && !c.curves.length) delete c.curves;
+  commit({ lists: false }); tlKeysChanged(T);
+}
+// Several keys at once (each { c, cv, k }): a curve left with none goes
+function deleteKeys(T, items) {
+  for (const { c, cv, k } of items) {
+    cv.keys = cv.keys.filter(x => x !== k);
+    if (!cv.keys.length) c.curves = (c.curves || []).filter(x => x !== cv);
+    if (c.curves && !c.curves.length) delete c.curves;
+  }
+  commit({ lists: false }); tlKeysChanged(T);
+}
+// What shows follows at once when the timeline is the one playing or paused
+function tlKeysChanged(T) {
+  if (tl.id === T.id) tlApply(T, tlPos(), false);
+  refreshTimeline();
 }
 
 /* ---------- cue lists ---------- */
@@ -603,6 +664,17 @@ function goScene(z, sc, cut = false) {
   if (ui.rightTab === 'content' || ui.tool === 'zone') renderRight();
   commitSoft();
 }
+// A zone's content stopped: it fades to black over the fade for new scenes (Settings), its playlist stops; a step of undo
+function stopZone(z) {
+  if (REMOTE_CLIENT) remoteOp({ op: 'stop', zone: z.id }); else stopPlaylist(z);
+  if (!z.layers.length && !z.scene) return;
+  startFade(z, project.settings.fade, null);
+  z.layers = []; z.scene = null; z._tlAnim = false;
+  if (ui.zone === z.id) ui.layer = null;
+  syncMedia(); renderSrcList();
+  if (ui.rightTab === 'content') renderRight();
+  commit();
+}
 function storeScene(z) {
   let n = z.scenes.length + 1;
   while (z.scenes.some(s => s.name === 'Scene ' + n)) n++;
@@ -637,7 +709,8 @@ const sameContents = (a, b) => a.length === b.length && a.every((L, i) => (L.src
 function keepScenes() {
   if (REMOTE_CLIENT) return;
   for (const z of project.zones) {
-    const sc = z.scene && !z._fade && z.scenes.find(s => s.id === z.scene);
+    // (not what a timeline's keyframes move: they would end up in the scene)
+    const sc = z.scene && !z._fade && !z._tlAnim && z.scenes.find(s => s.id === z.scene);
     if (sc && sameContents(sc.layers, z.layers) && lookOf(sc.layers) !== lookOf(z.layers)) sc.layers = snapshotLayers(z);
   }
 }
