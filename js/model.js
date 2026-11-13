@@ -171,10 +171,14 @@ function newCue(props = {}) { return Object.assign({ id: uid(), num: '1', name: 
 // value; the action's fade takes it there from where it is.
 // A timeline (timeline.js) is the project's: a track per zone of clips, each one of the zone's scenes from start for dur
 // seconds, its level rising over fadeIn (or crossfading from the clip just before) and falling over fadeOut (unless one
-// follows at once); an audio file (audio: { name, media }) playing with it; the ruler in seconds or bars (grid, bpm);
+// follows at once); audio tracks playing with it (audios, newTlAudio); the ruler in seconds or bars (grid, bpm);
 // a loop: 'off', 'all' or the region a..b.
 // A zone's track has lanes (lanes[zone], 1 at first; clip.lane 0 the lowest): where clips overlap, the highest shows.
-function newTimeline(props = {}) { return Object.assign({ id: uid(), name: 'Timeline 1', length: 60, audio: null, grid: 'sec', bpm: 120, beat0: 0, markers: [], loop: { mode: 'off', a: 0, b: 8 }, tracks: {}, lanes: {} }, props); }
+function newTimeline(props = {}) { return Object.assign({ id: uid(), name: 'Timeline 1', length: 60, audios: [], grid: 'sec', bpm: 120, beat0: 0, markers: [], loop: { mode: 'off', a: 0, b: 8 }, tracks: {}, lanes: {} }, props); }
+// An audio track: a file of the media library (name, media) from start on the timeline, trim seconds cut from the
+// file's start, dur seconds of it (at most to the file's end); its volume, mute, and the volume's keys (curves: the
+// level, as a clip's, t from its start)
+const newTlAudio = (props = {}) => Object.assign({ id: uid(), name: '', start: 0, trim: 0, dur: 60, vol: 1 }, props);
 const newClip = (scene, start, dur, props = {}) => Object.assign({ id: uid(), scene, start, dur, fadeIn: 1, fadeOut: 1, lane: 0 }, props);
 const newCueAction = (zone, props = {}) => Object.assign({ zone, kind: 'scene', scene: '', level: null, fade: 2 }, props);
 function clampZone(z, s = project.settings) {

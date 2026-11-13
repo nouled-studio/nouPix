@@ -455,8 +455,10 @@ function renderScenes(body, where = 'dock') {
     const stop = () => h('button', { class: 'btn sm icon zstop', type: 'button', disabled: !z.layers.length && !z.scene, 'aria-label': 'Stop ' + z.name,
       title: `Stop ${z.name}: its content fades to black over ${fmtV(project.settings.fade)} s (the fade for new scenes, in Settings)`, html: '<svg viewBox="0 0 12 12" width="10" height="10"><rect x="1" y="1" width="10" height="10" fill="currentColor"/></svg>',
       onclick: e => { e.stopPropagation(); stopZone(z); } });
-    const head = side >= 0 ? h('div', { class: 'zhead compact' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. Its slider is the most it reaches; the X-Fader mixes within it.`, onclick: () => selectZone(z) },
-      h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'xftag' }, side ? 'B' : 'A'), h('span', { class: 'nm' }, z.name),
+    // beside the stage the scenes wrap in a grid, under a one-line head as A's and B's
+    const wrap = where === 'side' && side < 0;
+    const head = side >= 0 || wrap ? h('div', { class: 'zhead compact' + (z === sel ? ' sel' : ''), title: side >= 0 ? `${z.name}: click to select. Its slider is the most it reaches; the X-Fader mixes within it.` : `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
+      h('div', { class: 'zt' }, zoneTag(z), side >= 0 ? h('span', { class: 'xftag' }, side ? 'B' : 'A') : null, h('span', { class: 'nm' }, z.name),
         zoneOpacityInput(z, 110), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists, stop(),
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')))
     : h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
@@ -467,8 +469,6 @@ function renderScenes(body, where = 'dock') {
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
     // the zone's head stays put; its scenes scroll sideways beside it
     const tiles = h('div', { class: 'stiles' });
-    // beside the stage they wrap in a grid instead
-    const wrap = where === 'side' && side < 0;
     const r = h('div', { class: 'scenerow' + (z === sel ? ' sel' : '') + (side >= 0 ? ' xfcol' : '') + (wrap ? ' wrap' : '') }, head, side >= 0 || wrap ? tiles : hscroller(tiles, 'scenes:' + z.id));
     head.title += '\nDrag it to change the order of the zones.';
     reorderable(head, r, 'zone', () => [z.id], ([id], after) => moveZoneTo(id, z, after));

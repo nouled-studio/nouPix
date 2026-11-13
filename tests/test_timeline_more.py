@@ -5,7 +5,7 @@
 # repair), the audio track folded, the tracks' height (the bar beside them, Alt + scroll, kept), Fit; the scenes' three sizes per
 # place; a zone stopped (■, its menu, a device: faded to black over the default fade, its playlist stopped, undo); the
 # tick box drawn in the look.
-import os, sys, time, json
+import os, sys, time, json, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import start_bridge, CHROME_ARGS, app_error
 from playwright.sync_api import sync_playwright
@@ -53,8 +53,10 @@ try:
       const T = newTimeline(); project.timelines.push(T); ui.tlId = T.id; ui.dockTab = 'timeline'; ui.dockCollapsed = false; ui.dockH = 460; ui.tlZoom = 40; ui.tlRowH = 50; ui.tlAudioFold = false; commit(); renderDock(); })()""")
     time.sleep(0.4)
     T = "project.timelines[0]"
-    E(f"setTimelineAudio({T}, wav(music(124, 0.6, 30), 'track.wav'))")
-    pg.wait_for_function(f"{T}.grid === 'bars'", timeout=20000); time.sleep(0.3)
+    E(f"addTimelineAudio({T}, wav(music(124, 0.6, 30), 'track.wav'))")
+    try: pg.wait_for_function(f"{T}.grid === 'bars'", timeout=20000)
+    except Exception: print(E("(() => { const K = project.timelines[0], A = K.audios[0]; return [A && [A.media, A._url, A._detect], [...tlPeaks.entries()].map(([k, v]) => [k && k.slice(-12), Object.keys(v), v.beat]), [...document.querySelectorAll('.toast')].map(t => t.textContent)]; })()"), errs); raise
+    time.sleep(0.3)
     check("an audio file added: its tempo found by itself, the grid in bars from its first downbeat", E(f"[{T}.bpm, Math.abs({T}.beat0 - 0.6) < 0.03]") == [124, True], E(f"[{T}.bpm, {T}.beat0]"))
     check("…said in a message", "124 BPM" in E("[...document.querySelectorAll('.toast')].map(t => t.textContent).join(' ')"))
     lbl = E("[...$$('#dockBody .tltick.major')].slice(0, 2).map(e => [e.textContent, parseFloat(e.style.left)])")
@@ -80,21 +82,73 @@ try:
     check("…the ruler's bars from there", abs(lbl[0][1] / 40 - E(f"{T}.beat0")) < 0.03, lbl)
     E("undo()"); time.sleep(0.2)
     # a file with no beat: said so, the grid left alone
-    E(f"(() => {{ const d = new Float32Array(22050 * 12); let s = 3; for (let i = 0; i < d.length; i++) {{ s = (s * 16807) % 2147483647; d[i] = (s / 2147483647 - 0.5) * 0.3; }} const K = newTimeline({{ name: 'Noise' }}); project.timelines.push(K); ui.tlId = K.id; commit({{ lists: false }}); refreshTimeline(); setTimelineAudio(K, wav({{ sampleRate: 22050, data: d }}, 'noise.wav')); }})()")
-    pg.wait_for_function("[...document.querySelectorAll('.toast')].some(t => /No steady beat/.test(t.textContent))", timeout=20000)
+    E(f"(() => {{ const d = new Float32Array(22050 * 12); let s = 3; for (let i = 0; i < d.length; i++) {{ s = (s * 16807) % 2147483647; d[i] = (s / 2147483647 - 0.5) * 0.3; }} const K = newTimeline({{ name: 'Noise' }}); project.timelines.push(K); ui.tlId = K.id; commit({{ lists: false }}); refreshTimeline(); addTimelineAudio(K, wav({{ sampleRate: 22050, data: d }}, 'noise.wav')); }})()")
+    try: pg.wait_for_function("[...document.querySelectorAll('.toast')].some(t => /No steady beat/.test(t.textContent))", timeout=45000)
+    except Exception: print(E("(() => { const K = project.timelines.at(-1), A = K.audios[0]; return [ui.tlId === K.id, A && [A.media, A._url, A._detect], [...tlPeaks.entries()].map(([k, v]) => [k && k.slice(-12), Object.keys(v), v.beat]), [...document.querySelectorAll('.toast')].map(t => t.textContent)]; })()")); raise
     check("a file with no beat: said so, the grid left in seconds", E("project.timelines.at(-1).grid") == "sec")
     E(f"ui.tlId = {T}.id; refreshTimeline()"); time.sleep(0.2)
 
     # ---------- the audio's volume and mute
-    vr = pg.locator("#dockBody input[aria-label='Audio volume']")
+    A0 = f"{T}.audios[0]"
+    vr = pg.locator("#dockBody input[aria-label='Volume of track.wav']")
     vr.evaluate("e => { e.value = 0.4; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }"); time.sleep(0.2)
-    check("the audio's volume beside its name: the player follows, kept in the project", abs(E(f"tlAudio({T}).volume") - 0.4) < 1e-3 and E(f"{T}.audio.vol") == 0.4)
-    pg.locator("#dockBody button[aria-label='Mute the audio']").click(); time.sleep(0.2)
-    check("…mute: silent, the volume kept", E(f"tlAudio({T}).volume") == 0 and E(f"{T}.audio.mute") is True and E(f"{T}.audio.vol") == 0.4)
-    pg.locator("#dockBody button[aria-label='Unmute the audio']").click(); time.sleep(0.2)
-    check("…unmuted: back at 40%", abs(E(f"tlAudio({T}).volume") - 0.4) < 1e-3)
-    check("…files keep them, repaired", E(f"(() => {{ const p = JSON.parse(serialize()); p.timelines[0].audio.vol = 7; return hydrate(p).timelines[0].audio.vol; }})()") == 1)
-    E(f"{T}.audio.vol = 1; tlAudio({T}); commit({{ lists: false }}); refreshTimeline()")
+    check("the audio's volume beside its name: the player follows, kept in the project", abs(E(f"tlAudio({A0}).volume") - 0.4) < 1e-3 and E(f"{A0}.vol") == 0.4)
+    pg.locator("#dockBody button[aria-label='Mute track.wav']").click(); time.sleep(0.2)
+    check("…mute: silent, the volume kept", E(f"tlAudio({A0}).volume") == 0 and E(f"{A0}.mute") is True and E(f"{A0}.vol") == 0.4)
+    pg.locator("#dockBody button[aria-label='Unmute track.wav']").click(); time.sleep(0.2)
+    check("…unmuted: back at 40%", abs(E(f"tlAudio({A0}).volume") - 0.4) < 1e-3)
+    check("…files keep them, repaired", E(f"(() => {{ const p = JSON.parse(serialize()); p.timelines[0].audios[0].vol = 7; return hydrate(p).timelines[0].audios[0].vol; }})()") == 1)
+    E(f"{A0}.vol = 1; tlAudioSync({T}, 0, false); commit({{ lists: false }}); refreshTimeline()")
+
+    # ---------- several audio tracks: trimmed, moved, their volume's keys
+    E("tlSnap = false")
+    E(f"addTimelineAudio({T}, wav(music(100, 0.2, 10), 'second.wav'), 5)"); time.sleep(1.5)
+    A1 = f"{T}.audios[1]"
+    check("a second audio track, on a row of its own from where it was put, as long as its file",
+          pg.locator("#dockBody .tlaclip").count() == 2 and pg.locator("#dockBody .tlaudio").count() == 2 and E(f"[{A1}.start, {A1}.trim, Math.round({A1}.dur)]") == [5, 0, 10], E(f"{A1}"))
+    blk = lambda: pg.locator("#dockBody .tlaclip[data-audio='" + E(f"{A1}.id") + "']")
+    drag = lambda part, dx: (lambda b: (pg.mouse.move(b["x"] + (2 if part == "l" else b["width"] - 2 if part == "r" else b["width"] / 2), b["y"] + 6), pg.mouse.down(),
+                                       pg.mouse.move(b["x"] + (2 if part == "l" else b["width"] - 2 if part == "r" else b["width"] / 2) + dx, b["y"] + 6, steps=6), pg.mouse.up()))(blk().bounding_box())
+    drag("l", 80); time.sleep(0.3)
+    check("its start trimmed by its left edge: later on the timeline, as far into the file, shorter", E(f"[{A1}.start, {A1}.trim, {A1}.dur].map(v => Math.round(v * 10) / 10)") == [7, 2, 8], E(f"{A1}"))
+    drag("r", 200); time.sleep(0.3)
+    check("…its end by its right edge, never past the file's end", abs(E(f"{A1}.trim + {A1}.dur") - 10) < 0.05, E(f"{A1}"))
+    drag("r", -80); time.sleep(0.3)
+    check("…and shorter", abs(E(f"{A1}.dur") - 6) < 0.05, E(f"{A1}"))
+    drag("m", 40); time.sleep(0.3)
+    check("dragged by its middle, it moves, the trim kept", E(f"[{A1}.start, {A1}.trim].map(v => Math.round(v * 10) / 10)") == [8, 2], E(f"{A1}"))
+    E(f"undo()"); time.sleep(0.2)
+    check("…a step of undo", abs(E(f"{A1}.start") - 7) < 0.05)
+    E(f"tlSeek({T}, 9); tlPlay({T})"); time.sleep(0.8)
+    st = E(f"(() => {{ const a = tlAudios.get({A1}.id), b = tlAudios.get({T}.audios[0].id); return [a.paused, a.currentTime, b.paused, b.currentTime, tlPos()]; }})()")
+    check("playing: each track from where it is, the second from its trim on", not st[0] and abs(st[1] - (st[4] - 7 + 2)) < 0.3 and not st[2] and abs(st[3] - st[4]) < 0.3, st)
+    E(f"tlSeek({T}, 2)"); time.sleep(0.5)
+    check("…silent before it starts, the first one playing", E(f"[tlAudios.get({A1}.id).paused, tlAudios.get({T}.audios[0].id).paused]") == [True, False])
+    E("tlPause()")
+    # its volume's keys: a line on its waveform; a double-click there adds one
+    lv = blk().locator(".tllevel")
+    check("its volume a line on its waveform (dashed: no keys yet)", lv.locator("path.none").count() == 1)
+    b = lv.bounding_box(); pg.mouse.dblclick(b["x"] + b["width"] / 2, b["y"] + b["height"] * 0.75); time.sleep(0.3)
+    K = E(f"({A1}.curves || [])[0]")
+    check("…a double-click adds a key there (and the ends at full)", K and K["kind"] == "level" and len(K["keys"]) == 3 and 0.1 < K["keys"][1]["v"] < 0.45, K)
+    E(f"{A1}.curves = [{{ kind: 'level', keys: [{{ t: 0, v: 0, ease: 'linear' }}, {{ t: 6, v: 1, ease: 'linear' }}] }}]; {A1}.vol = 0.8; commit({{ lists: false }}); refreshTimeline(); tlSeek({T}, 10); tlPlay({T})"); time.sleep(0.4)
+    vv = E(f"[tlAudios.get({A1}.id).volume, tlPos()]")
+    check("…the volume follows its keys as it plays, times its own volume", abs(vv[0] - 0.8 * (vv[1] - 7) / 6) < 0.05, vv)
+    E("tlPause()")
+    check("…its keys drawn on the line", blk().locator(".tlkey").count() == 2)
+    check("both go into packages", {"second.wav", "track.wav"} <= set(n for n, m in E("packageMedia().map(s => [s.name, s.media])") if m), E("packageMedia().map(s => [s.name, s.media])"))
+    sv = json.loads(E("serialize()"))["timelines"][0]["audios"]
+    check("files keep each track: start, trim, length, volume, its keys", len(sv) == 2 and sv[1]["trim"] == 2 and sv[1]["curves"][0]["keys"][1]["v"] == 1 and "_url" not in sv[1], sv[1])
+    old = E("""(() => { const p = JSON.parse(serialize()); delete p.timelines[0].audios; p.timelines[0].audio = { name: 'old.wav', media: '0123456789abcdef0123456789abcdef.wav', vol: 0.5, mute: true };
+      return hydrate(p).timelines[0].audios.map(A => [A.name, A.media, A.start, A.trim, A.vol, A.mute]); })()""")
+    check("a file from before (one audio): its track, from the start", old == [["old.wav", "0123456789abcdef0123456789abcdef.wav", 0, 0, 0.5, True]], old)
+    # its menu, and Delete
+    blk().click(button="right"); time.sleep(0.2)
+    check("its menu: mute, the tempo in it, another file, remove", all(pg.locator(".menu button", has_text=re.compile("^" + t)).count() == 1 for t in ["Mute", "Find the tempo in it", "Another file in its place", "Remove(?! all)"]))
+    pg.keyboard.press("Escape")
+    blk().click(); pg.mouse.move(5, 5); pg.keyboard.press("Delete"); time.sleep(0.3)
+    check("Delete removes the track picked", E(f"{T}.audios.length") == 1 and pg.locator("#dockBody .tlaclip").count() == 1)
+    E("tlSnap = true")
 
     # ---------- markers
     E(f"tlSeek({T}, 4); refreshTimeline()"); time.sleep(0.2)

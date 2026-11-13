@@ -183,10 +183,16 @@ function fixTimelines(list, zones) {
       if (n > 1) lanes[zid] = n;
     }
     const L = isObj(T.loop) ? T.loop : {}, a = clamp(numOr(L.a, 0), 0, length), b = clamp(numOr(L.b, Math.min(8, length)), 0, length);
-    const A = isObj(T.audio) && typeof T.audio.name === 'string' ? { name: T.audio.name } : null;
-    if (A && typeof T.audio.media === 'string' && /^[0-9a-f]{32}\.[a-z0-9]{1,5}$/.test(T.audio.media)) A.media = T.audio.media;
-    if (A) { A.vol = clamp(numOr(T.audio.vol, 1), 0, 1); if (T.audio.mute === true) A.mute = true; }
-    return { id: uniqueId(T.id, ids), name: typeof T.name === 'string' && T.name ? T.name : 'Timeline ' + (i + 1), length, audio: A,
+    // its audio tracks (one, T.audio, before 1.6.2: from the start, the whole file)
+    const audios = (Array.isArray(T.audios) ? T.audios : isObj(T.audio) ? [T.audio] : []).filter(A => isObj(A) && typeof A.name === 'string').map(A => {
+      const o = { id: uniqueId(A.id, clipIds), name: A.name, start: clamp(numOr(A.start, 0), 0, length), trim: clamp(numOr(A.trim, 0), 0, 36000), dur: clamp(numOr(A.dur, length), 0.1, 36000), vol: clamp(numOr(A.vol, 1), 0, 1) };
+      if (typeof A.media === 'string' && /^[0-9a-f]{32}\.[a-z0-9]{1,5}$/.test(A.media)) o.media = A.media;
+      if (A.mute === true) o.mute = true;
+      const curves = fixCurves(A.curves).filter(cv => cv.kind === 'level');
+      if (curves.length) o.curves = curves;
+      return o;
+    });
+    return { id: uniqueId(T.id, ids), name: typeof T.name === 'string' && T.name ? T.name : 'Timeline ' + (i + 1), length, audios,
       grid: T.grid === 'bars' ? 'bars' : 'sec', bpm: clamp(numOr(T.bpm, 120), 20, 300), beat0: clamp(numOr(T.beat0, 0), 0, 60), markers: fixMarkers(T.markers, length),
       loop: { mode: ['off', 'all', 'region'].includes(L.mode) ? L.mode : 'off', a: Math.min(a, b), b: Math.max(b, Math.min(a, b) + 0.1) }, tracks, lanes };
   });
@@ -501,8 +507,8 @@ function openStartupProject(p) {
 // name.noupixpkg is a zip (made and read by the bridge) of project.noupix and the images and videos it uses, from the
 // media library, to take a project to another computer. Opening one puts its media into this computer's library.
 // Shaders and the guide image are inside the project already.
-// (and the timelines' audio, { name, media } like a source's)
-const packageMedia = () => project.sources.filter(s => (s.kind === 'image' || s.kind === 'video') && !s.builtin).concat(project.timelines.filter(T => T.audio).map(T => T.audio));
+// (and the timelines' audio tracks, { name, media } like a source's)
+const packageMedia = () => project.sources.filter(s => (s.kind === 'image' || s.kind === 'video') && !s.builtin).concat(project.timelines.flatMap(T => T.audios));
 async function exportPackage(name) {
   const media = [...new Set(packageMedia().map(s => s.media).filter(Boolean))];
   const r = await fetch('/package', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project: projectText(), media }) });

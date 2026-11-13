@@ -70,6 +70,13 @@ try:
     check("wide: A and B side by side", pair() == "side", pair())
     E("ui.sideW.right = 460; renderSides()"); time.sleep(0.4)
     check("narrow: A above B", pair() == "above", pair())
+    lay = E("""(() => { const R = s => { const e = $('#rightHost ' + s); return e && e.getBoundingClientRect(); }, btn = R('.xfbtn'), strip = R('.sfoot .xfade'), foot = R('.sfoot'), host = $('#rightHost').getBoundingClientRect();
+      const parts = ['.xfside.a .xfpv', '.xfside.a .xfwho', '.xfmid', '.xfside.b .xfwho', '.xfside.b .xfpv'].map(R).filter(Boolean);
+      const apart = parts.every((r, i) => !i || r.left >= parts[i - 1].right - 1);
+      return { below: strip.top >= btn.bottom, wide: strip.width > host.width - 40, apart, inside: parts.every(r => r.right <= foot.right + 1 && r.left >= foot.left - 1),
+        heads: $$('#rightHost .zhead').every(e => e.classList.contains('compact')) }; })()""")
+    check("narrow, the X-Fader's strip on a line of its own under its buttons, across the panel, nothing overlapping", lay["below"] and lay["wide"] and lay["apart"] and lay["inside"], lay)
+    check("…every zone with a one-line head there, as A and B", lay["heads"], lay)
     E("setXfadeOn(false)"); time.sleep(0.3)
 
     # ---------- the ✕, the left side, several at once

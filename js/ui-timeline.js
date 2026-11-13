@@ -45,6 +45,7 @@ function tlSnapT(T, t, skip) {
   if (!tlSnap) return t;
   const lim = 8 / ui.tlZoom, st = tlSteps(T), b0 = st.b0 % st.snap, pts = [Math.round((t - b0) / st.snap) * st.snap + b0, tlPos(), ...(T.markers || []).map(m => m.t)];
   for (const cs of Object.values(T.tracks)) for (const c of cs) if (c !== skip) pts.push(c.start, c.start + c.dur);
+  for (const A of T.audios) if (A !== skip) pts.push(A.start, A.start + A.dur);
   let best = t, d = lim;
   for (const q of pts) if (Math.abs(q - t) < d) { d = Math.abs(q - t); best = q; }
   return best;
@@ -69,7 +70,7 @@ function renderTimeline(body) {
   const mine = tl.id === T.id, playing = mine && tl.playing;
   const segBtns = (opts, val, set, label) => h('span', { class: 'tlseg', role: 'group', 'aria-label': label },
     opts.map(([v, t, tip]) => h('button', { type: 'button', class: v === val ? 'on' : '', 'aria-pressed': String(v === val), title: tip || t, onclick: () => set(v) }, t)));
-  const fileIn = h('input', { type: 'file', accept: 'audio/*', hidden: true, onchange: e => { const f = e.target.files[0]; if (f) setTimelineAudio(T, f); } });
+  const fileIn = h('input', { type: 'file', accept: 'audio/*', hidden: true, onchange: e => { const f = e.target.files[0]; if (f) addTimelineAudio(T, f, T.audios.length && mine ? tlPos() : 0); } });
   panel.append(h('div', { class: 'tlbar' },
     h('button', { type: 'button', class: 'tlplay' + (playing ? ' on' : ''), 'aria-label': playing ? 'Pause' : 'Play', title: (playing ? 'Pause' : 'Play') + ' (Space, with the mouse off the stage)',
       onclick: () => (playing ? tlPause() : tlPlay(T)), html: playing ? '<svg viewBox="0 0 16 16"><path d="M4 3h3v10H4zM9 3h3v10H9z" fill="currentColor"/></svg>' : '<svg viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5z" fill="currentColor"/></svg>' }),
@@ -84,7 +85,7 @@ function renderTimeline(body) {
     T.grid === 'bars' ? h('span', { class: 'tlseg', role: 'group', 'aria-label': 'Tempo twice or half' },
       h('button', { type: 'button', title: 'Half the tempo (it counts twice too fast)', 'aria-label': 'Half the tempo', onclick: () => tlTempoTimes(T, 0.5) }, '÷2'),
       h('button', { type: 'button', title: 'Twice the tempo (it counts half too slow)', 'aria-label': 'Twice the tempo', onclick: () => tlTempoTimes(T, 2) }, '×2')) : null,
-    T.audio ? h('button', { type: 'button', class: 'btn sm', title: 'Find the tempo and bar 1 in the audio: the bars follow the music', onclick: () => tlDetect(T, true) }, 'Detect') : null,
+    T.audios.length ? h('button', { type: 'button', class: 'btn sm', title: 'Find the tempo and bar 1 in the first audio track (or in another, from its menu): the bars follow the music', onclick: () => tlDetect(T, true) }, 'Detect') : null,
     h('label', { class: 'tlsnap', title: 'Clips and markers snap to the grid, the playhead and other clips' }, h('input', { type: 'checkbox', checked: tlSnap, onchange: e => { tlSnap = e.target.checked; } }), 'Snap'),
     h('span', { class: 'fill' }),
     // the zoom: these sliders, or the bars under and beside the tracks (their ends dragged)
@@ -96,9 +97,7 @@ function renderTimeline(body) {
       oninput: e => tlRowTo(+e.target.value), onchange: () => savePrefs() }),
     h('button', { type: 'button', class: 'btn sm', title: 'Zoom to fit: every clip in view, the tracks filling the panel', onclick: () => tlFit(T) }, 'Fit'),
     h('button', { type: 'button', class: 'btn sm', title: 'A marker at the playhead: Drop, Break, Build up… (M)', onclick: () => markerDialog(T, null, mine ? tlPos() : 0) }, '+ Marker'),
-    T.audio ? h('span', { class: 'tlaudioname', title: T.audio.name }, '♪ ' + T.audio.name) : null,
-    h('button', { type: 'button', class: 'btn sm', title: T.audio ? 'Another audio file for this timeline' : 'An audio file that plays with the timeline', onclick: () => fileIn.click() }, T.audio ? 'Audio…' : '+ Audio'),
-    T.audio ? h('button', { type: 'button', class: 'btn sm icon', title: 'Remove the audio', 'aria-label': 'Remove the audio', onclick: () => { tlHalt(); T.audio = null; commit({ lists: false }); refreshTimeline(); } }, '×') : null,
+    h('button', { type: 'button', class: 'btn sm', title: T.audios.length ? 'One more audio track, at the playhead' : 'An audio file that plays with the timeline', onclick: () => fileIn.click() }, '+ Audio'),
     fileIn));
   // the tracks, with a bar under them and one beside them: their middle scrolls, their ends zoom (in time, in height)
   const hbar = zoomBar(T, 'h'), vbar = zoomBar(T, 'v');
@@ -159,32 +158,40 @@ function tlTracks(T, mine) {
   grid.append(h('div', { class: 'tlrow tlsec' }, h('div', { class: 'tllabel' },
     h('button', { type: 'button', class: 'tlfold', 'aria-expanded': String(!fold), title: fold ? 'Show the audio track' : 'Fold the audio track (its markers stay)',
       onclick: () => { ui.tlAudioFold = !ui.tlAudioFold; savePrefs(); refreshTimeline(); } }, fold ? '▸' : '▾', ' Audio')), h('div', { class: 'tllane', style: { width: W + 'px' } })));
-  // the audio
-  const alane = h('div', { class: 'tllane tlaudio' + (beats ? ' beats' : ''), style: laneStyle(), title: 'Drop an audio file here. Right-click for a marker' });
-  alane.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); alane.classList.add('drop'); } });
-  alane.addEventListener('dragleave', () => alane.classList.remove('drop'));
-  alane.addEventListener('drop', e => { alane.classList.remove('drop'); const f = [...e.dataTransfer.files].find(f => /^audio\//.test(f.type) || /\.(mp3|wav|ogg|oga|opus|m4a|aac|flac)$/i.test(f.name)); if (!f) return; e.preventDefault(); setTimelineAudio(T, f); });
-  if (fold) alane.classList.add('folded');
-  if (T.audio && !fold) {
-    const a = tlAudio(T), P = tlPeakOf(T), dur = P && P.dur ? P.dur : (a && isFinite(a.duration) ? a.duration : T.length);
-    alane.append(h('div', { class: 'tlablock', style: { width: Math.min(dur, T.length) * ui.tlZoom + 'px' } },
-      h('span', { class: 'tlin' }, h('span', { class: 'tlhdr' }, T.audio.name), h('span', { class: 'tlstrip' }, waveform(T)))));
-  } else if (!fold) alane.append(h('span', { class: 'tlhint' }, 'Drop an audio file here, or + Audio'));
-  for (const m of T.markers || []) alane.append(markerEl(T, m));
-  onRightClick(alane, e => {
-    if (e.target.closest && e.target.closest('.tlflag')) return;
-    const t = tlSnapT(T, (e.clientX - alane.getBoundingClientRect().left) / ui.tlZoom);
-    menu(e, [{ head: fmtTime(t) }, ['Add a marker here…', () => markerDialog(T, null, t)]]);
+  // the audio tracks, one a row (the markers on the first); folded, one thin line with the markers
+  const rows = fold ? [null] : T.audios.length ? T.audios : [null];
+  rows.forEach((A, i) => {
+    const alane = h('div', { class: 'tllane tlaudio' + (beats ? ' beats' : '') + (fold ? ' folded' : ''), style: laneStyle(), 'data-audio-lane': A ? A.id : '',
+      title: 'Drop an audio file here: a track of its own from there. Right-click for a marker' });
+    alane.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); alane.classList.add('drop'); } });
+    alane.addEventListener('dragleave', () => alane.classList.remove('drop'));
+    alane.addEventListener('drop', e => {
+      alane.classList.remove('drop');
+      const f = [...e.dataTransfer.files].find(f => /^audio\//.test(f.type) || /\.(mp3|wav|ogg|oga|opus|m4a|aac|flac)$/i.test(f.name));
+      if (!f) return;
+      e.preventDefault();
+      addTimelineAudio(T, f, T.audios.length ? tlSnapT(T, (e.clientX - alane.getBoundingClientRect().left) / ui.tlZoom) : 0);
+    });
+    if (A) alane.append(audioEl(T, A));
+    else if (!fold) alane.append(h('span', { class: 'tlhint' }, 'Drop an audio file here, or + Audio'));
+    if (i === 0) for (const m of T.markers || []) alane.append(markerEl(T, m));
+    onRightClick(alane, e => {
+      if (e.target.closest && e.target.closest('.tlflag, .tlaclip')) return;
+      const t = tlSnapT(T, (e.clientX - alane.getBoundingClientRect().left) / ui.tlZoom);
+      menu(e, [{ head: fmtTime(t) }, ['Add a marker here…', () => markerDialog(T, null, t)]]);
+    });
+    // a track's volume and mute beside its name
+    const volBox = A ? h('span', { class: 'tlvol' },
+      h('button', { type: 'button', class: 'tllb tlmute' + (A.mute ? ' on' : ''), title: A.mute ? 'Sound on' : 'Mute', 'aria-label': (A.mute ? 'Unmute ' : 'Mute ') + A.name, 'aria-pressed': String(!!A.mute),
+        html: A.mute ? '<svg viewBox="0 0 16 16" width="12" height="12"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.4"/></svg>'
+          : '<svg viewBox="0 0 16 16" width="12" height="12"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 010 5M12.5 3.5a6 6 0 010 9" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
+        onclick: () => tlAudioMute(T, A) }),
+      h('input', { type: 'range', class: 'tlvolr', min: 0, max: 1, step: 0.01, value: numOr(A.vol, 1), 'aria-label': 'Volume of ' + A.name, title: 'Volume (its keys, on its waveform, go up to this)',
+        oninput: e => { A.vol = +e.target.value; tlAudioSync(T, tlPos(), tl.playing && tl.id === T.id, false); }, onchange: () => commit({ lists: false }) })) : null;
+    const label = h('div', { class: 'tllabel tlalabel' }, h('span', { class: 'tlz', title: A ? A.name : '' }, fold ? '' : A ? A.name.replace(/\.[a-z0-9]+$/i, '') : 'No audio'), volBox);
+    if (A) onRightClick(label, e => audioMenu(e, T, A));
+    grid.append(h('div', { class: 'tlrow' + (fold ? ' afold' : '') + (i ? ' sub' : '') }, label, alane));
   });
-  // the audio's volume and mute beside its name
-  const volBox = T.audio && !fold ? h('span', { class: 'tlvol' },
-    h('button', { type: 'button', class: 'tllb tlmute' + (T.audio.mute ? ' on' : ''), title: T.audio.mute ? 'Sound on' : 'Mute', 'aria-label': T.audio.mute ? 'Unmute the audio' : 'Mute the audio', 'aria-pressed': String(!!T.audio.mute),
-      html: T.audio.mute ? '<svg viewBox="0 0 16 16" width="12" height="12"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.4"/></svg>'
-        : '<svg viewBox="0 0 16 16" width="12" height="12"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 010 5M12.5 3.5a6 6 0 010 9" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
-      onclick: () => { T.audio.mute = !T.audio.mute || undefined; if (!T.audio.mute) delete T.audio.mute; tlAudio(T); commit({ lists: false }); refreshTimeline(); } }),
-    h('input', { type: 'range', class: 'tlvolr', min: 0, max: 1, step: 0.01, value: numOr(T.audio.vol, 1), 'aria-label': 'Audio volume', title: 'Volume',
-      oninput: e => { T.audio.vol = +e.target.value; tlAudio(T); }, onchange: () => commit({ lists: false }) })) : null;
-  grid.append(h('div', { class: 'tlrow' + (fold ? ' afold' : '') }, h('div', { class: 'tllabel tlalabel' }, h('span', { class: 'tlz' }, fold ? '' : T.audio ? T.audio.name.replace(/\.[a-z0-9]+$/i, '') : 'No audio'), volBox), alane));
   grid.append(section('Zones'));
   // the zones
   // a zone's lanes, the highest on top: where clips overlap, the highest shows
@@ -342,6 +349,88 @@ function clipEl(T, z, c) {
   onRightClick(el, e => clipMenu(e, T, z, c));
   return el;
 }
+// An audio track's block: its name over its waveform, from its start for as long as it plays; dragged to move it, by
+// its edges to trim the file's start or end (its keys staying put in time); its volume a line on the waveform, keys
+// added by a double-click there and dragged as a clip's level
+function paintAudio(el, A) {
+  const z = ui.tlZoom;
+  el.style.left = A.start * z + 'px'; el.style.width = Math.max(4, A.dur * z) + 'px';
+  const wv = el.querySelector('.tlwave');
+  if (wv) wv.style.marginLeft = -A.trim * z + 'px';
+}
+function audioEl(T, A) {
+  // a file shorter than the track was thought (an older project): the track ends with the file
+  if (tlAudioFile(A) && A.dur > tlAudioLen(A) + 1e-3) A.dur = tlAudioLen(A);
+  const el = h('div', { class: 'tlclip tlaclip' + (ui.tlSel === A.id ? ' sel' : '') + (A.mute ? ' muted' : ''), 'data-audio': A.id,
+    title: `${A.name}: ${fmtTime(A.start)} for ${fmtV(Math.round(A.dur * 100) / 100)} s${A.trim ? ', from ' + fmtTime(A.trim) + ' into the file' : ''}. Drag to move, its edges to trim, double-click the line for a volume key. Right-click for more.` },
+    h('span', { class: 'tlin' }, h('span', { class: 'tlhdr' }, A.name), h('span', { class: 'tlstrip' }, waveform(A)), h('span', { class: 'tllevel' })),
+    h('span', { class: 'tledge l', title: 'Trim its start: drag' }), h('span', { class: 'tledge r', title: 'Trim its end: drag' }));
+  paintAudio(el, A);
+  paintLevel(el, T, null, A);
+  el.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const part = e.target.classList.contains('tledge') ? (e.target.classList.contains('l') ? 'l' : 'r') : 'move';
+    if (ui.tlSel !== A.id) { ui.tlSel = A.id; for (const o of $$('.tlclip.sel', el.ownerDocument)) o.classList.remove('sel'); el.classList.add('sel'); }
+    tlKeys.clear();
+    const x0 = e.clientX, o = { start: A.start, trim: A.trim, dur: A.dur }, file = tlAudioFile(A), kt = (A.curves || []).map(cv => cv.keys.map(k => k.t));
+    let moved = false;
+    tlDrag = true;
+    const mv = ev => {
+      const d = (ev.clientX - x0) / ui.tlZoom;
+      if (Math.abs(ev.clientX - x0) > 2) moved = true;
+      if (!moved) return;
+      if (part === 'move') {
+        A.start = clamp(tlSnapT(T, o.start + d, A), 0, T.length - 0.1);
+        const e2 = tlSnapT(T, A.start + A.dur, A);
+        if (e2 !== A.start + A.dur && e2 - A.dur >= 0) A.start = e2 - A.dur;
+      } else if (part === 'l') {
+        // no further back than the file's start, nor before the timeline's
+        const s = clamp(tlSnapT(T, o.start + d, A), Math.max(0, o.start - o.trim), o.start + o.dur - 0.1), dd = s - o.start;
+        A.start = s; A.trim = Math.max(0, o.trim + dd); A.dur = o.dur - dd;
+        (A.curves || []).forEach((cv, i) => cv.keys.forEach((k, j) => { k.t = kt[i][j] - dd; }));
+      } else {
+        const en = clamp(tlSnapT(T, o.start + o.dur + d, A), o.start + 0.1, file ? o.start + file - o.trim : Infinity);
+        A.dur = en - o.start;
+      }
+      paintAudio(el, A);
+      if (part !== 'move') paintLevel(el, T, null, A);
+    };
+    const up = () => {
+      for (const t of ['pointermove', 'pointerup', 'pointercancel']) win.removeEventListener(t, t === 'pointermove' ? mv : up);
+      tlDrag = false;
+      if (moved) { commit({ lists: false }); if (tl.id === T.id) tlAudioSync(T, tlPos(), tl.playing); refreshTimeline(); }
+      else if (tlPending) refreshTimeline();
+    };
+    const win = el.ownerDocument.defaultView;
+    win.addEventListener('pointermove', mv); win.addEventListener('pointerup', up); win.addEventListener('pointercancel', up);
+  });
+  el.addEventListener('dblclick', e => {
+    e.stopPropagation();
+    const ov = el.querySelector('.tllevel');
+    if (ov && ov._dbl) ov._dbl(e);
+  });
+  onRightClick(el, e => audioMenu(e, T, A));
+  return el;
+}
+function tlAudioMute(T, A) {
+  if (A.mute) delete A.mute; else A.mute = true;
+  tlAudioSync(T, tlPos(), tl.playing && tl.id === T.id, false);
+  commit({ lists: false }); refreshTimeline();
+}
+function audioMenu(anchor, T, A) {
+  ui.tlSel = A.id;
+  const fileIn = h('input', { type: 'file', accept: 'audio/*', onchange: e => { const f = e.target.files[0]; if (f) addTimelineAudio(T, f, 0, A); } });
+  menu(anchor, [
+    { head: A.name },
+    ['Play from here', () => { tlSeek(T, A.start); tlPlay(T); }],
+    [A.mute ? 'Sound on' : 'Mute', () => tlAudioMute(T, A)],
+    ['Find the tempo in it', () => tlDetect(T, true, A)],
+    ['Volume keys: remove all', () => { delete A.curves; commit({ lists: false }); tlKeysChanged(T); }, { disabled: !(A.curves && A.curves.length) }],
+    ['Another file in its place…', () => fileIn.click()],
+    ['Remove', () => removeTimelineAudio(T, A), { key: 'Del' }],
+  ]);
+}
 function clipMenu(anchor, T, z, c) {
   ui.tlSel = c.id;
   menu(anchor, [
@@ -366,29 +455,31 @@ function dragMark(e, T, k, m, ruler) {
   const up = () => { m.removeEventListener('pointermove', mv); m.removeEventListener('pointerup', up); m.removeEventListener('pointercancel', up); tlDrag = false; commit({ lists: false }); refreshTimeline(); };
   m.addEventListener('pointermove', mv); m.addEventListener('pointerup', up); m.addEventListener('pointercancel', up);
 }
-// The audio's waveform: its peaks worked out once per file (in the background), drawn at the zoom
+// An audio track's waveform: its peaks worked out once per file (in the background), drawn at the zoom (the whole
+// file, moved left by its trim)
 const tlPeaks = new Map();
-function waveform(T) {
-  const a = tlAudio(T), key = T.audio.media || T.audio._url;
-  // read once: stored in the library meanwhile, it keeps what was worked out from the file
-  if (!tlPeaks.has(key) && T.audio._url && tlPeaks.get(T.audio._url) && tlPeaks.get(T.audio._url).pk) tlPeaks.set(key, tlPeaks.get(T.audio._url));
+function waveform(A) {
+  const a = tlAudio(A), key = A.media || A._url;
+  // read once: stored in the library meanwhile (or while it is read), it keeps what is worked out from the file
+  if (!tlPeaks.has(key) && A._url && tlPeaks.get(A._url)) tlPeaks.set(key, tlPeaks.get(A._url));
   const P = tlPeaks.get(key);
   const dur = P && P.dur ? P.dur : (a && isFinite(a.duration) ? a.duration : 0);
   if (!P && key) {
     tlPeaks.set(key, { loading: true });
-    fetch(T.audio.media ? mediaUrl(T.audio.media) : T.audio._url).then(r => r.arrayBuffer())
+    fetch(A.media ? mediaUrl(A.media) : A._url).then(r => r.arrayBuffer())
       .then(b => new OfflineAudioContext(1, 1, 44100).decodeAudioData(b))
       .then(buf => {
         const d = buf.getChannelData(0), N = 4000, n = Math.max(1, Math.floor(d.length / N)), pk = new Float32Array(N);
         for (let i = 0; i < N; i++) { let m = 0; for (let j = i * n, e = Math.min(d.length, j + n); j < e; j++) { const v = Math.abs(d[j]); if (v > m) m = v; } pk[i] = m; }
-        tlPeaks.set(key, { pk, dur: buf.duration, beat: tlDetectBeat(buf) });
+        const R = { pk, dur: buf.duration, beat: tlDetectBeat(buf) };
+        for (const k of [key, A.media, A._url]) if (k) tlPeaks.set(k, R);
         // a file just added: its tempo found by itself
-        for (const K of project.timelines) if (K._detect && K.audio && (K.audio.media === key || K.audio._url === key)) { delete K._detect; tlDetect(K, false); }
+        for (const K of project.timelines) for (const B of K.audios) if (B._detect && (B.media === key || B._url === key)) { delete B._detect; tlDetect(K, false, B); }
         refreshTimeline();
       }).catch(() => tlPeaks.set(key, { failed: true }));
   }
-  if (!P || !P.pk) return h('span', { class: 'tlhint in' }, (P && P.failed ? 'Can\'t read ' : 'Reading ') + T.audio.name + (P && P.failed ? '' : '…'));
-  const w = Math.max(1, Math.min(16000, Math.round(dur * ui.tlZoom))), H = Math.max(8, tlRow() - 26), c = h('canvas', { class: 'tlwave', width: w, height: H, style: { width: dur * ui.tlZoom + 'px', height: H + 'px' } });
+  if (!P || !P.pk) return h('span', { class: 'tlhint in' }, (P && P.failed ? 'Can\'t read ' : 'Reading ') + A.name + (P && P.failed ? '' : '…'));
+  const w = Math.max(1, Math.min(16000, Math.round(dur * ui.tlZoom))), H = Math.max(8, tlRow() - 26), c = h('canvas', { class: 'tlwave', width: w, height: H, style: { width: dur * ui.tlZoom + 'px', height: H + 'px', marginLeft: -A.trim * ui.tlZoom + 'px' } });
   const g = c.getContext('2d');
   g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--fader').trim() || '#999';
   for (let x = 0; x < w; x++) { const v = P.pk[Math.min(P.pk.length - 1, Math.floor(x / w * P.pk.length))], hh = Math.max(1, v * H); g.fillRect(x, (H - hh) / 2, 1, hh); }
@@ -445,10 +536,12 @@ document.addEventListener('keydown', e => {
   // the keys picked go before their clip
   if (tlKeys.size && T) {
     const items = [];
-    for (const cs of Object.values(T.tracks)) for (const c of cs) for (const cv of c.curves || []) for (const k of cv.keys) if (tlKeys.has(k)) items.push({ c, cv, k });
+    for (const c of Object.values(T.tracks).flat().concat(T.audios)) for (const cv of c.curves || []) for (const k of cv.keys) if (tlKeys.has(k)) items.push({ c, cv, k });
     tlKeys.clear();
     if (items.length) { e.preventDefault(); e.stopPropagation(); deleteKeys(T, items); return; }
   }
+  const A = T && T.audios.find(x => x.id === ui.tlSel);
+  if (A) { e.preventDefault(); e.stopPropagation(); removeTimelineAudio(T, A); return; }
   for (const [zid, cs] of Object.entries((T && T.tracks) || {})) {
     const c = cs.find(x => x.id === ui.tlSel);
     if (c) { e.preventDefault(); e.stopPropagation(); deleteClip(T, zoneById(zid), c); return; }
@@ -526,7 +619,8 @@ function paintLevel(el, T, z, c) {
   const path = cv ? tlSamples(c, cv).map((t, i) => (i ? 'L' : 'M') + (t * ui.tlZoom).toFixed(1) + ' ' + tlYOf(clamp(+tlCurveAt(cv, t, TL_LEVEL) || 0, 0, 1), H).toFixed(1)).join('')
     : `M0 ${tlYOf(1, H)}L${w} ${tlYOf(1, H)}`;
   ov.innerHTML = `<svg width="${w}" height="${H}" viewBox="0 0 ${w} ${H}"><path d="${path}" class="${cv ? '' : 'none'}"/></svg>`;
-  ov.title = tlIsOpen(c) ? 'Level: double-click the picture to add a key, drag the line between two keys up or down' : '';
+  ov.title = el.classList.contains('tlaclip') ? 'Volume: double-click the waveform to add a key, drag the line between two keys up or down'
+    : tlIsOpen(c) ? 'Level: double-click the picture to add a key, drag the line between two keys up or down' : '';
   if (cv) for (const k of cv.keys) if (k.t >= -1e-6 && k.t <= c.dur + 1e-6) ov.append(keyEl(c, cv, k, k.t * ui.tlZoom, tlYOf(clamp(k.v, 0, 1), H)));
   if (!ov._wired) { ov._wired = true; wireLevel(ov, T, z, c, el); }
 }
@@ -537,7 +631,7 @@ function wireLevel(ov, T, z, c, el) {
   const fAt = ev => clamp(tlFOf(ev.clientY - ov.getBoundingClientRect().top, tlStripH()), 0, 1);
   const ensure = () => tlLevelCurve(c) || addCurve(T, z, c, { kind: 'level' }, true);
   ov.addEventListener('pointerdown', e => {
-    if (e.button !== 0 || !tlIsOpen(c)) return;
+    if (e.button !== 0 || !(tlIsOpen(c) || el.classList.contains('tlaclip'))) return;
     const kel = e.target.closest('.tlkey');
     if (kel) { e.stopPropagation(); e.preventDefault(); pressKey(e, T, z, c, el, kel); return; }
     const t = (e.clientX - ov.getBoundingClientRect().left) / ui.tlZoom, cv = tlLevelCurve(c);
@@ -724,18 +818,26 @@ function keyDialog(T, c, cv, k) {
   uiDocNow().body.append(bg);
 }
 // The audio's tempo and first downbeat (worked out with its waveform): the grid in bars from them
-function tlDetect(T, asked) {
-  const P = tlPeakOf(T);
-  if (!P || !P.pk) { if (asked) { T._detect = true; toast('Reading the audio first…'); } return; }
+function tlDetect(T, asked, A = T.audios[0]) {
+  if (!A) return;
+  const P = tlPeakOf(A);
+  if (!P || !P.pk) { if (asked) { A._detect = true; toast('Reading the audio first…'); } return; }
   const b = P.beat;
   // said either way, asked or not: what was found, or that nothing was
-  if (!b || b.weak) { toast('No steady beat found in ' + T.audio.name + '. Type its BPM instead.', 'warn'); return; }
-  T.bpm = b.bpm; T.beat0 = b.t0; T.grid = 'bars';
+  if (!b || b.weak) { toast('No steady beat found in ' + A.name + '. Type its BPM instead.', 'warn'); return; }
+  // bar 1 where the file's falls on the timeline (from where the track starts, less its trim), the first one after 0
+  const bar = 60 / b.bpm * 4;
+  let t0 = A.start - A.trim + b.t0;
+  while (t0 < 0) t0 += bar;
+  T.bpm = b.bpm; T.beat0 = Math.round(t0 * 1000) / 1000; T.grid = 'bars';
   commit({ lists: false }); refreshTimeline();
   toast(`${fmtV(b.bpm)} BPM, bar 1 at ${fmtTime(b.t0)}: the grid follows the beat. If it counts twice too fast or slow, ×2 or ÷2; to move bar 1, right-click the ruler.`);
 }
 // The audio's peaks and beat: under its name in the media library, or the file's own address until it is stored there
-const tlPeakOf = T => (T.audio ? tlPeaks.get(T.audio.media) || tlPeaks.get(T.audio._url) : null);
+function tlPeakOf(A) {
+  const a = A && tlPeaks.get(A.media), b = A && tlPeaks.get(A._url);
+  return a && a.pk ? a : b && b.pk ? b : a || b || null;
+}
 // Twice or half the tempo (half-time and double-time count the same music), bar 1 where it was
 function tlTempoTimes(T, k) {
   T.bpm = clamp(Math.round(T.bpm * k * 100) / 100, 20, 300);
@@ -840,10 +942,9 @@ function tlFit(T) {
   let end = 4;
   for (const cs of Object.values(T.tracks)) for (const c of cs) end = Math.max(end, c.start + c.dur);
   for (const m of T.markers || []) end = Math.max(end, m.t + 1);
-  const P = tlPeakOf(T);
-  if (P && P.dur) end = Math.max(end, Math.min(P.dur, T.length));
+  for (const A of T.audios) end = Math.max(end, Math.min(A.start + tlAudioLen(A), T.length));
   end = Math.min(end * 1.03, T.length);
-  const rows = project.zones.reduce((n, z) => n + ((T.lanes && T.lanes[z.id]) || 1), 0) + (ui.tlAudioFold ? 0 : 1);
+  const rows = project.zones.reduce((n, z) => n + ((T.lanes && T.lanes[z.id]) || 1), 0) + (ui.tlAudioFold ? 0 : Math.max(1, T.audios.length));
   const fixed = 24 + 22 * 2 + (ui.tlAudioFold ? 22 : 0) + 4;
   ui.tlRowH = clamp(Math.floor((sc.clientHeight - fixed) / Math.max(1, rows)), 30, 160);
   ui.tlZoom = clamp((sc.clientWidth - TL_LABEL - 12) / end, 4, 240);
