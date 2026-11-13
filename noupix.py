@@ -380,8 +380,12 @@ def parse_poll_reply(d, addr):
         if d[174 + i] & 0x80:  # port can output DMX
             outs.append((net << 8) | (sub << 4) | (d[190 + i] & 0x0F))
     # Art-Net 4: an output port set to receive sACN instead of Art-Net (GoodOutputA bit 0), and a node that can switch
-    # between the two (Status2 bit 4). Older nodes leave both clear: Art-Net.
+    # between the two (Status2 bit 4). Older nodes leave both clear: Art-Net. A node is on sACN when all its output
+    # ports say so (some set the bit on a port that isn't an output, or on one port of several, and still take
+    # Art-Net: it answered ArtPoll after all); one set wholly to sACN may list no outputs, and then any port says it.
     status2 = d[212] if len(d) >= 213 else 0
+    out_ports = [i for i in range(nports) if d[174 + i] & 0x80]
+    sacn = all(d[182 + i] & 0x01 for i in out_ports) if out_ports else any(d[182 + i] & 0x01 for i in range(nports))
     return {
         "ip": socket.inet_ntoa(d[10:14]) if d[10:14] != b"\x00\x00\x00\x00" else addr[0],
         "from": addr[0],
@@ -392,7 +396,8 @@ def parse_poll_reply(d, addr):
         "outUniverses": outs,
         "mac": ":".join("%02x" % b for b in d[201:207]) if len(d) >= 207 else "",
         "bindIndex": d[211] if len(d) >= 212 else 0,
-        "sacn": any(d[182 + i] & 0x01 for i in range(nports)),
+        "sacn": bool(sacn),
+        "outPorts": len(out_ports),
         "canSwitch": bool(status2 & 0x10),
         "seen": time.time(),
     }

@@ -858,24 +858,29 @@ function nodeDevices() {
     const universes = [...new Set(list.flatMap(n => Array.isArray(n.outUniverses) ? n.outUniverses : []))].sort((a, b) => a - b);
     // a WLED found by mDNS (bind index −1) knows its settings exactly: its protocol wins over an ArtPoll reply's
     const wled = (list.find(n => n.wled) || {}).wled || null;
+    // on sACN when every reply with outputs says so (or, with none listing outputs, any of them)
+    const outs = list.filter(n => (n.outUniverses || []).length || n.outPorts), sacn = outs.length ? outs.every(n => n.sacn) : list.some(n => n.sacn);
     return { ip, replies: list.length, universes, shortName: pick(list, 'shortName'), longName: pick(list, 'longName'), mac: pick(list, 'mac'), report: pick(list, 'report'),
-      sacn: wled ? wled.proto === 'sacn' : list.some(n => n.sacn), ddp: !!wled && wled.proto === 'ddp', canSwitch: list.some(n => n.canSwitch), wled };
+      sacn: wled ? wled.proto === 'sacn' : sacn, ddp: !!wled && wled.proto === 'ddp', canSwitch: list.some(n => n.canSwitch), wled };
   }).sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true }));
 }
 // ArtPoll says which universes a device listens on, not how they are split over its physical outputs (2 outputs
 // of 3 universes, 3 of 2…): only the operator knows. So a device becomes a controller with its IP, its name and
 // the universes it reported, kept as a reminder in the Patch tab; one output from its first universe is just a
 // starting point. Adding a device that is already a controller only refreshes that reminder.
-function addNodeAsController(n) {
-  const u = n.universes, proto = n.sacn ? 'sacn' : 'artnet';
+function addNodeAsController(n, asked) {
+  const u = n.universes, proto = asked || (n.sacn ? 'sacn' : 'artnet');
   const same = project.controllers.find(c => c.ip === n.ip);
   if (n.wled) return addWledAsController(n, same);
   if (same) {
-    if (!isDdp(same)) same.protocol = proto;   // a device set to DDP by hand (Advatek, Falcon…) stays on DDP: ArtPoll can't tell
+    // its protocol stays as set (what a device reports can be wrong), unless one was asked for from its menu
+    const was = protoName(same), says = proto === 'sacn' ? 'sACN' : 'Art-Net';
+    if (asked && !isDdp(same)) same.protocol = asked;
     if (u.length) same.discovered = u.slice();
     ui.selCtrl = same.id; ui.dockTab = 'patch';
     markPatch(); commit(); updateDiscoveryUI();
-    toast(`${same.name}: ${protoName(same)}` + (u.length ? `, reporting ${u.length} universe${u.length === 1 ? '' : 's'} (${universeList(u)}).` : '.') + ' Its outputs are as you set them.');
+    toast(`${same.name}: ${protoName(same)}` + (u.length ? `, reporting ${u.length} universe${u.length === 1 ? '' : 's'} (${universeList(u)}).` : '.') + ' Its outputs are as you set them.'
+      + (!asked && !isDdp(same) && says !== was ? ` The device says ${says}: right-click it here to switch.` : ''));
     return;
   }
   // ArtPoll's universes are a starting point: one output from the first; a device that reports none (one set to

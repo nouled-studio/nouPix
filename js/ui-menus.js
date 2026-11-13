@@ -365,9 +365,14 @@ function chipMenu(e, fid, c, o) {
 }
 function nodeMenu(e, n) {
   if (mappingLocked()) return;   // the operator's mapping is locked
+  // the ✓ on what it uses: the controller's protocol once it is one, else what the device says
+  const known = project.controllers.find(c => c.ip === n.ip), onSacn = known ? isSacn(known) : n.sacn;
   menu(at(e), [
     { head: n.shortName || n.ip },
     [project.controllers.some(c => c.ip === n.ip) ? 'Refresh reported universes' : 'Add as controller', () => addNodeAsController(n), { disabled: !n.universes.length && !n.wled }],
+    // what a device reports can be wrong (or it takes both): either protocol by hand
+    !n.wled && !n.ddp && ['Use Art-Net', () => addNodeAsController(n, 'artnet'), { key: !onSacn ? '✓' : '', title: 'Add it, or set it, on Art-Net' }],
+    !n.wled && !n.ddp && ['Use sACN', () => addNodeAsController(n, 'sacn'), { key: onSacn ? '✓' : '', title: 'Add it, or set it, on sACN' }],
     ['Copy IP address', () => { navigator.clipboard.writeText(n.ip).then(() => toast('Copied ' + n.ip), () => toast(n.ip)); }],
   ]);
 }

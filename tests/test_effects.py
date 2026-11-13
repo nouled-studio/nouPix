@@ -1,6 +1,7 @@
 # The built-in effects added after 1.1.0: each compiles, has Speed from -1 (full, reverse) through 0 (still) to 1 (full),
 # moves only by it, follows the Color 1 and 2 macros with its colours, shows a lit thumbnail, and has its place in
-# the source list's filters. Rainbow and Plasma: their own hues as before, or between their two colours.
+# the source list's filters. Rainbow and Plasma: their own hues as before, or between their two colours; the Rainbow's
+# own colors, 1 to 5, each with its alpha over the layers below.
 import os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import CHROME_ARGS, start_bridge, app_error
@@ -85,7 +86,7 @@ try:
       const inp = n => (hdr.INPUTS || []).find(i => i.NAME === n) || {};
       return { id, palette: inp('palette').DEFAULT, labels: inp('palette').LABELS, a: roles.colorA, b: roles.colorB }; })""")
     check("Rainbow and Plasma have Colors (Rainbow by default) and two colours on Color 1 and 2",
-          all(o["palette"] == 0 and o["labels"] == ["Rainbow", "Color A to B"] and o["a"] == "color1" and o["b"] == "color2" for o in pal), pal)
+          all(o["palette"] == 0 and o["labels"] == ["Rainbow", "Your colors" if o["id"] == "rainbow" else "Color A to B"] and o["a"] == "color1" and o["b"] == "color2" for o in pal), pal)
     # the picture: rainbow by default; red to blue with Color A to B only reds, blues and their mixes (no green), still at speed 0
     shot = ev("""([id, P]) => { const src = srcById('b-' + id), rt = runtimeOf(src), c = document.createElement('canvas'); c.width = 64; c.height = 8;
       isfTime = 1; applyParams(rt, { params: { ['b-' + id]: Object.assign({ speed: 0 }, P) } }, src); rt.R.draw({ width: 64, height: 8 }); isfTime = null;
@@ -99,6 +100,28 @@ try:
           [id, {"palette": 1, "colorA": [1, 0, 0, 1], "colorB": [0, 0, 1, 1], "saturation": 1}])
         reds, blues = max(d[i] for i in range(0, len(d), 4)), max(d[i + 2] for i in range(0, len(d), 4))
         check(f"{id} with Color A to B goes between its two colours (red to blue: no green)", greens(d) < 12 and reds > 200 and blues > 200, (greens(d), reds, blues))
+
+    # ---------- Rainbow's own colors: 1 to 5 (2 at first, as Color A to B was), each with its alpha over the layers below
+    rb = ev("(() => { const ins = controlsOf(srcById('b-rainbow')), c = ins.find(i => i.NAME === 'count'); return [c.DEFAULT, c.VALUES, ins.filter(i => i.TYPE === 'color').map(i => i.LABEL)]; })()")
+    check("Rainbow's colors: How many (1 to 5, 2 at first), Color 1 to 5", rb == [2, [1, 2, 3, 4, 5], ["Color 1", "Color 2", "Color 3", "Color 4", "Color 5"]], rb)
+    solid = ev("project.sources.find(s => /solid/i.test(s.name)).id")
+    pic = """async ([solid, P, under]) => { const z = project.zones[0];
+      z.layers = [Object.assign(newLayer(), { src: 'b-rainbow', params: { 'b-rainbow': Object.assign({ speed: 0, palette: 1, saturation: 1 }, P) } })];
+      if (under) z.layers.unshift(Object.assign(newLayer(), { src: solid, params: { [solid]: { color: [1, 1, 1, 1] } } }));
+      z._fade = null; await new Promise(r => setTimeout(r, 600));
+      const c = zonePicture(z, 40, 4), d = c.getContext('2d').getImageData(0, 2, 40, 1).data, out = [];
+      for (let i = 0; i < 40; i++) out.push([d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]); return out; }"""
+    one = ev(pic, [solid, {"count": 1, "colorA": [1, 0, 0, 1]}, False])
+    check("1 color: all of it", all(p == [255, 0, 0] for p in one), one[:3])
+    three = ev(pic, [solid, {"count": 3, "colorA": [1, 0, 0, 1], "colorB": [0, 1, 0, 1], "colorC": [0, 0, 1, 1]}, False])
+    near = lambda c: sum(1 for p in three if all(abs(p[k] - c[k]) < 40 for k in range(3)))
+    check("3 colors: each of them in turn", near([255, 0, 0]) and near([0, 255, 0]) and near([0, 0, 255]), three[:8])
+    five = ev(pic, [solid, {"count": 5, "colorA": [1, 0, 0, 1], "colorB": [0, 1, 0, 1], "colorC": [0, 0, 1, 1], "colorD": [1, 1, 0, 1], "colorE": [1, 1, 1, 1]}, False])
+    check("5 colors: the fifth one shows too", any(min(p) > 215 for p in five), five[:10])
+    half = ev(pic, [solid, {"count": 1, "colorA": [1, 0, 0, 0.4]}, True])
+    check("a color at 40% alpha over a white layer: 60% white and 40% red", all(abs(p[0] - 255) < 3 and abs(p[1] - 153) < 3 and abs(p[2] - 153) < 3 for p in half), half[:3])
+    clear = ev(pic, [solid, {"count": 1, "colorA": [1, 0, 0, 0]}, True])
+    check("…clear: the layer below as it is", all(p == [255, 255, 255] for p in clear), clear[:3])
     check("no errors", not errs, errs[:3])
     br.close()
 finally:
