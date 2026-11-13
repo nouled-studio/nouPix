@@ -126,9 +126,18 @@ input, select, textarea { font-weight: 400; }
 .panelhost .scenerow.wrap .scene { width: auto; min-width: 0; }
 .panelhost .scenerow.wrap .stiles > .rowhint { grid-column: 1 / -1; }
 /* the scenes' sizes: small and large next to the medium ones above */
-.scenepanel.ss-s .scene { width: 96px; height: 42px; padding: 4px 3px 4px 8px; }
+.scenepanel.ss-s .scene { width: 112px; height: 40px; padding: 4px 3px 4px 8px; }
+.scenepanel.ss-s .scene .t { font-size: 11.5px; gap: 4px; }
+.scenepanel.ss-s .scene .s { font-size: 9.5px; }
 .scenepanel.ss-l .scene { width: 176px; height: 80px; }
-.scenepanel.ss-s .scenerow.xfcol .stiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+/* in rows (the bottom panel, the window), the zone's head as tall as its scenes, so the rows really shrink or grow */
+.scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead { height: 40px; gap: 2px; padding-top: 1px; padding-bottom: 1px; }
+.scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .zt { font-size: 12px; }
+.scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .btn.sm { height: 18px; padding-top: 0; padding-bottom: 0; }
+.scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .zstop, .scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .plbtn { width: 18px; height: 18px; }
+.scenepanel.ss-s .scenerow { padding-top: 3px; padding-bottom: 3px; }
+.scenepanel.ss-l .scenerow:not(.wrap):not(.xfcol) .zhead { height: 80px; }
+.scenepanel.ss-s .scenerow.xfcol .stiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .scenepanel.ss-l .scenerow.xfcol .stiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .scenepanel.ss-s .scenerow.xfcol .scene, .scenepanel.ss-s .scenerow.wrap .scene { width: auto; height: 38px; }
 .scenepanel.ss-l .scenerow.xfcol .scene, .scenepanel.ss-l .scenerow.wrap .scene { width: auto; height: 76px; }
@@ -780,15 +789,14 @@ select { padding-right: 4px; cursor: pointer; }
   optgroup { padding: 6px 0 2px; font: 600 10px var(--label); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
   optgroup option { font: 400 12.5px/1.35 var(--ui); letter-spacing: 0; text-transform: none; }
 }
-/* the tick box: a square; ticked, a white edge round a red square with the logo's cut corner, like a light that is on */
+/* the tick box: a thin square; ticked, a thin red tick */
 input[type=checkbox] { -webkit-appearance: none; appearance: none; flex: none; width: 14px; height: 14px; margin: 0; box-sizing: border-box; display: inline-grid; place-content: center;
-  vertical-align: middle; border: 1px solid var(--line3); background: var(--bg2); cursor: pointer; }
-input[type=checkbox]::before { content: ''; width: 8px; height: 8px; background: var(--accent); clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
-  transform: scale(0); transition: transform .08s ease-out; }
-input[type=checkbox]:checked { border-color: var(--sel); }
-input[type=checkbox]:checked::before { transform: scale(1); }
+  vertical-align: middle; border: 1px solid var(--line3); background: transparent; cursor: pointer; }
+input[type=checkbox]::before { content: ''; width: 12px; height: 12px; background: var(--accent); opacity: 0; transition: opacity .08s;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='%23000' stroke-width='1.2' stroke-linecap='square'/%3E%3C/svg%3E") center / 12px 12px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='%23000' stroke-width='1.2' stroke-linecap='square'/%3E%3C/svg%3E") center / 12px 12px no-repeat; }
+input[type=checkbox]:checked::before { opacity: 1; }
 input[type=checkbox]:hover:not(:disabled) { border-color: var(--text2); }
-input[type=checkbox]:checked:hover:not(:disabled) { border-color: var(--sel); }
 input[type=checkbox]:focus-visible { outline: 1px solid var(--sel); outline-offset: 2px; }
 input[type=checkbox]:disabled { opacity: .4; cursor: default; }
 input[type=checkbox][hidden] { display: none; }
@@ -1365,7 +1373,23 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlfold { border: 0; background: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 .tlfold:hover { color: var(--text); }
 .tlaudioname { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text2); }
-.tlscroll { flex: 1; min-height: 0; overflow: auto; background: var(--bg0); scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+.tlview { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 12px; grid-template-rows: minmax(0, 1fr) 12px; background: var(--bg0); }
+.tlscroll { min-height: 0; min-width: 0; overflow: auto; background: var(--bg0); scrollbar-width: none; }
+.tlscroll::-webkit-scrollbar { display: none; }
+/* the zoom bars: a dark track, the part in view in grey with aluminium ends (what you move) */
+.tlzbar { position: relative; background: var(--bg1); touch-action: none; cursor: pointer; }
+.tlzbar.h { grid-column: 1; grid-row: 2; margin-left: 132px; border-top: 1px solid var(--line); }
+.tlzbar.v { grid-column: 2; grid-row: 1; margin-top: 24px; border-left: 1px solid var(--line); }
+.tlcorner { grid-column: 2; grid-row: 2; background: var(--bg1); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.tlthumb { position: absolute; background: var(--line2); cursor: grab; }
+.tlzbar.h .tlthumb { top: 2px; bottom: 2px; }
+.tlzbar.v .tlthumb { left: 2px; right: 2px; }
+.tlzbar:hover .tlthumb, .tlzbar.drag .tlthumb { background: var(--line3); }
+.tlend { position: absolute; background: var(--fader); }
+.tlzbar.h .tlend { top: 0; bottom: 0; width: 5px; cursor: ew-resize; }
+.tlzbar.h .tlend.a { left: 0; } .tlzbar.h .tlend.b { right: 0; }
+.tlzbar.v .tlend { left: 0; right: 0; height: 5px; cursor: ns-resize; }
+.tlzbar.v .tlend.a { top: 0; } .tlzbar.v .tlend.b { bottom: 0; }
 .tlgrid { position: relative; min-height: 100%; }
 /* rows: a label column that stays put, lanes that scroll */
 .tlrow { display: flex; height: var(--tlrow, 50px); border-bottom: 1px solid var(--line); }
@@ -1494,6 +1518,11 @@ aside { position: relative; }
 .panelhost[hidden], aside.left > section[hidden] { display: none; }
 .panelhost > * { flex: 1; min-height: 0; }
 .movedtabs { display: flex; align-items: stretch; }
+/* a panel's tabs in a row that scrolls sideways when they don't fit (hscroller: ‹ › and a fade at an end with more) */
+.tabs > .hscroll { flex: 0 1 auto; min-width: 0; align-self: stretch; }
+.tabstrip { display: flex; align-items: stretch; position: relative; }
+.tabstrip > button, .tabstrip .mtab { flex: none; white-space: nowrap; }
+.tabs .hscroll .harrow { top: 4px; bottom: 4px; height: auto; margin-top: 0; width: 20px; }
 .sidetabs { flex: none; height: 32px; }
 .sidetabs[hidden] { display: none; }
 .mtab { display: flex; align-items: center; gap: 6px; border: 0; background: none; padding: 0 8px 0 12px; font: 600 10.5px/1 var(--label); letter-spacing: .14em; text-transform: uppercase;

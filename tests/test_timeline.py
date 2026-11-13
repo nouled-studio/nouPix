@@ -158,15 +158,22 @@ try:
     E(f"(() => {{ const s = zoneById('{Z[0]}').scenes[0]; s.thumb = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA='; commit(); refreshTimeline(); }})()"); time.sleep(0.3)
     check("a scene with a snapshot fills its clips with it, as a filmstrip", pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}'] .tlclip .tlstrip.shot").count() >= 1 and 'url(' in pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}'] .tlclip .tlstrip.shot").first.get_attribute('style'))
 
-    # ---------- zoom: the slider dragged smoothly (the bar isn't drawn again under the mouse)
-    E("window._zs = $('#dockBody .tlzoom')")
-    zb = pg.locator("#dockBody .tlzoom").bounding_box(); z0 = E("ui.tlZoom")
-    pg.mouse.move(zb["x"] + zb["width"] * 0.15, zb["y"] + zb["height"] / 2); pg.mouse.down()
-    for k in range(1, 9): pg.mouse.move(zb["x"] + zb["width"] * (0.15 + k * 0.08), zb["y"] + zb["height"] / 2); time.sleep(0.03)
+    # ---------- zoom: the bar under the tracks, its right end dragged left (less time in view: zoomed in), its middle
+    # dragged to scroll; the bar stays the same under the mouse
+    E("tlPause()")   # (playing, the view follows the playhead)
+    E("window._zs = $('#dockBody .tlzbar.h')")
+    end = pg.locator("#dockBody .tlzbar.h .tlend.b").bounding_box(); z0 = E("ui.tlZoom")
+    x, y = end["x"] + end["width"] / 2, end["y"] + end["height"] / 2
+    pg.mouse.move(x, y); pg.mouse.down()
+    for k in range(1, 9): pg.mouse.move(x - k * 12, y); time.sleep(0.03)
     mid = E("[ui.tlZoom, window._zs.isConnected]")
     pg.mouse.up(); time.sleep(0.2)
-    check("dragging the zoom slider: it stays the same slider under the mouse and the zoom follows it", mid[1] and mid[0] > z0 + 40 and E("window._zs.isConnected"), (z0, mid))
+    check("the zoom bar's end dragged in: zoomed in, the bar the same under the mouse", mid[1] and mid[0] > z0 + 3 and E("window._zs.isConnected"), (z0, mid))
     check("…the tracks drawn at the new zoom", abs(E("parseFloat($('#dockBody .tlgrid').style.width)") - (132 + E("project.timelines[0].length * ui.tlZoom"))) < 1)
+    E("tlZoomTo(200)"); time.sleep(0.2)   # more than fits: something to scroll
+    th = pg.locator("#dockBody .tlzbar.h .tlthumb").bounding_box(); x, y = th["x"] + th["width"] / 2, th["y"] + th["height"] / 2
+    pg.mouse.move(x, y); pg.mouse.down(); pg.mouse.move(x + 80, y, steps=4); pg.mouse.up(); time.sleep(0.2)
+    check("…its middle dragged scrolls the tracks", E("$('#dockBody .tlscroll').scrollLeft") > 50, (E("$('#dockBody .tlscroll').scrollLeft"), th, E("[tl.playing, $('#dockBody .tlscroll').scrollWidth, $('#dockBody .tlscroll').clientWidth, document.elementFromPoint(" + str(x) + "," + str(y) + ").className]")))
     E("tlZoomTo(40)")
 
     # ---------- the grid in bars

@@ -200,14 +200,16 @@ function renderSides() {
       $('#rightMoved').replaceChildren(...moved.map(tab));
       $$('#rightTabs button[data-tab]').forEach(b => b.classList.toggle('on', !open && b.dataset.tab === ui.rightTab));
       $('#rightBody').hidden = !!open;
+      tabsInView($('#rightTabs'));
     } else {
       const tabs = $('#leftTabs');
       tabs.hidden = !moved.length;
       // the tab row stands for the Fixtures head meanwhile: its « at the end
       aside.classList.toggle('tabbed', moved.length > 0);
-      tabs.replaceChildren(h('button', { type: 'button', class: 'mtab' + (open ? '' : ' on'), onclick: () => openSideTab('left', null) }, 'Fixtures'), ...moved.map(tab),
+      tabs.replaceChildren(tabStrip(h('span', { class: 'tabstrip' }, h('button', { type: 'button', class: 'mtab' + (open ? '' : ' on'), onclick: () => openSideTab('left', null) }, 'Fixtures'), ...moved.map(tab))),
         h('span', { class: 'fill' }), h('span', { class: 'tabtools' }, h('button', { class: 'btn ghost sm', type: 'button', title: 'Hide this panel (Shift H)', 'aria-label': 'Hide the left panel', onclick: () => showLeft(false) }, '\u00ab')));
       for (const sec of $$('aside.left > section')) sec.hidden = !!open;
+      tabsInView(tabs);
     }
     host.hidden = !open;
     aside.classList.toggle('wide', !!open);
@@ -217,9 +219,26 @@ function renderSides() {
     else if (host.firstChild) host.replaceChildren();
   }
 }
+// A panel's tabs that don't all fit: a row that scrolls sideways, ‹ › at an end with more past it, the wheel scrolling
+// it, the open tab brought into view
+function tabStrip(strip) {
+  strip.addEventListener('wheel', e => { if (strip.scrollWidth > strip.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); strip.scrollLeft += e.deltaY; } }, { passive: false });
+  return hscroller(strip);
+}
+function tabsInView(row) {
+  const strip = row && row.querySelector('.tabstrip'), on = strip && strip.querySelector('.on');
+  if (!strip) return;
+  requestAnimationFrame(() => {
+    if (on) { const a = on.offsetLeft - strip.offsetLeft, b = a + on.offsetWidth; if (a < strip.scrollLeft) strip.scrollLeft = a - 24; else if (b > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = b - strip.clientWidth + 24; }
+    if (strip._hshow) strip._hshow();
+  });
+}
 // A side's inner edge dragged sets its width while a moved tab is open (the stage at least 240px), once per drawn
 // frame, the stage's canvas keeping its size until the drag ends (holdStage)
 function initSides() {
+  // the right panel's tabs (its own and the ones moved there) in a row that scrolls sideways when they don't fit
+  const rt = $('#rightTabs'), strip = h('span', { class: 'tabstrip' }, ...$$('#rightTabs > button[data-tab]'), $('#rightMoved'));
+  rt.insertBefore(tabStrip(strip), rt.querySelector('.fill'));
   for (const side of ['left', 'right']) {
     const grip = $('#' + side + 'Grip'), aside = $('aside.' + side);
     if (!grip) continue;

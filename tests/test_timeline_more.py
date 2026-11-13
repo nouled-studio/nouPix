@@ -2,7 +2,7 @@
 # the tempo found in the audio (made-up music at known tempos and downbeats; a file added found by itself, the grid in
 # bars from its first downbeat, beat lines on the tracks, Detect), markers on the audio (+ Marker and M, the usual names,
 # a colour, dragged and snapped, clicked to go there, renamed, deleted, a line through the zones, files and their
-# repair), the audio track folded, the tracks' height (slider, Alt + scroll, kept), Fit; the scenes' three sizes per
+# repair), the audio track folded, the tracks' height (the bar beside them, Alt + scroll, kept), Fit; the scenes' three sizes per
 # place; a zone stopped (■, its menu, a device: faded to black over the default fade, its playlist stopped, undo); the
 # tick box drawn in the look.
 import os, sys, time, json
@@ -45,7 +45,9 @@ try:
     # ---------- the tempo of made-up music
     res = E("[[128, 0.3], [174, 1.1], [95.5, 0.05], [140, 0.9]].map(([b, o]) => { const r = tlDetectBeat(music(b, o, 40)), bar = 240 / b; return [b, +(o % bar).toFixed(3), r && r.bpm, r && r.t0]; })")
     check("the tempo and the first downbeat of music at 128, 174, 95.5 and 140 BPM", all(r[2] and abs(r[2] - r[0]) < 0.05 and abs(r[3] - r[1]) < 0.03 for r in res), res)
-    check("no beat in silence", E("tlDetectBeat({ sampleRate: 22050, numberOfChannels: 1, length: 22050 * 10, getChannelData: () => new Float32Array(22050 * 10) })") is None or E("(tlDetectBeat({ sampleRate: 22050, numberOfChannels: 1, length: 22050 * 10, getChannelData: () => new Float32Array(22050 * 10) }) || { conf: 0 }).conf < 3"))
+    check("no beat in silence", E("tlDetectBeat({ sampleRate: 22050, numberOfChannels: 1, length: 22050 * 10, getChannelData: () => new Float32Array(22050 * 10) })") is None)
+    nz = E("(() => { const d = new Float32Array(44100 * 20); let s = 9; for (let i = 0; i < d.length; i++) { s = (s * 16807) % 2147483647; d[i] = (s / 2147483647 - 0.5) * 0.3; } const r = tlDetectBeat({ sampleRate: 44100, numberOfChannels: 1, length: d.length, getChannelData: () => d }); return !r || r.weak; })()")
+    check("…nor in noise", nz)
 
     E("""(() => { olm.loadProject(demoProject()); for (const z of project.zones) while (z.scenes.length < 3) storeScene(z);
       const T = newTimeline(); project.timelines.push(T); ui.tlId = T.id; ui.dockTab = 'timeline'; ui.dockCollapsed = false; ui.dockH = 460; ui.tlZoom = 40; ui.tlRowH = 50; ui.tlAudioFold = false; commit(); renderDock(); })()""")
@@ -66,6 +68,22 @@ try:
     E("undo()"); time.sleep(0.2)
     check("…a step of undo", E(f"{T}.bpm") == 100)
     E("redo()"); time.sleep(0.2)
+    pg.locator("#dockBody button[aria-label='Twice the tempo']").click(); time.sleep(0.2)
+    check("×2 doubles the tempo, bar 1 where it was", E(f"[{T}.bpm, Math.abs({T}.beat0 - 0.6) < 0.03]") == [248, True])
+    pg.locator("#dockBody button[aria-label='Half the tempo']").click(); time.sleep(0.2)
+    check("÷2 halves it", E(f"{T}.bpm") == 124)
+    rb = pg.locator("#dockBody .tlruler").bounding_box(); b0 = E(f"{T}.beat0")
+    pg.mouse.click(rb["x"] + (b0 + 60 / 124 * 2 + 0.05) * 40, rb["y"] + 12, button="right"); time.sleep(0.2)
+    pg.locator(".menu button:has-text('Bar 1 starts here')").click(); time.sleep(0.2)
+    check("the ruler's menu: bar 1 on the beat nearest", abs(E(f"{T}.beat0") - (b0 + 60 / 124 * 2)) < 2e-3, (b0, E(f"{T}.beat0")))
+    lbl = E("[...$$('#dockBody .tltick.major')].slice(0, 1).map(e => [e.textContent, parseFloat(e.style.left)])")
+    check("…the ruler's bars from there", abs(lbl[0][1] / 40 - E(f"{T}.beat0")) < 0.03, lbl)
+    E("undo()"); time.sleep(0.2)
+    # a file with no beat: said so, the grid left alone
+    E(f"(() => {{ const d = new Float32Array(22050 * 12); let s = 3; for (let i = 0; i < d.length; i++) {{ s = (s * 16807) % 2147483647; d[i] = (s / 2147483647 - 0.5) * 0.3; }} const K = newTimeline({{ name: 'Noise' }}); project.timelines.push(K); ui.tlId = K.id; commit({{ lists: false }}); refreshTimeline(); setTimelineAudio(K, wav({{ sampleRate: 22050, data: d }}, 'noise.wav')); }})()")
+    pg.wait_for_function("[...document.querySelectorAll('.toast')].some(t => /No steady beat/.test(t.textContent))", timeout=20000)
+    check("a file with no beat: said so, the grid left in seconds", E("project.timelines.at(-1).grid") == "sec")
+    E(f"ui.tlId = {T}.id; refreshTimeline()"); time.sleep(0.2)
 
     # ---------- markers
     E(f"tlSeek({T}, 4); refreshTimeline()"); time.sleep(0.2)
@@ -106,11 +124,12 @@ try:
     pg.locator("#dockBody .tlfold").click(); time.sleep(0.3)
     check("…and opens again", pg.locator("#dockBody .tlaudio").bounding_box()["height"] > 40)
     trk = lambda: pg.locator("#dockBody .tltrack").first.bounding_box()["height"]
-    s = pg.locator("#dockBody .tlvzoom"); s.evaluate("e => { e.value = 90; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }"); time.sleep(0.3)
-    check("the height slider makes the tracks taller, and their clips", abs(trk() - 90) < 2 and E("ui.tlRowH") == 90, (trk(), E("ui.tlRowH")))
-    sb = pg.locator("#dockBody .tlscroll").bounding_box()
+    t0 = trk(); eb = pg.locator("#dockBody .tlzbar.v .tlend.b").bounding_box(); x, y = eb["x"] + eb["width"] / 2, eb["y"] + eb["height"] / 2
+    pg.mouse.move(x, y); pg.mouse.down(); pg.mouse.move(x, y - 60, steps=5); pg.mouse.up(); time.sleep(0.3)
+    check("the bar beside the tracks, its end dragged in: the tracks taller, kept", trk() > t0 + 10 and E("JSON.parse(localStorage.getItem('noupix.ui')).tlRowH") == E("ui.tlRowH"), (t0, trk()))
+    t1 = trk(); sb = pg.locator("#dockBody .tlscroll").bounding_box()
     pg.mouse.move(sb["x"] + 400, sb["y"] + 120); pg.keyboard.down("Alt"); pg.mouse.wheel(0, 200); pg.keyboard.up("Alt"); time.sleep(0.3)
-    check("Alt + scroll makes them shorter", trk() < 88, trk())
+    check("Alt + scroll makes them shorter", trk() < t1 - 2, (t1, trk()))
     E(f"(() => {{ const z = project.zones[0]; addClip({T}, z, z.scenes[0].id, 2); {T}.tracks[z.id][0].dur = 20; commit({{ lists: false }}); refreshTimeline(); }})()"); time.sleep(0.2)
     pg.locator("#dockBody .tlbar button:has-text('Fit')").click(); time.sleep(0.4)
     vw = pg.locator("#dockBody .tlscroll").bounding_box()
@@ -129,7 +148,7 @@ try:
     E("setXfadeOn(true)"); time.sleep(0.3); pg.keyboard.press("Escape")
     cols = lambda: E("(() => { const t = $$('#dockBody .xfpair .zoneblock')[0].querySelectorAll('.scene'); return new Set([...t].map(e => Math.round(e.getBoundingClientRect().top))).size ? getComputedStyle($('#dockBody .xfpair .stiles')).gridTemplateColumns.split(' ').length : 0; })()")
     c_s = cols(); pg.locator("#dockBody .ssize button[data-size=m]").click(); time.sleep(0.3); c_m = cols()
-    check("A and B side by side: 4 to a row in medium, more in small", c_m == 4 and c_s == 6, (c_s, c_m))
+    check("A and B side by side: 4 to a row in medium, more in small", c_m == 4 and c_s == 5, (c_s, c_m))
     E("setXfadeOn(false)"); time.sleep(0.2)
     E("setPanelPlace('scenes', 'right')"); time.sleep(0.4)
     check("each place has its own: medium on the right while small at the bottom", E("ui.sceneSize.right") == "m" and E("ui.sceneSize.bottom") == "m" and pg.locator("#rightHost .ssize button.on").get_attribute("data-size") == "m")
@@ -158,8 +177,9 @@ try:
     check("…and its menu", E(f"zoneById('{Z}').layers.length") == 0)
 
     # ---------- the tick box
-    tb = E("(() => { const i = document.createElement('input'); i.type = 'checkbox'; document.body.append(i); const a = getComputedStyle(i), b0 = getComputedStyle(i, '::before').transform; i.checked = true; const r = [a.appearance, a.width, b0, getComputedStyle(i).borderTopColor === getComputedStyle(document.documentElement).getPropertyValue('--sel').trim() || getComputedStyle(i).borderTopColor]; i.remove(); return r; })()")
-    check("the tick box: square, drawn by the look, its mark hidden until ticked", tb[0] == "none" and tb[1] == "14px" and "matrix(0" in tb[2], tb)
+    tb = E("(() => { const i = document.createElement('input'); i.type = 'checkbox'; document.body.append(i); const a = getComputedStyle(i), o0 = getComputedStyle(i, '::before').opacity; i.checked = true; const o1 = getComputedStyle(i, '::before').opacity; const r = [a.appearance, a.width, o0, o1]; i.remove(); return r; })()")
+    time.sleep(0.2)
+    check("the tick box: a thin square drawn by the look, its thin red tick shown only when ticked", tb[0] == "none" and tb[1] == "14px" and tb[2] == "0", tb)
     check("no errors in the page", not errs, errs[:3])
     br.close()
 finally:

@@ -81,14 +81,18 @@ function renderTimeline(body) {
     segBtns([['sec', 'Seconds'], ['bars', 'Bars', 'Bars and beats at the tempo given']], T.grid, v => { T.grid = v; commit({ lists: false }); refreshTimeline(); }, 'Grid'),
     T.grid === 'bars' ? h('label', { class: 'tlbpm', title: 'The tempo the bars follow' }, h('input', { type: 'number', min: 20, max: 300, step: 0.1, value: fmtV(T.bpm), 'aria-label': 'BPM',
       onchange: e => { T.bpm = clamp(+e.target.value || 120, 20, 300); commit({ lists: false }); refreshTimeline(); }, onkeydown: e => { if (e.key === 'Enter') e.target.blur(); } }), 'BPM') : null,
-    T.audio ? h('button', { type: 'button', class: 'btn sm', title: 'Find the tempo and the first downbeat of the audio: the bars follow the music', onclick: () => tlDetect(T, true) }, 'Detect') : null,
+    T.grid === 'bars' ? h('span', { class: 'tlseg', role: 'group', 'aria-label': 'Tempo twice or half' },
+      h('button', { type: 'button', title: 'Half the tempo (it counts twice too fast)', 'aria-label': 'Half the tempo', onclick: () => tlTempoTimes(T, 0.5) }, '÷2'),
+      h('button', { type: 'button', title: 'Twice the tempo (it counts half too slow)', 'aria-label': 'Twice the tempo', onclick: () => tlTempoTimes(T, 2) }, '×2')) : null,
+    T.audio ? h('button', { type: 'button', class: 'btn sm', title: 'Find the tempo and bar 1 in the audio: the bars follow the music', onclick: () => tlDetect(T, true) }, 'Detect') : null,
     h('label', { class: 'tlsnap', title: 'Clips and markers snap to the grid, the playhead and other clips' }, h('input', { type: 'checkbox', checked: tlSnap, onchange: e => { tlSnap = e.target.checked; } }), 'Snap'),
     h('span', { class: 'fill' }),
+    // the zoom: these sliders, or the bars under and beside the tracks (their ends dragged)
     h('span', { class: 'tlzlbl', title: 'Zoom in time' }, '↔'),
-    h('input', { type: 'range', class: 'tlzoom', min: 4, max: 240, step: 1, value: ui.tlZoom, 'aria-label': 'Zoom', title: 'Zoom in time (Ctrl + scroll on the tracks)',
+    h('input', { type: 'range', class: 'tlzoom', min: 4, max: 240, step: 1, value: ui.tlZoom, 'aria-label': 'Zoom', title: 'Zoom in time (or the bar under the tracks, or Ctrl + scroll)',
       oninput: e => tlZoomTo(+e.target.value), onchange: () => savePrefs() }),
     h('span', { class: 'tlzlbl', title: 'Track height' }, '↕'),
-    h('input', { type: 'range', class: 'tlzoom tlvzoom', min: 30, max: 160, step: 1, value: tlRow(), 'aria-label': 'Track height', title: 'Track height (Alt + scroll on the tracks)',
+    h('input', { type: 'range', class: 'tlzoom tlvzoom', min: 30, max: 160, step: 1, value: tlRow(), 'aria-label': 'Track height', title: 'Track height (or the bar beside the tracks, or Alt + scroll)',
       oninput: e => tlRowTo(+e.target.value), onchange: () => savePrefs() }),
     h('button', { type: 'button', class: 'btn sm', title: 'Zoom to fit: every clip in view, the tracks filling the panel', onclick: () => tlFit(T) }, 'Fit'),
     h('button', { type: 'button', class: 'btn sm', title: 'A marker at the playhead: Drop, Break, Build up… (M)', onclick: () => markerDialog(T, null, mine ? tlPos() : 0) }, '+ Marker'),
@@ -96,7 +100,10 @@ function renderTimeline(body) {
     h('button', { type: 'button', class: 'btn sm', title: T.audio ? 'Another audio file for this timeline' : 'An audio file that plays with the timeline', onclick: () => fileIn.click() }, T.audio ? 'Audio…' : '+ Audio'),
     T.audio ? h('button', { type: 'button', class: 'btn sm icon', title: 'Remove the audio', 'aria-label': 'Remove the audio', onclick: () => { tlHalt(); T.audio = null; commit({ lists: false }); refreshTimeline(); } }, '×') : null,
     fileIn));
-  panel.append(tlTracks(T, mine));
+  // the tracks, with a bar under them and one beside them: their middle scrolls, their ends zoom (in time, in height)
+  const hbar = zoomBar(T, 'h'), vbar = zoomBar(T, 'v');
+  panel.append(h('div', { class: 'tlview' }, tlTracks(T, mine), vbar, hbar, h('span', { class: 'tlcorner' })));
+  requestAnimationFrame(() => tlBarsSync(true));
 }
 // The tracks: a ruler, the audio, the zones (top zone first); drawn again alone when zooming, so the bar and its
 // slider stay as they are while dragged
@@ -130,6 +137,13 @@ function tlTracks(T, mine) {
       ruler.append(m);
     }
   }
+  // right-click: bar 1 starts here (on the beat nearest), the grid in bars from it
+  onRightClick(ruler, e => {
+    const t = clamp((e.clientX - ruler.getBoundingClientRect().left) / ui.tlZoom, 0, T.length), beat = 60 / T.bpm, b0 = T.beat0 || 0;
+    const on = T.grid === 'bars' ? b0 + Math.round((t - b0) / beat) * beat : t;
+    menu(e, [{ head: fmtTime(on) }, ['Bar 1 starts here', () => { T.beat0 = Math.round(Math.max(0, on % (beat * 4)) * 1000) / 1000; T.grid = 'bars'; commit({ lists: false }); refreshTimeline(); }],
+      ['Add a marker here…', () => markerDialog(T, null, on)]]);
+  });
   ruler.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     e.preventDefault(); ruler.setPointerCapture(e.pointerId); tlDrag = true;
@@ -152,7 +166,7 @@ function tlTracks(T, mine) {
   alane.addEventListener('drop', e => { alane.classList.remove('drop'); const f = [...e.dataTransfer.files].find(f => /^audio\//.test(f.type) || /\.(mp3|wav|ogg|oga|opus|m4a|aac|flac)$/i.test(f.name)); if (!f) return; e.preventDefault(); setTimelineAudio(T, f); });
   if (fold) alane.classList.add('folded');
   if (T.audio && !fold) {
-    const a = tlAudio(T), P = tlPeaks.get(T.audio.media || T.audio._url), dur = P && P.dur ? P.dur : (a && isFinite(a.duration) ? a.duration : T.length);
+    const a = tlAudio(T), P = tlPeakOf(T), dur = P && P.dur ? P.dur : (a && isFinite(a.duration) ? a.duration : T.length);
     alane.append(h('div', { class: 'tlablock', style: { width: Math.min(dur, T.length) * ui.tlZoom + 'px' } },
       h('span', { class: 'tlin' }, h('span', { class: 'tlhdr' }, T.audio.name), h('span', { class: 'tlstrip' }, waveform(T)))));
   } else if (!fold) alane.append(h('span', { class: 'tlhint' }, 'Drop an audio file here, or + Audio'));
@@ -212,7 +226,7 @@ function tlTracks(T, mine) {
 function tlZoomTo(z, at) {
   const T = shownTimeline();
   if (!T) return;
-  z = clamp(Math.round(z), 4, 240);
+  z = Math.round(clamp(z, 4, 240) * 100) / 100;
   if (z === ui.tlZoom) return;
   const old = ui.tlZoom;
   ui.tlZoom = z;
@@ -223,9 +237,8 @@ function tlZoomTo(z, at) {
     const n = tlTracks(T, tl.id === T.id);
     sc.replaceWith(n);
     n.scrollLeft = Math.max(0, t * z - x + TL_LABEL);
-    const sl = $('.tlzoom', r);
-    if (sl && +sl.value !== z) sl.value = z;
   }
+  tlBarsSync(true);
 }
 // A clip: where and how long, its scene's name, its fades drawn as the level's line, handles to change each
 // A clip: the logo's two cuts, like a scene's tile; a header with its scene's name over a filmstrip of the scene's
@@ -348,7 +361,10 @@ function dragMark(e, T, k, m, ruler) {
 // The audio's waveform: its peaks worked out once per file (in the background), drawn at the zoom
 const tlPeaks = new Map();
 function waveform(T) {
-  const a = tlAudio(T), key = T.audio.media || T.audio._url, P = tlPeaks.get(key);
+  const a = tlAudio(T), key = T.audio.media || T.audio._url;
+  // read once: stored in the library meanwhile, it keeps what was worked out from the file
+  if (!tlPeaks.has(key) && T.audio._url && tlPeaks.get(T.audio._url) && tlPeaks.get(T.audio._url).pk) tlPeaks.set(key, tlPeaks.get(T.audio._url));
+  const P = tlPeaks.get(key);
   const dur = P && P.dur ? P.dur : (a && isFinite(a.duration) ? a.duration : 0);
   if (!P && key) {
     tlPeaks.set(key, { loading: true });
@@ -359,7 +375,7 @@ function waveform(T) {
         for (let i = 0; i < N; i++) { let m = 0; for (let j = i * n, e = Math.min(d.length, j + n); j < e; j++) { const v = Math.abs(d[j]); if (v > m) m = v; } pk[i] = m; }
         tlPeaks.set(key, { pk, dur: buf.duration, beat: tlDetectBeat(buf) });
         // a file just added: its tempo found by itself
-        for (const K of project.timelines) if (K._detect && K.audio && (K.audio.media || K.audio._url) === key) { delete K._detect; tlDetect(K, false); }
+        for (const K of project.timelines) if (K._detect && K.audio && (K.audio.media === key || K.audio._url === key)) { delete K._detect; tlDetect(K, false); }
         refreshTimeline();
       }).catch(() => tlPeaks.set(key, { failed: true }));
   }
@@ -406,6 +422,7 @@ function drawTimelineHead() {
       if (x - sc.scrollLeft > TL_LABEL + vis - 20 || x - sc.scrollLeft < TL_LABEL) sc.scrollLeft = Math.max(0, x - TL_LABEL - 40);
     }
   }
+  tlBarsSync();
   // the clips showing now: a white edge and a small red square, as a scene playing
   const live = tl.id === T.id ? Object.values(tl.clips).filter(Boolean).join(' ') : '';
   for (const r of tlRoots()) if (r._tlLive !== live) { r._tlLive = live; for (const el of $$('.tlclip', r)) el.classList.toggle('live', live.includes(el.dataset.clip)); }
@@ -700,13 +717,21 @@ function keyDialog(T, c, cv, k) {
 }
 // The audio's tempo and first downbeat (worked out with its waveform): the grid in bars from them
 function tlDetect(T, asked) {
-  const P = T.audio && tlPeaks.get(T.audio.media || T.audio._url);
+  const P = tlPeakOf(T);
   if (!P || !P.pk) { if (asked) { T._detect = true; toast('Reading the audio first…'); } return; }
   const b = P.beat;
-  if (!b || b.conf < 3) { if (asked) toast('No steady beat found in ' + T.audio.name + '. Type its BPM instead.', 'warn'); return; }
+  // said either way, asked or not: what was found, or that nothing was
+  if (!b || b.weak) { toast('No steady beat found in ' + T.audio.name + '. Type its BPM instead.', 'warn'); return; }
   T.bpm = b.bpm; T.beat0 = b.t0; T.grid = 'bars';
   commit({ lists: false }); refreshTimeline();
-  toast(`${fmtV(b.bpm)} BPM, the first downbeat at ${fmtTime(b.t0)}: the grid follows the beat.`);
+  toast(`${fmtV(b.bpm)} BPM, bar 1 at ${fmtTime(b.t0)}: the grid follows the beat. If it counts twice too fast or slow, ×2 or ÷2; to move bar 1, right-click the ruler.`);
+}
+// The audio's peaks and beat: under its name in the media library, or the file's own address until it is stored there
+const tlPeakOf = T => (T.audio ? tlPeaks.get(T.audio.media) || tlPeaks.get(T.audio._url) : null);
+// Twice or half the tempo (half-time and double-time count the same music), bar 1 where it was
+function tlTempoTimes(T, k) {
+  T.bpm = clamp(Math.round(T.bpm * k * 100) / 100, 20, 300);
+  commit({ lists: false }); refreshTimeline();
 }
 
 /* ---------- markers ---------- */
@@ -796,9 +821,8 @@ function tlRowTo(v) {
     if (!sc) continue;
     const x = sc.scrollLeft, y = sc.scrollTop, n = tlTracks(T, tl.id === T.id);
     sc.replaceWith(n); n.scrollLeft = x; n.scrollTop = y;
-    const sl = $('.tlvzoom', r);
-    if (sl && +sl.value !== v) sl.value = v;
   }
+  tlBarsSync(true);
 }
 // Fit: from the start to the end of what is on it (clips, markers, the audio, at least 4 s) across the view, and the
 // tracks sharing the panel's height
@@ -808,7 +832,7 @@ function tlFit(T) {
   let end = 4;
   for (const cs of Object.values(T.tracks)) for (const c of cs) end = Math.max(end, c.start + c.dur);
   for (const m of T.markers || []) end = Math.max(end, m.t + 1);
-  const P = T.audio && tlPeaks.get(T.audio.media || T.audio._url);
+  const P = tlPeakOf(T);
   if (P && P.dur) end = Math.max(end, Math.min(P.dur, T.length));
   end = Math.min(end * 1.03, T.length);
   const rows = project.zones.reduce((n, z) => n + ((T.lanes && T.lanes[z.id]) || 1), 0) + (ui.tlAudioFold ? 0 : 1);
@@ -817,4 +841,82 @@ function tlFit(T) {
   ui.tlZoom = clamp((sc.clientWidth - TL_LABEL - 12) / end, 4, 240);
   savePrefs(); refreshTimeline();
   for (const r of tlRoots()) { const s2 = $('.tlscroll', r); if (s2) { s2.scrollLeft = 0; s2.scrollTop = 0; } }
+}
+
+/* ---------- the zoom bars ---------- */
+// As in video editors: under the tracks a bar for time, beside them one for their height. Its thumb is the part in
+// view: dragged by its middle it scrolls, by an end it zooms, the other end staying where it is.
+function zoomBar(T, dir) {
+  const thumb = h('span', { class: 'tlthumb' }, h('span', { class: 'tlend a' }), h('span', { class: 'tlend b' }));
+  const bar = h('div', { class: 'tlzbar ' + dir, role: 'scrollbar', 'aria-orientation': dir === 'h' ? 'horizontal' : 'vertical',
+    'aria-label': dir === 'h' ? 'Time in view: drag to scroll, its ends to zoom' : 'Tracks in view: drag to scroll, its ends to change their height',
+    title: dir === 'h' ? 'Drag to scroll; drag an end to zoom in time (also Ctrl + scroll)' : 'Drag to scroll; drag an end to make the tracks taller or shorter (also Alt + scroll)' }, thumb);
+  bar.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const sc = bar.parentNode.querySelector('.tlscroll');
+    if (!sc) return;
+    const part = e.target.closest('.tlend') ? (e.target.classList.contains('a') ? 'a' : 'b') : e.target.closest('.tlthumb') ? 'mid' : 'track';
+    const len = () => (dir === 'h' ? bar.clientWidth : bar.clientHeight), pos = ev => (dir === 'h' ? ev.clientX - bar.getBoundingClientRect().left : ev.clientY - bar.getBoundingClientRect().top);
+    // (zooming draws the tracks again: the scroll in view now, not the one pressed on)
+    const now = () => bar.parentNode.querySelector('.tlscroll') || sc;
+    const view = () => (dir === 'h' ? now().clientWidth - TL_LABEL : now().clientHeight), total = () => (dir === 'h' ? T.length * ui.tlZoom : now().scrollHeight);
+    // a click on the bar beside the thumb pages there
+    if (part === 'track') { const f = pos(e) / len(); if (dir === 'h') sc.scrollLeft = f * total() - view() / 2; else sc.scrollTop = f * total() - view() / 2; tlBarsSync(true); return; }
+    const p0 = pos(e), L = len(), s0 = dir === 'h' ? sc.scrollLeft : sc.scrollTop, z0 = ui.tlZoom, r0 = tlRow();
+    // in time: the edges of what is in view, in seconds; in height: the thumb's length
+    const tA = s0 / z0, tB = (s0 + view()) / z0, len0 = Math.min(1, view() / total()) * L;
+    bar.setPointerCapture(e.pointerId); bar.classList.add('drag'); tlDrag = true;
+    const mv = ev => {
+      const d = pos(ev) - p0, cur = now();
+      if (part === 'mid') {
+        const v = s0 + d / L * total();
+        if (dir === 'h') cur.scrollLeft = v; else cur.scrollTop = v;
+      } else if (dir === 'h') {
+        // an end dragged: what is in view from the other end to where this one is now
+        let a = tA, b = tB;
+        if (part === 'a') a = clamp(tA + d / L * T.length, 0, tB - 0.5); else b = clamp(tB + d / L * T.length, tA + 0.5, T.length * 2);
+        tlZoomSet(view() / Math.max(0.1, b - a), a);
+      } else {
+        // longer thumb: shorter tracks; the end dragged up or down by as much as it moved
+        const want = Math.max(12, len0 + (part === 'a' ? -d : d));
+        tlRowTo(r0 * len0 / want);
+      }
+      tlBarsSync(true);
+    };
+    const up = () => { bar.removeEventListener('pointermove', mv); bar.removeEventListener('pointerup', up); bar.removeEventListener('pointercancel', up); bar.classList.remove('drag'); tlDrag = false; savePrefs(); };
+    bar.addEventListener('pointermove', mv); bar.addEventListener('pointerup', up); bar.addEventListener('pointercancel', up);
+  });
+  return bar;
+}
+// The zoom in time with a given time at the left edge of the view
+function tlZoomSet(z, left) {
+  const T = shownTimeline();
+  if (!T) return;
+  tlZoomTo(z);
+  for (const r of tlRoots()) { const sc = $('.tlscroll', r); if (sc) sc.scrollLeft = Math.max(0, left * ui.tlZoom); }
+}
+// The thumbs where the view is (once a frame, and at once after a change)
+function tlBarsSync(now) {
+  const T = shownTimeline();
+  if (!T) return;
+  for (const r of tlRoots()) {
+    const sc = $('.tlscroll', r);
+    if (!sc) continue;
+    const key = [sc.scrollLeft, sc.scrollTop, sc.clientWidth, sc.clientHeight, sc.scrollHeight, ui.tlZoom, T.length].join();
+    if (!now && sc._barKey === key) continue;
+    sc._barKey = key;
+    // the sliders follow too (not the one being dragged: it is already there)
+    const zs = $('.tlzoom:not(.tlvzoom)', r), vs = $('.tlvzoom', r);
+    if (zs && Math.abs(+zs.value - ui.tlZoom) > 0.5) zs.value = Math.round(ui.tlZoom);
+    if (vs && +vs.value !== tlRow()) vs.value = tlRow();
+    for (const dir of ['h', 'v']) {
+      const bar = $('.tlzbar.' + dir, r), th = bar && bar.firstChild;
+      if (!th) continue;
+      const L = dir === 'h' ? bar.clientWidth : bar.clientHeight, view = dir === 'h' ? sc.clientWidth - TL_LABEL : sc.clientHeight;
+      const total = dir === 'h' ? T.length * ui.tlZoom : sc.scrollHeight, s0 = dir === 'h' ? sc.scrollLeft : sc.scrollTop;
+      const size = Math.max(24, Math.min(1, view / Math.max(1, total)) * L), at = Math.min(L - size, s0 / Math.max(1, total) * L);
+      if (dir === 'h') { th.style.left = at + 'px'; th.style.width = size + 'px'; } else { th.style.top = at + 'px'; th.style.height = size + 'px'; }
+    }
+  }
 }
