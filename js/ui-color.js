@@ -64,7 +64,8 @@ function drawWheelImage(px) {
 
 function openColorPicker(anchor, o) {
   closeColorPicker();
-  const before = o.get().slice(), alpha = before[3] ?? 1;
+  const before = o.get().slice();
+  let alpha = before[3] ?? 1;
   let rgb = before.slice(0, 3), hsv = rgbToHsv(...rgb);
   if (!COLOR_MODES.some(([m]) => m === ui.colorMode)) ui.colorMode = 'wheel';
 
@@ -98,7 +99,7 @@ function openColorPicker(anchor, o) {
   const grad = (n, f) => 'linear-gradient(to right,' + Array.from({ length: n }, (_, i) => css(f(i / (n - 1)))).join(',') + ')';
 
   // ---- the parts
-  const was = h('button', { class: 'cpwas', type: 'button', title: 'Before: click to go back to it', 'aria-label': 'Back to the colour before', onclick: () => { fromRGB(before.slice(0, 3)); done(); } });
+  const was = h('button', { class: 'cpwas', type: 'button', title: 'Before: click to go back to it', 'aria-label': 'Back to the colour before', onclick: () => { alpha = before[3] ?? 1; fromRGB(before.slice(0, 3)); done(); } });
   const now = h('div', { class: 'cpnow' });
   const hexIn = h('input', { type: 'text', class: 'mono', 'aria-label': 'Hex colour', spellcheck: false, maxlength: 7 });
   hexIn.addEventListener('change', () => { const c = fromHex(hexIn.value); if (c) { fromRGB(c); done(); } else hexIn.value = toHex(rgb); });
@@ -122,6 +123,10 @@ function openColorPicker(anchor, o) {
     x.beginPath(); x.arc(cx, cy, 6 * dpr, 0, 2 * Math.PI); x.fillStyle = css(rgb); x.fill(); x.stroke();
   };
 
+  // Alpha: how much of the layers below shows through where this colour is (0% all of them, 100% none), its track the
+  // colour over a checkerboard
+  const alphaRow = gslider('Alpha', 0, 100, 1, () => alpha * 100, v => { alpha = v / 100; apply(); },
+    () => `linear-gradient(to right, rgba(${rgb.map(x => Math.round(x * 255)).join(',')},0), ${css(rgb)}), repeating-conic-gradient(var(--line3) 0 25%, var(--bg2) 0 50%) 0 0 / 8px 8px`, '%');
   const intensity = () => gslider('Intensity', 0, 100, 1, () => hsv[2] * 100, v => fromHSV([hsv[0], hsv[1], v / 100]), () => grad(2, t => hsvToRgb(hsv[0], hsv[1], t)), '%');
   const parts = {
     wheel: [h('div', { class: 'cpwheelbox' }, wheel), intensity()],
@@ -140,7 +145,10 @@ function openColorPicker(anchor, o) {
   const showRecent = () => { const r = recentColors(); recentBox.replaceChildren(...(r.length ? r.map(x => chip(x, x)) : [h('span', { class: 'muted', style: { gridColumn: '1 / -1' } }, 'Colours you pick show here.')])); };
 
   function refresh() {
-    was.style.background = toHex(before); now.style.background = toHex(rgb);
+    const chk = 'repeating-conic-gradient(var(--line3) 0 25%, var(--bg2) 0 50%) 0 0 / 8px 8px';
+    was.style.background = `linear-gradient(rgba(${before.slice(0, 3).map(x => Math.round(x * 255)).join(',')},${before[3] ?? 1}), rgba(${before.slice(0, 3).map(x => Math.round(x * 255)).join(',')},${before[3] ?? 1})), ${chk}`;
+    now.style.background = `linear-gradient(rgba(${rgb.map(x => Math.round(x * 255)).join(',')},${alpha}), rgba(${rgb.map(x => Math.round(x * 255)).join(',')},${alpha})), ${chk}`;
+    alphaRow._sync();
     if (document.activeElement !== hexIn) hexIn.value = toHex(rgb);
     if (ui.colorMode === 'wheel') drawWheel();
     for (const el of body.children) if (el._sync) el._sync();
@@ -149,7 +157,7 @@ function openColorPicker(anchor, o) {
   const pop = h('div', { class: 'cpop', role: 'dialog', 'aria-label': 'Colour: ' + o.label },
     h('div', { class: 'cphead' }, h('span', { class: 'cpt' }, o.label), h('button', { class: 'x', type: 'button', 'aria-label': 'Close', onclick: closeColorPicker }, '×')),
     h('div', { class: 'cptop' }, h('div', { class: 'cpcmp' }, was, now), hexIn),
-    tabs, body,
+    tabs, body, alphaRow,
     h('div', { class: 'cplbl' }, 'Presets'), h('div', { class: 'cpchips grid' }, LIGHT_COLORS.map(([n, x]) => chip(n, x))),
     h('div', { class: 'cplbl' }, 'Recent'), recentBox);
   document.body.append(pop);

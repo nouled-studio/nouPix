@@ -287,6 +287,8 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .layers .mv button:disabled { opacity: .3; cursor: default; }
 .layers .mv button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
 .layers li.nosrc .nm { color: var(--muted); font-style: italic; }
+.layers li .nm { min-width: 40px; }
+.layers li .bl { max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; letter-spacing: .04em; }
 .layers .eye { width: 20px; height: 20px; }
 .layers .eye svg { width: 14px; height: 14px; }
 .x { width: 18px; height: 18px; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 0; padding: 0; display: grid; place-items: center; }
@@ -1464,6 +1466,11 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlflagname { position: absolute; left: 0; top: 0; height: 16px; padding: 0 6px 0 9px; font: 600 9.5px/16px var(--label); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
   color: var(--bg0); background: var(--tag, var(--fader)); clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
 .tlmline { position: absolute; top: 24px; bottom: 0; width: 0; border-left: 1px dashed color-mix(in srgb, var(--tag, var(--fader)) 45%, transparent); pointer-events: none; z-index: 1; }
+.tllabel.tlalabel { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; }
+.tlvol { display: flex; align-items: center; gap: 5px; }
+.tlvol input.tlvolr { flex: 1; min-width: 0; height: 14px; }
+.tlmute { display: grid; place-items: center; }
+.tlmute.on { color: var(--accent); }
 .tlpresets { display: flex; flex-wrap: wrap; gap: 4px; margin: -2px 0 8px; }
 .swatchdot { display: inline-block; width: 14px; height: 14px; vertical-align: middle; }
 /* keyframes: a clip unfolded shows a row per curve under its strip, the line in aluminium (what you move), keys as

@@ -85,6 +85,17 @@ try:
     check("a file with no beat: said so, the grid left in seconds", E("project.timelines.at(-1).grid") == "sec")
     E(f"ui.tlId = {T}.id; refreshTimeline()"); time.sleep(0.2)
 
+    # ---------- the audio's volume and mute
+    vr = pg.locator("#dockBody input[aria-label='Audio volume']")
+    vr.evaluate("e => { e.value = 0.4; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }"); time.sleep(0.2)
+    check("the audio's volume beside its name: the player follows, kept in the project", abs(E(f"tlAudio({T}).volume") - 0.4) < 1e-3 and E(f"{T}.audio.vol") == 0.4)
+    pg.locator("#dockBody button[aria-label='Mute the audio']").click(); time.sleep(0.2)
+    check("…mute: silent, the volume kept", E(f"tlAudio({T}).volume") == 0 and E(f"{T}.audio.mute") is True and E(f"{T}.audio.vol") == 0.4)
+    pg.locator("#dockBody button[aria-label='Unmute the audio']").click(); time.sleep(0.2)
+    check("…unmuted: back at 40%", abs(E(f"tlAudio({T}).volume") - 0.4) < 1e-3)
+    check("…files keep them, repaired", E(f"(() => {{ const p = JSON.parse(serialize()); p.timelines[0].audio.vol = 7; return hydrate(p).timelines[0].audio.vol; }})()") == 1)
+    E(f"{T}.audio.vol = 1; tlAudio({T}); commit({{ lists: false }}); refreshTimeline()")
+
     # ---------- markers
     E(f"tlSeek({T}, 4); refreshTimeline()"); time.sleep(0.2)
     pg.mouse.move(700, 120); pg.keyboard.press("m"); time.sleep(0.3)

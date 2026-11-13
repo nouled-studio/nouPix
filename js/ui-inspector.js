@@ -399,7 +399,7 @@ function layersSection(z) {
     const mv = (txt, d, off, label) => h('button', { type: 'button', disabled: off, title: label, 'aria-label': `${label}: layer ${i}`, onclick: e => { e.stopPropagation(); moveLayer(z, L, d); } }, txt);
     const li = h('li', { class: (L === cur ? 'sel ' : '') + (L.on ? '' : 'off ') + (src ? '' : 'nosrc'), 'data-id': L.id, title: `Drag, or ↑ ↓, to change the order: layers higher in the list cover the ones below. ${MOD}D duplicates the selected layer`, onclick: () => { ui.layer = L.id; renderRight(); renderSrcList(); } },
       h('span', { class: 'pgrip', 'aria-hidden': 'true' }), eye, h('span', { class: 'meta' }, i), h('span', { class: 'nm' }, src ? src.name : 'Empty'),
-      h('span', { class: 'meta' }, L.blend === 'alpha' ? '' : BLENDS[BLEND_IDX[L.blend]][1]),
+      h('span', { class: 'meta bl', title: L.blend === 'alpha' ? null : BLENDS[BLEND_IDX[L.blend]][1] }, L.blend === 'alpha' ? '' : BLEND_SHORT[L.blend] || BLENDS[BLEND_IDX[L.blend]][1]),
       h('span', { class: 'mv' }, mv('↑', 1, i === z.layers.length, 'Move up'), mv('↓', -1, i === 1, 'Move down')), op, trashBtn(`Remove layer ${i}`, () => removeLayer(z, L)));
     reorderable(li, li, 'layer', () => [L.id], ([id], after) => moveLayerTo(z, id, L, after));
     onRightClick(li, e => layerMenu(e, z, L));

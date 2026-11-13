@@ -38,6 +38,8 @@ const DEFAULT_SETTINGS = {
 // Blend modes, in the order the mixer shader numbers them
 const BLENDS = [['alpha', 'Alpha'], ['add', 'Add'], ['screen', 'Screen'], ['multiply', 'Multiply'], ['subtract', 'Subtract'], ['lighten', 'Lighten'], ['darken', 'Darken'], ['difference', 'Difference']];
 const BLEND_IDX = Object.fromEntries(BLENDS.map(([k], i) => [k, i]));
+// as the layer list shows them, short, so the layer's name keeps its room
+const BLEND_SHORT = { multiply: 'Mult', subtract: 'Sub', lighten: 'Light', darken: 'Dark', difference: 'Diff' };
 const BLEND_NOTES = {
   alpha: 'Covers the layers below as far as its opacity (and the source\'s own transparency) goes.',
   add: 'Adds its light to the layers below; black is invisible. Good for chases, comets and sparkles on top.',

@@ -22,6 +22,9 @@ function tlAudio(T) {
   if (!url) return null;
   let a = tlAudios.get(T.id);
   if (!a || a._src !== url) { if (a) a.pause(); a = new Audio(url); a._src = url; a.preload = 'auto'; tlAudios.set(T.id, a); }
+  // its volume and mute (the timeline's: kept in the project)
+  const vol = T.audio.mute ? 0 : clamp(numOr(T.audio.vol, 1), 0, 1);
+  if (Math.abs(a.volume - vol) > 1e-3) a.volume = vol;
   return a;
 }
 function tlAudioSync(T, p, play) {

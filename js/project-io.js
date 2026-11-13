@@ -185,6 +185,7 @@ function fixTimelines(list, zones) {
     const L = isObj(T.loop) ? T.loop : {}, a = clamp(numOr(L.a, 0), 0, length), b = clamp(numOr(L.b, Math.min(8, length)), 0, length);
     const A = isObj(T.audio) && typeof T.audio.name === 'string' ? { name: T.audio.name } : null;
     if (A && typeof T.audio.media === 'string' && /^[0-9a-f]{32}\.[a-z0-9]{1,5}$/.test(T.audio.media)) A.media = T.audio.media;
+    if (A) { A.vol = clamp(numOr(T.audio.vol, 1), 0, 1); if (T.audio.mute === true) A.mute = true; }
     return { id: uniqueId(T.id, ids), name: typeof T.name === 'string' && T.name ? T.name : 'Timeline ' + (i + 1), length, audio: A,
       grid: T.grid === 'bars' ? 'bars' : 'sec', bpm: clamp(numOr(T.bpm, 120), 20, 300), beat0: clamp(numOr(T.beat0, 0), 0, 60), markers: fixMarkers(T.markers, length),
       loop: { mode: ['off', 'all', 'region'].includes(L.mode) ? L.mode : 'off', a: Math.min(a, b), b: Math.max(b, Math.min(a, b) + 0.1) }, tracks, lanes };

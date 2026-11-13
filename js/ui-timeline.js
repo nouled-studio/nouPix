@@ -176,7 +176,15 @@ function tlTracks(T, mine) {
     const t = tlSnapT(T, (e.clientX - alane.getBoundingClientRect().left) / ui.tlZoom);
     menu(e, [{ head: fmtTime(t) }, ['Add a marker here…', () => markerDialog(T, null, t)]]);
   });
-  grid.append(h('div', { class: 'tlrow' + (fold ? ' afold' : '') }, h('div', { class: 'tllabel' }, h('span', { class: 'tlz' }, fold ? '' : T.audio ? T.audio.name.replace(/\.[a-z0-9]+$/i, '') : 'No audio')), alane));
+  // the audio's volume and mute beside its name
+  const volBox = T.audio && !fold ? h('span', { class: 'tlvol' },
+    h('button', { type: 'button', class: 'tllb tlmute' + (T.audio.mute ? ' on' : ''), title: T.audio.mute ? 'Sound on' : 'Mute', 'aria-label': T.audio.mute ? 'Unmute the audio' : 'Mute the audio', 'aria-pressed': String(!!T.audio.mute),
+      html: T.audio.mute ? '<svg viewBox="0 0 16 16" width="12" height="12"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.4"/></svg>'
+        : '<svg viewBox="0 0 16 16" width="12" height="12"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 010 5M12.5 3.5a6 6 0 010 9" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
+      onclick: () => { T.audio.mute = !T.audio.mute || undefined; if (!T.audio.mute) delete T.audio.mute; tlAudio(T); commit({ lists: false }); refreshTimeline(); } }),
+    h('input', { type: 'range', class: 'tlvolr', min: 0, max: 1, step: 0.01, value: numOr(T.audio.vol, 1), 'aria-label': 'Audio volume', title: 'Volume',
+      oninput: e => { T.audio.vol = +e.target.value; tlAudio(T); }, onchange: () => commit({ lists: false }) })) : null;
+  grid.append(h('div', { class: 'tlrow' + (fold ? ' afold' : '') }, h('div', { class: 'tllabel tlalabel' }, h('span', { class: 'tlz' }, fold ? '' : T.audio ? T.audio.name.replace(/\.[a-z0-9]+$/i, '') : 'No audio'), volBox), alane));
   grid.append(section('Zones'));
   // the zones
   // a zone's lanes, the highest on top: where clips overlap, the highest shows

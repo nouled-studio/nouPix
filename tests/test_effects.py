@@ -127,6 +127,28 @@ try:
     check("a color at 40% alpha over a white layer: 60% white and 40% red", all(abs(p[0] - 255) < 3 and abs(p[1] - 153) < 3 and abs(p[2] - 153) < 3 for p in half), half[:3])
     clear = ev(pic, [solid, {"count": 1, "colorA": [1, 0, 0, 0]}, True])
     check("…clear: the layer below as it is", all(p == [255, 255, 255] for p in clear), clear[:3])
+    # ---------- every effect's colours: alpha over the layers below (drawn again with each colour as its alpha)
+    fx = """async ([solid, id, P]) => { const z = project.zones[0];
+      z.layers = [Object.assign(newLayer(), { src: solid, params: { [solid]: { color: [0, 0, 1, 1] } } }), Object.assign(newLayer(), { src: 'b-' + id, params: { ['b-' + id]: Object.assign({ speed: 0 }, P) } })];
+      z._fade = null; await new Promise(r => setTimeout(r, 600));
+      const c = zonePicture(z, 60, 4), d = c.getContext('2d').getImageData(0, 2, 60, 1).data, out = [];
+      for (let i = 0; i < 60; i++) out.push([d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]); return out; }"""
+    opaque = ev(fx, [solid, "bars", {"color": [1, 0, 0, 1], "background": [0, 0, 0, 1]}])
+    see = ev(fx, [solid, "bars", {"color": [1, 0, 0, 1], "background": [0, 0, 0, 0]}])
+    check("Bars with its background at 100%: red bars on black, nothing of the blue layer below", any(p[0] > 200 for p in opaque) and all(p[2] < 20 for p in opaque), opaque[:8])
+    check("…its background at 0%: red bars over the blue layer, no black", any(p[0] > 200 for p in see) and all(p[0] + p[2] > 200 for p in see) and any(p[2] > 200 for p in see), see[:8])
+    half = ev(fx, [solid, "solid", {"color": [1, 0, 0, 0.5]}])
+    check("Solid color red at 50% over blue: half and half", all(abs(p[0] - 128) < 4 and abs(p[2] - 127) < 4 for p in half), half[:3])
+    # the colour picker: Alpha
+    ev("""(() => { const z = project.zones[0]; z.layers = [Object.assign(newLayer(), { src: 'b-bars', params: {} })]; ui.zone = z.id; ui.layer = z.layers[0].id; ui.rightTab = 'content'; renderRight(); })()"""); time.sleep(0.3)
+    pg.locator("#rightBody .cswatch").first.click(); time.sleep(0.3)
+    a = pg.locator(".cpop input[type=range][aria-label=Alpha]")
+    check("the colour picker has Alpha", a.count() == 1 and a.input_value() == "100")
+    a.evaluate("e => { e.value = 30; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }"); time.sleep(0.2)
+    av = ev("(() => { const L = project.zones[0].layers[0]; return L.params['b-bars'] && (L.params['b-bars'].color || L.params['b-bars'].background); })()")
+    check("…its value goes to the colour's alpha", av and abs(av[3] - 0.3) < 1e-6, av)
+    pg.keyboard.press("Escape")
+
     # the Content tab shows as many colours as it uses
     shown = ev("""async n => { const z = project.zones[0]; z.layers = [Object.assign(newLayer(), { src: 'b-rainbow', params: { 'b-rainbow': { count: n } } })];
       ui.zone = z.id; ui.layer = z.layers[0].id; ui.rightTab = 'content'; showRight(true); renderRight(); await new Promise(r => setTimeout(r, 300));
