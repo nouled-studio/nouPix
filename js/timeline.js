@@ -72,6 +72,75 @@ function tlWinner(clips, p) {
   for (const c of clips) if (c.start <= p && p < tlHandEnd(clips, c) && (!w || c.lane > w.lane || (c.lane === w.lane && c.start > w.start))) w = c;
   return w;
 }
+// The beat of the audio, worked out from the whole file once (no browser needed: tests give it made-up music): the rise
+// in energy of every 11.6 ms, in the kick's band (below 150 Hz) and in all of it, each against its recent average;
+// its autocorrelation scored at every tempo from 60 to 200 BPM (with its multiples, preferring those near 125), a tempo
+// within 0.15 of a whole number taken as that number; then where the beats fall (the offset whose beats land on the
+// most onsets) and which of four is the bar's first (the one whose bars land on the most kicks).
+function tlDetectBeat(buf) {
+  const sr = buf.sampleRate, hop = Math.max(64, Math.round(sr / 86.13)), ch = buf.numberOfChannels || 1, len = buf.length || buf.getChannelData(0).length;
+  const data = [...Array(ch).keys()].map(c => buf.getChannelData(c));
+  const N = Math.floor(len / hop), fps = sr / hop;
+  if (N < fps * 4) return null;
+  const a = 1 - Math.exp(-2 * Math.PI * 150 / sr), ek = new Float32Array(N), ef = new Float32Array(N), kl = new Float32Array(N);
+  let y = 0;
+  for (let i = 0; i < N; i++) {
+    let sk = 0, sf = 0;
+    for (let j = i * hop, e = j + hop; j < e; j++) {
+      let x = 0;
+      for (let c = 0; c < ch; c++) x += data[c][j];
+      x /= ch; y += a * (x - y); sk += y * y; sf += x * x;
+    }
+    kl[i] = sk; ek[i] = Math.log(1e-10 + sk); ef[i] = Math.log(1e-10 + sf);
+  }
+  const onset = e => {
+    const o = new Float32Array(N), W = Math.round(fps * 0.4);
+    for (let i = 1; i < N; i++) o[i] = Math.max(0, e[i] - e[i - 1]);
+    // less its local average, so a loud passage counts no more than a quiet one
+    const r = new Float32Array(N);
+    let acc = 0;
+    for (let i = 0; i < N; i++) { acc += o[i]; if (i >= W) acc -= o[i - W]; r[i] = Math.max(0, o[i] - acc / Math.min(i + 1, W)); }
+    return r;
+  };
+  const ok = onset(ek), of = onset(ef), o = new Float32Array(N);
+  for (let i = 0; i < N; i++) o[i] = ok[i] + 0.5 * of[i];
+  const maxLag = Math.ceil(fps * 60 / 60 * 4) + 2, ac = new Float32Array(maxLag + 1);
+  for (let L = 1; L <= maxLag && L < N; L++) { let sum = 0; for (let i = 0; i + L < N; i++) sum += o[i] * o[i + L]; ac[L] = sum / (N - L); }
+  const at = x => { const i = Math.floor(x), f = x - i; return i + 1 <= maxLag ? ac[i] * (1 - f) + ac[i + 1] * f : 0; };
+  let best = 0, bpm = 120, sum = 0, n = 0;
+  for (let b = 60; b <= 200; b += 0.05) {
+    const L = fps * 60 / b, w = Math.exp(-0.5 * Math.pow(Math.log2(b / 125) / 0.7, 2));
+    const sc = (at(L) + 0.5 * at(2 * L) + 0.33 * at(3 * L) + 0.25 * at(4 * L)) * w;
+    sum += sc; n++;
+    if (sc > best) { best = sc; bpm = b; }
+  }
+  if (!(best > 0)) return null;
+  // the onsets near each beat (a frame either side), over the whole file: the tempo whose beats stay on them longest
+  const near = (src, x) => { const i = Math.floor(x), f = x - i, g = j => src[j] || 0; return g(i) * (1 - f) + g(i + 1) * f + 0.5 * (g(i - 1) * (1 - f) + g(i + 2) * f); };
+  const comb = (src, ph, step) => { let s2 = 0; for (let x = ph; x < N; x += step) s2 += near(src, x); return s2; };
+  const fit = b => { const P = fps * 60 / b; let bp = -1, ph = 0; for (let x = 0; x < P; x += 0.5) { const v = comb(o, x, P); if (v > bp) { bp = v; ph = x; } } return [bp, ph]; };
+  let fine = bpm, fb = -1;
+  for (let b = bpm - 0.6; b <= bpm + 0.6; b += 0.02) { const [v] = fit(b); if (v > fb) { fb = v; fine = b; } }
+  bpm = Math.abs(fine - Math.round(fine)) < 0.15 ? Math.round(fine) : Math.round(fine * 100) / 100;
+  const P = fps * 60 / bpm;
+  // where the beats fall: on the onsets, and most on the kick's real rise in energy (on a log scale a bass note's rise
+  // looks as big as the kick's)
+  const kr = new Float32Array(N);
+  let mo = 0, mk = 0;
+  for (let i = 1; i < N; i++) { kr[i] = Math.max(0, kl[i] - kl[i - 1]); mk += kr[i]; mo += o[i]; }
+  mo = mo || 1; mk = mk || 1;
+  let ph = 0, bp = -1;
+  for (let x = 0; x < P; x += 0.25) { const v = comb(o, x, P) / mo + 2 * comb(kr, x, P) / mk; if (v > bp) { bp = v; ph = x; } }
+  // the bar's first beat: the loudest kicks
+  const peak = x => { const i = Math.round(x); return Math.max(kl[i] || 0, kl[i + 1] || 0, kl[i + 2] || 0, kl[i + 3] || 0); };
+  let j0 = 0, bj = -1;
+  for (let j = 0; j < 4; j++) { let v = 0; for (let x = ph + j * P; x < N; x += 4 * P) v += peak(x); if (v > bj) { bj = v; j0 = j; } }
+  const bar = 4 * 60 / bpm, t0 = (((ph + j0 * P) / fps) % bar + bar) % bar;
+  return { bpm, t0: Math.round(t0 * 1000) / 1000, conf: best / (sum / n) };
+}
+// The grid in bars: beats from the timeline's first downbeat (beat0), 4 to the bar
+const tlBeat = T => 60 / T.bpm;
+const tlBarOf = (T, t) => Math.floor((t - (T.beat0 || 0)) / (4 * tlBeat(T)) + 1e-6);
 // Keyframes: a clip's curves, each the clip's level ({ kind: 'level' }) or a control of an effect of its scene
 // ({ kind: 'param', src, ctl }), with keys { t (seconds from the clip's start), v, ease: 'linear' | 'ease' | 'hold' }.
 // Numbers, colours and points move from key to key (straight, or eased in and out); switches and lists step at each key,

@@ -153,6 +153,12 @@ function fixCurves(list) {
     return level ? { kind: 'level', keys } : { kind: 'param', src: cv.src, ctl: cv.ctl, keys };
   }).filter(Boolean);
 }
+// The audio's markers: a time, a name and a colour (one of TAGS, or none)
+function fixMarkers(list, length) {
+  const ids = new Set();
+  return (Array.isArray(list) ? list : []).filter(m => isObj(m) && isFinite(+m.t)).map(m => ({ id: uniqueId(m.id, ids), t: clamp(+m.t, 0, length),
+    name: typeof m.name === 'string' ? m.name.slice(0, 60) : '', color: isTag(m.color) ? m.color : '' })).sort((a, b) => a.t - b.t);
+}
 function fixTimelines(list, zones) {
   const ids = new Set(), zs = new Map(zones.map(z => [z.id, z]));
   return (Array.isArray(list) ? list : []).filter(isObj).map((T, i) => {
@@ -180,7 +186,7 @@ function fixTimelines(list, zones) {
     const A = isObj(T.audio) && typeof T.audio.name === 'string' ? { name: T.audio.name } : null;
     if (A && typeof T.audio.media === 'string' && /^[0-9a-f]{32}\.[a-z0-9]{1,5}$/.test(T.audio.media)) A.media = T.audio.media;
     return { id: uniqueId(T.id, ids), name: typeof T.name === 'string' && T.name ? T.name : 'Timeline ' + (i + 1), length, audio: A,
-      grid: T.grid === 'bars' ? 'bars' : 'sec', bpm: clamp(numOr(T.bpm, 120), 20, 300),
+      grid: T.grid === 'bars' ? 'bars' : 'sec', bpm: clamp(numOr(T.bpm, 120), 20, 300), beat0: clamp(numOr(T.beat0, 0), 0, 60), markers: fixMarkers(T.markers, length),
       loop: { mode: ['off', 'all', 'region'].includes(L.mode) ? L.mode : 'off', a: Math.min(a, b), b: Math.max(b, Math.min(a, b) + 0.1) }, tracks, lanes };
   });
 }

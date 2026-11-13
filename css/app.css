@@ -125,6 +125,23 @@ input, select, textarea { font-weight: 400; }
 .panelhost .scenerow.wrap .stiles, .panelhost .scenerow.xfcol .stiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; align-items: start; }
 .panelhost .scenerow.wrap .scene { width: auto; min-width: 0; }
 .panelhost .scenerow.wrap .stiles > .rowhint { grid-column: 1 / -1; }
+/* the scenes' sizes: small and large next to the medium ones above */
+.scenepanel.ss-s .scene { width: 96px; height: 42px; padding: 4px 3px 4px 8px; }
+.scenepanel.ss-l .scene { width: 176px; height: 80px; }
+.scenepanel.ss-s .scenerow.xfcol .stiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.scenepanel.ss-l .scenerow.xfcol .stiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.scenepanel.ss-s .scenerow.xfcol .scene, .scenepanel.ss-s .scenerow.wrap .scene { width: auto; height: 38px; }
+.scenepanel.ss-l .scenerow.xfcol .scene, .scenepanel.ss-l .scenerow.wrap .scene { width: auto; height: 76px; }
+.panelhost .scenepanel.ss-s .scenerow.wrap .stiles, .panelhost .scenepanel.ss-s .scenerow.xfcol .stiles { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+.panelhost .scenepanel.ss-l .scenerow.wrap .stiles, .panelhost .scenepanel.ss-l .scenerow.xfcol .stiles { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); }
+.zstop { flex: none; width: 22px; height: 22px; padding: 0; display: grid; place-items: center; color: var(--text2); }
+.zstop:hover:not(:disabled) { color: var(--accent); }
+.zstop:disabled { opacity: .35; cursor: default; }
+.ssize { display: flex; margin-right: 6px; border: 1px solid var(--line2); }
+.ssize button { width: 24px; height: 24px; padding: 0; display: grid; place-items: center; border: 0; background: var(--bg3); color: var(--muted); cursor: pointer; }
+.ssize button + button { border-left: 1px solid var(--line2); }
+.ssize button:hover { color: var(--text); }
+.ssize button.on { color: var(--sel); background: var(--sel-soft); box-shadow: inset 0 -2px 0 var(--accent); }
 @container scenes (max-width: 640px) { .panelhost .xfpair { grid-template-columns: minmax(0, 1fr); } }
 /* where the scenes go: below, left, right, a window of their own */
 .spos { display: flex; border: 1px solid var(--line2); }
@@ -763,7 +780,18 @@ select { padding-right: 4px; cursor: pointer; }
   optgroup { padding: 6px 0 2px; font: 600 10px var(--label); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
   optgroup option { font: 400 12.5px/1.35 var(--ui); letter-spacing: 0; text-transform: none; }
 }
-input[type=checkbox] { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+/* the tick box: a square; ticked, a white edge round a red square with the logo's cut corner, like a light that is on */
+input[type=checkbox] { -webkit-appearance: none; appearance: none; flex: none; width: 14px; height: 14px; margin: 0; box-sizing: border-box; display: inline-grid; place-content: center;
+  vertical-align: middle; border: 1px solid var(--line3); background: var(--bg2); cursor: pointer; }
+input[type=checkbox]::before { content: ''; width: 8px; height: 8px; background: var(--accent); clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  transform: scale(0); transition: transform .08s ease-out; }
+input[type=checkbox]:checked { border-color: var(--sel); }
+input[type=checkbox]:checked::before { transform: scale(1); }
+input[type=checkbox]:hover:not(:disabled) { border-color: var(--text2); }
+input[type=checkbox]:checked:hover:not(:disabled) { border-color: var(--sel); }
+input[type=checkbox]:focus-visible { outline: 1px solid var(--sel); outline-offset: 2px; }
+input[type=checkbox]:disabled { opacity: .4; cursor: default; }
+input[type=checkbox][hidden] { display: none; }
 /* sliders: a 2 px track, aluminium up to the value (--p, kept by rangeFill in ui-forms.js), and a narrow bar for a
    handle. accent-color stays for the browsers that draw their own. The colour picker's (.grad) keep their look. */
 input[type=range] { width: 100%; accent-color: var(--fader); margin: 0; height: 18px; cursor: pointer; }
@@ -1332,11 +1360,17 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlbpm, .tlsnap { display: flex; align-items: center; gap: 5px; color: var(--text2); }
 .tlbpm input { width: 58px; height: 22px; }
 .tlbar input.tlzoom { width: 110px; flex: none; }
+.tlbar input.tlvzoom { width: 70px; }
+.tlzlbl { color: var(--muted); font-size: 12px; }
+.tlfold { border: 0; background: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.tlfold:hover { color: var(--text); }
 .tlaudioname { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text2); }
 .tlscroll { flex: 1; min-height: 0; overflow: auto; background: var(--bg0); scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
 .tlgrid { position: relative; min-height: 100%; }
 /* rows: a label column that stays put, lanes that scroll */
-.tlrow { display: flex; height: 50px; border-bottom: 1px solid var(--line); }
+.tlrow { display: flex; height: var(--tlrow, 50px); border-bottom: 1px solid var(--line); }
+.tlrow.afold { height: 18px; }
+.tlaudio.folded .tlflag::before, .tlaudio.folded .tlflagname { height: 17px; line-height: 17px; }
 .tlrow.sub { border-bottom: 1px dashed var(--line); }
 .tllabel { position: sticky; left: 0; z-index: 2; flex: none; width: 132px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 12px;
   background: var(--bg1); border-right: 1px solid var(--line); box-shadow: inset 2px 0 0 var(--tag, transparent); }
@@ -1350,6 +1384,8 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlrow.tlsec { height: 22px; background: var(--bg1); }
 .tlrow.tlsec .tllabel { font: 600 9.5px var(--label); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); box-shadow: none; }
 .tllane { position: relative; flex: none; }
+.tllane.beats { background-image: linear-gradient(to right, var(--line2) 1px, transparent 1px), linear-gradient(to right, color-mix(in srgb, var(--line) 70%, transparent) 1px, transparent 1px);
+  background-size: var(--bar) 100%, var(--beat) 100%; background-position: var(--b0) 0, var(--b0) 0; }
 .tllane.drop { background: color-mix(in srgb, var(--sel) 7%, transparent); box-shadow: inset 0 0 0 1px var(--line3); }
 /* the ruler: numbers in mono; the loop's region a neutral tint between two red markers */
 .tlhead-row { height: 24px; position: sticky; top: 0; z-index: 3; background: var(--bg1); }
@@ -1368,7 +1404,7 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlclip, .tlablock { position: absolute; top: 4px; bottom: 4px; box-sizing: border-box; background: var(--line2);
   clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
 .tlablock { left: 0; }
-.tlclip { cursor: grab; touch-action: none; bottom: auto; height: 42px; }
+.tlclip { cursor: grab; touch-action: none; bottom: auto; height: calc(var(--tlrow, 50px) - 8px); }
 .tlclip.open { height: auto; bottom: 4px; }
 .tlclip:hover { background: var(--line3); }
 .tlclip.sel { background: var(--sel); }
@@ -1389,6 +1425,8 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlclip.live .tlhdr::after { content: ''; position: absolute; top: 3px; right: 4px; width: 5px; height: 5px; background: var(--accent); }
 .tlclip .tledge { position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize; z-index: 1; }
 .tlclip .tledge.l { left: 0; } .tlclip .tledge.r { right: 0; }
+/* unfolded, its edges only along its header: its first and last keys stay in reach */
+.tlclip.open .tledge { bottom: auto; height: 16px; }
 /* the fades' handles: aluminium, what you move, where the strip begins */
 .tlclip .tlfin, .tlclip .tlfout { position: absolute; top: 12px; width: 7px; height: 7px; margin-left: -3.5px; background: var(--fader); cursor: ew-resize; z-index: 2; opacity: 0; }
 .tlclip:hover .tlfin, .tlclip:hover .tlfout, .tlclip.sel .tlfin, .tlclip.sel .tlfout { opacity: 1; }
@@ -1396,36 +1434,57 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlablock .tlhdr { color: var(--text2); }
 .tlablock .tlstrip { background: var(--bg1); }
 .tlwave { position: absolute; left: 0; top: 2px; opacity: .85; }
+/* markers: a flag on the audio track in its colour (aluminium without one), its name on it, a faint line through the zones */
+.tlflag { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -0.5px; background: var(--tag, var(--fader)); z-index: 2; cursor: pointer; touch-action: none; }
+.tlflag::before { content: ''; position: absolute; left: 0; top: 0; width: 7px; height: 16px; background: var(--tag, var(--fader)); }
+.tlflagname { position: absolute; left: 0; top: 0; height: 16px; padding: 0 6px 0 9px; font: 600 9.5px/16px var(--label); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
+  color: var(--bg0); background: var(--tag, var(--fader)); clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+.tlmline { position: absolute; top: 24px; bottom: 0; width: 0; border-left: 1px dashed color-mix(in srgb, var(--tag, var(--fader)) 45%, transparent); pointer-events: none; z-index: 1; }
+.tlpresets { display: flex; flex-wrap: wrap; gap: 4px; margin: -2px 0 8px; }
+.swatchdot { display: inline-block; width: 14px; height: 14px; vertical-align: middle; }
 /* keyframes: a clip unfolded shows a row per curve under its strip, the line in aluminium (what you move), keys as
    small diamonds (a square on Hold, hollow when eased), the one picked white; colours as a band */
 .tlclip .tlhdr { padding-right: 30px; }
+.tlclip.open .tlhdr { padding-right: 48px; }
 .tlunf { position: absolute; top: 1px; right: 12px; height: 14px; min-width: 14px; padding: 0 2px; border: 0; background: none; color: var(--fader);
   font-size: 8px; line-height: 14px; cursor: pointer; z-index: 3; opacity: 0; }
 .tlunf::after { content: '\25B8'; margin-left: 2px; color: var(--muted); font-size: 9px; }
 .tlclip.open .tlunf::after { content: '\25BE'; }
 .tlclip:hover .tlunf, .tlclip.sel .tlunf, .tlclip.keyed .tlunf, .tlclip.open .tlunf { opacity: 1; }
 .tlunf:hover::after { color: var(--text); }
-.tlclip.open .tlstrip { flex: none; height: 25px; }
+.tlkplus { position: absolute; top: 1px; right: 34px; width: 14px; height: 14px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 13px; line-height: 13px; cursor: pointer; z-index: 3; }
+.tlkplus:hover { color: var(--text); }
+/* the level on the picture: its line in aluminium (dashed while it has no keys), its keys on it */
+.tllevel { position: absolute; left: 0; right: 0; top: 15px; height: calc(var(--tlrow, 50px) - 25px); pointer-events: none; }
+.tlclip.open .tllevel { pointer-events: auto; cursor: crosshair; }
+.tllevel svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.tllevel path { fill: none; stroke: var(--fader); stroke-width: 1.5; }
+.tllevel path.none { stroke-dasharray: 3 3; opacity: .5; }
+.tlclip:not(.open) .tllevel path { opacity: .7; }
+.tlclip:not(.open) .tllevel .tlkey { display: none; }
+.tlband { position: fixed; z-index: 1000; border: 1px solid var(--sel); background: color-mix(in srgb, var(--sel) 10%, transparent); pointer-events: none; }
+.tlkhint { margin-left: 4px; font-size: 10.5px; color: var(--muted); line-height: 26px; }
+.tlclip.open .tlstrip { flex: none; height: calc(var(--tlrow, 50px) - 25px); }
 .tlkeys { flex: 1; display: flex; flex-direction: column; border-top: 1px solid var(--line); background: var(--bg1); cursor: default; }
 .tlkrow { position: relative; flex: none; height: 26px; border-bottom: 1px dashed var(--line); }
-.tlkrow.add { border-bottom: 0; }
+.tlkrow.add { border-bottom: 0; display: flex; align-items: center; }
 .tlkgraph { position: absolute; inset: 0; cursor: crosshair; }
 .tlkgraph svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .tlkgraph path { fill: none; stroke: var(--fader); stroke-width: 1.5; }
 .tlkgraph path.y { stroke-dasharray: 3 2; }
 .tlkey { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; box-sizing: border-box; background: var(--fader); outline: 1px solid var(--bg0);
-  transform: rotate(45deg); cursor: grab; z-index: 1; }
+  transform: rotate(45deg); cursor: grab; z-index: 3; }
 .tlkey.hold { transform: none; }
 .tlkey.ease { background: var(--bg1); border: 2px solid var(--fader); }
 .tlkey.sel { background: var(--sel); }
 .tlkey.ease.sel { background: var(--bg1); border-color: var(--sel); }
-.tlklab { position: absolute; left: 4px; top: 4px; z-index: 2; display: flex; align-items: center; gap: 2px; max-width: calc(100% - 8px); height: 18px; padding: 0 2px 0 5px;
-  box-sizing: border-box; background: color-mix(in srgb, var(--bg2) 88%, transparent); font-size: 10.5px; color: var(--text2); }
+.tlklab { position: absolute; left: 4px; top: 1px; z-index: 2; pointer-events: none; display: flex; align-items: center; gap: 2px; max-width: calc(100% - 8px); height: 18px; padding: 0 2px 0 5px;
+  box-sizing: border-box; background: color-mix(in srgb, var(--bg1) 60%, transparent); font-size: 10.5px; color: var(--text2); }
 .tlkname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tlkrow.gone .tlkname { color: var(--muted); text-decoration: line-through; }
-.tlkb { flex: none; width: 16px; height: 16px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 10px; line-height: 16px; cursor: pointer; }
+.tlkb { pointer-events: auto; flex: none; width: 16px; height: 16px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 10px; line-height: 16px; cursor: pointer; }
 .tlkb:hover { color: var(--text); }
-.tlkadd { margin: 4px; height: 18px; padding: 0 8px; border: 1px solid var(--line2); background: var(--bg3); color: var(--text2);
+.tlkadd { margin: 0 0 0 4px; height: 18px; padding: 0 8px; border: 1px solid var(--line2); background: var(--bg3); color: var(--text2);
   font: 600 9.5px var(--label); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
 .tlkadd:hover { color: var(--text); border-color: var(--line3); }
 

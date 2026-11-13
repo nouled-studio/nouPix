@@ -11,7 +11,8 @@ function h(tag, attrs, ...kids) {
     const v = attrs[k];
     if (v == null || v === false) continue;
     if (k === 'class') el.className = v;
-    else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+    // (custom properties, --name, need setProperty: assigning them does nothing)
+    else if (k === 'style' && typeof v === 'object') { for (const [p, x] of Object.entries(v)) if (p.startsWith('--')) { if (x != null) el.style.setProperty(p, x); } else el.style[p] = x; }
     else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
     else if (k === 'html') el.innerHTML = v;
     else if (k === 'value' || k === 'checked' || k === 'selected' || k === 'disabled' || k === 'draggable') el[k] = v;

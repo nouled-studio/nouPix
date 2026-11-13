@@ -138,6 +138,7 @@ SUITES = [   # name, function, part of --quick
     ("cues", simple("test_cues.py", 8258, 200), True),
     ("timeline", simple("test_timeline.py", 8260, 300), True),
     ("tlkeys", simple("test_timeline_keys.py", 8262, 300), True),
+    ("tlmore", simple("test_timeline_more.py", 8264, 300), True),
     ("startup", simple("test_startup.py", 8216, 300), True),
     ("media", simple("test_media.py", 8218, 400), True),
     ("stability", simple("test_stability.py", 8210, 900, ("5",)), False),

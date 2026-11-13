@@ -389,8 +389,18 @@ function sceneTile(z, sc, i, keys, look) {
   });
   return tile;
 }
+// The scenes' size where they are (bottom, left, right, the window): small, medium (4 to a row for A and B) or large
+const SCENE_SIZES = [['s', 'Small scenes', 5], ['m', 'Medium scenes', 8], ['l', 'Large scenes', 11]];
+const sceneSizeAt = place => ({ s: 's', m: 'm', l: 'l' })[(ui.sceneSize || {})[place]] || 'm';
+function sceneSizes(place) {
+  const now = sceneSizeAt(place);
+  return h('div', { class: 'ssize', role: 'group', 'aria-label': 'Size of the scenes' }, SCENE_SIZES.map(([k, name, n]) =>
+    h('button', { type: 'button', class: k === now ? 'on' : '', 'data-size': k, 'aria-label': name, 'aria-pressed': String(k === now), title: name,
+      html: `<svg viewBox="0 0 14 14" width="14" height="14"><rect x="${(14 - n) / 2}" y="${13 - n}" width="${n}" height="${n}" fill="currentColor"/></svg>`,
+      onclick: () => { ui.sceneSize = Object.assign({}, ui.sceneSize, { [place]: k }); savePrefs(); renderDock(); if (scenesWinOpen()) drawScenesWindow(); } })));
+}
 function renderScenes(body, where = 'dock') {
-  const inWindow = where === 'window';
+  const inWindow = where === 'window', place = inWindow ? 'window' : where === 'side' ? placeOf('scenes') : 'bottom';
   // along the bottom: on the left the X-Fader's button (where it stays, on or off) and its mode, its strip in the
   // middle while it is on, the window button on the right
   const X = project.xfade, mode = XF_MODES.find(m => m[0] === X.mode) || XF_MODES[0];
@@ -402,7 +412,7 @@ function renderScenes(body, where = 'dock') {
       X.on ? h('button', { class: 'btn sm xfmode', type: 'button', title: mode[2] + '. Click to choose another mode.', 'aria-label': 'X-Fader mode: ' + mode[1], 'aria-haspopup': 'menu',
         onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi' }, xfGraph(m), m[1]), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
     X.on ? xfadeStrip() : h('span'),
-    h('div', { class: 'sbtns' }, panelPlaces('scenes')));
+    h('div', { class: 'sbtns' }, sceneSizes(place), panelPlaces('scenes')));
   const rows = h('div', { class: 'zonerows', 'data-keep': 'zonerows' });
   const sel = selZone();
   // with the X-Fader on, its zones A and B side by side at the top (A on the left, B on the right, as on the fader),
@@ -422,14 +432,18 @@ function renderScenes(body, where = 'dock') {
         if (ui.playlistOpen[z.id]) delete ui.playlistOpen[z.id]; else ui.playlistOpen[z.id] = (cur || z.playlists[0]).id;
         if (ui.zone !== z.id) selectZone(z); else renderDock();
       } });
+    // ■: what it plays fades to black
+    const stop = () => h('button', { class: 'btn sm icon zstop', type: 'button', disabled: !z.layers.length && !z.scene, 'aria-label': 'Stop ' + z.name,
+      title: `Stop ${z.name}: its content fades to black over ${fmtV(project.settings.fade)} s (the fade for new scenes, in Settings)`, html: '<svg viewBox="0 0 12 12" width="10" height="10"><rect x="1" y="1" width="10" height="10" fill="currentColor"/></svg>',
+      onclick: e => { e.stopPropagation(); stopZone(z); } });
     const head = side >= 0 ? h('div', { class: 'zhead compact' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. Its slider is the most it reaches; the X-Fader mixes within it.`, onclick: () => selectZone(z) },
       h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'xftag' }, side ? 'B' : 'A'), h('span', { class: 'nm' }, z.name),
-        zoneOpacityInput(z, 110), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists,
+        zoneOpacityInput(z, 110), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists, stop(),
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')))
     : h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
       h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'nm' }, z.name),
         xfDriven(z) ? h('span', { class: 'xftag', title: 'On the X-Fader: it mixes within this level' }, z.id === project.xfade.a ? 'A' : 'B') : null,
-        h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists),
+        h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists, stop()),
       h('div', { class: 'zc' }, zoneOpacityInput(z, 80),
         h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
     // the zone's head stays put; its scenes scroll sideways beside it
@@ -456,7 +470,7 @@ function renderScenes(body, where = 'dock') {
   }
   if (xf) rows.prepend(h('div', { class: 'xfpair' }, pair[0], pair[1]));
   if (!project.zones.length) rows.append(h('div', { class: 'empty' }, 'No zones yet.'));
-  body.append(h('div', { class: 'scenepanel' }, rows, foot));
+  body.append(h('div', { class: 'scenepanel ss-' + sceneSizeAt(place) }, rows, foot));
 }
 // The crossfader, while it is on: A's preview and zone, the fader, B's zone and preview
 function xfadeStrip() {
