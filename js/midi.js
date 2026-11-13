@@ -85,7 +85,7 @@ function effectTarget(t) {
   }
   if (inp.TYPE !== 'float' && inp.TYPE !== 'int') return null;
   if (isSpeedInput(src, inp)) {
-    const M = speedMax(inp);
+    const M = speedTop(inp);
     return { kind: 'fader', label, get: () => Math.min(1, Math.abs(now()) / M), set: x => put((now() < 0 ? -1 : 1) * x * M) };
   }
   const lo = inp.MIN ?? 0, hi = inp.MAX ?? 1;

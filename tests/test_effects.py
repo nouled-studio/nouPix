@@ -166,6 +166,17 @@ try:
       z.layers = [{ src: 'b-rainbow', params: { 'b-rainbow': { palette: 1, colorA: [1, 0, 0, 1], colorB: [0, 0, 1, 1] } } }, { src: 'b-rainbow', params: { 'b-rainbow': { palette: 0, colorA: [0, 1, 0, 1] } } }];
       return hydrate(p).zones[0].layers.map(L => L.params['b-rainbow']); })()""")
     check("files from before: Color A to B as its 2 colours, Rainbow as the rainbow", old[0] == {"colorA": [1, 0, 0, 1], "colorB": [0, 0, 1, 1], "count": 2} and old[1] == {}, old)
+    # ---------- full speed in the interface: three times what the effect calls full, its clock running that much faster
+    rates = ev("""async () => { const z = project.zones[0], s = srcById('b-bars'), inp = runtimeOf(s).speed;
+      const rate = async v => { z.layers = [Object.assign(newLayer(), { src: s.id, params: { 'b-bars': { speed: v } } })]; z._fade = null; const L = z.layers[0];
+        await new Promise(r => setTimeout(r, 400)); const k = L.id + '|' + s.id, a = speedClocks.get(k), t0 = a.tau, c0 = a.t;
+        await new Promise(r => setTimeout(r, 1000)); const b = speedClocks.get(k); return (b.tau - t0) / (b.t - c0); };
+      return [speedMax(inp), speedTop(inp), await rate(speedMax(inp)), await rate(speedTop(inp))]; }""")
+    check("full speed in the interface is three times the effect's own, and its clock runs three times as fast", rates[1] == 3 * rates[0] and abs(rates[2] - 1) < 0.05 and abs(rates[3] - 3) < 0.1, rates)
+    E_pct = ev("""(() => { const z = project.zones[0], s = srcById('b-bars'); z.layers = [Object.assign(newLayer(), { src: s.id, params: { 'b-bars': { speed: speedMax(runtimeOf(s).speed) } } })];
+      ui.zone = z.id; ui.layer = z.layers[0].id; ui.rightTab = 'content'; renderRight(); const r = [...document.querySelectorAll('#rightBody .row')].find(r => /^Speed/.test(r.textContent));
+      return r && r.querySelector('input[type=range]') ? +r.querySelector('input[type=range]').value : null; })()""")
+    check("…a layer at the effect's old full speed shows a third of the Content tab's slider, and plays as before", E_pct is not None and abs(E_pct - 100 / 3) < 1, E_pct)
     check("no errors", not errs, errs[:3])
     br.close()
 finally:

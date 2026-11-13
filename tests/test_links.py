@@ -175,7 +175,7 @@ try:
 
     load("b-bars")
     ev("project.zones[0].layers[0].params['b-bars'] = { speed: -0.2 }; project.midi.maps = [Object.assign(newMidiMap('midi:nanoKONTROL2:1:cc:7', 'p:b-bars:speed'), { takeover: 'jump' })]")
-    M = ev("speedMax(controlsOf(srcById('b-bars')).find(i => i.NAME === 'speed'))")
+    M = ev("speedTop(controlsOf(srcById('b-bars')).find(i => i.NAME === 'speed'))")
     cc(7, 127); settle()
     check("a speed goes from still to full, keeping its direction (here reversed)", abs(param("speed") + M) < 1e-9, (param("speed"), M))
     ev("project.midi.maps.push(Object.assign(newMidiMap('midi:nanoKONTROL2:1:cc:8', 'p:b-bars:angle'), { takeover: 'jump' }))")

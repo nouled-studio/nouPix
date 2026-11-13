@@ -445,7 +445,7 @@ function renderContentTab(body) {
       const holder = { get v() { return paramValue(L, src, inp); }, set v(x) { set(x); } };
       if (inp === rt.speed) {   // 0–100 % of the full speed, and a button for reverse
         let dir = holder.v < 0 ? -1 : 1;
-        const M = speedMax(inp), sp = { get pct() { return Math.min(100, Math.abs(holder.v) / M * 100); }, set pct(x) { set(dir * x / 100 * M); } };
+        const M = speedTop(inp), sp = { get pct() { return Math.min(100, Math.abs(holder.v) / M * 100); }, set pct(x) { set(dir * x / 100 * M); } };
         const rev = h('button', { class: 'btn sm rev' + (dir < 0 ? ' on' : ''), type: 'button', title: 'Run it in reverse', 'aria-pressed': String(dir < 0), onclick: () => {
           dir = -dir; rev.classList.toggle('on', dir < 0); rev.setAttribute('aria-pressed', String(dir < 0)); set(dir * sp.pct / 100 * M); commit();
         } }, 'Reverse');

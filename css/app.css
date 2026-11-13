@@ -145,9 +145,9 @@ input, select, textarea { font-weight: 400; }
 .panelhost .scenepanel.ss-l .scenerow.wrap .stiles, .panelhost .scenepanel.ss-l .scenerow.xfcol .stiles { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); }
 /* a zone's stop: a small white square on its own, no box around it, turning red when pointed at */
 .btn.zstop, .btn.zstop:hover, .btn.zstop:active { flex: none; width: 22px; height: 22px; padding: 0; display: grid; place-items: center; border: 0; background: none; box-shadow: none;
-  color: var(--text); transition: color .15s ease, transform .15s ease; }
+  color: var(--text); transition: color .15s ease; }
 .btn.zstop svg { width: 9px; height: 9px; }
-.btn.zstop:hover:not(:disabled) { color: var(--accent); transform: scale(1.12); }
+.btn.zstop:hover:not(:disabled) { color: var(--accent); }
 .btn.zstop:disabled { opacity: .3; cursor: default; }
 /* + Store at the right end of the zone's head */
 .zhead .zc > .btn { margin-left: auto; }

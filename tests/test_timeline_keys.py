@@ -204,7 +204,7 @@ try:
     sp = E("""(() => { const s = project.sources.find(s => s.kind === 'isf' && controlsOf(s).some(i => /^speed$/i.test(i.NAME) && i.TYPE === 'float' && (i.MIN ?? 0) < 0));
       const i = controlsOf(s).find(i => /^speed$/i.test(i.NAME)), fw = { kind: 'param', src: s.id, ctl: i.NAME, keys: [{ t: 0, v: 0.25 * i.MAX }] }, rv = { kind: 'param', src: s.id, ctl: i.NAME, keys: [{ t: 0, v: 0.25 * i.MIN }] };
       const F = tlRowInput(fw), R = tlRowInput(rv);
-      return { max: i.MAX, min: i.MIN, fwRange: [F.MIN, F.MAX], fwBottom: tlFromNorm(F, 0), fwTop: tlFromNorm(F, 1), fwLow: tlFromNorm(F, -0.5),
+      return { max: speedTop(i), min: -speedTop(i), fwRange: [F.MIN, F.MAX], fwBottom: tlFromNorm(F, 0), fwTop: tlFromNorm(F, 1), fwLow: tlFromNorm(F, -0.5),
         rvBottom: tlFromNorm(R, 0), rvTop: tlFromNorm(R, 1), rvUp: tlFromNorm(R, 0.6) < tlFromNorm(R, 0.3), rvLabel: R.LABEL,
         magnet: tlFromNorm({ TYPE: 'float', MIN: -1, MAX: 1 }, 0.51), far: tlFromNorm({ TYPE: 'float', MIN: -1, MAX: 1 }, 0.6) }; })()""")
     check("a Speed row runs from still (bottom) to full (top): pulled up it only gets faster, pulled down it stops at still",

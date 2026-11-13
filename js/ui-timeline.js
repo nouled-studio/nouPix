@@ -578,10 +578,10 @@ function tlFromNorm(inp, f) {
 // bottom to full at the top, in its own direction (a curve whose keys all run in reverse: full reverse at the top), so
 // pulling a key up always makes it faster and never crosses into the other direction
 function tlRowInput(cv) {
-  const inp = tlCurveInput(cv);
-  if (!inp || cv.kind !== 'param' || inp.TYPE !== 'float' || !/^speed$/i.test(inp.NAME) || !((inp.MIN ?? 0) < 0)) return inp;
-  const rev = cv.keys.length > 0 && cv.keys.every(k => +k.v <= 0) && cv.keys.some(k => +k.v < 0);
-  return Object.assign({}, inp, rev ? { MIN: inp.MIN, MAX: 0, _flip: true, LABEL: (inp.LABEL || inp.NAME) + ' (reverse)' } : { MIN: 0, MAX: inp.MAX });
+  const inp = tlCurveInput(cv), src = cv.kind === 'param' && srcById(cv.src);
+  if (!inp || !src || !isSpeedInput(src, inp)) return inp;
+  const top = speedTop(inp), rev = (inp.MIN ?? 0) < 0 && cv.keys.length > 0 && cv.keys.every(k => +k.v <= 0) && cv.keys.some(k => +k.v < 0);
+  return Object.assign({}, inp, rev ? { MIN: -top, MAX: 0, _flip: true, LABEL: (inp.LABEL || inp.NAME) + ' (reverse)' } : { MIN: 0, MAX: top });
 }
 const tlCurveName = (cv, inp) => (cv.kind === 'level' ? 'Level' : inp ? inp.LABEL || inp.NAME : cv.ctl);
 const tlLevelCurve = c => (c.curves || []).find(cv => cv.kind === 'level') || null;

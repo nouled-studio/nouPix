@@ -129,7 +129,9 @@ function valueEditor(a, ch) {
     inp.VALUES.map((v, i) => h('option', { value: v, selected: v === a.value }, inp.LABELS ? inp.LABELS[i] : String(v))));
   if (t === 'point2D') return h('span', { class: 'cval' }, [0, 1].map(k => h('input', { type: 'number', step: 0.01, value: fmtV((a.value || [0, 0])[k]), 'aria-label': k ? 'Y' : 'X',
     onchange: ch(e => { a.value = (a.value || [0, 0]).slice(); a.value[k] = +e.value || 0; }) })));
-  const lo = inp && isFinite(inp.MIN) ? inp.MIN : 0, hi = inp && isFinite(inp.MAX) ? inp.MAX : 1;
+  // (an effect's speed up to its full speed in the interface, as in the Content tab)
+  const sp = inp && srcById(a.src) && isSpeedInput(srcById(a.src), inp);
+  const lo = sp ? ((inp.MIN ?? 0) < 0 ? -speedTop(inp) : 0) : inp && isFinite(inp.MIN) ? inp.MIN : 0, hi = sp ? speedTop(inp) : inp && isFinite(inp.MAX) ? inp.MAX : 1;
   return h('span', { class: 'cval', title: `From ${fmtV(lo)} to ${fmtV(hi)}` },
     h('input', { type: 'range', min: lo, max: hi, step: t === 'int' ? 1 : (hi - lo) / 200, value: a.value, 'aria-label': 'Value slider',
       oninput: e => { const n = e.target.nextSibling; if (n) n.value = fmtV(Math.round(+e.target.value * 100) / 100); }, onchange: ch(e => { a.value = +e.value; }) }),

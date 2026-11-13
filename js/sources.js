@@ -163,6 +163,11 @@ function setParam(L, src, name, v) { (L.params[src.id] = L.params[src.id] || {})
 // A layer that always ran at one speed shows exactly what it showed before.
 const SPEED_USE = /\bTIME\s*\*\s*(abs\s*\(\s*)?speed\b|\bspeed\s*\*\s*TIME\b/;
 const speedMax = inp => Math.max(Math.abs(inp.MIN ?? 0), Math.abs(inp.MAX ?? 1)) || 1;
+// Full speed in the interface (the Content tab's 100%, MIDI, the timeline, cues): three times what the effect itself
+// calls full, as many effects were slow even there. The shader still gets its own full speed; the layer's clock runs
+// faster, so a value stored before plays exactly as it did (it just reads as a third of the slider).
+const SPEED_BOOST = 3;
+const speedTop = inp => speedMax(inp) * SPEED_BOOST;
 // A float called speed that the shader multiplies with TIME (every built-in one does)
 const isSpeedInput = (src, inp, code = sourceCode(src)) => inp.TYPE === 'float' && /^speed$/i.test(inp.NAME) && (!!src.builtin || SPEED_USE.test(code));
 const speedClocks = new Map();   // layer id | source id -> { tau, t }
