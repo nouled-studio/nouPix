@@ -160,7 +160,7 @@ try:
     Z = E("project.zones.at(-1).id")
     E(f"(() => {{ const z = zoneById('{Z}'); goScene(z, z.scenes[1], true); }})()"); time.sleep(0.3)
     pl = E(f"(() => {{ const z = zoneById('{Z}'); addPlaylist(z, {{ steps: z.scenes.map(s => newStep(s.id, 5)) }}); playlistDo(z, z.playlists[0], 'start'); return !!z._play; }})()")
-    time.sleep(0.2); n0 = E("hist.idx")
+    time.sleep(0.6); n0 = E("hist.idx")   # (after the scene's own step, saved 350 ms after it)
     btn = pg.locator(f"#dockBody .zoneblock[data-zone='{Z}'] .zstop")
     check("■ on the zone's head", btn.count() == 1 and btn.is_enabled())
     btn.click(); time.sleep(0.15)
