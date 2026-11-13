@@ -146,18 +146,17 @@ input, select, textarea { font-weight: 400; }
 .zstop { flex: none; width: 22px; height: 22px; padding: 0; display: grid; place-items: center; color: var(--text2); }
 .zstop:hover:not(:disabled) { color: var(--accent); }
 .zstop:disabled { opacity: .35; cursor: default; }
-.ssize { display: flex; margin-right: 6px; border: 1px solid var(--line2); }
-.ssize button { width: 24px; height: 24px; padding: 0; display: grid; place-items: center; border: 0; background: var(--bg3); color: var(--muted); cursor: pointer; }
-.ssize button + button { border-left: 1px solid var(--line2); }
+.ssize { display: flex; gap: 2px; margin-right: 10px; }
+.ssize button { position: relative; width: 24px; height: 24px; padding: 0; display: grid; place-items: center; border: 0; background: none; color: var(--muted); cursor: pointer; }
 .ssize button:hover { color: var(--text); }
-.ssize button.on { color: var(--sel); background: var(--sel-soft); box-shadow: inset 0 -2px 0 var(--accent); }
+.ssize button.on { color: var(--sel); }
 @container scenes (max-width: 640px) { .panelhost .xfpair { grid-template-columns: minmax(0, 1fr); } }
 /* where the scenes go: below, left, right, a window of their own */
-.spos { display: flex; border: 1px solid var(--line2); }
-.spos > button, .tabs .spos > button { width: 28px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-bottom: 0; background: var(--bg3); color: var(--muted); cursor: pointer; }
-.spos > button + button, .tabs .spos > button + button { border-left: 1px solid var(--line2); }
+.spos { display: flex; gap: 2px; }
+.spos > button, .tabs .spos > button { position: relative; width: 26px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-bottom: 0; background: none; color: var(--muted); cursor: pointer; }
 .spos button:hover { color: var(--text); }
-.spos > button.on, .tabs .spos > button.on { background: var(--sel-soft); color: var(--sel); box-shadow: inset 0 -2px 0 var(--accent); }
+.spos > button.on, .tabs .spos > button.on { background: none; color: var(--sel); }
+.spos > button.on::after, .ssize button.on::after { content: ''; position: absolute; left: 7px; right: 7px; bottom: 1px; height: 2px; background: var(--accent); }
 .spos svg { width: 16px; height: 16px; }
 aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: column; }
 

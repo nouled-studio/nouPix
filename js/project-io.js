@@ -249,6 +249,13 @@ function hydrate(p) {
     if (!BLENDS.some(b => b[0] === L.blend)) L.blend = 'alpha';
     L.opacity = isFinite(L.opacity) ? clamp(+L.opacity, 0, 1) : 1;
     if (!L.params || typeof L.params !== 'object') L.params = {};
+    // the Rainbow's Colors choice, until 1.6.2: Color A to B is its first two colours; Rainbow its five as they start
+    // (colours set meanwhile showed nothing then, and stay out of it)
+    const rb = L.params['b-rainbow'];
+    if (isObj(rb) && 'palette' in rb) {
+      if (rb.palette === 1) { if (rb.count == null) rb.count = 2; } else { delete rb.colorA; delete rb.colorB; }
+      delete rb.palette;
+    }
     L.on = L.on !== false;
     return L;
   };

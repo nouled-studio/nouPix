@@ -125,6 +125,15 @@ function releaseMedia(id) {
 }
 const PARAM_TYPES = ['float', 'long', 'bool', 'color', 'point2D', 'event', 'int'];
 function isfInputs(src) { const rt = runtimeOf(src); return (rt.hdr && rt.hdr.INPUTS || []).filter(i => PARAM_TYPES.includes(i.TYPE) && !(rt.clocks && i.NAME in rt.clocks) && !isAudioInput(i) && !isTouchInput(i)); }
+// A control shown only while another has one of some values (nouPix's own OLM_IF: { count: [2, 3] }), as the
+// Rainbow's colours past the number of colours it uses
+function inputShown(inp, L, src) {
+  if (!isObj(inp.OLM_IF)) return true;
+  return Object.entries(inp.OLM_IF).every(([name, vals]) => {
+    const other = isfInputs(src).find(i => i.NAME === name);
+    return !other || !Array.isArray(vals) || vals.includes(paramValue(L, src, other));
+  });
+}
 // The same from the header alone, without compiling the shader (for an effect that isn't playing)
 function controlsOf(src) {
   const hdr = src.kind === 'isf' ? headerOf(src) : null, clocks = hdr && isObj(hdr.OLM_CLOCKS) ? hdr.OLM_CLOCKS : {};
