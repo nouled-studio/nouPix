@@ -106,7 +106,7 @@ with sync_playwright() as p:
     pg.evaluate("() => { selectZone(olm.project.zones[0]); olm.ui.layer = 'L1'; olm.ui.rightTab = 'content'; renderRight(); }"); time.sleep(0.4)
     sp = pg.evaluate("""(() => { const r = [...document.querySelectorAll('#rightBody input[type=range]')].find(x => x.getAttribute('aria-label') === 'Speed');
         return r && { min: r.min, max: r.max, v: +r.value, rev: !!r.closest('.row').nextElementSibling.querySelector('button.rev'), same: [...document.querySelectorAll('#rightBody .sec input[type=range]')].filter(x => x.closest('.sec') === r.closest('.sec')).every(x => Math.abs(x.getBoundingClientRect().width - r.getBoundingClientRect().width) < 1) }; })()""")
-    check("speed is a 0–100 % slider with a Reverse button", sp and sp["min"] == "0" and sp["max"] == "100" and abs(sp["v"] - 16.67) < 0.5 and sp["rev"] and sp["same"], sp)
+    check("speed is a 0–100 % slider with a Reverse button", sp and sp["min"] == "0" and sp["max"] == "100" and abs(sp["v"] - 50 / pg.evaluate("speedTop(runtimeOf(srcById('b-bars')).speed)")) < 0.5 and sp["rev"] and sp["same"], sp)
     # the shader sees TIME × speed = layer clock × full speed; changing the slider must not make it jump
     prod = "(() => { const c = speedClocks.get('L1|b-bars'); const v = olm.project.zones[0].layers[0].params['b-bars'].speed; return c.tau * 3 * (v < 0 ? -1 : 1); })()"
     p0 = pg.evaluate(prod); time.sleep(0.2)
@@ -118,7 +118,7 @@ with sync_playwright() as p:
     check("and it then runs at the new speed", (p2 - p1) / 0.5 > 2.0, (p1, p2))
     pg.locator("#rightBody button.rev").click(); time.sleep(0.3)
     v = pg.evaluate("olm.project.zones[0].layers[0].params['b-bars'].speed")
-    check("Reverse runs it backwards at the same speed", abs(v + 2.7) < 0.01 and pg.evaluate("document.querySelector('#rightBody button.rev').getAttribute('aria-pressed')") == "true", v)
+    check("Reverse runs it backwards at the same speed", abs(v + 0.9 * pg.evaluate("speedTop(runtimeOf(srcById('b-bars')).speed)")) < 0.01 and pg.evaluate("document.querySelector('#rightBody button.rev').getAttribute('aria-pressed')") == "true", v)
     a = pg.evaluate(prod); time.sleep(0.4); b = pg.evaluate(prod)
     check("in reverse the animation goes the other way", b < a, (a, b))
     load(base_project([{"id": "L2", "src": "b-plasma", "params": {"b-plasma": {"speed": 1.5}}, "opacity": 1, "blend": "alpha", "on": True}]))

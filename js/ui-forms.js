@@ -262,6 +262,16 @@ function keepScroll(root, draw) {
     if (el._hshow) el._hshow();
   }
 }
+// A button without a box (the timeline's bar, the Scenes panel, the cue lists): an icon and/or a word, grey, white when
+// pointed at, white with a short red line under it when on. o: { icon, text, label (for screen readers and tests),
+// title, on, cls, onclick, disabled }
+function gbtn(o) {
+  const b = h('button', { type: 'button', class: 'gbtn' + (o.on ? ' on' : '') + (o.cls ? ' ' + o.cls : ''), title: o.title || null, 'aria-label': o.label || null,
+    'aria-pressed': o.on === undefined ? null : String(!!o.on), disabled: !!o.disabled, onclick: o.onclick || null });
+  if (o.icon) b.insertAdjacentHTML('beforeend', lineIcon(o.icon));
+  if (o.text) b.append(o.text);
+  return b;
+}
 function seg(options, value, onChange) {
   const el = h('div', { class: 'seg', role: 'group' });
   for (const [v, l] of options) {

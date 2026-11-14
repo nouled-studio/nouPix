@@ -19,6 +19,10 @@ function renderDock() {
   mon.hidden = ui.dockTab !== 'patch';
   if (!mon.firstChild) mon.append(h('span', { class: 'ic', html: ICONS.monitor }), 'Channel monitor');
   $('#btnDock').title = ui.dockCollapsed ? 'Expand panel' : 'Collapse panel';
+  // where the panel open here goes (bottom, left, right, the Scenes window): in the tab row, the same spot for each
+  let dp = $('#dockPlaces');
+  if (!dp) { dp = h('span', { id: 'dockPlaces' }); $('#dockTabs .tabtools').prepend(dp); }
+  dp.replaceChildren(...(PANELS[ui.dockTab] ? [panelPlaces(ui.dockTab)] : []));
   const body = $('#dockBody');
   const keep = body.firstElementChild && body.querySelector('.ctrl-edit') ? body.querySelector('.ctrl-edit').scrollTop : 0;
   keepScroll(body, () => {
@@ -26,6 +30,7 @@ function renderDock() {
     if (ui.dockCollapsed) return;
     if (ui.dockTab === 'scenes' && scenesWinOpen()) renderScenesAway(body);
     else if (ui.dockTab === 'scenes') renderScenes(body);
+    else if ((ui.dockTab === 'cues' || ui.dockTab === 'timeline') && panelWinOpen(ui.dockTab)) renderPanelAway(body, ui.dockTab);
     else if (ui.dockTab === 'cues') renderCues(body);
     else if (ui.dockTab === 'timeline') renderTimeline(body);
     else if (ui.dockTab === 'patch') {
@@ -37,6 +42,7 @@ function renderDock() {
   replayFlip();
   const ce = body.querySelector('.ctrl-edit'); if (ce) ce.scrollTop = keep;
   drawScenesWindow();
+  syncPanelWindows();
   updateMidiUI();
 }
 function onPatchChanged() { schedulePanels(); }
@@ -127,6 +133,65 @@ function closeScenesWindow() { if (scenesWinOpen()) scenesWin.close(); scenesWin
 // The Scenes window doesn't outlive this page; one closed by its own button is noticed
 addEventListener('pagehide', () => { if (scenesWinOpen()) scenesWin.close(); });
 setInterval(() => { if (scenesWin && scenesWin.closed) { scenesWin = null; renderDock(); } }, 1000);
+/* ---------- the Cue lists' and the Timeline's windows ---------- */
+// As the Scenes window: drawn by this page, closing with it; the panel's tab says where it is meanwhile. Its place
+// buttons at its top; Space plays (GO, or the timeline), Delete and M work there as here.
+const panelWins = {};
+const panelWinOpen = k => (k === 'scenes' ? scenesWinOpen() : !!(panelWins[k] && !panelWins[k].closed));
+const panelWinRoot = k => (panelWinOpen(k) ? $('#dockBody', panelWins[k].document) : null);
+const panelWinDocs = () => Object.keys(panelWins).filter(panelWinOpen).map(k => panelWins[k].document);
+const panelRefresh = k => (k === 'cues' ? refreshCues() : k === 'timeline' ? refreshTimeline() : refreshScenes());
+function openPanelWindow(k) {
+  if (k === 'scenes') { openScenesWindow(); return; }
+  if (panelWinOpen(k)) { raiseWindow(panelWins[k]); return; }
+  const w = window.open('', 'olm-' + k, 'popup,width=1240,height=' + (k === 'timeline' ? 600 : 480));
+  if (!w) { toast(`The ${PANELS[k].replace(' (Beta)', '')} window could not open: allow pop-up windows for this page.`, 'err'); return; }
+  panelWins[k] = w;
+  const d = dressWindow(w, PANELS[k].replace(' (Beta)', '') + ' · nouPix', 'panelwin');
+  d.body.append(h('div', { class: 'winbar' }), h('div', { class: 'dockbody', id: 'dockBody' }), h('div', { class: 'toasts', id: 'toasts' }));
+  d.addEventListener('input', rangeInput, true);
+  if (k === 'timeline') { d.addEventListener('keydown', tlDeleteKey, true); d.addEventListener('keydown', tlMarkerKey, true); }
+  d.addEventListener('focusout', () => setTimeout(() => { if (k === 'timeline' ? tlPending && !tlDrag : cuesPending) panelRefresh(k); }), true);
+  w.addEventListener('keydown', e => {
+    if ($('.modal-bg', d) && e.key === 'Escape') { $('.modal-bg', d).remove(); return; }
+    if (typingIn(e.target) || $('.modal-bg', d)) return;
+    const mod = e.ctrlKey || e.metaKey, key = e.key.toLowerCase();
+    if (mod && key === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
+    else if (mod && key === 'y') { e.preventDefault(); redo(); }
+    else if (mod && key === 's') { e.preventDefault(); saveProjectFile(e.shiftKey); }
+    else if (e.code === 'Space' && !e.repeat) {
+      e.preventDefault();
+      if (k === 'cues' && shownCueList()) cueGo(shownCueList());
+      if (k === 'timeline' && shownTimeline()) { const T = shownTimeline(); if (tl.playing && tl.id === T.id) tlPause(); else tlPlay(T); }
+    }
+  });
+  w.addEventListener('pagehide', () => { if (panelWins[k] === w) { panelWins[k] = null; renderDock(); panelRefresh(k); } });
+  // with this page minimized or behind another, its frames stop: the window's own draw the playhead and the progress
+  const frame = () => {
+    if (panelWins[k] !== w || w.closed) return;
+    w.requestAnimationFrame(frame);
+    if (!document.hidden || !project) return;
+    try { if (k === 'timeline') drawTimelineHead(); else drawCueProgress(); } catch (e) { report(k + ' window', e); }
+  };
+  w.requestAnimationFrame(frame);
+  renderDock();
+  panelRefresh(k);
+}
+function closePanelWindow(k) {
+  if (k === 'scenes') { closeScenesWindow(); return; }
+  if (panelWinOpen(k)) panelWins[k].close();
+  panelWins[k] = null;
+  renderDock(); panelRefresh(k);
+}
+// its place buttons, kept in step with where it is
+function syncPanelWindows() {
+  for (const k of Object.keys(panelWins)) {
+    const bar = panelWinOpen(k) && $('.winbar', panelWins[k].document);
+    if (bar) bar.replaceChildren(h('span', { class: 'fill' }), panelPlaces(k));
+  }
+}
+addEventListener('pagehide', () => { for (const w of Object.values(panelWins)) if (w && !w.closed) w.close(); });
+setInterval(() => { for (const k of Object.keys(panelWins)) if (panelWins[k] && panelWins[k].closed) { panelWins[k] = null; renderDock(); panelRefresh(k); } }, 1000);
 function drawScenesWindow() {
   const D = scenesDoc(), root = D && $('#dockBody', D);
   if (!root) return;
@@ -150,24 +215,25 @@ const placeOf = k => { const p = (ui.places || {})[k]; return p === 'left' || p 
 const movedTo = side => Object.keys(PANELS).filter(k => placeOf(k) === side);
 const sideShown = side => !(side === 'left' ? ui.leftHidden : ui.rightHidden);
 // The side's moved tab open now, or null (its own)
-const sideOpen = side => { const k = (ui.sideOpen || {})[side]; return k && placeOf(k) === side && !(k === 'scenes' && scenesWinOpen()) ? k : null; };
+const sideOpen = side => { const k = (ui.sideOpen || {})[side]; return k && placeOf(k) === side && !panelWinOpen(k) ? k : null; };
 // Where a panel shows now (the bottom panel's body or a side's), or null
 function panelRoot(k) {
+  if (k !== 'scenes' && panelWinOpen(k)) return panelWinRoot(k);
   const p = placeOf(k);
   if (p === 'bottom') return ui.dockTab === k && !ui.dockCollapsed ? $('#dockBody') : null;
   return sideShown(p) && sideOpen(p) === k ? $('#' + p + 'Host') : null;
 }
 function panelPlaces(k) {
-  const now = k === 'scenes' && scenesWinOpen() ? 'window' : placeOf(k), n = PANELS[k];
+  const now = panelWinOpen(k) ? 'window' : placeOf(k), n = PANELS[k];
   const list = [['bottom', `${n} at the bottom`, 'In the bottom panel'], ['left', `${n} in the left panel`, 'One more tab there; its ✕ brings it back'],
     ['right', `${n} in the right panel`, 'One more tab there, next to Inspector, Content and Settings; its ✕ brings it back']];
-  if (k === 'scenes') list.push(['window', 'Open in a window', 'The scenes and playlists in a window of their own, to put on another screen']);
+  list.push(['window', 'Open in a window', k === 'scenes' ? 'The scenes and playlists in a window of their own, to put on another screen' : `The ${n.replace(' (Beta)', '').toLowerCase()} in a window of their own, to put on another screen`]);
   return h('div', { class: 'spos', role: 'group', 'aria-label': 'Where the ' + n.toLowerCase() + ' are' },
     list.map(([p, name, what]) => h('button', { type: 'button', class: p === now ? 'on' : '', html: PLACE_ICONS[p], 'data-place': p,
       'aria-label': name, 'aria-pressed': String(p === now), 'data-tip': name + '|' + what, onclick: () => setPanelPlace(k, p) })));
 }
 function setPanelPlace(k, p) {
-  if (k === 'scenes' && p === 'window') { openScenesWindow(); renderDock(); return; }
+  if (p === 'window') { openPanelWindow(k); renderDock(); return; }
   ui.places = Object.assign({}, ui.places, { [k]: p });
   if (p === 'bottom') { ui.dockTab = k; ui.dockCollapsed = false; }
   else {
@@ -175,7 +241,7 @@ function setPanelPlace(k, p) {
     if (!sideShown(p)) (p === 'left' ? showLeft : showRight)(true);
   }
   savePrefs();
-  if (k === 'scenes' && scenesWinOpen()) closeScenesWindow(); else renderDock();
+  if (panelWinOpen(k)) closePanelWindow(k); else renderDock();
   // the stage has another size: the whole canvas in view again
   requestAnimationFrame(() => { resizeView(); fitView(); redrawStage(); });
 }
@@ -185,8 +251,9 @@ function openSideTab(side, k) {
   savePrefs(); renderSides();
   requestAnimationFrame(() => { resizeView(); redrawStage(); });
 }
-// The side panels: their moved tabs (each with its ✕), the one open drawn in the side's own body for it, the side as
-// wide as set for it meanwhile (the side's own content stays as it was, under)
+// The side panels: their moved tabs (the open one followed by its place buttons, the others with a ✕), the one open
+// drawn in the side's own body for it, the side as wide as set for it meanwhile (the side's own content stays as it
+// was, under)
 function renderSides() {
   const ws = $('.workspace');
   for (const side of ['left', 'right']) {
@@ -194,10 +261,11 @@ function renderSides() {
     if (!host) continue;
     const tab = k => h('button', { type: 'button', class: 'mtab' + (k === open ? ' on' : ''), 'data-panel': k, title: PANELS[k] + ' (moved here from the bottom panel)',
       onclick: () => openSideTab(side, k) }, PANELS[k],
-      h('span', { class: 'mx', role: 'button', tabindex: 0, 'aria-label': 'Close ' + PANELS[k] + ' here', title: 'Close it here: back to the bottom panel',
+      k === open ? null : h('span', { class: 'mx', role: 'button', tabindex: 0, 'aria-label': 'Close ' + PANELS[k] + ' here', title: 'Close it here: back to the bottom panel',
         onclick: e => { e.stopPropagation(); setPanelPlace(k, 'bottom'); } }, '✕'));
+    const movedTabs = () => moved.flatMap(k => (k === open ? [tab(k), h('span', { class: 'mplaces' }, panelPlaces(k))] : [tab(k)]));
     if (side === 'right') {
-      $('#rightMoved').replaceChildren(...moved.map(tab));
+      $('#rightMoved').replaceChildren(...movedTabs());
       $$('#rightTabs button[data-tab]').forEach(b => b.classList.toggle('on', !open && b.dataset.tab === ui.rightTab));
       $('#rightBody').hidden = !!open;
       tabsInView($('#rightTabs'));
@@ -206,7 +274,7 @@ function renderSides() {
       tabs.hidden = !moved.length;
       // the tab row stands for the Fixtures head meanwhile: its « at the end
       aside.classList.toggle('tabbed', moved.length > 0);
-      tabs.replaceChildren(tabStrip(h('span', { class: 'tabstrip' }, h('button', { type: 'button', class: 'mtab' + (open ? '' : ' on'), onclick: () => openSideTab('left', null) }, 'Fixtures'), ...moved.map(tab))),
+      tabs.replaceChildren(tabStrip(h('span', { class: 'tabstrip' }, h('button', { type: 'button', class: 'mtab' + (open ? '' : ' on'), onclick: () => openSideTab('left', null) }, 'Fixtures'), ...movedTabs())),
         h('span', { class: 'fill' }), h('span', { class: 'tabtools' }, h('button', { class: 'btn ghost sm', type: 'button', title: 'Hide this panel (Shift H)', 'aria-label': 'Hide the left panel', onclick: () => showLeft(false) }, '\u00ab')));
       for (const sec of $$('aside.left > section')) sec.hidden = !!open;
       tabsInView(tabs);
@@ -264,6 +332,15 @@ function initSides() {
       grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
     });
   }
+}
+// The Cue lists' or the Timeline's tab while they have their own window
+function renderPanelAway(body, k) {
+  const n = PANELS[k].replace(' (Beta)', '');
+  body.append(h('div', { class: 'scenesaway' },
+    h('p', null, `The ${n.toLowerCase()} ${k === 'cues' ? 'are' : 'is'} in ${k === 'cues' ? 'their' : 'its'} own window.`),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', type: 'button', onclick: () => openPanelWindow(k) }, 'Show the window'),
+      h('button', { class: 'btn', type: 'button', onclick: () => closePanelWindow(k) }, 'Back here'))));
 }
 // The Scenes tab while the scenes have their own window
 function renderScenesAway(body) {
@@ -383,8 +460,9 @@ function sceneTile(z, sc, i, keys, look) {
       sc.onOpen ? h('span', { class: 'au', title: 'Plays when the project opens', html: ICONS.power }) : null,
       h('button', { class: 'x', type: 'button', title: 'Add to playlist, update, rename, delete…', 'aria-label': 'Options for ' + sc.name, onclick: e => { e.stopPropagation(); sceneMenu(e.currentTarget, z, sc); } }, '⋯')),
     h('div', { class: 's' }, null, h('span', { class: 'fill' }),
-      edited ? h('button', { class: 'badge warn edited', type: 'button', title: 'Other contents are playing than this scene has. Click to save them into it; recalled without saving, it comes back as it was.',
-        onclick: e => { e.stopPropagation(); updateScene(z, sc); } }, 'edited') : null),
+      edited ? h('button', { class: 'gbtn edited', type: 'button', 'aria-label': 'Edited: save into the scene', html: lineIcon('edit'),
+        title: 'Edited: other contents are playing than this scene has. Click to overwrite the scene with them (it asks first); recalled without saving, it comes back as it was.',
+        onclick: e => { e.stopPropagation(); confirmBox(`Overwrite ${sc.name}?`, `${sc.name} takes what ${z.name} plays now: its layers and their values. ${MOD}Z brings the old one back.`, 'Overwrite', () => updateScene(z, sc)); } }) : null),
     h('i', { class: 'prog' }));
   tile.querySelector('.s').prepend(fadeControl(tile, { name: sc.name, get: () => sc.fade, set: v => { sc.fade = v; } }));
   if (z.tag) tile.style.setProperty('--tag', z.tag);   // its zone's colour, when it has one
@@ -425,13 +503,13 @@ function renderScenes(body, where = 'dock') {
   const X = project.xfade, mode = XF_MODES.find(m => m[0] === X.mode) || XF_MODES[0];
   const foot = h('div', { class: 'sfoot' },
     h('div', { class: 'sleft' },
-      h('button', { class: 'btn sm xfbtn' + (X.on ? ' on' : ''), type: 'button', 'aria-pressed': String(X.on),
+      h('button', { class: 'gbtn xfbtn' + (X.on ? ' on' : ''), type: 'button', 'aria-pressed': String(X.on),
         title: X.on ? 'X-Fader on: it sets the levels of zones A and B. Click to turn it off.' : 'X-Fader: one fader between two zones, A and B',
         onclick: () => setXfadeOn(!X.on) }, h('i', { class: 'dot' }), 'X-Fader'),
-      X.on ? h('button', { class: 'btn sm xfmode', type: 'button', title: mode[2] + '. Click to choose another mode.', 'aria-label': 'X-Fader mode: ' + mode[1], 'aria-haspopup': 'menu',
+      X.on ? h('button', { class: 'gbtn xfmode', type: 'button', title: mode[2] + '. Click to choose another mode.', 'aria-label': 'X-Fader mode: ' + mode[1], 'aria-haspopup': 'menu',
         onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi' }, xfGraph(m), m[1]), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
     X.on ? xfadeStrip() : h('span'),
-    h('div', { class: 'sbtns' }, sceneSizes(place), panelPlaces('scenes')));
+    h('div', { class: 'sbtns' }, sceneSizes(place), inWindow ? panelPlaces('scenes') : null));
   const rows = h('div', { class: 'zonerows', 'data-keep': 'zonerows' });
   const sel = selZone();
   // with the X-Fader on, its zones A and B side by side at the top (A on the left, B on the right, as on the fader),
@@ -442,7 +520,7 @@ function renderScenes(body, where = 'dock') {
     const side = xf ? xf.indexOf(z) : -1;
     const look = lookOf(z.layers);
     const p = z._play, cur = playingList(z), state = cur && p.on ? ' playing' : cur && !p.ended ? ' paused' : '';
-    const lists = h('button', { class: 'btn sm icon plbtn' + state + (ui.playlistOpen[z.id] ? ' on' : ''), type: 'button', html: ICONS.playlist,
+    const lists = h('button', { class: 'gbtn plbtn' + state + (ui.playlistOpen[z.id] ? ' on' : ''), type: 'button', html: ICONS.playlist,
       title: !z.playlists.length ? `New playlist for ${z.name}…` : (cur ? `${cur.name} is ${p.on ? 'playing' : p.ended ? 'stopped' : 'paused'}. ` : '') + (ui.playlistOpen[z.id] ? 'Fold the playlist' : 'Open the playlist'),
       'aria-label': z.name + ' playlists',
       onclick: e => {
@@ -460,13 +538,13 @@ function renderScenes(body, where = 'dock') {
     const head = side >= 0 || wrap ? h('div', { class: 'zhead compact' + (z === sel ? ' sel' : ''), title: side >= 0 ? `${z.name}: click to select. Its slider is the most it reaches; the X-Fader mixes within it.` : `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
       h('div', { class: 'zt' }, zoneTag(z), side >= 0 ? h('span', { class: 'xftag' }, side ? 'B' : 'A') : null, h('span', { class: 'nm' }, z.name),
         zoneOpacityInput(z, 110), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists, stop(),
-        h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')))
+        h('button', { class: 'gbtn zstore', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')))
     : h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
       h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'nm' }, z.name),
         xfDriven(z) ? h('span', { class: 'xftag', title: 'On the X-Fader: it mixes within this level' }, z.id === project.xfade.a ? 'A' : 'B') : null,
         h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists, stop()),
       h('div', { class: 'zc' }, zoneOpacityInput(z, 80),
-        h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
+        h('button', { class: 'gbtn zstore', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
     // the zone's head stays put; its scenes scroll sideways beside it
     const tiles = h('div', { class: 'stiles' });
     const r = h('div', { class: 'scenerow' + (z === sel ? ' sel' : '') + (side >= 0 ? ' xfcol' : '') + (wrap ? ' wrap' : '') }, head, side >= 0 || wrap ? tiles : hscroller(tiles, 'scenes:' + z.id));

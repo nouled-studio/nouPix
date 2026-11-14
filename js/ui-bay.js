@@ -350,7 +350,7 @@ function bayEffective(t) {
   const L = project.zones.flatMap(z => z.layers.filter(L => L.src === src.id))[0];
   if (!mac || !macroActive(mac) || !L) return null;
   const v = paramValue(L, src, inp);
-  if (mac === 'speed' || isSpeedInput(src, inp)) return { x: clamp(Math.abs(v) / speedMax(inp) * (mac === 'speed' ? project.macros.speed.v : 1), 0, 1), mac };
+  if (mac === 'speed' || isSpeedInput(src, inp)) return { x: clamp(Math.abs(v) / speedTop(inp) * (mac === 'speed' ? project.macros.speed.v : 1), 0, 1), mac };
   const lo = inp.MIN ?? 0, hi = inp.MAX ?? 1;
   return hi > lo ? { x: clamp((macroOver(mac, inp, v) - lo) / (hi - lo), 0, 1), mac } : null;
 }

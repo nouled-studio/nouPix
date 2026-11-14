@@ -21,8 +21,8 @@ function tlToggleOpen(c) { ui.tlOpen = tlIsOpen(c) ? ui.tlOpen.filter(x => x !==
 let tlDrag = false, tlPending = false, tlSnap = true;
 function refreshTimeline() {
   if (!timelineShown()) return;
-  const a = document.activeElement;
-  if (tlDrag || (a && a.matches('input[type=text], input[type=number]') && tlRoots().some(r => r.contains(a)))) { tlPending = true; return; }
+  const typing = tlRoots().some(r => { const a = r.ownerDocument.activeElement; return a && a.matches('input[type=text], input[type=number]') && r.contains(a); });
+  if (tlDrag || typing) { tlPending = true; return; }
   tlPending = false;
   for (const r of tlRoots()) keepScroll(r, () => { r.replaceChildren(); renderTimeline(r); });
 }
@@ -59,45 +59,60 @@ function renderTimeline(body) {
   panel.append(h('div', { class: 'cuetabs' },
     project.timelines.map(K => h('button', { type: 'button', class: 'cltab' + (K === T ? ' on' : ''), title: K === T ? 'Right-click for its menu' : 'Show ' + K.name,
       onclick: () => { ui.tlId = K.id; ui.tlSel = null; refreshTimeline(); }, oncontextmenu: e => { e.preventDefault(); timelineMenu(e.currentTarget, K); } }, K.name)),
-    h('button', { type: 'button', class: 'btn sm', title: 'A new timeline: scenes on a track per zone, with an audio file', onclick: () => addTimeline() }, '+ New timeline'),
-    h('span', { class: 'fill' }), panelPlaces('timeline'),
-    T ? h('button', { type: 'button', class: 'btn sm icon', title: T.name + ': rename, length, delete', 'aria-label': T.name + ' menu', onclick: e => timelineMenu(e.currentTarget, T) }, '⋯') : null));
+    gbtn({ icon: 'plus', label: '+ New timeline', title: 'A new timeline: scenes on a track per zone, with an audio file', onclick: () => addTimeline() }),
+    h('span', { class: 'fill' }),
+    T ? gbtn({ icon: 'more', label: T.name + ' menu', title: T.name + ': rename, length, delete', onclick: e => timelineMenu(e.currentTarget, T) }) : null));
   if (!T) {
     panel.append(h('div', { class: 'cueempty' }, h('p', null, 'No timelines yet. A timeline plays scenes on a track per zone, in time with an audio file.'),
       h('button', { type: 'button', class: 'btn primary', onclick: () => addTimeline() }, '+ New timeline')));
     return;
   }
   const mine = tl.id === T.id, playing = mine && tl.playing;
-  const segBtns = (opts, val, set, label) => h('span', { class: 'tlseg', role: 'group', 'aria-label': label },
-    opts.map(([v, t, tip]) => h('button', { type: 'button', class: v === val ? 'on' : '', 'aria-pressed': String(v === val), title: tip || t, onclick: () => set(v) }, t)));
   const fileIn = h('input', { type: 'file', accept: 'audio/*', hidden: true, onchange: e => { const f = e.target.files[0]; if (f) addTimelineAudio(T, f, T.audios.length && mine ? tlPos() : 0); } });
+  // the bar: buttons without boxes, in groups (transport, loop, grid, snap; zoom, fit, marker, audio)
+  const setLoop = v => { T.loop.mode = v; commit({ lists: false }); refreshTimeline(); };
+  const setGrid = v => { T.grid = v; commit({ lists: false }); refreshTimeline(); };
+  const sep = () => h('span', { class: 'gsep' });
   panel.append(h('div', { class: 'tlbar' },
-    h('button', { type: 'button', class: 'tlplay' + (playing ? ' on' : ''), 'aria-label': playing ? 'Pause' : 'Play', title: (playing ? 'Pause' : 'Play') + ' (Space, with the mouse off the stage)',
-      onclick: () => (playing ? tlPause() : tlPlay(T)), html: playing ? '<svg viewBox="0 0 16 16"><path d="M4 3h3v10H4zM9 3h3v10H9z" fill="currentColor"/></svg>' : '<svg viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5z" fill="currentColor"/></svg>' }),
-    h('button', { type: 'button', class: 'tlplay', 'aria-label': 'Stop', title: 'Stop: back to the start (of the loop)', onclick: () => tlStop(T), html: '<svg viewBox="0 0 16 16"><path d="M3.5 3.5h9v9h-9z" fill="currentColor"/></svg>' }),
-    h('span', { class: 'tltime mono', 'data-tl-time': '' }, fmtTime(mine ? tlPos() : 0), h('span', { class: 'muted' }, ' / ' + fmtTime(T.length))),
-    h('span', { class: 'lbl' }, 'Loop'),
-    segBtns([['off', 'Off'], ['all', 'All', 'Loop the whole timeline'], ['region', 'Region', 'Loop between the two markers on the ruler']], T.loop.mode, v => { T.loop.mode = v; commit({ lists: false }); refreshTimeline(); }, 'Loop'),
-    h('span', { class: 'lbl' }, 'Grid'),
-    segBtns([['sec', 'Seconds'], ['bars', 'Bars', 'Bars and beats at the tempo given']], T.grid, v => { T.grid = v; commit({ lists: false }); refreshTimeline(); }, 'Grid'),
+    h('button', { type: 'button', class: 'gbtn tlplay' + (playing ? ' on' : ''), 'aria-label': playing ? 'Pause' : 'Play', title: (playing ? 'Pause' : 'Play') + ' (Space, with the mouse off the stage)',
+      onclick: () => (playing ? tlPause() : tlPlay(T)), html: lineIcon(playing ? 'pause' : 'play') }),
+    h('button', { type: 'button', class: 'gbtn tlplay', 'aria-label': 'Stop', title: 'Stop: back to the start (of the loop)', onclick: () => tlStop(T), html: lineIcon('stop') }),
+    h('span', { class: 'tltime mono', 'data-tl-time': '' }, fmtTime(mine ? tlPos() : 0)),
+    // its length, typed (1:30 or 90), and set to the end of what is on it
+    h('span', { class: 'tllen' }, h('span', { class: 'muted' }, '/'),
+      h('input', { type: 'text', class: 'mono', value: fmtTime(T.length), 'aria-label': 'Length', title: 'The timeline\'s length: type it as 1:30 or 90 (never shorter than its clips)', spellcheck: false,
+        onchange: e => { const v = parseTime(e.target.value); if (v > 0) { setTimelineLength(T, v); commit({ lists: false }); } refreshTimeline(); },
+        onkeydown: e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { e.target.value = fmtTime(T.length); e.target.blur(); } } }),
+      gbtn({ icon: 'lenfit', label: 'Length to the contents', title: 'The length to the end of what is on it: the last clip, audio track or marker', onclick: () => tlFitLength(T) })),
+    sep(),
+    h('span', { class: 'tlgrp', role: 'group', 'aria-label': 'Loop' },
+      gbtn({ icon: 'once', label: 'Off', title: 'Loop off: it plays once and stops at the end', on: T.loop.mode === 'off', onclick: () => setLoop('off') }),
+      gbtn({ icon: 'loop', label: 'All', title: 'Loop the whole timeline', on: T.loop.mode === 'all', onclick: () => setLoop('all') }),
+      gbtn({ icon: 'region', label: 'Region', title: 'Loop between the two markers on the ruler', on: T.loop.mode === 'region', onclick: () => setLoop('region') }),
+      gbtn({ icon: 'loopfit', label: 'Loop around everything', title: 'Loop around everything: the region from the first clip, track or marker to the last', onclick: () => tlLoopAll(T) })),
+    sep(),
+    h('span', { class: 'tlgrp', role: 'group', 'aria-label': 'Grid' },
+      gbtn({ text: 'Sec', label: 'Seconds', title: 'The ruler in seconds', on: T.grid === 'sec', onclick: () => setGrid('sec') }),
+      gbtn({ text: 'Bars', title: 'Bars and beats at the tempo given', on: T.grid === 'bars', onclick: () => setGrid('bars') })),
     T.grid === 'bars' ? h('label', { class: 'tlbpm', title: 'The tempo the bars follow' }, h('input', { type: 'number', min: 20, max: 300, step: 0.1, value: fmtV(T.bpm), 'aria-label': 'BPM',
       onchange: e => { T.bpm = clamp(+e.target.value || 120, 20, 300); commit({ lists: false }); refreshTimeline(); }, onkeydown: e => { if (e.key === 'Enter') e.target.blur(); } }), 'BPM') : null,
-    T.grid === 'bars' ? h('span', { class: 'tlseg', role: 'group', 'aria-label': 'Tempo twice or half' },
-      h('button', { type: 'button', title: 'Half the tempo (it counts twice too fast)', 'aria-label': 'Half the tempo', onclick: () => tlTempoTimes(T, 0.5) }, '÷2'),
-      h('button', { type: 'button', title: 'Twice the tempo (it counts half too slow)', 'aria-label': 'Twice the tempo', onclick: () => tlTempoTimes(T, 2) }, '×2')) : null,
-    T.audios.length ? h('button', { type: 'button', class: 'btn sm', title: 'Find the tempo and bar 1 in the first audio track (or in another, from its menu): the bars follow the music', onclick: () => tlDetect(T, true) }, 'Detect') : null,
-    h('label', { class: 'tlsnap', title: 'Clips and markers snap to the grid, the playhead and other clips' }, h('input', { type: 'checkbox', checked: tlSnap, onchange: e => { tlSnap = e.target.checked; } }), 'Snap'),
+    T.grid === 'bars' ? gbtn({ text: '÷2', label: 'Half the tempo', title: 'Half the tempo (it counts twice too fast)', onclick: () => tlTempoTimes(T, 0.5) }) : null,
+    T.grid === 'bars' ? gbtn({ text: '×2', label: 'Twice the tempo', title: 'Twice the tempo (it counts half too slow)', onclick: () => tlTempoTimes(T, 2) }) : null,
+    T.audios.length ? gbtn({ text: 'Detect', title: 'Find the tempo and bar 1 in the first audio track (or in another, from its menu): the bars follow the music', onclick: () => tlDetect(T, true) }) : null,
+    sep(),
+    gbtn({ icon: 'snap', label: 'Snap', cls: 'tlsnap', title: 'Snap: clips and markers snap to the grid, the playhead and other clips', on: tlSnap, onclick: e => { tlSnap = !tlSnap; const b = e.currentTarget; b.classList.toggle('on', tlSnap); b.setAttribute('aria-pressed', String(tlSnap)); } }),
     h('span', { class: 'fill' }),
     // the zoom: these sliders, or the bars under and beside the tracks (their ends dragged)
-    h('span', { class: 'tlzlbl', title: 'Zoom in time' }, '↔'),
+    h('span', { class: 'tlzlbl', title: 'Zoom in time', html: lineIcon('hzoom') }),
     h('input', { type: 'range', class: 'tlzoom', min: 4, max: 240, step: 1, value: ui.tlZoom, 'aria-label': 'Zoom', title: 'Zoom in time (or the bar under the tracks, or Ctrl + scroll)',
       oninput: e => tlZoomTo(+e.target.value), onchange: () => savePrefs() }),
-    h('span', { class: 'tlzlbl', title: 'Track height' }, '↕'),
+    h('span', { class: 'tlzlbl', title: 'Track height', html: lineIcon('vzoom') }),
     h('input', { type: 'range', class: 'tlzoom tlvzoom', min: 30, max: 160, step: 1, value: tlRow(), 'aria-label': 'Track height', title: 'Track height (or the bar beside the tracks, or Alt + scroll)',
       oninput: e => tlRowTo(+e.target.value), onchange: () => savePrefs() }),
-    h('button', { type: 'button', class: 'btn sm', title: 'Zoom to fit: every clip in view, the tracks filling the panel', onclick: () => tlFit(T) }, 'Fit'),
-    h('button', { type: 'button', class: 'btn sm', title: 'A marker at the playhead: Drop, Break, Build up… (M)', onclick: () => markerDialog(T, null, mine ? tlPos() : 0) }, '+ Marker'),
-    h('button', { type: 'button', class: 'btn sm', title: T.audios.length ? 'One more audio track, at the playhead' : 'An audio file that plays with the timeline', onclick: () => fileIn.click() }, '+ Audio'),
+    gbtn({ icon: 'fit', label: 'Fit', title: 'Fit: every clip in view, the tracks filling the panel', onclick: () => tlFit(T) }),
+    sep(),
+    gbtn({ icon: 'marker', label: '+ Marker', title: 'A marker at the playhead: Drop, Break, Build up… (M)', onclick: () => markerDialog(T, null, mine ? tlPos() : 0) }),
+    gbtn({ icon: 'audio', label: '+ Audio', title: T.audios.length ? 'One more audio track, at the playhead' : 'An audio file that plays with the timeline', onclick: () => fileIn.click() }),
     fileIn));
   // the tracks, with a bar under them and one beside them: their middle scrolls, their ends zoom (in time, in height)
   const hbar = zoomBar(T, 'h'), vbar = zoomBar(T, 'v');
@@ -225,8 +240,8 @@ function tlTracks(T, mine) {
         h('span', { class: 'tlz' }, top ? z.name : ''),
         n > 1 ? h('span', { class: 'tlln mono', title: 'Lane ' + (k + 1) + (top ? ': shows over the lanes below' : '') }, String(k + 1)) : null,
         top ? h('span', { class: 'tllbtns' },
-          h('button', { type: 'button', class: 'tllb', title: 'A lane on top: its clips show over the ones below, and hand back to them as they end', 'aria-label': 'Add a lane to ' + z.name, onclick: () => addLane(T, z) }, '+'),
-          n > 1 ? h('button', { type: 'button', class: 'tllb', title: 'Remove the top lane (when it has no clips)', 'aria-label': 'Remove a lane from ' + z.name, onclick: () => removeLane(T, z) }, '−') : null) : null);
+          h('button', { type: 'button', class: 'tllb', title: 'A lane underneath: the clips already there stay put, over it (a clip on a higher lane shows over the ones below)', 'aria-label': 'Add a lane to ' + z.name, onclick: () => addLane(T, z) }, '+'),
+          n > 1 ? h('button', { type: 'button', class: 'tllb', title: 'Remove an empty lane (the bottom one, else the top one)', 'aria-label': 'Remove a lane from ' + z.name, onclick: () => removeLane(T, z) }, '−') : null) : null);
       grid.append(h('div', { class: 'tlrow' + (top ? '' : ' sub'), style: rows ? { height: tlRow() + rows * TL_KROW + 'px' } : null }, label, lane));
     }
   }
@@ -515,6 +530,8 @@ function drawTimelineHead() {
   for (const r of tlRoots()) {
     const hd = $('[data-tl-head]', r), tm = $('[data-tl-time]', r), sc = $('.tlscroll', r);
     if (hd && hd.style.left !== x + 'px') hd.style.left = x + 'px';
+    // scrolled past it, under the names column: hidden (the ruler's corner can't cover it)
+    if (hd && sc) { const under = x - sc.scrollLeft < TL_LABEL - 1; if (hd.hidden !== under) hd.hidden = under; }
     if (tm && tm.firstChild && tm.firstChild.nodeType === 3) { const s = fmtTime(p); if (tm.firstChild.nodeValue !== s) tm.firstChild.nodeValue = s; }
     if (sc && tl.playing && tl.id === T.id && !tlDrag) {
       const vis = sc.clientWidth - TL_LABEL;
@@ -530,7 +547,7 @@ function drawTimelineHead() {
   if (pb && pb.classList.contains('on') !== (tl.playing && tl.id === T.id)) refreshTimeline();
 }
 // The clip picked goes with Delete or Backspace while the timeline shows
-document.addEventListener('keydown', e => {
+function tlDeleteKey(e) {
   if (!(ui.tlSel || tlKeys.size) || !timelineShown() || typingIn(e.target) || !(e.key === 'Delete' || e.key === 'Backspace')) return;
   const T = shownTimeline();
   // the keys picked go before their clip
@@ -546,7 +563,8 @@ document.addEventListener('keydown', e => {
     const c = cs.find(x => x.id === ui.tlSel);
     if (c) { e.preventDefault(); e.stopPropagation(); deleteClip(T, zoneById(zid), c); return; }
   }
-}, true);
+}
+document.addEventListener('keydown', tlDeleteKey, true);
 
 /* ---------- keyframes ---------- */
 // A value as a share of its control's range (0 to 1), and back; colours and points have no one height
@@ -559,16 +577,29 @@ function tlNorm(inp, v, k = 0) {
   if (!inp) return 0.5;
   if (inp.TYPE === 'bool' || inp.TYPE === 'event') return v ? 1 : 0;
   if (inp.TYPE === 'long' && inp.VALUES) { const i = inp.VALUES.indexOf(v); return inp.VALUES.length > 1 ? Math.max(0, i) / (inp.VALUES.length - 1) : 0.5; }
-  const [lo, hi] = tlRange(inp, k), x = Array.isArray(v) ? v[k] : v;
-  return clamp(((+x || 0) - lo) / (hi - lo), 0, 1);
+  const [lo, hi] = tlRange(inp, k), x = Array.isArray(v) ? v[k] : v, n = clamp(((+x || 0) - lo) / (hi - lo), 0, 1);
+  return inp._flip ? 1 - n : n;
 }
 function tlFromNorm(inp, f) {
   if (!inp || inp.TYPE === 'color' || inp.TYPE === 'point2D') return undefined;
   f = clamp(f, 0, 1);
+  if (inp._flip) f = 1 - f;
   if (inp.TYPE === 'bool' || inp.TYPE === 'event') return f >= 0.5;
   if (inp.TYPE === 'long' && inp.VALUES) return inp.VALUES[Math.round(f * (inp.VALUES.length - 1))];
-  const [lo, hi] = tlRange(inp, 0), v = lo + f * (hi - lo);
+  const [lo, hi] = tlRange(inp, 0);
+  let v = lo + f * (hi - lo);
+  // a range across zero: a small magnet there, so a still or centred value is easy to land on
+  if (lo < 0 && hi > 0 && Math.abs(v) < (hi - lo) * 0.03) v = 0;
   return inp.TYPE === 'int' ? Math.round(v) : Math.round(v * 1000) / 1000;
+}
+// What a row draws and drags: the control as it is, but an effect's Speed as the Content tab shows it, from still at the
+// bottom to full at the top, in its own direction (a curve whose keys all run in reverse: full reverse at the top), so
+// pulling a key up always makes it faster and never crosses into the other direction
+function tlRowInput(cv) {
+  const inp = tlCurveInput(cv), src = cv.kind === 'param' && srcById(cv.src);
+  if (!inp || !src || !isSpeedInput(src, inp)) return inp;
+  const top = speedTop(inp), rev = (inp.MIN ?? 0) < 0 && cv.keys.length > 0 && cv.keys.every(k => +k.v <= 0) && cv.keys.some(k => +k.v < 0);
+  return Object.assign({}, inp, rev ? { MIN: -top, MAX: 0, _flip: true, LABEL: (inp.LABEL || inp.NAME) + ' (reverse)' } : { MIN: 0, MAX: top });
 }
 const tlCurveName = (cv, inp) => (cv.kind === 'level' ? 'Level' : inp ? inp.LABEL || inp.NAME : cv.ctl);
 const tlLevelCurve = c => (c.curves || []).find(cv => cv.kind === 'level') || null;
@@ -650,9 +681,10 @@ function wireLevel(ov, T, z, c, el) {
   };
 }
 function keyRow(T, z, c, cv, el) {
-  const inp = tlCurveInput(cv), name = tlCurveName(cv, inp);
-  const graph = h('span', { class: 'tlkgraph', title: 'Double-click to add a key; drag a box to pick several' });
-  const row = h('span', { class: 'tlkrow' + (inp ? '' : ' gone'), 'data-curve': cv.src + '|' + cv.ctl }, graph,
+  const inp = tlRowInput(cv), name = tlCurveName(cv, inp), isCol = !!inp && inp.TYPE === 'color';
+  const graph = h('span', { class: 'tlkgraph', title: isCol ? 'Click a key to pick its colour, drag it to move it in time; double-click the band to add a key'
+    : 'Double-click to add a key; drag a box to pick several' });
+  const row = h('span', { class: 'tlkrow' + (inp ? '' : ' gone') + (isCol ? ' color' : ''), 'data-curve': cv.src + '|' + cv.ctl }, graph,
     h('span', { class: 'tlklab', title: (srcById(cv.src) || { name: 'Missing effect' }).name + ' · ' + name + (inp ? '' : ': not in this clip\'s scene') },
       h('span', { class: 'tlkname' }, name),
       h('button', { type: 'button', class: 'tlkb', title: 'A key at the playhead', 'aria-label': 'Add a key to ' + name + ' at the playhead',
@@ -662,18 +694,25 @@ function keyRow(T, z, c, cv, el) {
   paintCurve(graph, c, cv, inp);
   const tAt = ev => clamp(tlSnapT(T, c.start + (ev.clientX - graph.getBoundingClientRect().left) / ui.tlZoom, null) - c.start, 0, c.dur);
   const fAt = ev => tlFOf(ev.clientY - graph.getBoundingClientRect().top, TL_KROW);
+  let down = null;
   graph.addEventListener('pointerdown', e => {
     e.stopPropagation();
     if (e.button !== 0) return;
     e.preventDefault();
     const kel = e.target.closest('.tlkey');
+    down = kel ? { x: e.clientX, y: e.clientY, k: kel._key } : null;
     if (kel) pressKey(e, T, z, c, el, kel); else boxSelect(e, el);
+  });
+  if (isCol) graph.addEventListener('click', e => {
+    const kel = e.target.closest('.tlkey');
+    if (!kel || !down || down.k !== kel._key || e.shiftKey || Math.abs(e.clientX - down.x) > 3 || Math.abs(e.clientY - down.y) > 3) return;
+    colorKeyPicker(T, z, c, cv, kel._key, kel);
   });
   graph.addEventListener('dblclick', e => {
     e.stopPropagation();
     if (!inp) return;
     const kel = e.target.closest('.tlkey');
-    if (kel) { keyDialog(T, c, cv, kel._key); return; }
+    if (kel) { if (isCol) colorKeyPicker(T, z, c, cv, kel._key, kel); else keyDialog(T, c, cv, kel._key); return; }
     const t = tAt(e), v = tlFromNorm(inp, fAt(e)), k = setKey(T, c, cv, t, v !== undefined ? v : tlCurveAt(cv, t, inp));
     tlKeys.clear(); tlKeys.add(k); refreshTimeline();
   });
@@ -692,7 +731,7 @@ function pressKey(e, T, z, c, el, kel) {
 // Keys dragged together: in time by the same amount (snapped by the one held, none past the clip's ends), in value
 // by the same share of each one's range (colours and points keep theirs)
 function dragKeys(e, T, z, c, el, items, inTime, held) {
-  const x0 = e.clientX, y0 = e.clientY, o = items.map(({ k, cv }) => ({ k, cv, t: k.t, inp: tlCurveInput(cv), f: tlNorm(tlCurveInput(cv), k.v), H: cv.kind === 'level' ? tlStripH() : TL_KROW }));
+  const x0 = e.clientX, y0 = e.clientY, o = items.map(({ k, cv }) => ({ k, cv, t: k.t, inp: tlRowInput(cv), f: tlNorm(tlRowInput(cv), k.v), H: cv.kind === 'level' ? tlStripH() : TL_KROW }));
   const lo = -Math.min(...o.map(x => x.t)), hi = c.dur - Math.max(...o.map(x => x.t));
   const h0 = held && o.find(x => x.k === held);
   let moved = false;
@@ -750,7 +789,8 @@ function paintCurve(graph, c, cv, inp) {
   let svg = '';
   if (inp && inp.TYPE === 'color') {
     const stops = T2.filter((t, i) => i % Math.max(1, Math.floor(T2.length / 120)) === 0 || cv.keys.some(k => Math.abs(k.t - t) < 0.001 || Math.abs(k.t - 0.0005 - t) < 0.001));
-    graph.style.background = 'linear-gradient(to right,' + stops.map(t => tlRgb(tlCurveAt(cv, t, inp)) + ' ' + (t / c.dur * 100).toFixed(3) + '%').join(',') + ')';
+    // the band under the row's name, so the name never covers a key
+    graph.style.background = 'linear-gradient(to right,' + stops.map(t => tlRgb(tlCurveAt(cv, t, inp)) + ' ' + (t / c.dur * 100).toFixed(3) + '%').join(',') + `) left bottom / 100% ${TL_BAND}px no-repeat`;
   } else {
     graph.style.background = '';
     for (const k of inp && inp.TYPE === 'point2D' ? [0, 1] : [0]) {
@@ -761,9 +801,26 @@ function paintCurve(graph, c, cv, inp) {
   graph.innerHTML = `<svg width="${w}" height="${H}" viewBox="0 0 ${w} ${H}">${svg}</svg>`;
   for (const k of cv.keys) {
     if (k.t < -1e-6 || k.t > c.dur + 1e-6) continue;
-    const y = inp && inp.TYPE !== 'color' && inp.TYPE !== 'point2D' ? tlYOf(tlNorm(inp, k.v), H) : H / 2 - 1;
-    graph.append(keyEl(c, cv, k, k.t * z, y));
+    const col = inp && inp.TYPE === 'color';
+    const y = col ? H - TL_BAND / 2 - 1 : inp && inp.TYPE !== 'point2D' ? tlYOf(tlNorm(inp, k.v), H) : H / 2 - 1;
+    const ke = keyEl(c, cv, k, k.t * z, y);
+    if (col) { ke.classList.add('col'); ke.style.setProperty('--kc', tlRgb(k.v)); }
+    graph.append(ke);
   }
+}
+// A colour key's colour, in nouPix's colour picker beside the key: the band and the light follow as it is picked, one step
+// of undo when let go
+const TL_BAND = 14;
+function colorKeyPicker(T, z, c, cv, k, anchor) {
+  const inp = tlCurveInput(cv);
+  const repaint = () => {
+    for (const r of tlRoots()) { const el = $(`.tlclip[data-clip="${c.id}"]`, r); if (el) paintKeys(el, T, z, c); }
+    if (tl.id === T.id) tlApply(T, tlPos(), false);
+  };
+  openColorPicker(anchor, { label: tlCurveName(cv, inp) + ' at ' + fmtTime(c.start + k.t), key: 'tlkey:' + c.id + ':' + cv.src + ':' + cv.ctl,
+    get: () => (Array.isArray(k.v) ? [0, 1, 2, 3].map(i => k.v[i] ?? 1) : [1, 1, 1, 1]),
+    set: v => { k.v = v.slice(0, 4); repaint(); },
+    done: () => { commit({ lists: false }); if (tl.id === T.id) tlApply(T, tlPos(), false); } });
 }
 // A key's menu: its ease (for every key picked), its value, Delete
 document.addEventListener('contextmenu', e => {
@@ -771,8 +828,8 @@ document.addEventListener('contextmenu', e => {
   if (!kel) return;
   e.preventDefault(); e.stopPropagation();
   const T = shownTimeline(), k = kel._key, cv = kel._cv;
-  let c = null;
-  for (const cs of Object.values((T && T.tracks) || {})) for (const x of cs) if ((x.curves || []).includes(cv)) c = x;
+  let c = null, zc = null;
+  for (const [zid, cs] of Object.entries((T && T.tracks) || {})) for (const x of cs) if ((x.curves || []).includes(cv)) { c = x; zc = zoneById(zid); }
   if (!c) return;
   if (!tlKeys.has(k)) { tlKeys.clear(); tlKeys.add(k); }
   const picked = (c.curves || []).flatMap(v => v.keys.filter(x => tlKeys.has(x)).map(x => ({ c, cv: v, k: x })));
@@ -783,7 +840,7 @@ document.addEventListener('contextmenu', e => {
     ['Linear', ease('linear'), { key: all === 'linear' ? '✓' : '' }],
     ['Ease in and out', ease('ease'), { key: all === 'ease' ? '✓' : '' }],
     ['Hold', ease('hold'), { key: all === 'hold' ? '✓' : '' }],
-    picked.length === 1 ? ['Value…', () => keyDialog(T, c, cv, k)] : null,
+    picked.length === 1 ? (tlCurveInput(cv) && tlCurveInput(cv).TYPE === 'color' ? ['Colour…', () => colorKeyPicker(T, zc, c, cv, k, kel)] : ['Value…', () => keyDialog(T, c, cv, k)]) : null,
     ['Delete', () => { tlKeys.clear(); deleteKeys(T, picked); }, { key: 'Del' }],
   ]);
 }, true);
@@ -910,14 +967,15 @@ function markerDialog(T, m, t) {
   nameIn.focus(); nameIn.select();
 }
 // M: a marker at the playhead while the timeline shows
-document.addEventListener('keydown', e => {
+function tlMarkerKey(e) {
   if (e.key !== 'm' && e.key !== 'M') return;
-  if (e.ctrlKey || e.metaKey || e.altKey || !timelineShown() || typingIn(e.target) || $('.modal-bg')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || !timelineShown() || typingIn(e.target) || $('.modal-bg') || $('.modal-bg', e.target.ownerDocument || document)) return;
   const T = shownTimeline();
   if (!T) return;
   e.preventDefault(); e.stopPropagation();
   markerDialog(T, null, tl.id === T.id ? tlPos() : 0);
-}, true);
+}
+document.addEventListener('keydown', tlMarkerKey, true);
 
 /* ---------- zoom ---------- */
 // The tracks' height: drawn again alone, the slider under the mouse staying
@@ -933,6 +991,31 @@ function tlRowTo(v) {
     sc.replaceWith(n); n.scrollLeft = x; n.scrollTop = y;
   }
   tlBarsSync(true);
+}
+// A time typed: m:ss(.cc), or seconds
+function parseTime(t) {
+  const m = /^\s*(?:(\d+):)?(\d+(?:[.,]\d*)?)\s*$/.exec(String(t));
+  return m ? (+(m[1] || 0)) * 60 + parseFloat(m[2].replace(',', '.')) : NaN;
+}
+// The length to the end of what is on it: the last clip, audio track (as long as it plays) or marker
+function tlFitLength(T) {
+  const end = Math.max(0, ...Object.values(T.tracks).flat().map(c => c.start + c.dur), ...T.audios.map(A => A.start + tlAudioLen(A)), ...(T.markers || []).map(m => m.t));
+  if (end < 0.1) { toast('Nothing on the timeline yet to fit its length to.', 'warn'); return; }
+  T.length = clamp(Math.ceil(end * 10) / 10, 1, 36000);
+  T.loop.b = Math.min(T.loop.b, T.length); T.loop.a = Math.min(T.loop.a, T.loop.b - 0.1);
+  if (tl.id === T.id && tl.pos > T.length) tl.pos = T.length;
+  commit({ lists: false }); refreshTimeline();
+  toast(`${T.name} is ${fmtTime(T.length)} long: to the end of what is on it.`);
+}
+// The loop's region around everything on the timeline: from the first clip, audio track or marker to the last
+function tlLoopAll(T) {
+  const spans = Object.values(T.tracks).flat().map(c => [c.start, c.start + c.dur]).concat(T.audios.map(A => [A.start, A.start + tlAudioLen(A)]), (T.markers || []).map(m => [m.t, m.t]));
+  if (!spans.length) { toast('Nothing on the timeline yet to loop around.', 'warn'); return; }
+  const a = Math.max(0, Math.min(...spans.map(x => x[0]))), b = Math.min(T.length, Math.max(...spans.map(x => x[1])));
+  if (b - a < 0.1) { toast('Nothing on the timeline yet to loop around.', 'warn'); return; }
+  T.loop = { mode: 'region', a: Math.round(a * 1000) / 1000, b: Math.round(b * 1000) / 1000 };
+  commit({ lists: false }); refreshTimeline();
+  toast(`Looping ${fmtTime(a)} to ${fmtTime(b)}: everything on the timeline.`);
 }
 // Fit: from the start to the end of what is on it (clips, markers, the audio, at least 4 s) across the view, and the
 // tracks sharing the panel's height

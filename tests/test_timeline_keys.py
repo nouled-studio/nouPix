@@ -179,6 +179,39 @@ try:
           pg.locator("#dockBody .tlclip.open").count() == 0 and pg.locator("#dockBody .tlclip.keyed").count() == 1 and abs(clip().bounding_box()["height"] - 42) < 2
           and pg.locator("#dockBody .tlclip .tllevel path:not(.none)").count() == 1)
 
+    # ---------- a colour's keys: each in its own colour, under the row's name; a click opens the colour picker
+    E(f"(() => {{ const c = {C}; c.curves[2].keys = [{{ t: 0, v: [1, 0, 0, 1], ease: 'linear' }}, {{ t: c.dur, v: [0, 0, 1, 1], ease: 'linear' }}]; ui.tlOpen = [c.id]; tlKeys.clear(); commit({{ lists: false }}); refreshTimeline(); }})()"); time.sleep(0.3)
+    crow = pg.locator(f"#dockBody .tlkrow[data-curve='{S}|{COL}']")
+    look = crow.evaluate("""r => { const k = [...r.querySelectorAll('.tlkey')], n = r.querySelector('.tlklab').getBoundingClientRect();
+      return [k.length, k.map(e => getComputedStyle(e).backgroundColor), k.every(e => e.classList.contains('col') && e.getBoundingClientRect().top >= n.bottom - 0.5)]; }""")
+    check("a colour row's keys in their own colour, all below its name", look[0] == 2 and look[1] == ["rgb(255, 0, 0)", "rgb(0, 0, 255)"] and look[2], look)
+    crow.locator(".tlkey").first.click(); time.sleep(0.3)
+    check("…a click on a key opens the colour picker there", pg.locator(".cpop").count() == 1 and ("at " + E(f"fmtTime({C}.start)")) in pg.locator(".cpop .cpt").text_content(), pg.locator(".cpop").count())
+    hx = pg.locator(".cpop input[aria-label='Hex colour']"); hx.fill("#00ff00"); hx.press("Enter"); time.sleep(0.3)
+    kv = E(f"{C}.curves[2].keys[0].v")
+    E(f"tlSeek({TT}, {C}.start)"); time.sleep(0.2)
+    lit = E(f"cueParamNow(zoneById('{Z}'), '{S}', '{COL}')")
+    check("…the colour picked goes to the key, and to the light there", kv[:3] == [0, 1, 0] and [round(x, 3) for x in lit[:3]] == [0, 1, 0], (kv, lit))
+    check("…the key drawn in it", crow.locator(".tlkey").first.evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(0, 255, 0)")
+    pg.keyboard.press("Escape"); time.sleep(0.2)
+    E("undo()"); time.sleep(0.3)
+    check("…one step of undo brings the red back", E(f"{TT}.tracks['{Z}'][0].curves[2].keys[0].v")[:3] == [1, 0, 0])
+    E(f"(() => {{ const r = $$('#dockBody .tlkrow').find(r => r.dataset.curve === '{S}|{COL}'); r.querySelector('.tlkey').dispatchEvent(new MouseEvent('contextmenu', {{ bubbles: true, clientX: 300, clientY: 300 }})); }})()"); time.sleep(0.2)
+    check("…its menu offers Colour…", pg.locator(".menu button:has-text('Colour…')").count() == 1)
+    pg.keyboard.press("Escape")
+
+    # ---------- Speed as the Content tab shows it: still at the bottom, full at the top, never across into reverse
+    sp = E("""(() => { const s = project.sources.find(s => s.kind === 'isf' && controlsOf(s).some(i => /^speed$/i.test(i.NAME) && i.TYPE === 'float' && (i.MIN ?? 0) < 0));
+      const i = controlsOf(s).find(i => /^speed$/i.test(i.NAME)), fw = { kind: 'param', src: s.id, ctl: i.NAME, keys: [{ t: 0, v: 0.25 * i.MAX }] }, rv = { kind: 'param', src: s.id, ctl: i.NAME, keys: [{ t: 0, v: 0.25 * i.MIN }] };
+      const F = tlRowInput(fw), R = tlRowInput(rv);
+      return { max: speedTop(i), min: -speedTop(i), fwRange: [F.MIN, F.MAX], fwBottom: tlFromNorm(F, 0), fwTop: tlFromNorm(F, 1), fwLow: tlFromNorm(F, -0.5),
+        rvBottom: tlFromNorm(R, 0), rvTop: tlFromNorm(R, 1), rvUp: tlFromNorm(R, 0.6) < tlFromNorm(R, 0.3), rvLabel: R.LABEL,
+        magnet: tlFromNorm({ TYPE: 'float', MIN: -1, MAX: 1 }, 0.51), far: tlFromNorm({ TYPE: 'float', MIN: -1, MAX: 1 }, 0.6) }; })()""")
+    check("a Speed row runs from still (bottom) to full (top): pulled up it only gets faster, pulled down it stops at still",
+          sp["fwRange"] == [0, sp["max"]] and sp["fwBottom"] == 0 and sp["fwTop"] == sp["max"] and sp["fwLow"] == 0, sp)
+    check("…a curve running in reverse keeps its direction: still at the bottom, full reverse at the top", sp["rvBottom"] == 0 and sp["rvTop"] == sp["min"] and sp["rvUp"] and "reverse" in sp["rvLabel"], sp)
+    check("a range across zero has a magnet there", sp["magnet"] == 0 and abs(sp["far"] - 0.2) < 1e-6, sp)
+
     # ---------- files
     saved = E(f"JSON.parse(serialize()).timelines[0].tracks['{Z}'][0].curves")
     check("files keep the curves", len(saved) == 3 and saved[2]["keys"][0]["v"] == [1, 0, 0, 1])

@@ -126,7 +126,8 @@ try:
     # ---------- lanes: the top lane shows over the one under, handing back to it
     E("tlPause()")
     pg.locator(f"#dockBody button[aria-label='Add a lane to {E(f'zoneById({chr(39)}{Z[0]}{chr(39)}).name')}']").click(); time.sleep(0.3)
-    check("+ on a zone's track adds a lane on top", E(f"project.timelines[0].lanes['{Z[0]}']") == 2 and pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}']").count() == 2)
+    check("+ on a zone's track adds a lane underneath: its clips stay where they were, on the top lane now", E(f"project.timelines[0].lanes['{Z[0]}']") == 2 and pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}']").count() == 2
+          and E(f"project.timelines[0].tracks['{Z[0]}'].every(c => c.lane === 1)") and pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}'][data-lane='0'] .tlclip").count() == 0)
     E(f"""(() => {{ const zid = '{Z[0]}', s = zoneById(zid).scenes, T = project.timelines[0];
       T.loop.mode = 'off'; T.length = 12; T.tracks[zid] = [newClip(s[0].id, 0, 10, {{ fadeIn: 0, fadeOut: 1, lane: 0 }}), newClip(s[1].id, 3, 3, {{ fadeIn: 1, fadeOut: 1, lane: 1 }})];
       commit(); tlStop(T); }})()"""); time.sleep(0.2)
@@ -153,7 +154,7 @@ try:
     pg.mouse.move(b["x"] + 20, b["y"] + 15); pg.mouse.down(); pg.mouse.move(b["x"] + 20, low["y"] + 15, steps=5); pg.mouse.up(); time.sleep(0.3)
     check("…onto a lane with room, it goes there", E(f"project.timelines[0].tracks['{Z[0]}'].find(c => c.id === '{top}').lane") == 0)
     pg.locator(f"#dockBody button[aria-label^='Remove a lane']").click(); time.sleep(0.3)
-    check("− takes off the top lane once it is empty", not E(f"(project.timelines[0].lanes || {{}})['{Z[0]}']") and pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}']").count() == 1)
+    check("− takes off an empty lane (here the top one)", not E(f"(project.timelines[0].lanes || {{}})['{Z[0]}']") and pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}']").count() == 1)
     # a scene's snapshot at the start of its clips
     E(f"(() => {{ const s = zoneById('{Z[0]}').scenes[0]; s.thumb = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA='; commit(); refreshTimeline(); }})()"); time.sleep(0.3)
     check("a scene with a snapshot fills its clips with it, as a filmstrip", pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}'] .tlclip .tlstrip.shot").count() >= 1 and 'url(' in pg.locator(f"#dockBody .tltrack[data-zone='{Z[0]}'] .tlclip .tlstrip.shot").first.get_attribute('style'))
@@ -177,7 +178,7 @@ try:
     E("tlZoomTo(40)")
 
     # ---------- the grid in bars
-    pg.locator("#dockBody .tlseg[aria-label='Grid'] button:has-text('Bars')").click(); time.sleep(0.3)
+    pg.locator("#dockBody .tlgrp[aria-label='Grid'] button:has-text('Bars')").click(); time.sleep(0.3)
     labels = E("[...$$('#dockBody .tltick.major')].slice(0, 3).map(e => e.textContent)")
     check("Bars: the ruler counts bars at the tempo (120 BPM)", E(f"project.timelines[0].grid") == "bars" and labels[:2] == ["1", "2"] and pg.locator("#dockBody input[aria-label='BPM']").input_value() == "120", labels)
 

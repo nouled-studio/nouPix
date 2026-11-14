@@ -101,12 +101,13 @@ try:
     check("the beat stays where it is", drift < 0.1, (g0, g1))
     # the dot lights on each beat and fades; the lines count the bar; the top bar's dot by the master too
     seen, ops, top = set(), set(), set()
-    for _ in range(60):
+    # (sampled every 15 ms for 3 s: a beat's bright moment lasts about 60 ms)
+    for _ in range(200):
         r = ev("(() => { const s = document.querySelector('#tempoSec'), d = document.querySelector('#beatDot'); return [[...s.querySelectorAll('.tbar i')].findIndex(i => /on|one/.test(i.className)), s.querySelector('.tdot').style.opacity, d.hidden ? 'hidden' : d.style.opacity]; })()")
         seen.add(r[0]); ops.add(r[1]); top.add(r[2])
-        time.sleep(0.05)
+        time.sleep(0.015)
     check("the bar's lines count 1 2 3 4", seen >= {0, 1, 2, 3}, seen)
-    check("the dot lights with the beat and fades", any(float(o) > 0.6 for o in ops) and any(float(o) < 0.3 for o in ops), sorted(ops)[:5])
+    check("the dot lights with the beat and fades", any(float(o) > 0.6 for o in ops) and any(float(o) < 0.3 for o in ops), (sorted(ops)[:3], sorted(ops)[-3:]))
     check("the dot by the master blinks with the beat", "hidden" not in top and any(float(o) > 0.6 for o in top) and any(float(o) < 0.3 for o in top), sorted(top)[:5])
     pg.click("#beatDot"); time.sleep(0.2)
     check("clicking it shows Tempo in Settings", ev("ui.rightTab") == "settings" and pg.is_visible("#tempoSec"))

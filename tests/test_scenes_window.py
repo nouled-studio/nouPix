@@ -26,7 +26,7 @@ try:
     Z = ev("project.zones.at(-1).id")   # the top zone: the first row
 
     # ---------- opening it
-    with pg.expect_popup() as pi: pg.click("#dockBody button[aria-label='Open in a window']")
+    with pg.expect_popup() as pi: pg.click("#dockPlaces button[aria-label='Open in a window']")
     W = pi.value; W.on("pageerror", lambda e: errs.append("Scenes window: " + str(e))); W.set_viewport_size({"width": 1180, "height": 460}); settle(0.8)
     check("Open in a window: the scenes in a window of their own", W.title() == "Scenes · nouPix" and W.locator(".scenerow").count() == 3 and W.locator(".scene").count() == 36)
     check("with the app's look", W.evaluate("getComputedStyle(document.body).backgroundColor") == ev("getComputedStyle(document.body).backgroundColor"))
@@ -99,15 +99,15 @@ try:
     check("in the window, the place buttons show it there", W.locator(".spos button.on").get_attribute("data-place") == "window")
     W.locator("button[aria-label='Scenes at the bottom']").click(); settle(0.6)
     check("Scenes at the bottom closes it, and the scenes are in the bottom panel again", W.is_closed() and pg.locator("#dockBody .scene").count() == 36)
-    with pg.expect_popup() as pi: pg.click("#dockBody button[aria-label='Open in a window']")
+    with pg.expect_popup() as pi: pg.click("#dockPlaces button[aria-label='Open in a window']")
     W = pi.value; settle(0.6)
     pg.click("#dockBody button:has-text('Back here')"); settle(0.6)
     check("Back here (in the tab) closes it too", W.is_closed() and pg.locator("#dockBody .scene").count() == 36)
-    with pg.expect_popup() as pi: pg.click("#dockBody button[aria-label='Open in a window']")
+    with pg.expect_popup() as pi: pg.click("#dockPlaces button[aria-label='Open in a window']")
     W = pi.value; settle(0.6)
     W.close(); settle(1.5)
     check("closing the window itself brings the scenes back to the panel", pg.locator("#dockBody .scene").count() == 36)
-    with pg.expect_popup() as pi: pg.click("#dockBody button[aria-label='Open in a window']")
+    with pg.expect_popup() as pi: pg.click("#dockPlaces button[aria-label='Open in a window']")
     W = pi.value; settle(0.6)
     pg.reload(); pg.wait_for_function("window.olm"); settle(0.6)
     check("it closes with the page", W.is_closed())

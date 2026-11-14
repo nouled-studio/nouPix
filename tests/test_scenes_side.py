@@ -29,13 +29,14 @@ try:
     places = lambda root: E(f"[...$$('{root} .spos button')].map(b => b.dataset.place + (b.classList.contains('on') ? '*' : ''))")
     rtabs = lambda: E("[...$$('#rightTabs .tabstrip > button, #rightTabs .tabstrip .mtab')].map(b => b.textContent.replace('✕', '').trim() + (b.classList.contains('on') ? '*' : ''))")
 
-    check("the scenes at the bottom at first, with their place buttons", places("#dockBody") == ["bottom*", "left", "right", "window"], places("#dockBody"))
-    pg.click("#dockBody .spos button[data-place=right]"); time.sleep(0.6)
+    check("the scenes at the bottom at first, with their place buttons", places("#dockPlaces") == ["bottom*", "left", "right", "window"], places("#dockPlaces"))
+    pg.click("#dockPlaces .spos button[data-place=right]"); time.sleep(0.6)
     check("sent right: one more tab in the right panel, after Inspector, Content and Settings, open", rtabs() == ["Inspector", "Content", "Settings", "Scenes*"], rtabs())
     check("…the scenes drawn there, the right panel wider, none left at the bottom, whose Scenes tab goes",
           pg.locator("#rightHost .scene").count() == 24 and box("aside.right")["width"] > 450 and pg.locator("#dockBody .scene").count() == 0 and not pg.locator("#dockTabs [data-tab=scenes]").is_visible())
     check("…the left panel left as it was", pg.locator("aside.left").is_visible() and pg.locator("#leftTabs").is_hidden())
-    check("…its tab has a ✕, its place buttons show Right", pg.locator("#rightTabs .mtab .mx").count() == 1 and places("#rightHost") == ["bottom", "left", "right*", "window"])
+    check("…its tab followed by its place buttons, showing Right (no ✕ while open: Bottom brings it back)", pg.locator("#rightTabs .mplaces").count() == 1 and pg.locator("#rightTabs .mtab .mx").count() == 0
+          and places("#rightTabs .mplaces") == ["bottom", "left", "right*", "window"] and pg.locator("#rightHost .spos").count() == 0, places("#rightTabs .mplaces"))
     check("…the scenes wrap there: no row scrolls sideways", pg.locator("#rightHost .hscroll").count() == 0)
     pg.click("#rightTabs button[data-tab=inspector]"); time.sleep(0.3)
     check("Inspector clicked: the Inspector shows, Scenes stays a tab, the panel back to its own width",
@@ -77,13 +78,29 @@ try:
         heads: $$('#rightHost .zhead').every(e => e.classList.contains('compact')) }; })()""")
     check("narrow, the X-Fader's strip on a line of its own under its buttons, across the panel, nothing overlapping", lay["below"] and lay["wide"] and lay["apart"] and lay["inside"], lay)
     check("…every zone with a one-line head there, as A and B", lay["heads"], lay)
+    # a zone's slider as long at 100% as below it
+    sw = lambda: E("$('#rightHost .zhead input[type=range]').getBoundingClientRect().width")
+    E("ui.sideW.right = 360; renderSides(); setZoneOpacity(project.zones.at(-1), 1); renderSides()"); time.sleep(0.3); w100 = sw()
+    E("setZoneOpacity(project.zones.at(-1), 0.97); renderSides()"); time.sleep(0.3); w97 = sw()
+    E("setZoneOpacity(project.zones.at(-1), 1); ui.sideW.right = 460; renderSides()"); time.sleep(0.3)
+    check("a zone's level slider as long at 100% as at 97%", abs(w100 - w97) < 0.5, (w100, w97))
+    # the bottom panel between two wide side panels: its strip under its buttons too
+    E("setPanelPlace('scenes', 'bottom'); ui.dockTab = 'scenes'; renderDock()"); time.sleep(0.4)
+    E("$('#dock').style.width = '700px'; window.dispatchEvent(new Event('resize'))"); time.sleep(0.4)
+    ov = E("""(() => { const R = s => { const e = $('#dockBody ' + s); return e && e.getBoundingClientRect(); };
+      const parts = ['.sleft', '.xfside.a .xfpv', '.xfside.a .xfwho', '.xfmid', '.xfside.b .xfwho', '.xfside.b .xfpv', '.sbtns'].map(R).filter(Boolean), out = [];
+      for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++) { const a = parts[i], b = parts[j];
+        if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) out.push([i, j]); }
+      return [parts.length, out, R('.sfoot .xfade').top >= R('.xfbtn').bottom]; })()""")
+    check("the bottom panel narrow: the X-Fader's strip under its buttons, nothing overlapping", ov[0] == 7 and not ov[1] and ov[2], ov)
+    E("$('#dock').style.width = ''; window.dispatchEvent(new Event('resize')); setPanelPlace('scenes', 'right')"); time.sleep(0.4)
     E("setXfadeOn(false)"); time.sleep(0.3)
 
     # ---------- the ✕, the left side, several at once
-    pg.click("#rightTabs .mtab[data-panel=scenes] .mx"); time.sleep(0.5)
-    check("its ✕ sends it back to the bottom: the right panel's own again, the Scenes tab at the bottom, open",
+    pg.click("#rightTabs .mplaces button[data-place=bottom]"); time.sleep(0.5)
+    check("Bottom after its tab sends it back: the right panel's own again, the Scenes tab at the bottom, open",
           rtabs() == ["Inspector*", "Content", "Settings"] and pg.locator("#dockBody .scene").count() == 24 and E("ui.dockTab") == "scenes" and box("aside.right")["width"] < 320, rtabs())
-    pg.click("#dockBody .spos button[data-place=left]"); time.sleep(0.5)
+    pg.click("#dockPlaces .spos button[data-place=left]"); time.sleep(0.5)
     ltabs = E("[...$$('#leftTabs .mtab')].map(b => b.textContent.replace('✕', '').trim() + (b.classList.contains('on') ? '*' : ''))")
     check("sent left: the left panel gets a tab row, Fixtures then Scenes, open", ltabs == ["Fixtures", "Scenes*"] and pg.locator("#leftHost .scene").count() == 24, ltabs)
     check("…the fixtures and sources hidden meanwhile, the head's « at the end of the tab row", pg.locator("#fxList").is_hidden() and pg.locator("#leftTabs button[aria-label='Hide the left panel']").is_visible())
@@ -92,9 +109,9 @@ try:
           and pg.locator(".fixtures .phead").is_hidden())
     check("…the fixture tools at the list's foot: + Add, SVG…, Group, Lock", E("[...document.querySelectorAll('.fxfoot button')].map(b => b.id)") == ["btnAddFx", "btnImportSvg", "btnGroup", "btnLock"] and pg.locator("#btnAddFx").is_visible())
     E("ui.dockTab = 'cues'; renderDock()"); time.sleep(0.2)
-    pg.locator("#dockBody .cuetabs .spos button[data-place=right]").click(); time.sleep(0.4)
+    pg.locator("#dockPlaces .spos button[data-place=right]").click(); time.sleep(0.4)
     E("ui.dockTab = 'timeline'; renderDock()"); time.sleep(0.2)
-    pg.locator("#dockBody .cuetabs .spos button[data-place=right]").click(); time.sleep(0.4)
+    pg.locator("#dockPlaces .spos button[data-place=right]").click(); time.sleep(0.4)
     tabs_ok = E("(() => { const s = $('#rightTabs .tabstrip'), on = s.querySelector('.on').getBoundingClientRect(), r = s.getBoundingClientRect(); return [s.scrollWidth > s.clientWidth, on.left >= r.left - 1 && on.right <= r.right + 1, $('#rightTabs .hscroll').classList.contains('canl')]; })()")
     check("five tabs don't fit: the row scrolls, the open one in view, ‹ to see the first ones", tabs_ok == [True, True, True], tabs_ok)
     sb = pg.locator("#rightTabs .tabstrip").bounding_box(); pg.mouse.move(sb["x"] + 40, sb["y"] + 10); pg.mouse.wheel(0, -400); time.sleep(0.3)
@@ -105,7 +122,7 @@ try:
     check("kept after a reload", rtabs() == ["Inspector", "Content", "Settings", "Cue lists (Beta)", "Timeline (Beta)*"] and E("[...$$('#leftTabs .mtab')].length") == 2)
     E("(() => { olm.loadProject(demoProject()); })()"); time.sleep(0.4)
     E("openSideTab('left', 'scenes')"); time.sleep(0.3)
-    with pg.expect_popup() as pi: pg.click("#leftHost .spos button[data-place=window]")
+    with pg.expect_popup() as pi: pg.click("#leftTabs .mplaces button[data-place=window]")
     W = pi.value; time.sleep(0.8)
     check("Window: the scenes in their own window, their tab on the left showing nothing meanwhile", W.locator(".scene").count() > 0 and pg.locator("#leftHost").is_hidden())
     E("scenesWin.document.querySelector('.spos button[data-place=bottom]').click()"); time.sleep(0.6)
@@ -113,6 +130,26 @@ try:
     for k in ["cues", "timeline"]: E(f"setPanelPlace('{k}', 'bottom')")
     time.sleep(0.3)
     check("all back: the bottom panel's four tabs, the right panel its own three", E("[...$$('#dockTabs button[data-tab]')].filter(b => !b.hidden).length") == 4 and [t.rstrip("*") for t in rtabs()] == ["Inspector", "Content", "Settings"], (rtabs(), E("[...document.querySelectorAll('#dockTabs button[data-tab]')].filter(b => !b.hidden).map(b => b.dataset.tab)")))
+    # ---------- the Cue lists and the Timeline in windows of their own too
+    E("(() => { project.cueLists.push(newCueList({ name: 'Show' })); project.timelines.push(newTimeline({ name: 'Intro' })); ui.dockTab = 'timeline'; commit(); renderDock(); })()"); time.sleep(0.3)
+    with pg.expect_popup() as pi: pg.click("#dockPlaces button[data-place=window]")
+    W = pi.value; time.sleep(0.8)
+    check("Timeline in a window: its panel there, its place buttons at the top showing Window, the bottom panel's tab saying so",
+          W.locator(".tlpanel .tlbar").count() == 1 and W.locator(".winbar .spos button.on").get_attribute("data-place") == "window" and "own window" in pg.locator("#dockBody").inner_text(), W.title())
+    W.locator(".tlbar button[aria-label='Play']").click(); time.sleep(0.4)
+    check("…playing from it", E("tl.playing") is True)
+    W.keyboard.press("Space"); time.sleep(0.2)
+    check("…Space there pauses", E("tl.playing") is False)
+    E("(() => { const z = project.zones[0]; addClip(project.timelines.at(-1), z, z.scenes[0].id, 1); })()"); time.sleep(0.3)
+    check("…changes drawn there", W.locator(".tlclip").count() == 1)
+    E("ui.dockTab = 'cues'; renderDock()"); time.sleep(0.2)
+    with pg.expect_popup() as pi: pg.click("#dockPlaces button[data-place=window]")
+    C = pi.value; time.sleep(0.8)
+    check("the Cue lists in a window as well, both at once", C.locator(".cuepanel .cuegobtn").count() == 1 and W.locator(".tlpanel").count() == 1)
+    W.locator(".winbar .spos button[data-place=bottom]").click(); time.sleep(0.6)
+    check("Bottom from the Timeline's window: it closes, the timeline back in the bottom panel", E("!panelWinOpen('timeline')") and E("ui.dockTab") == "timeline" and pg.locator("#dockBody .tlpanel").count() == 1)
+    C.close(); time.sleep(1.4)
+    check("the Cue lists' window closed by its own button: back in their tab", E("!panelWinOpen('cues')") and E("(ui.dockTab = 'cues', renderDock(), !!$('#dockBody .cuepanel'))"))
     check("no errors in the page", not errs, errs[:3])
     br.close()
 finally:

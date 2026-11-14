@@ -99,7 +99,7 @@ try:
     check("a value past the slider's end is kept to it", par("width") == w_max, (par("width"), w_max))
     typed("Opacity", "40")
     check("percentages are typed as percentages: 40 is 40 %", ev("olm.project.zones[0].layers[0].opacity") == 0.4 and val("Opacity").inner_text() == "40%", ev("olm.project.zones[0].layers[0].opacity"))
-    sp_max = ev("speedMax(runtimeOf(srcById('b-bars')).speed)")
+    sp_max = ev("speedTop(runtimeOf(srcById('b-bars')).speed)")
     typed("Speed", "50")
     check("speed is typed in percent of its full speed", abs(par("speed") - sp_max / 2) < 1e-9 and val("Speed").inner_text() == "50%", (par("speed"), sp_max))
 
