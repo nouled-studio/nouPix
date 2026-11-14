@@ -11,7 +11,6 @@
 // clock then (at), the clip each zone shows (clips: zone id -> clip id or null)
 const tl = { id: null, playing: false, pos: 0, at: 0, clips: {} };
 const tlOf = id => project.timelines.find(T => T.id === id) || null;
-const tlClip = (T, id) => { for (const cs of Object.values(T.tracks)) { const c = cs.find(x => x.id === id); if (c) return c; } return null; };
 const tlEnd = T => (T.loop.mode === 'region' ? T.loop.b : T.length);
 const tlStart = T => (T.loop.mode === 'region' ? T.loop.a : 0);
 function tlPos() { return tl.playing ? tl.pos + (clockT - tl.at) : tl.pos; }
@@ -240,7 +239,6 @@ function tlDetectBeat(buf) {
 }
 // The grid in bars: beats from the timeline's first downbeat (beat0), 4 to the bar
 const tlBeat = T => 60 / T.bpm;
-const tlBarOf = (T, t) => Math.floor((t - (T.beat0 || 0)) / (4 * tlBeat(T)) + 1e-6);
 // Keyframes: a clip's curves, each the clip's level ({ kind: 'level' }) or a control of an effect of its scene
 // ({ kind: 'param', src, ctl }), with keys { t (seconds from the clip's start), v, ease: 'linear' | 'ease' | 'hold' }.
 // Numbers, colours and points move from key to key (straight, or eased in and out); switches and lists step at each key,

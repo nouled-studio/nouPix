@@ -151,6 +151,7 @@ function openPanelWindow(k) {
   d.body.append(h('div', { class: 'winbar' }), h('div', { class: 'dockbody', id: 'dockBody' }), h('div', { class: 'toasts', id: 'toasts' }));
   d.addEventListener('input', rangeInput, true);
   if (k === 'timeline') { d.addEventListener('keydown', tlDeleteKey, true); d.addEventListener('keydown', tlMarkerKey, true); }
+  d.addEventListener('focusout', () => setTimeout(() => { if (k === 'timeline' ? tlPending && !tlDrag : cuesPending) panelRefresh(k); }), true);
   w.addEventListener('keydown', e => {
     if ($('.modal-bg', d) && e.key === 'Escape') { $('.modal-bg', d).remove(); return; }
     if (typingIn(e.target) || $('.modal-bg', d)) return;

@@ -1377,7 +1377,6 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlzlbl .li { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: square; }
 .tlfold { border: 0; background: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 .tlfold:hover { color: var(--text); }
-.tlaudioname { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text2); }
 .tlview { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 12px; grid-template-rows: minmax(0, 1fr) 12px; background: var(--bg0); }
 .tlscroll { min-height: 0; min-width: 0; overflow: auto; background: var(--bg0); scrollbar-width: none; }
 .tlscroll::-webkit-scrollbar { display: none; }
@@ -1430,9 +1429,8 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlhint { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; white-space: nowrap; pointer-events: none; }
 .tlhint.in { position: static; transform: none; display: block; padding: 8px; }
 /* a clip, and the audio's block: the logo's two cuts; an edge layer under the fill, a header over a strip */
-.tlclip, .tlablock { position: absolute; top: 4px; bottom: 4px; box-sizing: border-box; background: var(--line2);
+.tlclip { position: absolute; top: 4px; bottom: 4px; box-sizing: border-box; background: var(--line2);
   clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
-.tlablock { left: 0; }
 .tlclip { cursor: grab; touch-action: none; bottom: auto; height: calc(var(--tlrow, 50px) - 8px); }
 .tlclip.open { height: auto; bottom: 4px; }
 .tlclip:hover { background: var(--line3); }
@@ -1460,8 +1458,6 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlclip .tlfin, .tlclip .tlfout { position: absolute; top: 12px; width: 7px; height: 7px; margin-left: -3.5px; background: var(--fader); cursor: ew-resize; z-index: 2; opacity: 0; }
 .tlclip:hover .tlfin, .tlclip:hover .tlfout, .tlclip.sel .tlfin, .tlclip.sel .tlfout { opacity: 1; }
 /* the audio: its waveform in aluminium */
-.tlablock .tlhdr { color: var(--text2); }
-.tlablock .tlstrip { background: var(--bg1); }
 .tlwave { position: absolute; left: 0; top: 2px; opacity: .85; }
 /* markers: a flag on the audio track in its colour (aluminium without one), its name on it, a faint line through the zones */
 .tlflag { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -0.5px; background: var(--tag, var(--fader)); z-index: 2; cursor: pointer; touch-action: none; }

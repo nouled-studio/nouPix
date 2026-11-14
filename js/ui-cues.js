@@ -12,7 +12,7 @@ const cuesShown = () => cueRoots().length > 0;
 // While something in the panel is typed in, a redraw waits for it to be done
 let cuesPending = false;
 // (a list picked from redraws at once: only text and numbers being typed hold it)
-const cuesBusy = () => { const a = document.activeElement; return !!a && a.matches('input[type=text], input[type=number]') && cueRoots().some(r => r.contains(a)); };
+const cuesBusy = () => cueRoots().some(r => { const a = r.ownerDocument.activeElement; return !!a && a.matches('input[type=text], input[type=number]') && r.contains(a); });
 function refreshCues() {
   if (!cuesShown()) return;
   if (cuesBusy()) { cuesPending = true; return; }

@@ -21,8 +21,8 @@ function tlToggleOpen(c) { ui.tlOpen = tlIsOpen(c) ? ui.tlOpen.filter(x => x !==
 let tlDrag = false, tlPending = false, tlSnap = true;
 function refreshTimeline() {
   if (!timelineShown()) return;
-  const a = document.activeElement;
-  if (tlDrag || (a && a.matches('input[type=text], input[type=number]') && tlRoots().some(r => r.contains(a)))) { tlPending = true; return; }
+  const typing = tlRoots().some(r => { const a = r.ownerDocument.activeElement; return a && a.matches('input[type=text], input[type=number]') && r.contains(a); });
+  if (tlDrag || typing) { tlPending = true; return; }
   tlPending = false;
   for (const r of tlRoots()) keepScroll(r, () => { r.replaceChildren(); renderTimeline(r); });
 }

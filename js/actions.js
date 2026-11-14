@@ -499,6 +499,8 @@ function addTimelineAudio(T, file, start = 0, A = null) {
 }
 function removeTimelineAudio(T, A) {
   T.audios = T.audios.filter(x => x !== A);
+  const el = tlAudios.get(A.id);
+  if (el) { el.pause(); el.removeAttribute('src'); tlAudios.delete(A.id); }   // (an undo makes it again)
   if (ui.tlSel === A.id) ui.tlSel = null;
   tlAudioSync(T, tlPos(), tl.playing && tl.id === T.id);
   commit({ lists: false }); refreshTimeline();
@@ -588,12 +590,6 @@ function setKey(T, c, cv, t, v, ease) {
   if (k) k.v = v; else { k = { t, v, ease: ease || 'linear' }; cv.keys.push(k); tlSortKeys(cv); }
   commit({ lists: false }); tlKeysChanged(T);
   return k;
-}
-function deleteKey(T, c, cv, k) {
-  cv.keys = cv.keys.filter(x => x !== k);
-  if (!cv.keys.length) c.curves = c.curves.filter(x => x !== cv);
-  if (c.curves && !c.curves.length) delete c.curves;
-  commit({ lists: false }); tlKeysChanged(T);
 }
 // Several keys at once (each { c, cv, k }): a curve left with none goes
 function deleteKeys(T, items) {
