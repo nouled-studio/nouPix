@@ -1,5 +1,8 @@
 # Brand fixes for nouPix 1.5.4
 
+**Status: done.** Every item below is in the app as of 1.6.2 (checked against the code); `docs/brand.md` describes the
+result. Kept for the record.
+
 A checklist for Claude Code, from a review of nouPix 1.5.4 against `docs/brand.md` (updated in the same pass) and the
 brand guide v1.1. Each item says what is wrong, where it is, and what done looks like. They are small, independent
 fixes to the look only: no behaviour changes. Work through them in order; the first ones matter most.

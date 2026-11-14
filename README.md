@@ -26,7 +26,9 @@ A pixel-mapping tool for LED installations, by nouled studio. Draw or import you
 
 ![The Scenes panel with the X-Fader on: its two zones side by side, their scenes showing a snapshot of what each plays, a playlist under each, and the X-Fader under them](docs/images/feature-scenes.webp)
 
-**Cue lists and a timeline (both in beta).** Run a show cue by cue with GO: each cue plays scenes, sets levels and effects' controls over its fade, and can go on by itself. Or lay scenes on a timeline, a track per zone, in time with an audio file, with fades, lanes and loops. Both are betas: they work, and they are still growing.
+**Cue lists and a timeline (both in beta).** Run a show cue by cue with GO: each cue plays scenes, sets levels and effects' controls over its fade, and can go on by itself. Or lay scenes on a timeline, a track per zone, in time with your music on as many audio tracks as you need, with fades, lanes, loops, markers and keyframes on any control; its tempo is found in the audio. Both can open in a window of their own. Both are betas: they work, and they are still growing.
+
+![The Timeline: two audio tracks with markers, a track per zone with scene clips showing their snapshots, one clip unfolded with keyframes on its level and two of its controls, the ruler in bars and the playhead in red](docs/images/feature-timeline.webp)
 
 **Send it out.** Art-Net, sACN and DDP together (each controller on its own), outputs by universes or by pixels, automatic addressing, discovery (WLED too), 8 or 16-bit fixtures with dimming curves, a Channel monitor in its own window and test patterns to check the installation on site.
 

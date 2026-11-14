@@ -1,11 +1,11 @@
 # nouPix: the look
 
 The look of the interface, the login page and the phone remote, and the logo. It began as the restyle brief of the
-nouPix brand kit; this is what the app does (checked against 1.5.4), with the choices made while mocking it up. `css/app.css` and
+nouPix brand kit; this is what the app does (checked against 1.6.2), with the choices made while mocking it up. `css/app.css` and
 `css/remote.css` are the source of truth for the values; this page says what they mean.
 
 The same rules with pictures, for designers, video and web (logo use, colour, type, icons, controls, writing), are in the
-[brand guide (PDF)](nouPix-brand-guide.pdf) (v1.1: the icon set as of 1.5.4 and a page on the parts added since 1.0). If the two ever disagree, the CSS wins. Where this page still marks something "today", the app doesn't follow the rule yet.
+[brand guide (PDF)](nouPix-brand-guide.pdf) (v1.2: the icon set and the line icons as of 1.6.2, and pages on the parts added since 1.0). If the two ever disagree, the CSS wins. Where this page still marks something "today", the app doesn't follow the rule yet.
 
 ## 1. The idea in four colours
 
@@ -66,6 +66,10 @@ same without the internet; the bridge serves them. They are under the SIL Open F
 
 - **Buttons:** square, a `--line2` border, the label voice. The primary one is red with black text and the logo's two
   45° cuts, drawn with a background gradient so an outline around it (MIDI learn, focus) isn't clipped.
+- **Buttons without a box** (`gbtn`, `.cltab`): where many buttons sit together and the content is the point (the
+  timeline's bar, the Scenes panel, the cue lists), buttons have no border and no fill. An icon and/or a word in the
+  label voice, grey (`--muted`), white when pointed at, and white with a short 2 px red line under it while on (a
+  playing playlist's button white, a paused one orange). Settings, dialogs, Patch and the side panels keep their boxes.
 - **Art-Net on:** white border and text, a faint white glow. **Blackout:** red text; on, red with black text.
 - **The bridge pill:** a square dot, white and glowing while Art-Net goes out.
 - **Scenes and playlist steps:** the logo's two cuts, top left and bottom right: the edge and the fill are two
@@ -74,13 +78,26 @@ same without the internet; the bridge serves them. They are under the SIL Open F
   colour, when it has one, is a line on the left. While learning MIDI, a tile's edge turns yellow along the cut.
 - **Timeline clips** (and the audio's block): the same two cuts and layers as a scene's tile, the zone's colour a line on
   the left. A slim header carries the scene's name; under it a filmstrip of the scene's snapshot, over and over (a quiet
-  hatch without one), masked to nothing over the clip's fade-in and fade-out. The fade handles are small aluminium
+  hatch without one), masked to nothing over the clip's fade-in and fade-out. The clip's level is a thin aluminium line
+  on its picture (dashed while it has no keys), and the picture fades with it. The fade handles are small aluminium
   squares. Selected: a white edge; playing: a white edge and the small red square, as a scene. The playhead is a red
   line with a small square; the loop's region a neutral tint between two red markers, never a red area. Sections
   (Audio, Zones) in the label voice; the waveform aluminium.
+- **Keyframes:** a clip unfolded shows a row per control under its picture: the curve an aluminium line, each key a
+  small diamond (a square on Hold, hollow when eased), the picked ones white. A colour's curve is a band of its
+  colours, each key a diamond in its own colour. An audio track's volume is the same line on its waveform, which dims
+  with it.
+- **Markers:** a small flag on the audio track in the marker's colour (aluminium without one), its name in the label
+  voice in the bg colour, cut at 45° on its right, and a faint dashed line down through the zones.
+- **Zoom bars** (under the tracks for time, beside them for their height): a thin track with an aluminium thumb that
+  is what is in view; its ends zoom, its middle scrolls.
+- **Cue lists:** GO is a large boxed button; Standby and Playing in the label voice with the cue's number and name. A
+  row per cue: the cue on standby (what GO fires next) has a red edge, the cue playing a white edge with its ▶ and a
+  white progress line; its actions sit in small boxed tags; a countdown to a cue going by itself is red text.
 - **Sliders:** a 2 px track, aluminium up to the value and dark after it, and a 3 × 14 px bar as the handle (the
   phone: 3 px and 6 × 30 px, for fingers). The colour picker's gradient sliders keep their round thumbs.
-- **Checkboxes:** red.
+- **Tick boxes:** a thin square (14 px, a 1 px `--line3` border, no fill), ticked a thin red tick; a lighter border when
+  pointed at. Drawn by the look (`appearance: none`), so they are the same on every system.
 - **MIDI:** yellow, as before. In the patch bay the macros' links to effect controls, their dots and their counts are
   aluminium, so red never means MIDI or a link.
 - **Side panels:** both fold, for a bigger stage: the left one (fixtures and sources) with « in its head, the first
@@ -103,8 +120,16 @@ same without the internet; the bridge serves them. They are under the SIL Open F
   there is one.
 - **Interact:** the pad is black and empty but for the zone's fixtures, drawn faintly in white, so the light under a
   finger is the only colour. The phone's Interact button carries the `touch` icon in red; Done brings the zone back.
-- **Windows of their own** (MIDI, Scenes, Channel monitor, Interact) are dressed like the main window
-  (`dressWindow`): the same tokens, fonts and look, the window's name then "· nouPix".
+- **Windows of their own** (MIDI, Scenes, Cue lists, Timeline, Channel monitor, Interact) are dressed like the main
+  window (`dressWindow`): the same tokens, fonts and look, the window's name then "· nouPix".
+- **Where a panel goes:** four small place icons (bottom, left, right, a window of its own: a frame with the part it
+  takes filled grey), always in the same spot: at the right of the bottom panel's tab row, or after the open tab beside
+  the stage. The place in use is white with the short red line under it.
+- **A zone's head:** its stop is a small white square with no box, red when pointed at; + Store at the head's right
+  end. A scene edited since it was stored shows a small orange pencil (white when pointed at): it saves what plays into
+  the scene, after asking.
+- **Scene sizes:** three small squares at the foot of the Scenes panel (small, medium, large), the size in use white
+  with the red line.
 - **Protocol tags** (Discovery, Patch): Art-Net, sACN, DDP in mono in a small 1 px box. Protocol names keep their case
   even where the label voice sets text in capitals: **sACN** never becomes SACN (`.pname`, `text-transform: none` on
   the name).
@@ -124,9 +149,15 @@ eight choices are saturated, and none is red or yellow: `#2f7bff` `#00c2ff` `#00
 ## 6. Icons and signs
 
 Icons are inline SVG in `currentColor` (`ICONS` in `util.js`, and the buttons in `index.html`), on a 16 × 16 grid (18 × 18
-in the tool rail and the stage bar), 1.3–1.6 lines. The set has 65: the 58 of the brand guide v1.0 and, since,
+in the tool rail and the stage bar), 1.3–1.6 lines. The set has 67: the 58 of the brand guide v1.0 and, since,
 `tool-dot` and `dot` (the Dot), `stream` (NDI and OMT), `monitor` (Channel monitor), `output` (Output settings),
-`side-panel-left` and `touch` (Interact, on the phone). The phone remote draws its own play, pause, next, playlist and
+`side-panel-left` and `touch` (Interact, on the phone), and the two Rotate arrows `rotL`, `rotR`.
+
+**Line icons** (`LINE_ICONS`, `lineIcon` in `util.js`) are for buttons without a box: the same 16 × 16 grid with a
+thinner 1.2 line and square ends, so they sit quietly beside the label voice. They are play, pause, stop, back, the
+loop's three states (once, loop, region) and loop around everything (`loopfit`), fit (also the stage's Fit), marker,
+audio, snap (a magnet), plus, more (⋯), the two zoom arrows (`hzoom`, `vzoom`), edit (the pencil) and the length fitted
+to the contents (`lenfit`). A line icon and a boxed icon never mean two things: Fit is the same picture everywhere. The phone remote draws its own play, pause, next, playlist and
 `touch` larger, on a 24 grid for fingers.
 
 Text signs that every font draws the same are fine: × · – → ← ↑ ↓ ° ✓ ⇧ ⌘ « » ‹ › ⋯ ▾ ▴. Signs that phones and some systems
