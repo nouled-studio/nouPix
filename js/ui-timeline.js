@@ -524,6 +524,8 @@ function drawTimelineHead() {
   for (const r of tlRoots()) {
     const hd = $('[data-tl-head]', r), tm = $('[data-tl-time]', r), sc = $('.tlscroll', r);
     if (hd && hd.style.left !== x + 'px') hd.style.left = x + 'px';
+    // scrolled past it, under the names column: hidden (the ruler's corner can't cover it)
+    if (hd && sc) { const under = x - sc.scrollLeft < TL_LABEL - 1; if (hd.hidden !== under) hd.hidden = under; }
     if (tm && tm.firstChild && tm.firstChild.nodeType === 3) { const s = fmtTime(p); if (tm.firstChild.nodeValue !== s) tm.firstChild.nodeValue = s; }
     if (sc && tl.playing && tl.id === T.id && !tlDrag) {
       const vis = sc.clientWidth - TL_LABEL;

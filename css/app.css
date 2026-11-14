@@ -1401,7 +1401,7 @@ body.sceneswin > .dockbody { height: 100%; }
 .tlrow.afold { height: 18px; }
 .tlaudio.folded .tlflag::before, .tlaudio.folded .tlflagname { height: 17px; line-height: 17px; }
 .tlrow.sub { border-bottom: 1px dashed var(--line); }
-.tllabel { position: sticky; left: 0; z-index: 2; flex: none; width: 132px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 12px;
+.tllabel { position: sticky; left: 0; z-index: 5; flex: none; width: 132px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 12px;
   background: var(--bg1); border-right: 1px solid var(--line); box-shadow: inset 2px 0 0 var(--tag, transparent); }
 .tlrow.sub .tllabel { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--tag, transparent) 45%, transparent); }
 .tlz { flex: 1; min-width: 0; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1571,7 +1571,9 @@ aside.left.tabbed .fixtures .phead { display: none; }
 }
 @container spanel (max-width: 400px) { .sfoot .xfpv { display: none; } }
 /* a zone's level as wide at 100% as at 5%, so its slider beside it keeps its length */
-.zhead [data-zone-pct] { flex: none; min-width: 4ch; text-align: right; }
+.zhead.compact [data-zone-pct] { flex: none; min-width: 4ch; text-align: right; }
+.zhead:not(.compact) .zt { gap: 4px; }
+.zhead:not(.compact) .zt .plbtn, .zhead:not(.compact) .zt .zstop { width: 20px; min-width: 20px; }
 /* the place buttons in a frame: the bottom panel's tab row, and after the open tab beside the stage */
 #dockPlaces { display: inline-flex; align-items: center; margin-right: 10px; }
 #dockPlaces:empty { display: none; }
