@@ -59,45 +59,54 @@ function renderTimeline(body) {
   panel.append(h('div', { class: 'cuetabs' },
     project.timelines.map(K => h('button', { type: 'button', class: 'cltab' + (K === T ? ' on' : ''), title: K === T ? 'Right-click for its menu' : 'Show ' + K.name,
       onclick: () => { ui.tlId = K.id; ui.tlSel = null; refreshTimeline(); }, oncontextmenu: e => { e.preventDefault(); timelineMenu(e.currentTarget, K); } }, K.name)),
-    h('button', { type: 'button', class: 'btn sm', title: 'A new timeline: scenes on a track per zone, with an audio file', onclick: () => addTimeline() }, '+ New timeline'),
+    gbtn({ icon: 'plus', label: '+ New timeline', title: 'A new timeline: scenes on a track per zone, with an audio file', onclick: () => addTimeline() }),
     h('span', { class: 'fill' }),
-    T ? h('button', { type: 'button', class: 'btn sm icon', title: T.name + ': rename, length, delete', 'aria-label': T.name + ' menu', onclick: e => timelineMenu(e.currentTarget, T) }, '⋯') : null));
+    T ? gbtn({ icon: 'more', label: T.name + ' menu', title: T.name + ': rename, length, delete', onclick: e => timelineMenu(e.currentTarget, T) }) : null));
   if (!T) {
     panel.append(h('div', { class: 'cueempty' }, h('p', null, 'No timelines yet. A timeline plays scenes on a track per zone, in time with an audio file.'),
       h('button', { type: 'button', class: 'btn primary', onclick: () => addTimeline() }, '+ New timeline')));
     return;
   }
   const mine = tl.id === T.id, playing = mine && tl.playing;
-  const segBtns = (opts, val, set, label) => h('span', { class: 'tlseg', role: 'group', 'aria-label': label },
-    opts.map(([v, t, tip]) => h('button', { type: 'button', class: v === val ? 'on' : '', 'aria-pressed': String(v === val), title: tip || t, onclick: () => set(v) }, t)));
   const fileIn = h('input', { type: 'file', accept: 'audio/*', hidden: true, onchange: e => { const f = e.target.files[0]; if (f) addTimelineAudio(T, f, T.audios.length && mine ? tlPos() : 0); } });
+  // the bar: buttons without boxes, in groups (transport, loop, grid, snap; zoom, fit, marker, audio)
+  const setLoop = v => { T.loop.mode = v; commit({ lists: false }); refreshTimeline(); };
+  const setGrid = v => { T.grid = v; commit({ lists: false }); refreshTimeline(); };
+  const sep = () => h('span', { class: 'gsep' });
   panel.append(h('div', { class: 'tlbar' },
-    h('button', { type: 'button', class: 'tlplay' + (playing ? ' on' : ''), 'aria-label': playing ? 'Pause' : 'Play', title: (playing ? 'Pause' : 'Play') + ' (Space, with the mouse off the stage)',
-      onclick: () => (playing ? tlPause() : tlPlay(T)), html: playing ? '<svg viewBox="0 0 16 16"><path d="M4 3h3v10H4zM9 3h3v10H9z" fill="currentColor"/></svg>' : '<svg viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5z" fill="currentColor"/></svg>' }),
-    h('button', { type: 'button', class: 'tlplay', 'aria-label': 'Stop', title: 'Stop: back to the start (of the loop)', onclick: () => tlStop(T), html: '<svg viewBox="0 0 16 16"><path d="M3.5 3.5h9v9h-9z" fill="currentColor"/></svg>' }),
+    h('button', { type: 'button', class: 'gbtn tlplay' + (playing ? ' on' : ''), 'aria-label': playing ? 'Pause' : 'Play', title: (playing ? 'Pause' : 'Play') + ' (Space, with the mouse off the stage)',
+      onclick: () => (playing ? tlPause() : tlPlay(T)), html: lineIcon(playing ? 'pause' : 'play') }),
+    h('button', { type: 'button', class: 'gbtn tlplay', 'aria-label': 'Stop', title: 'Stop: back to the start (of the loop)', onclick: () => tlStop(T), html: lineIcon('stop') }),
     h('span', { class: 'tltime mono', 'data-tl-time': '' }, fmtTime(mine ? tlPos() : 0), h('span', { class: 'muted' }, ' / ' + fmtTime(T.length))),
-    h('span', { class: 'lbl' }, 'Loop'),
-    segBtns([['off', 'Off'], ['all', 'All', 'Loop the whole timeline'], ['region', 'Region', 'Loop between the two markers on the ruler']], T.loop.mode, v => { T.loop.mode = v; commit({ lists: false }); refreshTimeline(); }, 'Loop'),
-    h('span', { class: 'lbl' }, 'Grid'),
-    segBtns([['sec', 'Seconds'], ['bars', 'Bars', 'Bars and beats at the tempo given']], T.grid, v => { T.grid = v; commit({ lists: false }); refreshTimeline(); }, 'Grid'),
+    sep(),
+    h('span', { class: 'tlgrp', role: 'group', 'aria-label': 'Loop' },
+      gbtn({ icon: 'once', label: 'Off', title: 'Loop off: it plays once and stops at the end', on: T.loop.mode === 'off', onclick: () => setLoop('off') }),
+      gbtn({ icon: 'loop', label: 'All', title: 'Loop the whole timeline', on: T.loop.mode === 'all', onclick: () => setLoop('all') }),
+      gbtn({ icon: 'region', label: 'Region', title: 'Loop between the two markers on the ruler', on: T.loop.mode === 'region', onclick: () => setLoop('region') }),
+      gbtn({ icon: 'loopfit', label: 'Loop around everything', title: 'Loop around everything: the region from the first clip, track or marker to the last', onclick: () => tlLoopAll(T) })),
+    sep(),
+    h('span', { class: 'tlgrp', role: 'group', 'aria-label': 'Grid' },
+      gbtn({ text: 'Sec', label: 'Seconds', title: 'The ruler in seconds', on: T.grid === 'sec', onclick: () => setGrid('sec') }),
+      gbtn({ text: 'Bars', title: 'Bars and beats at the tempo given', on: T.grid === 'bars', onclick: () => setGrid('bars') })),
     T.grid === 'bars' ? h('label', { class: 'tlbpm', title: 'The tempo the bars follow' }, h('input', { type: 'number', min: 20, max: 300, step: 0.1, value: fmtV(T.bpm), 'aria-label': 'BPM',
       onchange: e => { T.bpm = clamp(+e.target.value || 120, 20, 300); commit({ lists: false }); refreshTimeline(); }, onkeydown: e => { if (e.key === 'Enter') e.target.blur(); } }), 'BPM') : null,
-    T.grid === 'bars' ? h('span', { class: 'tlseg', role: 'group', 'aria-label': 'Tempo twice or half' },
-      h('button', { type: 'button', title: 'Half the tempo (it counts twice too fast)', 'aria-label': 'Half the tempo', onclick: () => tlTempoTimes(T, 0.5) }, '÷2'),
-      h('button', { type: 'button', title: 'Twice the tempo (it counts half too slow)', 'aria-label': 'Twice the tempo', onclick: () => tlTempoTimes(T, 2) }, '×2')) : null,
-    T.audios.length ? h('button', { type: 'button', class: 'btn sm', title: 'Find the tempo and bar 1 in the first audio track (or in another, from its menu): the bars follow the music', onclick: () => tlDetect(T, true) }, 'Detect') : null,
-    h('label', { class: 'tlsnap', title: 'Clips and markers snap to the grid, the playhead and other clips' }, h('input', { type: 'checkbox', checked: tlSnap, onchange: e => { tlSnap = e.target.checked; } }), 'Snap'),
+    T.grid === 'bars' ? gbtn({ text: '÷2', label: 'Half the tempo', title: 'Half the tempo (it counts twice too fast)', onclick: () => tlTempoTimes(T, 0.5) }) : null,
+    T.grid === 'bars' ? gbtn({ text: '×2', label: 'Twice the tempo', title: 'Twice the tempo (it counts half too slow)', onclick: () => tlTempoTimes(T, 2) }) : null,
+    T.audios.length ? gbtn({ text: 'Detect', title: 'Find the tempo and bar 1 in the first audio track (or in another, from its menu): the bars follow the music', onclick: () => tlDetect(T, true) }) : null,
+    sep(),
+    gbtn({ icon: 'snap', label: 'Snap', cls: 'tlsnap', title: 'Snap: clips and markers snap to the grid, the playhead and other clips', on: tlSnap, onclick: e => { tlSnap = !tlSnap; const b = e.currentTarget; b.classList.toggle('on', tlSnap); b.setAttribute('aria-pressed', String(tlSnap)); } }),
     h('span', { class: 'fill' }),
     // the zoom: these sliders, or the bars under and beside the tracks (their ends dragged)
-    h('span', { class: 'tlzlbl', title: 'Zoom in time' }, '↔'),
+    h('span', { class: 'tlzlbl', title: 'Zoom in time', html: lineIcon('hzoom') }),
     h('input', { type: 'range', class: 'tlzoom', min: 4, max: 240, step: 1, value: ui.tlZoom, 'aria-label': 'Zoom', title: 'Zoom in time (or the bar under the tracks, or Ctrl + scroll)',
       oninput: e => tlZoomTo(+e.target.value), onchange: () => savePrefs() }),
-    h('span', { class: 'tlzlbl', title: 'Track height' }, '↕'),
+    h('span', { class: 'tlzlbl', title: 'Track height', html: lineIcon('vzoom') }),
     h('input', { type: 'range', class: 'tlzoom tlvzoom', min: 30, max: 160, step: 1, value: tlRow(), 'aria-label': 'Track height', title: 'Track height (or the bar beside the tracks, or Alt + scroll)',
       oninput: e => tlRowTo(+e.target.value), onchange: () => savePrefs() }),
-    h('button', { type: 'button', class: 'btn sm', title: 'Zoom to fit: every clip in view, the tracks filling the panel', onclick: () => tlFit(T) }, 'Fit'),
-    h('button', { type: 'button', class: 'btn sm', title: 'A marker at the playhead: Drop, Break, Build up… (M)', onclick: () => markerDialog(T, null, mine ? tlPos() : 0) }, '+ Marker'),
-    h('button', { type: 'button', class: 'btn sm', title: T.audios.length ? 'One more audio track, at the playhead' : 'An audio file that plays with the timeline', onclick: () => fileIn.click() }, '+ Audio'),
+    gbtn({ icon: 'fit', label: 'Fit', title: 'Fit: every clip in view, the tracks filling the panel', onclick: () => tlFit(T) }),
+    sep(),
+    gbtn({ icon: 'marker', label: '+ Marker', title: 'A marker at the playhead: Drop, Break, Build up… (M)', onclick: () => markerDialog(T, null, mine ? tlPos() : 0) }),
+    gbtn({ icon: 'audio', label: '+ Audio', title: T.audios.length ? 'One more audio track, at the playhead' : 'An audio file that plays with the timeline', onclick: () => fileIn.click() }),
     fileIn));
   // the tracks, with a bar under them and one beside them: their middle scrolls, their ends zoom (in time, in height)
   const hbar = zoomBar(T, 'h'), vbar = zoomBar(T, 'v');
@@ -972,6 +981,16 @@ function tlRowTo(v) {
     sc.replaceWith(n); n.scrollLeft = x; n.scrollTop = y;
   }
   tlBarsSync(true);
+}
+// The loop's region around everything on the timeline: from the first clip, audio track or marker to the last
+function tlLoopAll(T) {
+  const spans = Object.values(T.tracks).flat().map(c => [c.start, c.start + c.dur]).concat(T.audios.map(A => [A.start, A.start + tlAudioLen(A)]), (T.markers || []).map(m => [m.t, m.t]));
+  if (!spans.length) { toast('Nothing on the timeline yet to loop around.', 'warn'); return; }
+  const a = Math.max(0, Math.min(...spans.map(x => x[0]))), b = Math.min(T.length, Math.max(...spans.map(x => x[1])));
+  if (b - a < 0.1) { toast('Nothing on the timeline yet to loop around.', 'warn'); return; }
+  T.loop = { mode: 'region', a: Math.round(a * 1000) / 1000, b: Math.round(b * 1000) / 1000 };
+  commit({ lists: false }); refreshTimeline();
+  toast(`Looping ${fmtTime(a)} to ${fmtTime(b)}: everything on the timeline.`);
 }
 // Fit: from the start to the end of what is on it (clips, markers, the audio, at least 4 s) across the view, and the
 // tracks sharing the panel's height

@@ -177,7 +177,7 @@ try:
     E("tlZoomTo(40)")
 
     # ---------- the grid in bars
-    pg.locator("#dockBody .tlseg[aria-label='Grid'] button:has-text('Bars')").click(); time.sleep(0.3)
+    pg.locator("#dockBody .tlgrp[aria-label='Grid'] button:has-text('Bars')").click(); time.sleep(0.3)
     labels = E("[...$$('#dockBody .tltick.major')].slice(0, 3).map(e => e.textContent)")
     check("Bars: the ruler counts bars at the tempo (120 BPM)", E(f"project.timelines[0].grid") == "bars" and labels[:2] == ["1", "2"] and pg.locator("#dockBody input[aria-label='BPM']").input_value() == "120", labels)
 

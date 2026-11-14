@@ -73,7 +73,10 @@ try:
     check("recalled without saving, Blue comes back as it was stored", E(f"{Z}.layers[0].src") == "b-solid" and E(f"{Z}.layers[0].opacity") == 0.4)
     E(f"(() => {{ const z = {Z}; z.layers.push(Object.assign(newLayer(), {{ src: 'b-rainbow' }})); commit(); refreshScenes(); }})()"); time.sleep(0.5)
     check("a layer added shows the edited button too", edited("s2").count() == 1 and len(scene("s2")) == 1)
-    edited("s2").click(); time.sleep(0.4)
+    edited("s2").click(); time.sleep(0.3)
+    asked = pg.locator(".modal:has-text('Overwrite')").count() == 1 and len(scene("s2")) == 1
+    pg.locator(".modal button:has-text('Overwrite')").click(); time.sleep(0.4)
+    check("clicking the pencil asks first, nothing changed until Overwrite", asked)
     check("clicking edited saves the zone's contents into the scene", len(scene("s2")) == 2 and scene("s2")[1]["src"] == "b-rainbow" and edited("s2").count() == 0)
     check("…without recalling anything else", E(f"{Z}.scene") == "s2")
 

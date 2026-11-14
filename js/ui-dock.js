@@ -389,8 +389,9 @@ function sceneTile(z, sc, i, keys, look) {
       sc.onOpen ? h('span', { class: 'au', title: 'Plays when the project opens', html: ICONS.power }) : null,
       h('button', { class: 'x', type: 'button', title: 'Add to playlist, update, rename, delete…', 'aria-label': 'Options for ' + sc.name, onclick: e => { e.stopPropagation(); sceneMenu(e.currentTarget, z, sc); } }, '⋯')),
     h('div', { class: 's' }, null, h('span', { class: 'fill' }),
-      edited ? h('button', { class: 'badge warn edited', type: 'button', title: 'Other contents are playing than this scene has. Click to save them into it; recalled without saving, it comes back as it was.',
-        onclick: e => { e.stopPropagation(); updateScene(z, sc); } }, 'edited') : null),
+      edited ? h('button', { class: 'gbtn edited', type: 'button', 'aria-label': 'Edited: save into the scene', html: lineIcon('edit'),
+        title: 'Edited: other contents are playing than this scene has. Click to overwrite the scene with them (it asks first); recalled without saving, it comes back as it was.',
+        onclick: e => { e.stopPropagation(); confirmBox(`Overwrite ${sc.name}?`, `${sc.name} takes what ${z.name} plays now: its layers and their values. ${MOD}Z brings the old one back.`, 'Overwrite', () => updateScene(z, sc)); } }) : null),
     h('i', { class: 'prog' }));
   tile.querySelector('.s').prepend(fadeControl(tile, { name: sc.name, get: () => sc.fade, set: v => { sc.fade = v; } }));
   if (z.tag) tile.style.setProperty('--tag', z.tag);   // its zone's colour, when it has one
@@ -431,10 +432,10 @@ function renderScenes(body, where = 'dock') {
   const X = project.xfade, mode = XF_MODES.find(m => m[0] === X.mode) || XF_MODES[0];
   const foot = h('div', { class: 'sfoot' },
     h('div', { class: 'sleft' },
-      h('button', { class: 'btn sm xfbtn' + (X.on ? ' on' : ''), type: 'button', 'aria-pressed': String(X.on),
+      h('button', { class: 'gbtn xfbtn' + (X.on ? ' on' : ''), type: 'button', 'aria-pressed': String(X.on),
         title: X.on ? 'X-Fader on: it sets the levels of zones A and B. Click to turn it off.' : 'X-Fader: one fader between two zones, A and B',
         onclick: () => setXfadeOn(!X.on) }, h('i', { class: 'dot' }), 'X-Fader'),
-      X.on ? h('button', { class: 'btn sm xfmode', type: 'button', title: mode[2] + '. Click to choose another mode.', 'aria-label': 'X-Fader mode: ' + mode[1], 'aria-haspopup': 'menu',
+      X.on ? h('button', { class: 'gbtn xfmode', type: 'button', title: mode[2] + '. Click to choose another mode.', 'aria-label': 'X-Fader mode: ' + mode[1], 'aria-haspopup': 'menu',
         onclick: e => menu(e.currentTarget, XF_MODES.map(m => [h('span', { class: 'xfmi' }, xfGraph(m), m[1]), () => setXfadeMode(m[0]), { title: m[2] }])) }, xfGraph(mode), h('span', { class: 'car' }, '▾')) : null),
     X.on ? xfadeStrip() : h('span'),
     h('div', { class: 'sbtns' }, sceneSizes(place), inWindow ? panelPlaces('scenes') : null));
@@ -448,7 +449,7 @@ function renderScenes(body, where = 'dock') {
     const side = xf ? xf.indexOf(z) : -1;
     const look = lookOf(z.layers);
     const p = z._play, cur = playingList(z), state = cur && p.on ? ' playing' : cur && !p.ended ? ' paused' : '';
-    const lists = h('button', { class: 'btn sm icon plbtn' + state + (ui.playlistOpen[z.id] ? ' on' : ''), type: 'button', html: ICONS.playlist,
+    const lists = h('button', { class: 'gbtn plbtn' + state + (ui.playlistOpen[z.id] ? ' on' : ''), type: 'button', html: ICONS.playlist,
       title: !z.playlists.length ? `New playlist for ${z.name}…` : (cur ? `${cur.name} is ${p.on ? 'playing' : p.ended ? 'stopped' : 'paused'}. ` : '') + (ui.playlistOpen[z.id] ? 'Fold the playlist' : 'Open the playlist'),
       'aria-label': z.name + ' playlists',
       onclick: e => {
@@ -466,13 +467,13 @@ function renderScenes(body, where = 'dock') {
     const head = side >= 0 || wrap ? h('div', { class: 'zhead compact' + (z === sel ? ' sel' : ''), title: side >= 0 ? `${z.name}: click to select. Its slider is the most it reaches; the X-Fader mixes within it.` : `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
       h('div', { class: 'zt' }, zoneTag(z), side >= 0 ? h('span', { class: 'xftag' }, side ? 'B' : 'A') : null, h('span', { class: 'nm' }, z.name),
         zoneOpacityInput(z, 110), h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists, stop(),
-        h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')))
+        h('button', { class: 'gbtn zstore', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')))
     : h('div', { class: 'zhead' + (z === sel ? ' sel' : ''), title: `${z.name}: click to select. The slider is the zone's opacity, its master.`, onclick: () => selectZone(z) },
       h('div', { class: 'zt' }, zoneTag(z), h('span', { class: 'nm' }, z.name),
         xfDriven(z) ? h('span', { class: 'xftag', title: 'On the X-Fader: it mixes within this level' }, z.id === project.xfade.a ? 'A' : 'B') : null,
         h('span', { class: 'mono muted', 'data-zone-pct': z.id }, pct(z.opacity)), lists, stop()),
       h('div', { class: 'zc' }, zoneOpacityInput(z, 80),
-        h('button', { class: 'btn sm', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
+        h('button', { class: 'gbtn zstore', type: 'button', title: `Store ${z.name}'s current layers as a new scene`, onclick: e => { e.stopPropagation(); storeScene(z); } }, '+ Store')));
     // the zone's head stays put; its scenes scroll sideways beside it
     const tiles = h('div', { class: 'stiles' });
     const r = h('div', { class: 'scenerow' + (z === sel ? ' sel' : '') + (side >= 0 ? ' xfcol' : '') + (wrap ? ' wrap' : '') }, head, side >= 0 || wrap ? tiles : hscroller(tiles, 'scenes:' + z.id));

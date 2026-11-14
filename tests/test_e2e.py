@@ -81,7 +81,7 @@ with sync_playwright() as p:
     check("Store scene adds a scene", n == 3, n)
     pg.evaluate("olm.project.zones[0].layers[0].opacity = 0.5"); pg.evaluate("olm.loadSource('b-noise')")
     pg.click("#dockTabs button[data-tab=scenes]"); time.sleep(0.1)
-    check("edited badge after changing the layers", pg.locator(".scene.live .badge").count() == 1)
+    check("edited badge after changing the layers", pg.locator(".scene.live .edited").count() == 1)
     pg.locator(".scene").nth(2).locator("button.x").click(); pg.click(".menu >> text=Delete"); time.sleep(0.1)
     n2 = pg.evaluate("olm.project.zones[0].scenes.length")
     pg.keyboard.press("Control+z"); time.sleep(0.2)

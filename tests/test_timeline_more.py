@@ -150,6 +150,21 @@ try:
     check("Delete removes the track picked", E(f"{T}.audios.length") == 1 and pg.locator("#dockBody .tlaclip").count() == 1)
     E("tlSnap = true")
 
+    # ---------- the bar: buttons without boxes; the loop around everything
+    look = E("""(() => { const bs = [...$$('#dockBody .tlbar .gbtn')], cs = bs.map(b => getComputedStyle(b));
+      return [bs.length > 10, cs.every(c => c.borderTopWidth === '0px' && (c.backgroundColor === 'rgba(0, 0, 0, 0)' || c.backgroundColor === 'transparent')),
+        ['Off', 'All', 'Region', 'Loop around everything', 'Fit', '+ Marker', '+ Audio', 'Snap'].every(l => $(`#dockBody .tlbar button[aria-label='${l}']`))]; })()""")
+    check("the timeline's bar: its buttons without boxes, an icon each for the loop, Fit, + Marker, + Audio and Snap", look == [True, True, True], look)
+    pg.locator("#dockBody .tlbar button[aria-label='Loop around everything']").click(); time.sleep(0.3)
+    lp = E(f"[{T}.loop.mode, {T}.loop.a, {T}.loop.b, Math.min(...{T}.audios.map(A => A.start)), Math.max(...{T}.audios.map(A => A.start + tlAudioLen(A)))]")
+    check("…loop around everything: the region from the first thing on the timeline to the last, Region on", lp[0] == "region" and abs(lp[1] - lp[3]) < 0.01 and abs(lp[2] - min(lp[4], E(f"{T}.length"))) < 0.01
+          and E("$('#dockBody .tlbar button[aria-label=Region]').classList.contains('on')"), lp)
+    E("undo()"); time.sleep(0.2)
+    pg.locator("#dockBody .tlbar button[aria-label='Snap']").click(); time.sleep(0.1)
+    check("…Snap a magnet that turns off and on", E("tlSnap") is False and E("$('#dockBody .tlbar button[aria-label=Snap]').getAttribute('aria-pressed')") == "false")
+    pg.locator("#dockBody .tlbar button[aria-label='Snap']").click(); time.sleep(0.1)
+    check("…the stage's Fit the same icon", E("!!$('#btnFit svg.li') && $('#btnFit').classList.contains('gbtn')"))
+
     # ---------- markers
     E(f"tlSeek({T}, 4); refreshTimeline()"); time.sleep(0.2)
     pg.mouse.move(700, 120); pg.keyboard.press("m"); time.sleep(0.3)
@@ -160,7 +175,7 @@ try:
     m = E(f"{T}.markers")
     check("…named Drop, coloured, at 4 s", len(m) == 1 and m[0]["name"] == "Drop" and abs(m[0]["t"] - 4) < 1e-6 and m[0]["color"] == E("TAGS[2]"), m)
     check("…a flag on the audio with its name, a line through the zones", pg.locator("#dockBody .tlaudio .tlflag").text_content() == "Drop" and pg.locator("#dockBody .tlmline").count() == 1)
-    pg.locator("#dockBody .tlbar button:has-text('+ Marker')").click(); time.sleep(0.2)
+    pg.locator("#dockBody .tlbar button[aria-label='+ Marker']").click(); time.sleep(0.2)
     pg.locator(".modal[aria-label=Marker] input").fill("Break"); pg.keyboard.press("Enter"); time.sleep(0.3)
     check("+ Marker, a name typed and Enter", [x["name"] for x in E(f"{T}.markers")] == ["Drop", "Break"] or [x["name"] for x in E(f"{T}.markers")] == ["Break", "Drop"])
     E(f"{T}.markers.find(x => x.name === 'Break').t = 10; commit({{ lists: false }}); refreshTimeline()"); time.sleep(0.2)
@@ -196,7 +211,7 @@ try:
     pg.mouse.move(sb["x"] + 400, sb["y"] + 120); pg.keyboard.down("Alt"); pg.mouse.wheel(0, 200); pg.keyboard.up("Alt"); time.sleep(0.3)
     check("Alt + scroll makes them shorter", trk() < t1 - 2, (t1, trk()))
     E(f"(() => {{ const z = project.zones[0]; addClip({T}, z, z.scenes[0].id, 2); {T}.tracks[z.id][0].dur = 20; commit({{ lists: false }}); refreshTimeline(); }})()"); time.sleep(0.2)
-    pg.locator("#dockBody .tlbar button:has-text('Fit')").click(); time.sleep(0.4)
+    pg.locator("#dockBody .tlbar button[aria-label='Fit']").click(); time.sleep(0.4)
     vw = pg.locator("#dockBody .tlscroll").bounding_box()
     endx = E("(() => { const c = $$('#dockBody .tlclip').at(-1).getBoundingClientRect(); return c.right; })()")
     check("Fit: the clips across the view", endx <= vw["x"] + vw["width"] and endx > vw["x"] + vw["width"] * 0.6, (endx, vw))

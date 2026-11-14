@@ -80,6 +80,28 @@ function download(name, text, type = 'application/json') {
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
+// Thin line icons for buttons without boxes (gbtn, ui-forms.js): 16 × 16, drawn in 1.2 px lines with square ends
+const LINE_ICONS = {
+  play: '<path d="M5 3.5l8 4.5-8 4.5z" fill="currentColor" stroke="none"/>',
+  pause: '<path d="M4.5 3.5h2.5v9H4.5zM9 3.5h2.5v9H9z" fill="currentColor" stroke="none"/>',
+  stop: '<rect x="4" y="4" width="8" height="8" fill="currentColor" stroke="none"/>',
+  back: '<path d="M4 3.5v9"/><path d="M12.5 3.5L6 8l6.5 4.5z" fill="currentColor" stroke="none"/>',
+  once: '<path d="M2 8h9"/><path d="M8.5 5.5L11 8l-2.5 2.5"/><path d="M13.5 4v8"/>',
+  loop: '<path d="M6 11.5H2.5v-7h11v7H9"/><path d="M10.5 9.5L8.5 11.5l2 2"/>',
+  region: '<path d="M3 3.5H1.5v9H3M13 3.5h1.5v9H13"/><path d="M7 10.5H4.5v-5h7v5H9"/><path d="M10 9L8.5 10.5 10 12"/>',
+  loopfit: '<path d="M3.5 3.5H2v9h1.5M12.5 3.5H14v9h-1.5"/><path d="M5 8h6"/><path d="M6.5 6.5L5 8l1.5 1.5M9.5 6.5L11 8l-1.5 1.5"/>',
+  fit: '<path d="M2 5.5V2h3.5M10.5 2H14v3.5M14 10.5V14h-3.5M5.5 14H2v-3.5"/><rect x="5.5" y="5.5" width="5" height="5"/>',
+  marker: '<path d="M4 14.5V1.5"/><path d="M4 2h8l-2 2.75L12 7.5H4"/><path d="M12 10v5M9.5 12.5h5"/>',
+  audio: '<path d="M2 7v2M4.5 5v6M7 3v10M9.5 6v4"/><path d="M13 9.5v5M10.5 12h5"/>',
+  snap: '<path d="M4 2v6a4 4 0 008 0V2"/><path d="M4 5h2.5M9.5 5H12"/>',
+  plus: '<path d="M8 3v10M3 8h10"/>',
+  more: '<circle cx="3.5" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1" fill="currentColor" stroke="none"/>',
+  hzoom: '<path d="M1.5 8h13"/><path d="M4 5.5L1.5 8 4 10.5M12 5.5l2.5 2.5-2.5 2.5"/>',
+  vzoom: '<path d="M8 1.5v13"/><path d="M5.5 4L8 1.5 10.5 4M5.5 12L8 14.5 10.5 12"/>',
+  // a scene edited: a pencil, its tip on a line (save what plays into the scene)
+  edit: '<path d="M3 13l1-3.5 7-7 2.5 2.5-7 7z"/><path d="M9.5 4L12 6.5"/><path d="M2 15h12"/>',
+};
+const lineIcon = k => `<svg class="li" viewBox="0 0 16 16" aria-hidden="true">${LINE_ICONS[k] || ''}</svg>`;
 const ICONS = {
   stream: '<svg viewBox="0 0 16 16"><circle cx="8" cy="9" r="1.6" fill="currentColor"/><path d="M5.2 6.3a3.8 3.8 0 0 0 0 5.4M10.8 6.3a3.8 3.8 0 0 1 0 5.4M3.2 4.3a6.6 6.6 0 0 0 0 9.4M12.8 4.3a6.6 6.6 0 0 1 0 9.4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
   play: '<svg viewBox="0 0 16 16"><path d="M4.5 2.8v10.4L13 8z" fill="currentColor"/></svg>',

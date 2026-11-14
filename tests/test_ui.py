@@ -37,9 +37,9 @@ with sync_playwright() as p:
     # edited badge, then Update clears it
     top.locator(".scene").nth(1).click(modifiers=["Shift"]); time.sleep(0.3)
     pg.evaluate("olm.project.zones[2].layers[0].opacity = 0.3; olm.loadSource('b-noise')"); time.sleep(0.3)
-    has = pg.locator(".scene.live .badge").count()
+    has = pg.locator(".scene.live .edited").count()
     pg.locator(".scenerow").nth(0).locator(".scene.live button.x").click(); pg.click(".menu >> text=Update with All's current layers"); time.sleep(0.2)
-    check("edited badge shows, Update clears it", has == 1 and pg.locator(".scenerow").nth(0).locator(".scene.live .badge").count() == 0, has)
+    check("edited badge shows, Update clears it", has == 1 and pg.locator(".scenerow").nth(0).locator(".scene.live .edited").count() == 0, has)
     check("updated scene holds the new look", pg.evaluate("olm.project.zones[2].scenes[1].layers.some(l => l.src === 'b-noise')"))
     # drag reorder: drag scene 1 onto scene 3 in the top row
     names0 = pg.evaluate("olm.project.zones[2].scenes.map(s => s.name)")

@@ -54,9 +54,9 @@ function renderCues(body) {
   const tabs = h('div', { class: 'cuetabs' },
     project.cueLists.map(K => h('button', { type: 'button', class: 'cltab' + (K === L ? ' on' : ''), title: K === L ? 'Right-click for its menu' : 'Show ' + K.name,
       onclick: () => { ui.cueList = K.id; ui.cueSel = null; refreshCues(); }, oncontextmenu: e => { e.preventDefault(); cueListMenu(e.currentTarget, K); } }, K.name)),
-    h('button', { type: 'button', class: 'btn sm', title: 'A new cue list: cues that go one after the other, by GO or by themselves', onclick: () => addCueList() }, '+ New cue list'),
+    gbtn({ icon: 'plus', label: '+ New cue list', title: 'A new cue list: cues that go one after the other, by GO or by themselves', onclick: () => addCueList() }),
     h('span', { class: 'fill' }),
-    L ? h('button', { type: 'button', class: 'btn sm icon', title: L.name + ': rename, delete', 'aria-label': L.name + ' menu', onclick: e => cueListMenu(e.currentTarget, L) }, '⋯') : null);
+    L ? gbtn({ icon: 'more', label: L.name + ' menu', title: L.name + ': rename, delete', onclick: e => cueListMenu(e.currentTarget, L) }) : null);
   panel.append(tabs);
   if (!L) {
     panel.append(h('div', { class: 'cueempty' }, h('p', null, 'No cue lists yet. A cue list plays scenes and zone levels one cue after the other, by GO.'),
@@ -72,8 +72,8 @@ function renderCues(body) {
       h('div', { class: 'cnl' }, h('span', { class: 'lbl' }, 'Standby'), st.standby ? h('b', null, st.standby.num + ' · ' + cueTitle(st.standby)) : h('span', { class: 'muted' }, 'the end of the list')),
       h('div', { class: 'cnl', 'data-cue-auto': '' }, st.cur ? [h('span', { class: 'lbl' }, 'Playing'), h('span', null, st.cur.num + ' · ' + cueTitle(st.cur))] : h('span', { class: 'muted' }, 'Nothing played yet'))),
     h('div', { class: 'cuebtns' },
-      h('button', { type: 'button', class: 'btn sm', title: 'Back: the cue before goes on standby (nothing plays)', onclick: () => cueBack(L) }, 'Back'),
-      h('button', { type: 'button', class: 'btn sm', title: 'Stop: nothing goes on by itself, the levels stop where they are', onclick: () => cueStop(L) }, 'Stop'))));
+      gbtn({ icon: 'back', text: 'Back', title: 'Back: the cue before goes on standby (nothing plays)', onclick: () => cueBack(L) }),
+      gbtn({ icon: 'stop', text: 'Stop', title: 'Stop: nothing goes on by itself, the levels stop where they are', onclick: () => cueStop(L) }))));
   // the cues
   const rows = h('div', { class: 'cuerows', 'data-keep': 'cuerows' });
   if (!L.cues.length) rows.append(h('p', { class: 'rowhint' }, 'No cues yet. Set the zones as the first cue should show them (scenes and levels), then + Cue.'));
@@ -99,8 +99,8 @@ function renderCues(body) {
     if (sel) rows.append(cueEditor(L, c));
   }
   panel.append(rows, h('div', { class: 'cuefoot' },
-    h('button', { type: 'button', class: 'btn sm', title: 'A cue of what every zone shows now: its scene and its level', onclick: () => recordCue(L) }, '+ Cue'),
-    h('button', { type: 'button', class: 'btn sm', title: 'A cue with no actions, to fill in', onclick: () => addCue(L) }, '+ Empty cue')));
+    gbtn({ text: '+ Cue', title: 'A cue of what every zone shows now: its scene and its level', onclick: () => recordCue(L) }),
+    gbtn({ text: '+ Empty cue', title: 'A cue with no actions, to fill in', onclick: () => addCue(L) })));
 }
 // The controls a zone's effects have: those it plays now, then those in its scenes
 function zoneControls(z) {
