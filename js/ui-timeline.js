@@ -77,7 +77,13 @@ function renderTimeline(body) {
     h('button', { type: 'button', class: 'gbtn tlplay' + (playing ? ' on' : ''), 'aria-label': playing ? 'Pause' : 'Play', title: (playing ? 'Pause' : 'Play') + ' (Space, with the mouse off the stage)',
       onclick: () => (playing ? tlPause() : tlPlay(T)), html: lineIcon(playing ? 'pause' : 'play') }),
     h('button', { type: 'button', class: 'gbtn tlplay', 'aria-label': 'Stop', title: 'Stop: back to the start (of the loop)', onclick: () => tlStop(T), html: lineIcon('stop') }),
-    h('span', { class: 'tltime mono', 'data-tl-time': '' }, fmtTime(mine ? tlPos() : 0), h('span', { class: 'muted' }, ' / ' + fmtTime(T.length))),
+    h('span', { class: 'tltime mono', 'data-tl-time': '' }, fmtTime(mine ? tlPos() : 0)),
+    // its length, typed (1:30 or 90), and set to the end of what is on it
+    h('span', { class: 'tllen' }, h('span', { class: 'muted' }, '/'),
+      h('input', { type: 'text', class: 'mono', value: fmtTime(T.length), 'aria-label': 'Length', title: 'The timeline\'s length: type it as 1:30 or 90 (never shorter than its clips)', spellcheck: false,
+        onchange: e => { const v = parseTime(e.target.value); if (v > 0) { setTimelineLength(T, v); commit({ lists: false }); } refreshTimeline(); },
+        onkeydown: e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { e.target.value = fmtTime(T.length); e.target.blur(); } } }),
+      gbtn({ icon: 'lenfit', label: 'Length to the contents', title: 'The length to the end of what is on it: the last clip, audio track or marker', onclick: () => tlFitLength(T) })),
     sep(),
     h('span', { class: 'tlgrp', role: 'group', 'aria-label': 'Loop' },
       gbtn({ icon: 'once', label: 'Off', title: 'Loop off: it plays once and stops at the end', on: T.loop.mode === 'off', onclick: () => setLoop('off') }),
@@ -234,8 +240,8 @@ function tlTracks(T, mine) {
         h('span', { class: 'tlz' }, top ? z.name : ''),
         n > 1 ? h('span', { class: 'tlln mono', title: 'Lane ' + (k + 1) + (top ? ': shows over the lanes below' : '') }, String(k + 1)) : null,
         top ? h('span', { class: 'tllbtns' },
-          h('button', { type: 'button', class: 'tllb', title: 'A lane on top: its clips show over the ones below, and hand back to them as they end', 'aria-label': 'Add a lane to ' + z.name, onclick: () => addLane(T, z) }, '+'),
-          n > 1 ? h('button', { type: 'button', class: 'tllb', title: 'Remove the top lane (when it has no clips)', 'aria-label': 'Remove a lane from ' + z.name, onclick: () => removeLane(T, z) }, '−') : null) : null);
+          h('button', { type: 'button', class: 'tllb', title: 'A lane underneath: the clips already there stay put, over it (a clip on a higher lane shows over the ones below)', 'aria-label': 'Add a lane to ' + z.name, onclick: () => addLane(T, z) }, '+'),
+          n > 1 ? h('button', { type: 'button', class: 'tllb', title: 'Remove an empty lane (the bottom one, else the top one)', 'aria-label': 'Remove a lane from ' + z.name, onclick: () => removeLane(T, z) }, '−') : null) : null);
       grid.append(h('div', { class: 'tlrow' + (top ? '' : ' sub'), style: rows ? { height: tlRow() + rows * TL_KROW + 'px' } : null }, label, lane));
     }
   }
@@ -541,7 +547,7 @@ function drawTimelineHead() {
   if (pb && pb.classList.contains('on') !== (tl.playing && tl.id === T.id)) refreshTimeline();
 }
 // The clip picked goes with Delete or Backspace while the timeline shows
-document.addEventListener('keydown', e => {
+function tlDeleteKey(e) {
   if (!(ui.tlSel || tlKeys.size) || !timelineShown() || typingIn(e.target) || !(e.key === 'Delete' || e.key === 'Backspace')) return;
   const T = shownTimeline();
   // the keys picked go before their clip
@@ -557,7 +563,8 @@ document.addEventListener('keydown', e => {
     const c = cs.find(x => x.id === ui.tlSel);
     if (c) { e.preventDefault(); e.stopPropagation(); deleteClip(T, zoneById(zid), c); return; }
   }
-}, true);
+}
+document.addEventListener('keydown', tlDeleteKey, true);
 
 /* ---------- keyframes ---------- */
 // A value as a share of its control's range (0 to 1), and back; colours and points have no one height
@@ -960,14 +967,15 @@ function markerDialog(T, m, t) {
   nameIn.focus(); nameIn.select();
 }
 // M: a marker at the playhead while the timeline shows
-document.addEventListener('keydown', e => {
+function tlMarkerKey(e) {
   if (e.key !== 'm' && e.key !== 'M') return;
-  if (e.ctrlKey || e.metaKey || e.altKey || !timelineShown() || typingIn(e.target) || $('.modal-bg')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || !timelineShown() || typingIn(e.target) || $('.modal-bg') || $('.modal-bg', e.target.ownerDocument || document)) return;
   const T = shownTimeline();
   if (!T) return;
   e.preventDefault(); e.stopPropagation();
   markerDialog(T, null, tl.id === T.id ? tlPos() : 0);
-}, true);
+}
+document.addEventListener('keydown', tlMarkerKey, true);
 
 /* ---------- zoom ---------- */
 // The tracks' height: drawn again alone, the slider under the mouse staying
@@ -983,6 +991,21 @@ function tlRowTo(v) {
     sc.replaceWith(n); n.scrollLeft = x; n.scrollTop = y;
   }
   tlBarsSync(true);
+}
+// A time typed: m:ss(.cc), or seconds
+function parseTime(t) {
+  const m = /^\s*(?:(\d+):)?(\d+(?:[.,]\d*)?)\s*$/.exec(String(t));
+  return m ? (+(m[1] || 0)) * 60 + parseFloat(m[2].replace(',', '.')) : NaN;
+}
+// The length to the end of what is on it: the last clip, audio track (as long as it plays) or marker
+function tlFitLength(T) {
+  const end = Math.max(0, ...Object.values(T.tracks).flat().map(c => c.start + c.dur), ...T.audios.map(A => A.start + tlAudioLen(A)), ...(T.markers || []).map(m => m.t));
+  if (end < 0.1) { toast('Nothing on the timeline yet to fit its length to.', 'warn'); return; }
+  T.length = clamp(Math.ceil(end * 10) / 10, 1, 36000);
+  T.loop.b = Math.min(T.loop.b, T.length); T.loop.a = Math.min(T.loop.a, T.loop.b - 0.1);
+  if (tl.id === T.id && tl.pos > T.length) tl.pos = T.length;
+  commit({ lists: false }); refreshTimeline();
+  toast(`${T.name} is ${fmtTime(T.length)} long: to the end of what is on it.`);
 }
 // The loop's region around everything on the timeline: from the first clip, audio track or marker to the last
 function tlLoopAll(T) {

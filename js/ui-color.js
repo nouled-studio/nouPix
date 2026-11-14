@@ -165,7 +165,8 @@ function openColorPicker(anchor, o) {
     tabs, body, alphaRow,
     h('div', { class: 'cplbl' }, 'Presets'), h('div', { class: 'cpchips grid' }, LIGHT_COLORS.map(([n, x]) => chip(n, x))),
     h('div', { class: 'cplbl' }, 'Recent'), recentBox);
-  document.body.append(pop);
+  const D = anchor.ownerDocument || document, W = D.defaultView || window;   // (the Cue list's or Timeline's own window too)
+  D.body.append(pop);
   showMode(); showRecent();
 
   // beside the swatch: below it, or above when there is no room, always inside the window
@@ -177,7 +178,7 @@ function openColorPicker(anchor, o) {
   const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); closeColorPicker(); } };
   // Listening at once (not after a timeout) is safe: the click that opened it is past its pointerdown. A timeout could
   // let a quick click elsewhere on a busy page go by before it is listened for, and the picker would stay open.
-  document.addEventListener('pointerdown', off, true); addEventListener('keydown', esc, true);
+  D.addEventListener('pointerdown', off, true); W.addEventListener('keydown', esc, true);
   anchor.classList.add('open');
   // moved from elsewhere (a MIDI fader on a macro, a device): the picker follows, without a step of undo of its own
   const sync = () => {
@@ -192,6 +193,6 @@ function openColorPicker(anchor, o) {
   };
   colorPop = { key: o.key, pop, sync, close: () => {
     pop.remove(); anchor.classList.remove('open');
-    document.removeEventListener('pointerdown', off, true); removeEventListener('keydown', esc, true);
+    D.removeEventListener('pointerdown', off, true); W.removeEventListener('keydown', esc, true);
   } };
 }

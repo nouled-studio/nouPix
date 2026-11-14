@@ -517,18 +517,24 @@ function addClip(T, z, sceneId, t, lane = 0) {
   commit({ lists: false }); refreshTimeline();
   return c;
 }
-// Lanes: one more on top of a zone's track; the top one taken off when it has no clips
+// Lanes: one more under a zone's lanes, so the clips already there stay where they are (and over it); an empty lane
+// taken off, the bottom one first, else the top one
 function addLane(T, z) {
   const lanes = T.lanes || (T.lanes = {}), n = lanes[z.id] || 1;
   if (n >= 16) return;
+  for (const c of T.tracks[z.id] || []) c.lane = (c.lane || 0) + 1;
   lanes[z.id] = n + 1;
+  tl.clips[z.id] = undefined;
   commit({ lists: false }); refreshTimeline();
 }
 function removeLane(T, z) {
-  const lanes = T.lanes || (T.lanes = {}), n = lanes[z.id] || 1;
+  const lanes = T.lanes || (T.lanes = {}), n = lanes[z.id] || 1, clips = T.tracks[z.id] || [];
   if (n <= 1) return;
-  if ((T.tracks[z.id] || []).some(c => (c.lane || 0) === n - 1)) { toast('Its top lane has clips: move or delete them first.', 'warn'); return; }
+  const empty = k => !clips.some(c => (c.lane || 0) === k);
+  if (empty(0)) for (const c of clips) c.lane = (c.lane || 0) - 1;
+  else if (!empty(n - 1)) { toast('Its lanes all have clips: move or delete those of the top or bottom lane first.', 'warn'); return; }
   if (n - 1 > 1) lanes[z.id] = n - 1; else delete lanes[z.id];
+  tl.clips[z.id] = undefined;
   commit({ lists: false }); refreshTimeline();
 }
 function deleteClip(T, z, c) {

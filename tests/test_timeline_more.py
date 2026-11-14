@@ -165,6 +165,19 @@ try:
     pg.locator("#dockBody .tlbar button[aria-label='Snap']").click(); time.sleep(0.1)
     check("…the stage's Fit the same icon", E("!!$('#btnFit svg.li') && $('#btnFit').classList.contains('gbtn')"))
 
+    # ---------- the length: in the bar, typed, and fitted to what is on it
+    ln = pg.locator("#dockBody .tlbar input[aria-label='Length']")
+    ln.fill("1:30"); ln.press("Enter"); time.sleep(0.3)
+    check("the length in the bar, typed as 1:30", E(f"{T}.length") == 90)
+    ln = pg.locator("#dockBody .tlbar input[aria-label='Length']"); ln.fill("75"); ln.press("Enter"); time.sleep(0.3)
+    check("…or in seconds", E(f"{T}.length") == 75)
+    pg.locator("#dockBody .tlbar button[aria-label='Length to the contents']").click(); time.sleep(0.3)
+    end = E(f"Math.max(...Object.values({T}.tracks).flat().map(c => c.start + c.dur), ...{T}.audios.map(A => A.start + tlAudioLen(A)), ...{T}.markers.map(m => m.t))")
+    check("…its button: the length to the end of what is on it", abs(E(f"{T}.length") - end) < 0.11 and E(f"{T}.length") >= end, (E(f"{T}.length"), end))
+    E("undo()"); time.sleep(0.2)
+    check("…a step of undo", E(f"{T}.length") == 75)
+    E(f"{T}.length = 60; commit({{ lists: false }}); refreshTimeline()"); time.sleep(0.2)
+
     # ---------- markers
     E(f"tlSeek({T}, 4); refreshTimeline()"); time.sleep(0.2)
     pg.mouse.move(700, 120); pg.keyboard.press("m"); time.sleep(0.3)

@@ -30,6 +30,7 @@ function renderDock() {
     if (ui.dockCollapsed) return;
     if (ui.dockTab === 'scenes' && scenesWinOpen()) renderScenesAway(body);
     else if (ui.dockTab === 'scenes') renderScenes(body);
+    else if ((ui.dockTab === 'cues' || ui.dockTab === 'timeline') && panelWinOpen(ui.dockTab)) renderPanelAway(body, ui.dockTab);
     else if (ui.dockTab === 'cues') renderCues(body);
     else if (ui.dockTab === 'timeline') renderTimeline(body);
     else if (ui.dockTab === 'patch') {
@@ -41,6 +42,7 @@ function renderDock() {
   replayFlip();
   const ce = body.querySelector('.ctrl-edit'); if (ce) ce.scrollTop = keep;
   drawScenesWindow();
+  syncPanelWindows();
   updateMidiUI();
 }
 function onPatchChanged() { schedulePanels(); }
@@ -131,6 +133,64 @@ function closeScenesWindow() { if (scenesWinOpen()) scenesWin.close(); scenesWin
 // The Scenes window doesn't outlive this page; one closed by its own button is noticed
 addEventListener('pagehide', () => { if (scenesWinOpen()) scenesWin.close(); });
 setInterval(() => { if (scenesWin && scenesWin.closed) { scenesWin = null; renderDock(); } }, 1000);
+/* ---------- the Cue lists' and the Timeline's windows ---------- */
+// As the Scenes window: drawn by this page, closing with it; the panel's tab says where it is meanwhile. Its place
+// buttons at its top; Space plays (GO, or the timeline), Delete and M work there as here.
+const panelWins = {};
+const panelWinOpen = k => (k === 'scenes' ? scenesWinOpen() : !!(panelWins[k] && !panelWins[k].closed));
+const panelWinRoot = k => (panelWinOpen(k) ? $('#dockBody', panelWins[k].document) : null);
+const panelWinDocs = () => Object.keys(panelWins).filter(panelWinOpen).map(k => panelWins[k].document);
+const panelRefresh = k => (k === 'cues' ? refreshCues() : k === 'timeline' ? refreshTimeline() : refreshScenes());
+function openPanelWindow(k) {
+  if (k === 'scenes') { openScenesWindow(); return; }
+  if (panelWinOpen(k)) { raiseWindow(panelWins[k]); return; }
+  const w = window.open('', 'olm-' + k, 'popup,width=1240,height=' + (k === 'timeline' ? 600 : 480));
+  if (!w) { toast(`The ${PANELS[k].replace(' (Beta)', '')} window could not open: allow pop-up windows for this page.`, 'err'); return; }
+  panelWins[k] = w;
+  const d = dressWindow(w, PANELS[k].replace(' (Beta)', '') + ' · nouPix', 'panelwin');
+  d.body.append(h('div', { class: 'winbar' }), h('div', { class: 'dockbody', id: 'dockBody' }), h('div', { class: 'toasts', id: 'toasts' }));
+  d.addEventListener('input', rangeInput, true);
+  if (k === 'timeline') { d.addEventListener('keydown', tlDeleteKey, true); d.addEventListener('keydown', tlMarkerKey, true); }
+  w.addEventListener('keydown', e => {
+    if ($('.modal-bg', d) && e.key === 'Escape') { $('.modal-bg', d).remove(); return; }
+    if (typingIn(e.target) || $('.modal-bg', d)) return;
+    const mod = e.ctrlKey || e.metaKey, key = e.key.toLowerCase();
+    if (mod && key === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
+    else if (mod && key === 'y') { e.preventDefault(); redo(); }
+    else if (mod && key === 's') { e.preventDefault(); saveProjectFile(e.shiftKey); }
+    else if (e.code === 'Space' && !e.repeat) {
+      e.preventDefault();
+      if (k === 'cues' && shownCueList()) cueGo(shownCueList());
+      if (k === 'timeline' && shownTimeline()) { const T = shownTimeline(); if (tl.playing && tl.id === T.id) tlPause(); else tlPlay(T); }
+    }
+  });
+  w.addEventListener('pagehide', () => { if (panelWins[k] === w) { panelWins[k] = null; renderDock(); panelRefresh(k); } });
+  // with this page minimized or behind another, its frames stop: the window's own draw the playhead and the progress
+  const frame = () => {
+    if (panelWins[k] !== w || w.closed) return;
+    w.requestAnimationFrame(frame);
+    if (!document.hidden || !project) return;
+    try { if (k === 'timeline') drawTimelineHead(); else drawCueProgress(); } catch (e) { report(k + ' window', e); }
+  };
+  w.requestAnimationFrame(frame);
+  renderDock();
+  panelRefresh(k);
+}
+function closePanelWindow(k) {
+  if (k === 'scenes') { closeScenesWindow(); return; }
+  if (panelWinOpen(k)) panelWins[k].close();
+  panelWins[k] = null;
+  renderDock(); panelRefresh(k);
+}
+// its place buttons, kept in step with where it is
+function syncPanelWindows() {
+  for (const k of Object.keys(panelWins)) {
+    const bar = panelWinOpen(k) && $('.winbar', panelWins[k].document);
+    if (bar) bar.replaceChildren(h('span', { class: 'fill' }), panelPlaces(k));
+  }
+}
+addEventListener('pagehide', () => { for (const w of Object.values(panelWins)) if (w && !w.closed) w.close(); });
+setInterval(() => { for (const k of Object.keys(panelWins)) if (panelWins[k] && panelWins[k].closed) { panelWins[k] = null; renderDock(); panelRefresh(k); } }, 1000);
 function drawScenesWindow() {
   const D = scenesDoc(), root = D && $('#dockBody', D);
   if (!root) return;
@@ -154,24 +214,25 @@ const placeOf = k => { const p = (ui.places || {})[k]; return p === 'left' || p 
 const movedTo = side => Object.keys(PANELS).filter(k => placeOf(k) === side);
 const sideShown = side => !(side === 'left' ? ui.leftHidden : ui.rightHidden);
 // The side's moved tab open now, or null (its own)
-const sideOpen = side => { const k = (ui.sideOpen || {})[side]; return k && placeOf(k) === side && !(k === 'scenes' && scenesWinOpen()) ? k : null; };
+const sideOpen = side => { const k = (ui.sideOpen || {})[side]; return k && placeOf(k) === side && !panelWinOpen(k) ? k : null; };
 // Where a panel shows now (the bottom panel's body or a side's), or null
 function panelRoot(k) {
+  if (k !== 'scenes' && panelWinOpen(k)) return panelWinRoot(k);
   const p = placeOf(k);
   if (p === 'bottom') return ui.dockTab === k && !ui.dockCollapsed ? $('#dockBody') : null;
   return sideShown(p) && sideOpen(p) === k ? $('#' + p + 'Host') : null;
 }
 function panelPlaces(k) {
-  const now = k === 'scenes' && scenesWinOpen() ? 'window' : placeOf(k), n = PANELS[k];
+  const now = panelWinOpen(k) ? 'window' : placeOf(k), n = PANELS[k];
   const list = [['bottom', `${n} at the bottom`, 'In the bottom panel'], ['left', `${n} in the left panel`, 'One more tab there; its ✕ brings it back'],
     ['right', `${n} in the right panel`, 'One more tab there, next to Inspector, Content and Settings; its ✕ brings it back']];
-  if (k === 'scenes') list.push(['window', 'Open in a window', 'The scenes and playlists in a window of their own, to put on another screen']);
+  list.push(['window', 'Open in a window', k === 'scenes' ? 'The scenes and playlists in a window of their own, to put on another screen' : `The ${n.replace(' (Beta)', '').toLowerCase()} in a window of their own, to put on another screen`]);
   return h('div', { class: 'spos', role: 'group', 'aria-label': 'Where the ' + n.toLowerCase() + ' are' },
     list.map(([p, name, what]) => h('button', { type: 'button', class: p === now ? 'on' : '', html: PLACE_ICONS[p], 'data-place': p,
       'aria-label': name, 'aria-pressed': String(p === now), 'data-tip': name + '|' + what, onclick: () => setPanelPlace(k, p) })));
 }
 function setPanelPlace(k, p) {
-  if (k === 'scenes' && p === 'window') { openScenesWindow(); renderDock(); return; }
+  if (p === 'window') { openPanelWindow(k); renderDock(); return; }
   ui.places = Object.assign({}, ui.places, { [k]: p });
   if (p === 'bottom') { ui.dockTab = k; ui.dockCollapsed = false; }
   else {
@@ -179,7 +240,7 @@ function setPanelPlace(k, p) {
     if (!sideShown(p)) (p === 'left' ? showLeft : showRight)(true);
   }
   savePrefs();
-  if (k === 'scenes' && scenesWinOpen()) closeScenesWindow(); else renderDock();
+  if (panelWinOpen(k)) closePanelWindow(k); else renderDock();
   // the stage has another size: the whole canvas in view again
   requestAnimationFrame(() => { resizeView(); fitView(); redrawStage(); });
 }
@@ -270,6 +331,15 @@ function initSides() {
       grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
     });
   }
+}
+// The Cue lists' or the Timeline's tab while they have their own window
+function renderPanelAway(body, k) {
+  const n = PANELS[k].replace(' (Beta)', '');
+  body.append(h('div', { class: 'scenesaway' },
+    h('p', null, `The ${n.toLowerCase()} ${k === 'cues' ? 'are' : 'is'} in ${k === 'cues' ? 'their' : 'its'} own window.`),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', type: 'button', onclick: () => openPanelWindow(k) }, 'Show the window'),
+      h('button', { class: 'btn', type: 'button', onclick: () => closePanelWindow(k) }, 'Back here'))));
 }
 // The Scenes tab while the scenes have their own window
 function renderScenesAway(body) {

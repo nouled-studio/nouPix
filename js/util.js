@@ -101,6 +101,8 @@ const LINE_ICONS = {
   // a scene edited: a pencil, its tip on a line (save what plays into the scene)
   edit: '<path d="M3 13l1-3.5 7-7 2.5 2.5-7 7z"/><path d="M9.5 4L12 6.5"/><path d="M2 15h12"/>',
 };
+// (the timeline's length set to the end of what is on it: its contents with the end line right after them)
+LINE_ICONS.lenfit = '<rect x="1.5" y="5" width="9" height="6"/><path d="M13.5 2.5v11"/><path d="M10.5 8h3"/>';
 const lineIcon = k => `<svg class="li" viewBox="0 0 16 16" aria-hidden="true">${LINE_ICONS[k] || ''}</svg>`;
 const ICONS = {
   stream: '<svg viewBox="0 0 16 16"><circle cx="8" cy="9" r="1.6" fill="currentColor"/><path d="M5.2 6.3a3.8 3.8 0 0 0 0 5.4M10.8 6.3a3.8 3.8 0 0 1 0 5.4M3.2 4.3a6.6 6.6 0 0 0 0 9.4M12.8 4.3a6.6 6.6 0 0 1 0 9.4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
