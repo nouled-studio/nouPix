@@ -98,9 +98,12 @@ function midiBlink() {
   if (!l) return;
   l.classList.add('on'); clearTimeout(midiBlinkT); midiBlinkT = setTimeout(() => l.classList.remove('on'), 90);
 }
-// What to do next while learning (and how to start)
-function midiHint() {
+// What to do next while learning (and how to start), in full in the MIDI window; short in the main window's bar
+function midiHint(short) {
   const L = midi.learn;
+  if (short) return L.pending ? [h('b', null, midiKeyFull(L.pending)), ': click what it should move.']
+    : L.target ? ['Move the control for ', h('b', null, midiTargetLabel(L.target)), '.']
+      : ['Learning: move a control, then click what it moves.'];
   return !L.on ? ['Press Learn, move a control on your controller, then choose what it should move.']
     : L.pending ? [h('b', null, midiKeyFull(L.pending)), ' moved: choose what it should move in its list, or click it here or in the main window.']
       : L.target ? ['Now move the control for ', h('b', null, midiTargetLabel(L.target)), '.']
@@ -116,7 +119,7 @@ function midiRedraw() {
   b.title = L.on ? 'MIDI: learning. Esc stops.' : midi.status === 'ok' ? `MIDI: ${n} controller${n === 1 ? '' : 's'}, ${m} mapping${m === 1 ? '' : 's'}` : 'MIDI: play this project from a MIDI controller';
   const bar = $('#midiLearnBar');
   bar.hidden = !L.on;
-  if (L.on) bar.firstChild.replaceChildren(...midiHint());
+  if (L.on) bar.firstChild.replaceChildren(...midiHint(true));
   markMidi();
   const D = midiDoc();
   if (!D) return;
