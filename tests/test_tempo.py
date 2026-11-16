@@ -160,7 +160,32 @@ try:
     check("a pause starts a new run; uneven taps give their average", abs(r - 100) < 1, r)
     pg.click("#tempoSec .btn:text-is('Tap')"); time.sleep(0.1)
     check("the Tap button taps", ev("tempo.taps.length") >= 1)
+
     check("the tapped BPM is kept for next time", abs(ev("ui.tempoBpm") - 100) < 1.5 and ev("store.get('noupix.ui').tempoSrc") == "tap", ev("ui.tempoBpm"))
+
+    # the content doesn't jump on a tap: it glides onto the new beat
+    r = ev("""(async () => {
+      tempo.taps.length = 0; tempo.off = 0; const t0 = performance.now();
+      for (let k = 0; k < 4; k++) tempoTap(t0 - 1500 + k * 500);   // 120 BPM, the last tap now
+      await new Promise(r => setTimeout(r, 3700));
+      // a new run after a pause, a third of a beat off the old beat and a little faster: 125 BPM
+      const before = tempoAt().beat, t1 = performance.now() + 170;
+      for (let k = 0; k < 4; k++) tempoTap(t1 - 1440 + k * 480);
+      const jump = Math.abs(tempoAt().beat - before), s = [];
+      for (let i = 0; i < 320; i++) { s.push([performance.now(), tempoAt().beat, tempoAt(performance.now()).beat]); await new Promise(r => setTimeout(r, 15)); }
+      let worst = 0, least = 9, back = false;
+      for (let i = 1; i < s.length; i++) { const db = s[i][1] - s[i - 1][1], dt = s[i][0] - s[i - 1][0]; if (db < 0) back = true; worst = Math.max(worst, db / (dt / 480)); least = Math.min(least, db / (dt / 480)); }
+      const end = s[s.length - 1];
+      return { jump, worst, least, back, gap: Math.abs(end[1] - end[2]), bpm: tempo.bpm, start: Math.abs(s[0][1] - s[0][2]) };
+    })()""")
+    check("taps that move the beat: the content glides there, no jump, never backwards, never more than 40 % off the tempo",
+          r["jump"] < 0.05 and not r["back"] and r["worst"] < 1.45 and r["least"] > 0.55 and r["start"] > 0.05 and abs(r["bpm"] - 125) < 0.5, r)
+    check("…and is on the taps' beat within a few beats", r["gap"] < 0.02, r)
+    ev("tempo.taps.length = 0"); pg.mouse.move(5, 5)
+    pg.keyboard.press("t"); time.sleep(0.05)
+    check("T taps the tempo", ev("tempo.taps.length") == 1)
+    pg.keyboard.press("Space"); time.sleep(0.05)
+    check("so does Space, off the stage, when the beat comes from tapping", ev("tempo.taps.length") == 2)
 
     # ---------- a MIDI pad onto Tap tempo
     ev("setMidiOn(true)"); time.sleep(0.5)

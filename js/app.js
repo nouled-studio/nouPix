@@ -296,7 +296,10 @@ function onKey(e) {
   if (e.code === 'Space' && !e.repeat && cuesShown() && shownCueList() && !stageEl.matches(':hover')) { e.preventDefault(); cueGo(shownCueList()); return; }
   // and plays or pauses the timeline shown
   if (e.code === 'Space' && !e.repeat && timelineShown() && shownTimeline() && !stageEl.matches(':hover')) { e.preventDefault(); const T = shownTimeline(); if (tl.playing && tl.id === T.id) tlPause(); else tlPlay(T); return; }
+  // and taps the tempo when the beat comes from tapping (off the stage, where it pans the view); T taps it anyway
+  if (e.code === 'Space' && !e.repeat && ui.tempoSrc === 'tap' && !stageEl.matches(':hover')) { e.preventDefault(); tempoTap(); return; }
   if (e.code === 'Space') { spaceHeld = true; cv.style.cursor = 'grab'; e.preventDefault(); return; }
+  if (k === 't' && !e.repeat && !e.altKey) { e.preventDefault(); tempoTap(); return; }
   if ((ui.tool === 'path' || ui.tool === 'pen') && pathDraft) {
     if (e.key === 'Enter') { finishPath(); return; }
     if (e.key === 'Backspace') { pathDraft.pts.splice(-2); pathDraft.ctl.splice(-4); e.preventDefault(); return; }
