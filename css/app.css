@@ -136,6 +136,9 @@ input, select, textarea { font-weight: 400; }
 .scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .zt { font-size: 12px; }
 .scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .btn.sm { height: 18px; padding-top: 0; padding-bottom: 0; }
 .scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .zstop, .scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .plbtn { width: 18px; height: 18px; }
+/* its buttons without boxes too (+ Store), so its two lines fit the small scenes' height */
+.scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .gbtn { height: 18px; }
+.scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .zc { min-height: 18px; }
 .scenepanel.ss-s .scenerow { padding-top: 3px; padding-bottom: 3px; }
 .scenepanel.ss-l .scenerow:not(.wrap):not(.xfcol) .zhead { height: 80px; }
 .scenepanel.ss-s .scenerow.xfcol .stiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
