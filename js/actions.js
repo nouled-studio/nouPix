@@ -703,7 +703,7 @@ function storeScene(z) {
   if (project.settings.sceneShots) sceneShot(z, sc);
   z.scene = sc.id; ui.zone = z.id;
   commit();
-  if (ui.rightTab === 'content') renderRight();   // now a scene: its controls follow the macros
+  syncContentSoon();   // now a scene: its controls follow the macros, and the Content tab marks them
   toast(`Stored ${sc.name} in ${z.name}. Use ⋯ on its button to rename it or change its fade time.`);
 }
 // A scene's picture: its zone as it looks now, small (160 wide), kept with the scene and shown on its button.
@@ -740,7 +740,7 @@ function updateScene(z, sc) {
   sc.layers = snapshotLayers(z); z.scene = sc.id;
   if (project.settings.sceneShots) sceneShot(z, sc);
   commit();
-  if (ui.rightTab === 'content') renderRight();
+  syncContentSoon();
   toast(`${sc.name} updated`);
 }
 // Move a scene ('zoneId:sceneId') into a zone: onto a scene it takes that scene's place, onto the row it goes last

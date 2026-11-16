@@ -436,8 +436,8 @@ function renderContentTab(body) {
 
   if (rt && rt.error) body.append(sec('Shader error', h('div', { class: 'errbox' }, rt.error)));
   if (src.kind === 'isf' && rt && rt.R) {
-    // (the macros act on stored scenes only: with none playing here, nothing follows them)
-    const ctl = [], roles = zoneFollows(z) ? macroRolesOf(src, rt) : {};
+    // (the macros act on stored scenes only: with none playing here, nothing follows them; the marks look as they sync)
+    const ctl = [], roles = macroRolesOf(src, rt);
     for (const inp of isfInputs(src)) {
       if (!inputShown(inp, L, src)) continue;   // (the Rainbow's colours past how many it uses)
       const label = inp.LABEL || inp.NAME, t = `p:${src.id}:${inp.NAME}`, first = ctl.length;   // t: what a MIDI control drives through it
@@ -473,7 +473,7 @@ function renderContentTab(body) {
       } else if (inp.TYPE === 'color') {
         // while it follows a colour macro that is on, it shows that colour (what goes out); a colour chosen here is this
         // layer's alone: it stops following the macro, the other layers keep following it, and "Follow … again" undoes it
-        const via = () => (roles[inp.NAME] && macroActive(roles[inp.NAME], macrosOf(z)) && !ownsCtl(L, src.id, inp.NAME) ? roles[inp.NAME] : null);
+        const via = () => (roles[inp.NAME] && zoneFollows(z) && macroActive(roles[inp.NAME], macrosOf(z)) && !ownsCtl(L, src.id, inp.NAME) ? roles[inp.NAME] : null);
         const get = () => (via() ? macroRgb(macrosOf(z)[via()]).concat(1) : paramValue(L, src, inp));
         const put = c => {
           if (via()) setOwnCtl(L, src.id, inp.NAME, true);

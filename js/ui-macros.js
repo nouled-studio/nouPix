@@ -120,7 +120,7 @@ function macroMark(rowEl, id, own, z) {
     onclick: e => { e.stopPropagation(); setOwnCtl(own.L, own.src.id, own.name, false); commit(); renderRight(); } }) : null;
   if (again) lbl.append(again);
   bind(() => {
-    const M = macrosOf(z), mine = !!own && ownsCtl(own.L, own.src.id, own.name), on = macroActive(id, M);
+    const M = macrosOf(z), follows = !z || zoneFollows(z), mine = follows && !!own && ownsCtl(own.L, own.src.id, own.name), on = follows && macroActive(id, M);
     lbl.classList.toggle('mac', on && !mine);
     lbl.classList.toggle('own', mine);
     if (again) again.hidden = !mine;
