@@ -915,6 +915,7 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .modal { width: min(420px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--bg1); border: 1px solid var(--line2); border-radius: 0; }
 .modal.wide { width: min(640px, 100%); }
 .modal.xwide { width: min(1040px, 100%); }
+.modal.note .mb p { margin: 0; line-height: 1.5; }
 .modal .mb.outset h4 { margin: 10px -16px 0; padding: 10px 16px 0; border-top: 1px solid var(--line2); font: 600 12px var(--label); letter-spacing: .16em; text-transform: uppercase; color: var(--text); display: flex; align-items: center; gap: 8px; }
 /* a protocol's name keeps its case (sACN, not SACN) inside a label set in capitals */
 .pname { text-transform: none; }

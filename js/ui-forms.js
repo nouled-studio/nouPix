@@ -104,6 +104,19 @@ function confirmBox(title, text, okLabel, onOk) {
   D.addEventListener('keydown', key, true);
   bg.querySelector('.btn.primary').focus();
 }
+// A window telling something worth knowing, its paragraphs in turn: OK, Enter or Esc closes it
+function noteBox(title, ...paras) {
+  const close = () => { bg.remove(); D.removeEventListener('keydown', key, true); };
+  const key = e => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); close(); } };
+  const D = uiDocNow();
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal note', role: 'dialog', 'aria-label': title },
+      h('header', null, title), h('div', { class: 'mb' }, ...paras.map(t => h('p', null, t))),
+      h('footer', null, h('button', { class: 'btn primary', type: 'button', onclick: close }, 'OK'))));
+  D.body.append(bg);
+  D.addEventListener('keydown', key, true);
+  bg.querySelector('.btn.primary').focus();
+}
 // A short explanation of a row, shown on pointing at its label, instead of text in the panel
 function tipRow(el, text) {
   const lab = el.classList.contains('checkrow') ? el : el.firstElementChild;
