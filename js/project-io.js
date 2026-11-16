@@ -285,6 +285,7 @@ function hydrate(p) {
     z.opacity = isFinite(z.opacity) ? clamp(+z.opacity, 0, 1) : 1;
     if (!z.scenes.some(sc => sc.id === z.scene)) z.scene = null;
     z.playlists = fixPlaylists(z.playlists, z.scenes);
+    z.macros = isObj(zn.macros) ? zn.macros : null;   // repaired below, with All zones'
     clampZone(z, out.settings);
     return z;
   });
@@ -292,6 +293,8 @@ function hydrate(p) {
   out.timelines = fixTimelines(p.timelines, out.zones);
   out.midi = fixMidi(p.midi);
   out.macros = fixMacros(p.macros);
+  // each zone's own macros; a file from before them: every zone as All zones' are
+  for (const z of out.zones) z.macros = fixMacros(isObj(z.macros) ? z.macros : out.macros);
   out.macroLinks = fixMacroLinks(p.macroLinks, known);
   const X = isObj(p.xfade) ? p.xfade : {};
   // Up to 1.5.2 the X-Fader wrote A's and B's levels into them; now their levels are their own and it mixes within
@@ -353,6 +356,7 @@ function restore(s) {
   for (const g of p.groups) { const o = project.groups.find(x => x.id === g.id); if (o) g.open = o.open; }
   // the macros are live controls, like the master on a desk: an undo, or a device's copy, leaves them where they are
   p.macros = project.macros;
+  for (const z of p.zones) { const o = before.get(z.id); if (o && o.macros) z.macros = o.macros; }   // each zone's too
   project = p;
   ui.selRot = null;   // a selection's turned frame belonged to the geometry being replaced
   ui.sel = new Set([...ui.sel].filter(id => fxById(id)));

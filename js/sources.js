@@ -184,7 +184,7 @@ function applyParams(rt, L, src) {
   layerTime = null;
   // the macros, on a layer (not on a thumbnail); a control that follows Speed runs at its rate
   // (only on a zone playing a stored scene)
-  const roles = L.id != null && (drawZone ? zoneFollows(drawZone) : true) && macroRolesOf(src, rt), rate = inp => (roles && roles[inp.NAME] === 'speed' ? project.macros.speed.v : 1);
+  const M = macrosOf(drawZone), roles = L.id != null && (drawZone ? zoneFollows(drawZone) : true) && macroRolesOf(src, rt), rate = inp => (roles && roles[inp.NAME] === 'speed' ? M.speed.v : 1);
   // the music's inputs (tempo.js), real on a layer, made up on a thumbnail
   const band = rt.bandIn ? numOr(paramValue(L, src, rt.bandIn), 0) : 0;
   for (const inp of rt.audio || []) { try { rt.R.setValue(inp.NAME, audioInputValue(inp.NAME, L.id == null ? (isfTime ?? clockT) : null, isfTime != null, band)); } catch (e) { /* not used */ } }
@@ -197,7 +197,7 @@ function applyParams(rt, L, src) {
     // (the layer's own alpha, whatever colour a macro gives it)
     if (inp.TYPE === 'color') alphas.push([inp.NAME, Array.isArray(v) && isFinite(v[3]) ? clamp(v[3], 0, 1) : 1]);
     const role = roles && roles[inp.NAME];
-    if (role && role !== 'speed' && !ownsCtl(L, src.id, inp.NAME)) v = macroOver(role, inp, v);
+    if (role && role !== 'speed' && !ownsCtl(L, src.id, inp.NAME)) v = macroOver(role, inp, v, M);
     if (inp === rt.speed && L.id != null && isfTime == null) {
       const M = speedMax(inp);
       layerTime = speedTime(L.id + '|' + src.id, Math.abs(v) / M * rate(inp));

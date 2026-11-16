@@ -473,8 +473,8 @@ function renderContentTab(body) {
       } else if (inp.TYPE === 'color') {
         // while it follows a colour macro that is on, it shows that colour (what goes out); a colour chosen here is this
         // layer's alone: it stops following the macro, the other layers keep following it, and "Follow … again" undoes it
-        const via = () => (roles[inp.NAME] && macroActive(roles[inp.NAME]) && !ownsCtl(L, src.id, inp.NAME) ? roles[inp.NAME] : null);
-        const get = () => (via() ? macroRgb(project.macros[via()]).concat(1) : paramValue(L, src, inp));
+        const via = () => (roles[inp.NAME] && macroActive(roles[inp.NAME], macrosOf(z)) && !ownsCtl(L, src.id, inp.NAME) ? roles[inp.NAME] : null);
+        const get = () => (via() ? macroRgb(macrosOf(z)[via()]).concat(1) : paramValue(L, src, inp));
         const put = c => {
           if (via()) setOwnCtl(L, src.id, inp.NAME, true);
           set(c);
@@ -483,14 +483,14 @@ function renderContentTab(body) {
         const sw = cr.querySelector('.cswatch');
         binders.push(() => sw._show(get()));
         ctl.push(cr);
-        if (roles[inp.NAME]) macroMark(cr, roles[inp.NAME], { L, src, name: inp.NAME });
+        if (roles[inp.NAME]) macroMark(cr, roles[inp.NAME], { L, src, name: inp.NAME }, z);
       } else if (inp.TYPE === 'point2D') {
         const pt = { x: holder.v[0], y: holder.v[1] };
         const up = () => set([pt.x, pt.y]);
         ctl.push(row(label, numInput(pt, 'x', { prefix: 'X', step: 0.01, onInput: up, onCommit: commit }), numInput(pt, 'y', { prefix: 'Y', step: 0.01, onInput: up, onCommit: commit })));
       }
       // the macro it follows, marked on its name (the first of its rows with one: Speed's Reverse comes after it)
-      if (roles[inp.NAME] && inp.TYPE !== 'color') macroMark(ctl.slice(first).find(e => isEl(e) && ((e.querySelector('.lbl') || {}).textContent || (e.classList.contains('checkrow') && e.textContent))), roles[inp.NAME]);
+      if (roles[inp.NAME] && inp.TYPE !== 'color') macroMark(ctl.slice(first).find(e => isEl(e) && ((e.querySelector('.lbl') || {}).textContent || (e.classList.contains('checkrow') && e.textContent))), roles[inp.NAME], null, z);
     }
     ctl.push(...macroLinksFold(src, rt));
     ctl.push(h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { delete L.params[src.id]; commit(); renderRight(); } }, 'Reset to defaults')));

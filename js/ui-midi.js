@@ -133,7 +133,7 @@ function midiRedraw() {
 const midiTabSig = () => JSON.stringify([ui.midiOn, midi.status, midi.ports, ui.midiOff, ui.midiMon, ui.midiVc, midi.learn,
   project.midi.maps.map(w => [w.id, w.key, w.to, w.takeover, w.mode, midiTargetLabel(w.to)]), project.midi.order,
   project.zones.map(z => [z.id, z.name, z.scenes.map(s => [s.id, s.name]), z.playlists.map(p => [p.id, p.name])]),
-  project.macros.color1.mode, project.macros.color2.mode, midiEffects(), ui.macroOpen, ui.midiView, ui.midiView === 'bay' ? baySig() : 0]);
+  [project.macros].concat(project.zones.map(z => z.macros)).map(M => M && [M.color1.mode, M.color2.mode]), macroScope(), midiEffects(), ui.macroOpen, ui.midiView, ui.midiView === 'bay' ? baySig() : 0]);
 // The effects in the project: in a zone's layers or in its scenes (so a playlist moving on doesn't change the list)
 const midiEffects = () => [...new Set(project.zones.flatMap(z => z.layers.concat(...z.scenes.map(sc => sc.layers)).map(L => L.src)))].filter(id => { const s = id && srcById(id); return s && s.kind === 'isf'; }).sort();
 
@@ -198,9 +198,9 @@ function midiTargetSelect(w, pick = to => midiSetMap(w.id, { to })) {
   return h('select', { class: 'mtarget', 'aria-label': `What ${midiKeyFull(w.key)} drives`, title: 'What it drives', onchange: e => { if (e.target.value) pick(e.target.value); } },
     !w.to ? h('option', { value: '', selected: true }, 'Choose what it moves…') : midiTarget(w.to) ? null : h('option', { value: w.to, selected: true }, 'Missing: it was deleted'),
     opt('master', 'Master'), opt('blackout', 'Blackout'), opt('xf', 'X-Fader'), opt('tap', 'Tap tempo'),
-    h('optgroup', { label: 'Macros' }, MACROS.map(d => d.kind === 'color'
-      ? MACRO_PARTS[project.macros[d.id].mode].map(([, name], i) => opt(`m:${d.id}.${i}`, `${d.label} · ${name}`))
-      : opt('m:' + d.id, d.label))),
+    // All zones' macros, then (with two zones or more) each zone's own
+    [''].concat(project.zones.length > 1 ? project.zones.map(z => z.id) : []).map(S => h('optgroup', { label: S ? `Macros · ${zoneById(S).name}` : 'Macros' },
+      MACROS.map(d => (d.kind === 'color' ? MACRO_PARTS[macroScopeSet(S)[d.id].mode].map((p, i) => macroTarget(d.id, S, i)) : [macroTarget(d.id, S)]).map(t => opt(t, midiTargetLabel(t)))))),
     project.groups.length ? h('optgroup', { label: 'Groups' }, project.groups.map(g => opt('gr:' + g.id, groupName(g) + ' dimmer'))) : null,
     project.zones.slice().reverse().map(z => h('optgroup', { label: z.name },
       opt('z:' + z.id, z.name + ' level'),

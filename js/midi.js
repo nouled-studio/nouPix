@@ -26,16 +26,18 @@ const midiPortOn = name => !(ui.midiOff || []).includes(name);
 
 /* ---------- targets ---------- */
 // What a mapping drives, from its target: a fader (0 to 1), a toggle (on or off) or a trigger (a press does it).
-// Null when it is gone: a zone, scene or playlist deleted. m:<macro> is a macro (m:color1.0 to .2: the parts of a
-// colour, as its mode has them); p:<source>:<control> a control of an effect.
+// Null when it is gone: a zone, scene or playlist deleted. m:<macro> is a macro of All zones, mz:<zone>:<macro> a
+// zone's own (.0 to .2: the parts of a colour, as its mode has them); p:<source>:<control> a control of an effect.
 function midiTarget(t) {
   if (t.startsWith('p:')) return effectTarget(t);
-  if (t.startsWith('m:')) {
-    const [id, i] = t.slice(2).split('.'), d = macroDef(id);
-    if (!d || (d.kind === 'color') !== (i != null)) return null;
-    if (i == null) return { kind: 'fader', label: d.label, get: () => project.macros[id].v / macroMax(d), set: x => setMacro(id, { v: x * macroMax(d) }) };
-    const part = MACRO_PARTS[project.macros[id].mode][+i];
-    return part ? { kind: 'fader', label: `${d.label} · ${part[1]}`, get: () => macroPart(project.macros[id], +i), set: x => setMacroPart(id, +i, x) } : null;
+  const mt = macroTargetOf(t);
+  if (mt) {
+    const { zone, id, i } = mt, d = macroDef(id), z = zone ? zoneById(zone) : null;
+    if (!d || (zone && !z) || (d.kind === 'color') !== (i != null)) return null;
+    const M = () => macroScopeSet(zone), pre = z ? z.name + ' · ' : '';
+    if (i == null) return { kind: 'fader', label: pre + d.label, get: () => M()[id].v / macroMax(d), set: x => setMacro(id, { v: x * macroMax(d) }, zone) };
+    const part = MACRO_PARTS[M()[id].mode][+i];
+    return part ? { kind: 'fader', label: `${pre}${d.label} · ${part[1]}`, get: () => macroPart(M()[id], +i), set: x => setMacroPart(id, +i, x, zone) } : null;
   }
   if (t === 'master') return { kind: 'fader', label: 'Master', get: () => project.settings.master, set: midiSetMaster };
   if (t === 'tap') return { kind: 'trigger', label: 'Tap tempo', get: () => 0, set: () => tempoTap() };
@@ -63,6 +65,26 @@ function midiTarget(t) {
   return null;
 }
 const midiTargetLabel = t => { const T = midiTarget(t); return T ? T.label : 'Missing'; };
+// A macro's target: All zones' (zone '') or a zone's, a colour's part i; and back: { zone, id, i } or null
+const macroTarget = (id, zone = '', i = null) => (zone ? `mz:${zone}:` : 'm:') + id + (i == null ? '' : '.' + i);
+function macroTargetOf(t) {
+  if (typeof t !== 'string') return null;
+  let zone = '', rest;
+  if (t.startsWith('m:')) rest = t.slice(2);
+  else if (t.startsWith('mz:') && t.indexOf(':', 3) > 3) { const k = t.indexOf(':', 3); zone = t.slice(3, k); rest = t.slice(k + 1); }
+  else return null;
+  const [id, i] = rest.split('.');
+  return { zone, id, i: i == null ? null : i };
+}
+// A macro mapped for All zones and for a zone as well: whichever moves last sets that zone. Said as the mapping is made.
+function macroClash(to) {
+  const a = macroTargetOf(to);
+  if (!a) return '';
+  const b = project.midi.maps.map(w => macroTargetOf(w.to)).find(b => b && b.id === a.id && !b.zone !== !a.zone);
+  const z = b && zoneById(a.zone || b.zone), d = macroDef(a.id);
+  if (!z || !d) return '';
+  return a.zone ? ` All zones · ${d.label} is mapped too: whichever moves last sets ${z.name}.` : ` ${z.name} · ${d.label} is mapped too: whichever moves last sets it there.`;
+}
 // p:<source>:<control>: one control of an effect, in every layer that plays it now; a scene played afterwards brings
 // its own value (a fader on Pickup then waits until it gets there). A number is a fader (a speed from still to full,
 // its direction kept; a list steps through its choices), a tick is on or off, an event plays on a press. Colours and
@@ -266,7 +288,8 @@ function midiConnect(key, to, only = false) {
   commit();
   const also = !only && mine.length ? [...new Set(mine.map(x => midiTargetLabel(x.to)))] : [];
   toast(`${midiKeyFull(key)} → ${midiTargetLabel(to)}` + (old.length ? ` (instead of ${[...new Set(old.map(w => midiKeyLabel(w.key)))].join(', ')})` : '')
-    + (also.length ? `, as well as ${also.join(', ')}. Alt-click replaces instead.` : only && mine.length ? ` only (instead of ${[...new Set(mine.map(x => midiTargetLabel(x.to)))].join(', ')})` : ''));
+    + (also.length ? `, as well as ${also.join(', ')}. Alt-click replaces instead.` : only && mine.length ? ` only (instead of ${[...new Set(mine.map(x => midiTargetLabel(x.to)))].join(', ')})` : '')
+    + macroClash(to));
   updateMidiUI();
 }
 // A new mapping: a control that moved like a fader, onto something on or off, follows it (Hold)
@@ -281,7 +304,7 @@ function midiAddMap(key, to) {
   if (project.midi.maps.some(w => w.key === key && w.to === to)) { toast(`${midiKeyLabel(key)} already does that.`); return; }
   project.midi.maps.push(midiNewMap(key, to));
   commit();
-  toast(`${midiKeyFull(key)} → ${midiTargetLabel(to)}`);
+  toast(`${midiKeyFull(key)} → ${midiTargetLabel(to)}` + macroClash(to));
   updateMidiUI();
 }
 function midiSetMap(id, patch) {
@@ -290,6 +313,7 @@ function midiSetMap(id, patch) {
   Object.assign(w, patch);
   w._picked = false;
   commit(); updateMidiUI();
+  if (patch.to && macroClash(patch.to)) toast(`${midiTargetLabel(patch.to)}.` + macroClash(patch.to));
 }
 function midiDisconnect(id) {
   const w = project.midi.maps.find(x => x.id === id);

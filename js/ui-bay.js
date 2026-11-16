@@ -26,7 +26,7 @@ function bayKeys() {
 }
 const baySig = () => [ui.bayOpen, bayKeys(), project.macroLinks];
 // The macro a target or a hover is about: 'm:speed' and 'm:color1.0' are Speed and Color 1
-const bayMac = t => (typeof t === 'string' && t.startsWith('m:') ? t.slice(2).split('.')[0] : null);
+const bayMac = t => { const a = macroTargetOf(t); return a ? a.id : null; };
 // Every effect control that follows a macro: [{ src, name, t, mac }], from the effects of the project
 function bayLinks() {
   const out = [];
@@ -142,16 +142,18 @@ function bayTargets() {
     rows.push(bayGroup('z:' + z.id, head, subs, open.has('z:' + z.id) ? 0 : subs.length ? `${z.scenes.length} scene${z.scenes.length === 1 ? '' : 's'}, ${z.playlists.length} playlist${z.playlists.length === 1 ? '' : 's'}` : 0));
   }
   rows.push(h('h3', null, 'Macros'));
+  const S = macroScope(), tabs = macroScopeTabs();
+  if (tabs) rows.push(tabs);
   for (const d of MACROS) {
     // Intensity is every layer's level: no control of an effect follows it, so it has no blue wires
-    if (d.kind !== 'color') { const r = bayRow('m:' + d.id, d.label); rows.push(d.id === 'intensity' ? r : bayMacroRow(r, d.id, fans[d.id] || 0)); continue; }
-    const m = project.macros[d.id], sw = h('i', { class: 'bsw', 'data-sw': d.id });
+    if (d.kind !== 'color') { const r = bayRow(macroTarget(d.id, S), d.label); rows.push(d.id === 'intensity' ? r : bayMacroRow(r, d.id, fans[d.id] || 0)); continue; }
+    const m = macroScopeSet(S)[d.id], sw = h('i', { class: 'bsw', 'data-sw': d.id });
     sw.style.background = toHex(macroRgb(m));
     // learnt as its first part (Hue, or Red in RGB); its parts are opened with the arrow
-    const first = `m:${d.id}.0`, firstName = MACRO_PARTS[m.mode][0][1];
-    const head = h('div', { class: 'brow', 'data-t': 'm:' + d.id, 'data-midi': first, title: `Learn picks its ${firstName.toLowerCase()}; open it for each part.`, onmouseenter: () => bayHover('m:' + d.id), onmouseleave: () => bayHover(null) },
+    const first = macroTarget(d.id, S, 0), firstName = MACRO_PARTS[m.mode][0][1], t = macroTarget(d.id, S);
+    const head = h('div', { class: 'brow', 'data-t': t, 'data-midi': first, title: `Learn picks its ${firstName.toLowerCase()}; open it for each part.`, onmouseenter: () => bayHover(t), onmouseleave: () => bayHover(null) },
       h('span', { class: 'nm' }, d.label), sw, h('span', { class: 'k' }, m.mode.toUpperCase()));
-    const parts = MACRO_PARTS[m.mode].map((p, i) => bayRow(`m:${d.id}.${i}`, p[1], 'sub'));
+    const parts = MACRO_PARTS[m.mode].map((p, i) => bayRow(macroTarget(d.id, S, i), p[1], 'sub'));
     rows.push(bayGroup(d.id, bayMacroRow(head, d.id, fans[d.id] || 0), parts));
   }
   return h('div', { class: 'bcol btgts', onscroll: bayWires }, rows);
@@ -253,7 +255,10 @@ function bayXY(el, box) {
 function bayIn(D, t) {
   const el = $(`.bay [data-in="${CSS.escape(t)}"]`, D);
   if (el) return { el };
-  const groups = t.startsWith('m:color') ? [t.split('.')[0].slice(2)] : /^(sc|nx|pl):/.test(t) ? ['z:' + t.split(':')[1]] : t.startsWith('p:') ? ['fx:' + t.slice(2, t.indexOf(':', 2))] : [];
+  const mt = macroTargetOf(t);
+  // another scope's macro (All zones', or another zone's): the wire ends at its tab, dashed
+  if (mt && mt.zone !== macroScope()) { const tab = $(`.bay [data-mscope="${CSS.escape(mt.zone)}"]`, D); return tab ? { el: tab, folded: true } : null; }
+  const groups = mt && mt.i != null ? [mt.id] : /^(sc|nx|pl):/.test(t) ? ['z:' + t.split(':')[1]] : t.startsWith('p:') ? ['fx:' + t.slice(2, t.indexOf(':', 2))] : [];
   for (const g of groups) { const head = $(`.bay [data-group="${CSS.escape(g)}"] .bdot.in`, D); if (head) return { el: head, folded: true }; }
   return null;
 }
@@ -347,16 +352,16 @@ function bayEffective(t) {
   const inp = src && src.kind === 'isf' && controlsOf(src).find(x => x.NAME === name);
   if (!inp || (inp.TYPE !== 'float' && inp.TYPE !== 'int')) return null;
   const mac = macroRolesOf(src, effectRt(src))[name];
-  const L = project.zones.flatMap(z => z.layers.filter(L => L.src === src.id))[0];
-  if (!mac || !macroActive(mac) || !L) return null;
+  const z = project.zones.find(z => zoneFollows(z) && z.layers.some(L => L.src === src.id)), L = z && z.layers.find(L => L.src === src.id), M = macrosOf(z);
+  if (!mac || !L || !macroActive(mac, M)) return null;
   const v = paramValue(L, src, inp);
-  if (mac === 'speed' || isSpeedInput(src, inp)) return { x: clamp(Math.abs(v) / speedTop(inp) * (mac === 'speed' ? project.macros.speed.v : 1), 0, 1), mac };
+  if (mac === 'speed' || isSpeedInput(src, inp)) return { x: clamp(Math.abs(v) / speedTop(inp) * (mac === 'speed' ? M.speed.v : 1), 0, 1), mac };
   const lo = inp.MIN ?? 0, hi = inp.MAX ?? 1;
-  return hi > lo ? { x: clamp((macroOver(mac, inp, v) - lo) / (hi - lo), 0, 1), mac } : null;
+  return hi > lo ? { x: clamp((macroOver(mac, inp, v, M) - lo) / (hi - lo), 0, 1), mac } : null;
 }
 function bayUpdate(D) {
   if (bayDragging || bay.drag) return;
-  for (const s of $$('.bay [data-sw]', D)) s.style.background = toHex(macroRgb(project.macros[s.dataset.sw]));
+  for (const s of $$('.bay [data-sw]', D)) s.style.background = toHex(macroRgb(macroScopeSet(macroScope())[s.dataset.sw]));
   for (const m of $$('.bay [data-bmod]', D)) {
     const e = bayEffective(m.dataset.bmod);
     m.hidden = !e;

@@ -75,7 +75,7 @@ try:
     check("a choice is a step of undo", ev("project.macroLinks") == {} and col() == [255, 0, 0])
     ev("redo()"); settle()
     check("and of redo", ev("project.macroLinks") == {"b-solid": {"color": ""}} and col() == [0, 0, 255])
-    ev("project.macros = defaultMacros(); updateMacrosUI()")
+    ev("project.macros = defaultMacros(); project.zones.forEach(z => z.macros = defaultMacros()); updateMacrosUI()")
 
     load("b-rainbow")
     key = "project.zones[0].layers[0].id + '|b-rainbow'"
@@ -88,14 +88,14 @@ try:
     ev("setMacro('speed', { v: 1 })"); a1, b1 = rate(ka), rate(kb)
     ev("setMacro('speed', { v: 2 })"); a2, b2 = rate(ka), rate(kb)
     check("each clock's rate on its own: one still follows Speed, the one taken out doesn't", abs(a2 / a1 - 2) < 0.15 and abs(b2 / b1 - 1) < 0.15, (a1, a2, b1, b2))
-    ev("project.macros = defaultMacros(); updateMacrosUI()")
+    ev("project.macros = defaultMacros(); project.zones.forEach(z => z.macros = defaultMacros()); updateMacrosUI()")
 
     load("b-plasma", links={"b-plasma": {"range": "width"}})
     check("a control without a macro of its own can follow a shared control", roles("b-plasma").get("range") == "width", roles("b-plasma"))
     ev("setMacro('width', { on: true, v: 1 })"); settle()
     hi = ev("controlsOf(srcById('b-plasma')).find(i => i.NAME === 'range').MAX")
     check("it goes to the same point of its own range", abs(uni("b-plasma", "range") - hi) < 1e-6, (uni("b-plasma", "range"), hi))
-    ev("project.macros = defaultMacros(); updateMacrosUI()")
+    ev("project.macros = defaultMacros(); project.zones.forEach(z => z.macros = defaultMacros()); updateMacrosUI()")
     load("b-bars", links={"b-bars": {"color": "speed", "width": "intensity", "count": 7}})
     check("a file's choices that an effect can't follow are left out or ignored: its controls follow by name",
           roles("b-bars") == {"color": "color1", "background": "color2", "count": "count", "width": "width", "softness": "softness", "speed": "speed", "angle": "angle"}
@@ -135,7 +135,7 @@ try:
     check("a control's name is marked and says what it follows on pointing at it, no text in the panel", marks() == ["Follows Speed (1.50×)"] and pg.locator("#rightBody .note.via").count() == 0, marks())
     ev("setMacroLink(srcById('b-bars'), 'speed', '')"); settle()
     check("and isn't once it is taken out", marks() == [], marks())
-    ev("project.macros = defaultMacros(); remote.role = 'operator'; renderRight()"); settle()
+    ev("project.macros = defaultMacros(); project.zones.forEach(z => z.macros = defaultMacros()); remote.role = 'operator'; renderRight()"); settle()
     check("an operator sees the choices but can't change them", pg.locator("#rightBody .msub").last.locator("select:disabled").count() == 7 and "Operator" in pg.locator("#rightBody .msub").last.inner_text())
     ev("remote.role = null; renderRight()")
 

@@ -68,6 +68,7 @@ function zoneAbove(i) {
 // New zones go under the others: zones higher in the list cover the ones below
 function addZone(rect) {
   const z = newZone(Object.assign({ name: nextZoneName() }, rect));
+  z.macros = fixMacros(project.macros);   // its macros start as All zones' are now
   clampZone(z);
   project.zones.unshift(z);
   ui.zone = z.id; ui.layer = null;
@@ -756,21 +757,26 @@ function moveScene(d, z, to = z.scenes.length) {
 /* ---------- macros ---------- */
 // A macro moved: from its slider, a MIDI control or a device. Moving a colour or a shared control that is off turns
 // it on. Like the master, it is saved but not a step of undo, and the devices hear it at once.
-function setMacro(id, patch) {
-  const d = macroDef(id), m = project.macros[id];
+// zone: a zone's id for that zone's own macro; none (or '') for All zones, which every zone takes
+function setMacro(id, patch, zone = '') {
+  const z = zone ? zoneById(zone) : null;
+  if (zone && !z) return;
+  const M = macroScopeSet(zone), d = macroDef(id), m = M[id];
   if (!d || !m || !isObj(patch)) return;
-  if (REMOTE_CLIENT) remoteOp({ op: 'macro', id, patch });   // the main computer has the last word, and tells every device
+  if (REMOTE_CLIENT) remoteOp(Object.assign({ op: 'macro', id, patch }, zone ? { zone } : {}));   // the main computer has the last word, and tells every device
   const next = Object.assign({}, m, patch);
   if ('on' in m && !('on' in patch)) next.on = true;
-  project.macros[id] = fixMacros({ [id]: next })[id];
+  M[id] = fixMacros({ [id]: next })[id];
+  const zones = z ? [z] : project.zones;
+  if (!z) for (const x of zones) if (x.macros) x.macros[id] = fixMacros({ [id]: M[id] })[id];
   // a colour macro moved (its fader, the MIDI window, a device): the layers that kept their own colour take it again
-  if (d.kind === 'color' && Object.keys(patch).some(k => k !== 'on' && k !== 'mode') && macroRetake(id)) remoteChanged();
+  if (d.kind === 'color' && Object.keys(patch).some(k => k !== 'on' && k !== 'mode') && macroRetake(id, zones)) remoteChanged();
   saveSoon(); remoteLiveChanged(); updateMacrosUI();
 }
-// Every layer keeping its own value for a control that follows this macro follows it again; whether any did
-function macroRetake(id) {
+// Every layer (of these zones) keeping its own value for a control that follows this macro follows it again; whether any did
+function macroRetake(id, zones = project.zones) {
   let n = 0;
-  for (const z of project.zones) for (const L of z.layers) {
+  for (const z of zones) for (const L of z.layers) {
     if (!L.own) continue;
     for (const [sid, names] of Object.entries(L.own)) {
       const src = srcById(sid);
@@ -782,7 +788,7 @@ function macroRetake(id) {
   return n > 0;
 }
 // Part i of a colour macro (hue, saturation, value; or red, green, blue) set to x, from 0 to 1
-function setMacroPart(id, i, x) { const m = project.macros[id]; if (m && macroDef(id).kind === 'color') setMacro(id, macroPartPatch(m, i, clamp(x, 0, 1))); }
+function setMacroPart(id, i, x, zone = '') { const m = macroScopeSet(zone)[id]; if (m && macroDef(id).kind === 'color') setMacro(id, macroPartPatch(m, i, clamp(x, 0, 1)), zone); }
 // Which macro a control of an effect follows (a macro's id, or '' for none), for that effect wherever it plays. What
 // its name makes it follow is the default, and isn't kept.
 function setMacroLink(src, name, id) {

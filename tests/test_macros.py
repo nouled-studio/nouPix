@@ -29,7 +29,7 @@ try:
           olm.loadProject(JSON.parse(JSON.stringify(p, replacer))); ui.rightTab = 'content'; ui.zone = olm.project.zones[0].id; renderRight(); }})()"""); settle(0.5)
     col = lambda i=0: ev(f"Array.from(olm.project.fixtures[0]._col.slice({i * 3}, {i * 3 + 3}))")
     roles = lambda src: ev(f"(() => {{ const rt = runtimeOf(srcById('{src}')); return rt.roles; }})()")
-    reset = lambda: ev("project.macros = defaultMacros(); updateMacrosUI()")
+    reset = lambda: ev("project.macros = defaultMacros(); project.zones.forEach(z => z.macros = defaultMacros()); updateMacrosUI()")
 
     # ---------- defaults and files
     load("b-solid", "{ color: [0, 0, 1, 1] }")
@@ -265,6 +265,76 @@ try:
     opts = W.locator(".mmap select.mtarget").first.locator("optgroup[label=Macros] option").all_inner_texts()
     check("the MIDI window's list has the macros", opts[:3] == ["Speed", "Intensity", "Saturation"] and "Fade" in opts and any(o.startswith("Color 1 · ") for o in opts), opts)
     W.close()
+
+
+    # ---------- each zone's own macros; All zones sets every zone's
+    ev("""(() => { const p = blankProject('Zones'); p.fixtures.push(newFixture('line', { x1: 100, y1: 320, x2: 900, y2: 320, pixels: 8 }));
+      const z1 = p.zones[0], z2 = newZone({ name: 'Zone 2', x: 500, w: 500 }); z1.w = 500; p.zones.push(z2);
+      for (const z of p.zones) { const L = newLayer('b-solid'); L.params['b-solid'] = { color: [0, 0, 1, 1] }; z.layers = [L];
+        const sc = { id: uid(), name: 'Scene 1', fade: 0, layers: cloneLayers(z.layers) }; z.scenes = [sc]; z.scene = sc.id; }
+      olm.loadProject(JSON.parse(JSON.stringify(p, replacer))); ui.rightTab = 'content'; ui.zone = olm.project.zones[0].id; ui.layer = olm.project.zones[0].layers[0].id; renderRight(); })()"""); settle(0.5)
+    Z2 = ev("project.zones[1].id")
+    ends = lambda: (col(0), col(7))
+    check("two zones, each its own macros, as All zones' at first", ev("project.zones.every(z => JSON.stringify(z.macros) === JSON.stringify(project.macros))") and ends() == ([0, 0, 255], [0, 0, 255]), ends())
+    ev("setMacro('color1', { h: 0, s: 1, v: 1 })"); settle()
+    check("All zones' Color 1 moved: both zones follow it", ends() == ([255, 0, 0], [255, 0, 0]) and ev("project.zones.every(z => z.macros.color1.on && z.macros.color1.h === 0)"), ends())
+    ev(f"setMacro('color1', {{ h: 120 }}, '{Z2}')"); settle()
+    check("Zone 2's own Color 1 moved: only zone 2 changes", ends() == ([255, 0, 0], [0, 255, 0]) and ev("project.macros.color1.h") == 0, ends())
+    ev("setMacro('color1', { h: 240 })"); settle()
+    check("All zones' moved again: every zone takes it (the last moved wins)", ends() == ([0, 0, 255], [0, 0, 255]), ends())
+    ev(f"setMacro('intensity', {{ v: 0.5 }}, '{Z2}')"); settle()
+    check("a zone's Intensity dims that zone only", ends() == ([0, 0, 255], [0, 0, 128]), ends())
+    ev(f"setMacro('speed', {{ v: 2 }}, '{Z2}')")
+    check("a zone's Speed is that zone's only", ev("project.macros.speed.v") == 1 and ev("project.zones[0].macros.speed.v") == 1 and ev("project.zones[1].macros.speed.v") == 2)
+    ev("ui.zone = project.zones[0].id; ui.layer = project.zones[0].layers[0].id; ui.rightTab = 'content'; renderRight()"); settle()
+    ev("setMacro('color1', { on: false }); setMacro('color1', { h: 0, on: true }, project.zones[1].id)"); settle()
+    check("the Content tab marks what follows the zone's own: not zone 1's colour while only zone 2's is on", pg.locator("#rightBody .lbl.mac", has_text="Color").count() == 0)
+    ev("ui.zone = project.zones[1].id; ui.layer = project.zones[1].layers[0].id; renderRight()"); settle()
+    check("…and zone 2's colour while it is", pg.locator("#rightBody .lbl.mac", has_text="Color").count() == 1)
+    ev("project.zones[1].layers[0].params['b-solid'].speed = 0; commit(); undo()"); settle()
+    check("an undo leaves a zone's macros where they are", ev("project.zones[1].macros.intensity.v") == 0.5 and ev("project.zones[1].macros.color1.on"))
+    data = ev("JSON.parse(serialize())")
+    check("a file keeps each zone's", data["zones"][1]["macros"]["intensity"]["v"] == 0.5 and data["zones"][0]["macros"]["intensity"]["v"] == 1)
+    ev("d => olm.loadProject(d)", data); settle()
+    check("and they come back when it opens", ev("project.zones[1].macros.intensity.v") == 0.5 and ends()[1] == [128, 0, 0], ends())
+    for z in data["zones"]: z.pop("macros")
+    data["macros"]["saturation"] = {"v": 0.4}
+    ev("d => olm.loadProject(d)", data); settle()
+    check("a file from before: every zone starts as All zones' are", ev("project.zones.every(z => z.macros.saturation.v === 0.4)"))
+    ev("addZone(); commit()"); settle()
+    check("a new zone starts as All zones' are", ev("project.zones[0].macros.saturation.v") == 0.4 and len(ev("project.zones")) == 3)
+    ev("project.zones.shift(); commit()")
+    # MIDI onto a zone's macro, and the note when All zones' is mapped too
+    check("a zone's macro as a MIDI target, named after its zone", ev(f"midiTargetLabel('mz:{Z2}:speed')") == "Zone 2 · Speed"
+          and ev(f"midiTargetLabel('mz:{Z2}:color1.0')") in ("Zone 2 · Color 1 · Hue", "Zone 2 · Color 1 · Red") and ev("midiTargetLabel('mz:gone:speed')") == "Missing")
+    ev("ui.midiOn = true; updateMidiUI(); midiAddMap('midi:K:1:cc:31', 'm:speed')"); settle(0.2)
+    ev(f"midiAddMap('midi:K:1:cc:32', 'mz:{Z2}:speed')"); settle(0.2)
+    msg = ev("[...document.querySelectorAll('#toasts .toast')].map(t => t.textContent).join(' | ')")
+    check("mapping Zone 2's Speed while All zones' is mapped says whichever moves last sets it", "whichever moves last sets Zone 2" in msg, msg)
+    ev("setMacro('speed', { v: 1 })"); [ev(f"midiIn({{ port: 'K', ch: 1, type: 'cc', num: 32, val: {v} }})") for v in (64, 127)]; settle()
+    check("its fader moves Zone 2's Speed only", ev("project.zones[1].macros.speed.v") == 2 and ev("project.zones[0].macros.speed.v") == 1 and ev("project.macros.speed.v") == 1)
+    ev("ui.midiVc = false; ui.macroScope = ''")
+    with pg.expect_popup() as pi: pg.click("#btnMidi")
+    W = pi.value; W.set_viewport_size({"width": 1180, "height": 760}); settle(0.6)
+    tabs = W.locator(".mports .mmacros .mscope button").all_inner_texts()
+    check("the MIDI window's macros have All zones and each zone as tabs", [t.strip() for t in tabs] == ["All zones", "Zone 2", "Zone 1"], tabs)
+    W.locator(".mports .mmacros .mscope button", has_text="Zone 2").click(); settle(0.4)
+    check("Zone 2's tab shows its own, which MIDI learns as its own", W.locator(f'.mmacros .mslot[data-midi="mz:{Z2}:speed"]').count() == 1
+          and abs(float(W.locator(f'.mmacros .mslot[data-midi="mz:{Z2}:speed"] input').input_value()) - 2) < 0.01)
+    sl = W.locator(f'.mmacros .mslot[data-midi="mz:{Z2}:intensity"] input'); sl.fill("0.25"); sl.dispatch_event("input"); settle()
+    check("its slider moves Zone 2's only", ev("project.zones[1].macros.intensity.v") == 0.25 and ev("project.zones[0].macros.intensity.v") == 1)
+    opts = W.locator(".mmap select.mtarget").first.locator("optgroup").evaluate_all("gs => gs.map(g => g.label)")
+    check("the list of targets has each zone's macros after All zones'", "Macros" in opts and "Macros · Zone 2" in opts, opts)
+    ev("ui.midiView = 'bay'; updateMidiUI()"); settle(0.5)
+    check("the patch bay has the same tabs, and Zone 2's macros", W.locator(".bay .mscope button").count() == 3 and W.locator(f'.bay [data-in="mz:{Z2}:speed"]').count() == 1)
+    W.locator(".bay .mscope button", has_text="All zones").click(); settle(0.4)
+    check("a wire to Zone 2's Speed ends at its tab while All zones' show", W.locator('.bay [data-in="m:speed"]').count() == 1 and ev(f"!!bayIn(midiDoc(), 'mz:{Z2}:speed')"))
+    ev("ui.midiView = 'list'; project.midi.maps = []; commit(); updateMidiUI()"); W.close()
+    ev(f"remoteFromDevice('a', 'operator', {{ op: 'macro', id: 'saturation', patch: {{ v: 0.3 }}, zone: '{Z2}' }})")
+    ev("remoteFromDevice('a', 'operator', { op: 'macro', id: 'saturation', patch: { v: 0.6 }, zone: 'gone' })")
+    check("a device can move a zone's macro; a zone that isn't there, nothing", ev("project.zones[1].macros.saturation.v") == 0.3 and ev("project.zones[0].macros.saturation.v") == 0.4
+          and ev("remoteLive().zoneMacros[project.zones[1].id].saturation.v") == 0.3)
+    reset(); settle()
 
     # ---------- devices
     ev("remoteFromDevice('a', 'operator', { op: 'macro', id: 'saturation', patch: { v: 0.25 } })")

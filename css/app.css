@@ -868,6 +868,10 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .seg button:first-child { border-left: 0; }
 /* the chosen one: raised, with a red line under it (no red fill) */
 .seg button.on { background: var(--bg4); color: var(--text); font-weight: 500; box-shadow: inset 0 -2px 0 var(--accent); }
+/* the macros' scope: All zones, then each zone, wrapping when there are many */
+.seg.mscope { display: flex; flex-wrap: wrap; width: 100%; margin: 0 0 8px; }
+.seg.mscope button { flex: 1 0 auto; white-space: nowrap; padding: 0 8px; }
+.bay .seg.mscope { flex: none; width: auto; margin: 0 0 4px; }
 .readonly { font-family: var(--mono); font-size: 11.5px; color: var(--text2); padding: 4px 0; }
 .addr { font-family: var(--mono); font-size: 11.5px; background: var(--bg2); border: 1px solid var(--line2); border-radius: var(--r); padding: 6px 8px; color: var(--text); line-height: 1.5; }
 .addr.warn { border-color: color-mix(in srgb, var(--warn) 40%, transparent); color: var(--warn); }

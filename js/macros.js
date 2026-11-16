@@ -144,15 +144,20 @@ function setOwnCtl(L, srcId, name, on) {
   if (list.length) (L.own || (L.own = {}))[srcId] = list;
   else if (L.own) { delete L.own[srcId]; if (!Object.keys(L.own).length) delete L.own; }
 }
+// Each zone has its own macros (z.macros), which its content follows; All zones' (project.macros) are what the All
+// zones sliders show, and moving one writes it into every zone (setMacro). The set of a zone, or All zones' for none.
+const macrosOf = z => (z && z.macros) || project.macros;
+// A scope's set: '' for All zones, or a zone's id
+const macroScopeSet = S => (S ? macrosOf(zoneById(S)) : project.macros);
 // Whether a macro changes anything now: a colour or a shared control when on, the others away from their neutral value
-function macroActive(id) {
-  const d = macroDef(id), m = project && project.macros[id];
+function macroActive(id, M = project && project.macros) {
+  const d = macroDef(id), m = M && M[id];
   if (!d || !m) return false;
   return d.kind === 'color' || d.kind === 'abs' ? !!m.on : m.v !== 1;
 }
 // A control's value with its macro on it (not Speed, which works through the clocks)
-function macroOver(id, inp, v) {
-  const d = macroDef(id), m = project.macros[id];
+function macroOver(id, inp, v, M = project.macros) {
+  const d = macroDef(id), m = M[id];
   if (!d || !m) return v;
   if (d.kind === 'color') return m.on ? macroRgb(m).concat(Array.isArray(v) && v.length > 3 ? v[3] : 1) : v;
   if (d.kind === 'scale') return typeof v === 'number' ? v * m.v : v;
@@ -163,8 +168,8 @@ function macroOver(id, inp, v) {
   return v;
 }
 // How a macro reads, for the panels: 1.25×, 80 %, a colour's hue, saturation and value
-function macroText(id) {
-  const d = macroDef(id), m = project.macros[id];
+function macroText(id, M = project.macros) {
+  const d = macroDef(id), m = M[id];
   if (d.kind === 'mult') return m.v.toFixed(2) + '×';
   if (d.kind === 'color') return `${Math.round(m.h)}° · ${pct(m.s)} · ${pct(m.v)}`;
   return pct(m.v);
