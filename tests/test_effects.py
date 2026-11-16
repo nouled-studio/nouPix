@@ -11,7 +11,7 @@ fails = []
 def check(name, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + name + ("  " + str(detail)[:400] if detail != "" else ""), flush=True); ok or fails.append(name)
 NEW = ["wash", "cascade", "orbit", "marble", "embers", "nebula", "caustics", "fireflies", "bokeh", "kaleido", "lasers", "tunnel",
-       "chevrons", "lightning", "heartbeat", "ganzfeld", "infinity", "sunhaze", "tubes", "opwave", "constellation"]
+       "chevrons", "lightning", "heartbeat", "ganzfeld", "infinity", "sunhaze", "tubes", "opwave", "constellation", "colorrings"]
 GONE = ["ripples", "chromatic", "datastream", "colorfield"]
 
 bridge = start_bridge(PORT)
@@ -21,7 +21,26 @@ try:
     errs = []; pg.on("pageerror", lambda e: errs.append(str(e))); pg.on("console", lambda m: errs.append(m.text) if app_error(m) else None)
     pg.goto(f"http://127.0.0.1:{PORT}/"); pg.wait_for_function("window.olm && olm.bridge.connected"); time.sleep(0.5)
     ev = pg.evaluate
-    check("all 21 are in the library", ev("ids => ids.every(id => BUILTINS.some(b => b.id === id))", NEW) and ev("BUILTINS.length") == 71, ev("BUILTINS.length"))
+    check("all 22 are in the library", ev("ids => ids.every(id => BUILTINS.some(b => b.id === id))", NEW) and ev("BUILTINS.length") == 72, ev("BUILTINS.length"))
+
+    # ---------- Radar sweep: the strong line first, its glow fading behind it (a point lights at once, then fades)
+    rad = ev("""(() => { const src = srcById('b-sweep'), rt = runtimeOf(src), out = [];
+      for (const s of [0.25, -0.25]) {
+        const v = [];
+        for (let i = 0; i < 200; i++) {
+          isfTime = i * 0.02; applyParams(rt, { params: { 'b-sweep': { speed: s, tail: 0.35 } } }, src); rt.R.draw({ width: 40, height: 20 }); isfTime = null;
+          const c = document.createElement('canvas'); c.width = 1; c.height = 1; c.getContext('2d').drawImage(glCanvas, 32, glCanvas.height - 14, 1, 1, 0, 0, 1, 1);
+          v.push(c.getContext('2d').getImageData(0, 0, 1, 1).data[1]);
+        }
+        // from its brightest moment back: how many steps it took to rise, and how many it takes to fade
+        const m = v.indexOf(Math.max(...v)); let up = 0, down = 0;
+        for (let i = m - 1; i >= 0 && v[i] > 0.1 * v[m]; i--) up++;
+        for (let i = m + 1; i < v.length && v[i] > 0.1 * v[m]; i++) down++;
+        out.push([up, down]);
+      }
+      return out; })()""")
+    check("Radar sweep: a point lights at once as the line passes, then fades over the tail, either way round",
+          all(u <= 2 and d >= 8 for u, d in rad), rad)
     check("Ripples, Cruzado, Ikada and Rothco are gone", ev("ids => !ids.some(id => BUILTINS.some(b => b.id === id))", GONE))
 
     # ---------- each one: compiles, its speed, what moves it, its macros, its facets
