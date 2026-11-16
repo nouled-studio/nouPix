@@ -669,7 +669,7 @@ function deleteCue(L, c) {
 
 /* ---------- scenes ---------- */
 // Each zone has its own scenes. A scene is a copy of the zone's layers; recalling it crossfades that zone to it.
-const lookOf = layers => JSON.stringify(layers.map(L => [L.src, L.on, L.opacity, L.blend, L.params[L.src] || {}]));
+const lookOf = layers => JSON.stringify(layers.map(L => [L.src, L.on, L.opacity, L.blend, L.params[L.src] || {}, (L.own && L.own[L.src]) || []]));
 const snapshotLayers = z => cloneLayers(z.layers).map(L => Object.assign(L, { params: L.src && L.params[L.src] ? { [L.src]: L.params[L.src] } : {} }));
 // A scene picked by hand: the zone fades to it over the scene's own fade, and its playlist pauses
 function goScene(z, sc, cut = false) {
@@ -761,7 +761,23 @@ function setMacro(id, patch) {
   const next = Object.assign({}, m, patch);
   if ('on' in m && !('on' in patch)) next.on = true;
   project.macros[id] = fixMacros({ [id]: next })[id];
+  // a colour macro moved (its fader, the MIDI window, a device): the layers that kept their own colour take it again
+  if (d.kind === 'color' && Object.keys(patch).some(k => k !== 'on' && k !== 'mode') && macroRetake(id)) remoteChanged();
   saveSoon(); remoteLiveChanged(); updateMacrosUI();
+}
+// Every layer keeping its own value for a control that follows this macro follows it again; whether any did
+function macroRetake(id) {
+  let n = 0;
+  for (const z of project.zones) for (const L of z.layers) {
+    if (!L.own) continue;
+    for (const [sid, names] of Object.entries(L.own)) {
+      const src = srcById(sid);
+      if (!src) continue;
+      const roles = macroRolesOf(src, effectRt(src));
+      for (const name of names) if (roles[name] === id) { setOwnCtl(L, sid, name, false); n++; }
+    }
+  }
+  return n > 0;
 }
 // Part i of a colour macro (hue, saturation, value; or red, green, blue) set to x, from 0 to 1
 function setMacroPart(id, i, x) { const m = project.macros[id]; if (m && macroDef(id).kind === 'color') setMacro(id, macroPartPatch(m, i, clamp(x, 0, 1))); }

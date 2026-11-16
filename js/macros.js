@@ -132,6 +132,15 @@ function fixMacroLinks(l, known) {
   }
   return out;
 }
+// A layer that keeps its own value for one of an effect's controls instead of following its macro (a colour picked for
+// that layer alone while its macro was on): L.own[source] lists them
+const ownsCtl = (L, srcId, name) => !!(L && L.own && Array.isArray(L.own[srcId]) && L.own[srcId].includes(name));
+function setOwnCtl(L, srcId, name, on) {
+  const list = (L.own && Array.isArray(L.own[srcId]) ? L.own[srcId] : []).filter(n => n !== name);
+  if (on) list.push(name);
+  if (list.length) (L.own || (L.own = {}))[srcId] = list;
+  else if (L.own) { delete L.own[srcId]; if (!Object.keys(L.own).length) delete L.own; }
+}
 // Whether a macro changes anything now: a colour or a shared control when on, the others away from their neutral value
 function macroActive(id) {
   const d = macroDef(id), m = project && project.macros[id];

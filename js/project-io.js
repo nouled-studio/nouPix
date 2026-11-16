@@ -256,6 +256,11 @@ function hydrate(p) {
     if (!BLENDS.some(b => b[0] === L.blend)) L.blend = 'alpha';
     L.opacity = isFinite(L.opacity) ? clamp(+L.opacity, 0, 1) : 1;
     if (!L.params || typeof L.params !== 'object') L.params = {};
+    // the controls it keeps its own value for, instead of following a macro: lists of names, per effect
+    if (isObj(L.own)) {
+      for (const [k, v] of Object.entries(L.own)) { const names = Array.isArray(v) ? [...new Set(v.filter(n => typeof n === 'string' && n))] : []; if (names.length) L.own[k] = names; else delete L.own[k]; }
+      if (!Object.keys(L.own).length) delete L.own;
+    } else delete L.own;
     // the Rainbow's Colors choice, until 1.6.2: Color A to B is its first two colours; Rainbow its five as they start
     // (colours set meanwhile showed nothing then, and stay out of it)
     const rb = L.params['b-rainbow'];

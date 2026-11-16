@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from harness import CHROME_ARGS, start_bridge, app_error
 from playwright.sync_api import sync_playwright
 import noupix
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8262
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8266
 fails = []
 def check(name, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + name + ("  " + " ".join(str(detail).split())[:300] if detail != "" else ""), flush=True); ok or fails.append(name)
@@ -72,11 +72,15 @@ try:
         def send(ip):
             for b, g in enumerate(groups): sock.sendto(packet(ip, unis=tuple(g), bind=b + 1), to)
         send("192.168.0.50")
-        pg.wait_for_function("olm.nodeDevices ? true : true"); time.sleep(0.6)
+        wait_rows = lambda ip: pg.wait_for_function(f"nodeDevices().some(d => d.ip === '{ip}' && d.universes.length === 45) && nodeDevices().length === 1", timeout=5000)
+        try: wait_rows("192.168.0.50")
+        except Exception: pass
         rows = ev("nodeDevices().map(d => d.ip + ' ' + d.universes.length)")
         check("a stand-in PixLite answering: one device in Discovery, with its 45 universes", rows == ["192.168.0.50 45"], rows)
         time.sleep(noupix.MOVED_AFTER + 0.3)
-        send("192.168.0.100"); time.sleep(0.6)
+        send("192.168.0.100")
+        try: wait_rows("192.168.0.100")
+        except Exception: pass
         rows = ev("nodeDevices().map(d => d.ip + ' ' + d.universes.length)")
         check("it answers from a new address: still one device, at the new address", rows == ["192.168.0.100 45"], rows)
         ev("openDiscovery()"); time.sleep(0.3)

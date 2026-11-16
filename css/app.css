@@ -1241,6 +1241,10 @@ body.sceneswin > .dockbody { height: 100%; }
 .row.mlinks .msum { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 .row.mchg > .lbl { color: var(--accent); }
 .note.via[hidden] { display: none; }
+/* "Follow Color 2 again": a word to click inside a note, no box */
+.note .linkbtn { border: 0; background: none; padding: 0; font: inherit; color: var(--text2); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.note .linkbtn:hover { color: var(--text); }
+.note .linkbtn[hidden] { display: none; }
 /* a check row with a button at its end (Settings → Remote control → HTTP triggers) */
 .checkline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pwrow { display: flex; align-items: center; gap: 8px; min-width: 0; }

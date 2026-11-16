@@ -470,26 +470,25 @@ function renderContentTab(body) {
       } else if (inp.TYPE === 'event') {
         ctl.push(row(label, midiButton(h('button', { class: 'btn', type: 'button', onclick: () => { set(true); setTimeout(() => set(false), 80); } }, 'Trigger'), t)));
       } else if (inp.TYPE === 'color') {
-        // while it follows a colour macro that is on, it shows that colour (what goes out), and a colour chosen here
-        // sets the macro; the layer's own colour comes back when the macro is off
-        const via = () => (roles[inp.NAME] && macroActive(roles[inp.NAME]) ? roles[inp.NAME] : null);
+        // while it follows a colour macro that is on, it shows that colour (what goes out); a colour chosen here is this
+        // layer's alone: it stops following the macro, the other layers keep following it, and "Follow … again" undoes it
+        const via = () => (roles[inp.NAME] && macroActive(roles[inp.NAME]) && !ownsCtl(L, src.id, inp.NAME) ? roles[inp.NAME] : null);
         const get = () => (via() ? macroRgb(project.macros[via()]).concat(1) : paramValue(L, src, inp));
         const put = c => {
-          const id = via();
-          if (!id) { set(c); return; }
-          const [hh, s, v] = macroRgbHsv(c[0], c[1], c[2]);
-          setMacro(id, { h: s > 0 && v > 0 ? hh : project.macros[id].h, s, v });
+          if (via()) setOwnCtl(L, src.id, inp.NAME, true);
+          set(c);
         };
-        const cr = colorRow(label, get, put, () => { if (!via()) commit(); }, `${L.id}:${src.id}:${inp.NAME}`);
+        const cr = colorRow(label, get, put, () => commit(), `${L.id}:${src.id}:${inp.NAME}`);
         const sw = cr.querySelector('.cswatch');
         binders.push(() => sw._show(get()));
         ctl.push(cr);
+        if (roles[inp.NAME]) ctl.push(ownNote(L, src, inp.NAME, roles[inp.NAME]));
       } else if (inp.TYPE === 'point2D') {
         const pt = { x: holder.v[0], y: holder.v[1] };
         const up = () => set([pt.x, pt.y]);
         ctl.push(row(label, numInput(pt, 'x', { prefix: 'X', step: 0.01, onInput: up, onCommit: commit }), numInput(pt, 'y', { prefix: 'Y', step: 0.01, onInput: up, onCommit: commit })));
       }
-      if (roles[inp.NAME]) ctl.push(macroFollows(roles[inp.NAME]));   // the macro it follows, while that changes it
+      if (roles[inp.NAME] && inp.TYPE !== 'color') ctl.push(macroFollows(roles[inp.NAME]));   // the macro it follows, while that changes it
     }
     ctl.push(...macroLinksFold(src, rt));
     ctl.push(h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { delete L.params[src.id]; commit(); renderRight(); } }, 'Reset to defaults')));

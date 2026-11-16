@@ -163,11 +163,54 @@ try:
     check("its picker opens on Color 1", hue() == "120", hue())
     ev("setMacro('color1', { h: 240 })"); settle()
     check("an open picker follows a macro moved from elsewhere (a fader)", hue() == "240" and pg.locator(".cpop input.mono").input_value() == "#0000FF", (hue(), pg.locator(".cpop input.mono").input_value()))
+    check("its note says it follows Color 1, and that a colour picked here is this layer's alone",
+          "Follows Color 1. A colour picked here is for this layer only." in pg.inner_text("#rightBody"), pg.locator("#rightBody .note.via:not([hidden])").all_inner_texts())
     pg.locator(".cpop .cpchip").first.click(); settle()
-    check("a colour chosen there sets Color 1, and the layer keeps its own", ev("project.macros.color1.h") != 240 and ev("project.zones[0].layers[0].params['b-bars'] && project.zones[0].layers[0].params['b-bars'].color") in (None, [1, 1, 1, 1]),
-          (ev("project.macros.color1"), ev("project.zones[0].layers[0].params")))
-    ev("closeColorPicker(); setMacro('color1', { on: false })"); settle()
-    check("Color 1 off: it shows its own colour again", "#FFFFFF" in fx.inner_text(), fx.inner_text())
+    mine = ev("project.zones[0].layers[0].params['b-bars'].color")
+    check("a colour chosen there is this layer's alone: Color 1 stays as it was, the layer keeps its own and no longer follows it",
+          ev("project.macros.color1.h") == 240 and ev("project.macros.color1.on") and ev("project.zones[0].layers[0].own") == {"b-bars": ["color"]} and mine and mine[:3] != [0, 0, 1],
+          (ev("project.macros.color1"), ev("project.zones[0].layers[0].own"), mine))
+    ev("closeColorPicker()"); settle()
+    hexOf = lambda c: "#%02X%02X%02X" % tuple(round(x * 255) for x in c[:3])
+    check("its swatch shows its own colour while Color 1 stays on", hexOf(mine) in fx.inner_text(), (fx.inner_text(), mine))
+    ev("undo()"); settle(); ev("renderRight()"); settle()
+    check("one step of undo gives it back to Color 1", not ev("project.zones[0].layers[0].own") and "#0000FF" in fx.inner_text(), (ev("project.zones[0].layers[0].own"), fx.inner_text()))
+    ev("redo()"); settle(); ev("renderRight()"); settle()
+    check("its note says so, with a way back", "This layer's own colour, until Color 1 moves." in pg.inner_text("#rightBody") and pg.locator("#rightBody .note.via .linkbtn:not([hidden])", has_text="Follow Color 1 again").count() == 1)
+    ev("setMacro('color1', { on: false })"); settle()
+    ev("setMacro('color1', { on: true })"); settle()
+    check("Color 1 turned off and on leaves it alone", hexOf(mine) in fx.inner_text() and ev("project.zones[0].layers[0].own") == {"b-bars": ["color"]}, fx.inner_text())
+    ev("setMacro('color1', { h: 120 })"); settle()
+    check("Color 1 moved again (its fader): the layer takes it again", not ev("project.zones[0].layers[0].own") and "#00FF00" in fx.inner_text() and "Follows Color 1" in pg.inner_text("#rightBody"),
+          (ev("project.zones[0].layers[0].own"), fx.inner_text()))
+    ev("setOwnCtl(project.zones[0].layers[0], 'b-bars', 'color', true); commit(); renderRight()"); settle()
+    pg.locator("#rightBody .note.via .linkbtn", has_text="Follow Color 1 again").click(); settle()
+    check("Follow Color 1 again: it follows it once more", not ev("project.zones[0].layers[0].own") and "#00FF00" in fx.inner_text(), (ev("project.zones[0].layers[0].own"), fx.inner_text()))
+    ev("setMacro('color1', { on: false })"); settle()
+    check("Color 1 off: it shows its own colour again", hexOf(mine) in fx.inner_text(), fx.inner_text())
+
+    # the light: one layer with its own colour, another on top following Color 1, and back
+    load("b-solid", "{ color: [0, 0, 1, 1] }")
+    ev("setMacro('color1', { h: 0, s: 1, v: 1, on: true })"); settle()
+    check("a layer following Color 1 sends it", col() == [255, 0, 0], col())
+    ev("setOwnCtl(project.zones[0].layers[0], 'b-solid', 'color', true)"); settle()
+    check("the same layer keeping its own colour sends its own", col() == [0, 0, 255], col())
+    ev("(() => { const z = project.zones[0], L = newLayer('b-solid'); L.params['b-solid'] = { color: [0, 1, 0, 1] }; z.layers.push(L); })()"); settle()
+    check("another layer of the same effect on top still follows Color 1", col() == [255, 0, 0], col())
+    ev("project.zones[0].layers.pop()"); settle()
+    # Color 2 moved: a layer keeping its own Color 1 stays as it is
+    ev("setMacro('color2', { h: 200, s: 1, v: 1 })"); settle()
+    check("another colour macro moving leaves it alone", ev("project.zones[0].layers[0].own") == {"b-solid": ["color"]} and col() == [0, 0, 255], (ev("project.zones[0].layers[0].own"), col()))
+    data = ev("JSON.parse(serialize())")
+    check("a file keeps it", data["zones"][0]["layers"][0].get("own") == {"b-solid": ["color"]}, data["zones"][0]["layers"][0].get("own"))
+    data["zones"][0]["layers"][0]["own"] = {"b-solid": ["color", 3, "", "color"], "gone": [], "x": "no"}
+    ev("d => olm.loadProject(d)", data); settle()
+    check("and a file's is repaired", ev("project.zones[0].layers[0].own") == {"b-solid": ["color"]} and col() == [0, 0, 255], (ev("project.zones[0].layers[0].own"), col()))
+    ev("storeScene && storeScene(project.zones[0])"); settle()
+    check("a scene stored keeps it", ev("(project.zones[0].scenes.at(-1) || {}).layers") and ev("project.zones[0].scenes.at(-1).layers[0].own") == {"b-solid": ["color"]},
+          ev("project.zones[0].scenes.map(s => s.layers.map(L => L.own))"))
+    reset(); load("b-bars")
+    ev("project.macros.color1 = Object.assign(project.macros.color1, { h: 0, s: 1, v: 1 }); updateMacrosUI()")
     ev("ui.macroOpen = []; savePrefs()"); reset(); settle()
 
     # ---------- MIDI

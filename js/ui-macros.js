@@ -92,6 +92,20 @@ function macroFollows(id) {
   bind(() => { const on = macroActive(id); el.hidden = !on; if (on) el.textContent = `Follows ${d.label}` + (d.kind === 'color' || d.kind === 'abs' ? '' : ` (${macroText(id)})`); });
   return el;
 }
+// Under a colour that follows a colour macro: "Follows Color 2" while the macro is on, or, once a colour was picked for
+// this layer alone, that it keeps its own and a link to follow the macro again
+function ownNote(L, src, name, id) {
+  const d = macroDef(id), text = h('span'), again = h('button', { type: 'button', class: 'linkbtn', title: `This layer takes ${d.label} again, as the others do`,
+    onclick: () => { setOwnCtl(L, src.id, name, false); commit(); renderRight(); } }, `Follow ${d.label} again`);
+  const el = h('p', { class: 'note via' }, text, again);
+  bind(() => {
+    const own = ownsCtl(L, src.id, name), on = macroActive(id);
+    el.hidden = !own && !on;
+    text.textContent = own ? `This layer's own colour, until ${d.label} moves. ` : `Follows ${d.label}. A colour picked here is for this layer only.`;
+    again.hidden = !own;
+  });
+  return el;
+}
 // The values shown in the Content tab and in an open colour picker, after something else moved them (a macro, a MIDI
 // control), at most once a frame
 let contentQueued = false;
