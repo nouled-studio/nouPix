@@ -701,6 +701,7 @@ function storeScene(z) {
   if (project.settings.sceneShots) sceneShot(z, sc);
   z.scene = sc.id; ui.zone = z.id;
   commit();
+  if (ui.rightTab === 'content') renderRight();   // now a scene: its controls follow the macros
   toast(`Stored ${sc.name} in ${z.name}. Use ⋯ on its button to rename it or change its fade time.`);
 }
 // A scene's picture: its zone as it looks now, small (160 wide), kept with the scene and shown on its button.
@@ -737,6 +738,7 @@ function updateScene(z, sc) {
   sc.layers = snapshotLayers(z); z.scene = sc.id;
   if (project.settings.sceneShots) sceneShot(z, sc);
   commit();
+  if (ui.rightTab === 'content') renderRight();
   toast(`${sc.name} updated`);
 }
 // Move a scene ('zoneId:sceneId') into a zone: onto a scene it takes that scene's place, onto the row it goes last
@@ -802,7 +804,7 @@ function resetMacroLinks(src) {
 // brings its own value back.
 function setEffectControl(src, name, v) {
   let n = 0;
-  for (const z of project.zones) for (const L of z.layers) if (L.src === src.id) { setParam(L, src, name, v); n++; }
+  for (const z of project.zones) if (zoneFollows(z)) for (const L of z.layers) if (L.src === src.id) { setParam(L, src, name, v); n++; }
   if (!n) return;
   remoteChanged(); commitSoft(); syncContentSoon();
 }

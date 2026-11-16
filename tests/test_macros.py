@@ -25,6 +25,7 @@ try:
     def load(src, params=None):
         ev(f"""(() => {{ const p = blankProject('Macros'); p.fixtures.push(newFixture('line', {{ x1: 100, y1: 320, x2: 900, y2: 320, pixels: 8 }}));
           const L = newLayer('{src}'); {f"L.params['{src}'] = {params};" if params else ''} p.zones[0].layers = [L];
+          for (const z of p.zones) {{ const sc = {{ id: uid(), name: 'Scene 1', fade: 0, layers: cloneLayers(z.layers) }}; z.scenes = [sc]; z.scene = sc.id; }}
           olm.loadProject(JSON.parse(JSON.stringify(p, replacer))); ui.rightTab = 'content'; ui.zone = olm.project.zones[0].id; renderRight(); }})()"""); settle(0.5)
     col = lambda i=0: ev(f"Array.from(olm.project.fixtures[0]._col.slice({i * 3}, {i * 3 + 3}))")
     roles = lambda src: ev(f"(() => {{ const rt = runtimeOf(srcById('{src}')); return rt.roles; }})()")
@@ -51,6 +52,23 @@ try:
     ev("""(() => { const code = '/*{"INPUTS":[{"NAME":"tint","TYPE":"color","DEFAULT":[1,0,0,1]},{"NAME":"speed","TYPE":"float","MIN":0,"MAX":1,"DEFAULT":0.5}]}*/\\nvoid main(){gl_FragColor=vec4(1.0);}';
       project.sources.push({ id: 'mine', kind: 'isf', name: 'Mine', code }); })()""")
     check("an effect of your own follows by the same names; a speed it doesn't run by TIME doesn't follow Speed", roles("mine") == {"tint": "color1"}, roles("mine"))
+
+    # ---------- on stored scenes only: content a zone plays from no scene keeps its own values
+    ev("""(() => { const p = blankProject('Scenes'); p.fixtures.push(newFixture('line', { x1: 100, y1: 320, x2: 900, y2: 320, pixels: 8 }));
+      const L = newLayer('b-solid'); L.params['b-solid'] = { color: [0, 0, 1, 1] }; p.zones[0].layers = [L];
+      olm.loadProject(JSON.parse(JSON.stringify(p, replacer))); ui.rightTab = 'content'; ui.zone = olm.project.zones[0].id; ui.layer = olm.project.zones[0].layers[0].id; renderRight(); })()"""); settle(0.5)
+    ev("setMacro('color1', { h: 0, s: 1, v: 1 }); setMacro('intensity', { v: 0.5 })"); settle()
+    check("content that is no scene yet shows its own colour and level: the macros leave it alone", col() == [0, 0, 255], col())
+    check("…and its controls aren't marked as following them", pg.locator("#rightBody .lbl.mac").count() == 0)
+    ev("storeScene(project.zones[0])"); settle()
+    check("stored as a scene, it follows them", col() == [128, 0, 0], col())
+    check("…and its colour is marked as following Color 1", pg.locator("#rightBody .lbl.mac", has_text="Color").count() == 1)
+    ev("(() => { const z = project.zones[0]; z.layers.push(newLayer('b-bars')); commit(); })()"); settle()
+    check("edited (a layer added), it is still the scene and follows them", col() == [128, 0, 0] or col()[2] == 0, col())
+    ev("stopZone(project.zones[0])"); settle(0.3)
+    ev("(() => { const z = project.zones[0]; z.layers = [Object.assign(newLayer('b-solid'), { params: { 'b-solid': { color: [0, 0, 1, 1] } } })]; z._fade = null; commit(); })()"); settle()
+    check("stopped, new content put there is no scene: its own colour again", col() == [0, 0, 255], col())
+    reset(); settle()
 
     # ---------- colours, intensity, saturation
     load("b-solid", "{ color: [0, 0, 1, 1] }")

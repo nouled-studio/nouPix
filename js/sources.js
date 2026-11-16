@@ -183,7 +183,8 @@ function speedTime(key, rate) {
 function applyParams(rt, L, src) {
   layerTime = null;
   // the macros, on a layer (not on a thumbnail); a control that follows Speed runs at its rate
-  const roles = L.id != null && macroRolesOf(src, rt), rate = inp => (roles && roles[inp.NAME] === 'speed' ? project.macros.speed.v : 1);
+  // (only on a zone playing a stored scene)
+  const roles = L.id != null && (drawZone ? zoneFollows(drawZone) : true) && macroRolesOf(src, rt), rate = inp => (roles && roles[inp.NAME] === 'speed' ? project.macros.speed.v : 1);
   // the music's inputs (tempo.js), real on a layer, made up on a thumbnail
   const band = rt.bandIn ? numOr(paramValue(L, src, rt.bandIn), 0) : 0;
   for (const inp of rt.audio || []) { try { rt.R.setValue(inp.NAME, audioInputValue(inp.NAME, L.id == null ? (isfTime ?? clockT) : null, isfTime != null, band)); } catch (e) { /* not used */ } }

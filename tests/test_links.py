@@ -46,6 +46,7 @@ try:
           p.zones[0].layers = [newLayer(srcs[0])];
           if (srcs[1]) {{ const z = newZone({{ name: 'Zone 2', w: 1000, h: 640 }}); z.layers = [newLayer(srcs[1])]; p.zones.push(z); }}
           p.macroLinks = {links or {}};
+          for (const z of p.zones) {{ const sc = {{ id: uid(), name: 'Scene 1', fade: 0, layers: cloneLayers(z.layers) }}; z.scenes = [sc]; z.scene = sc.id; }}
           olm.loadProject(JSON.parse(JSON.stringify(p, replacer))); ui.rightTab = 'content'; ui.zone = olm.project.zones[0].id; ui.layer = olm.project.zones[0].layers[0].id;
           showRight(true); renderRight(); }})()"""); settle(0.5)
     col = lambda i=0: ev(f"Array.from(olm.project.fixtures[0]._col.slice({i * 3}, {i * 3 + 3}))")
@@ -168,6 +169,10 @@ try:
     ev("project.midi.maps = [Object.assign(newMidiMap('midi:nanoKONTROL2:1:cc:5', 'p:b-bars:width'), { takeover: 'jump' })]")
     cc(5, 127); settle()
     check("on Jump it goes at once, and in every layer that plays that effect (both zones)", abs(param("width", 0) - hi) < 1e-9 and abs(param("width", 1) - hi) < 1e-9, (param("width", 0), param("width", 1)))
+    w1 = param("width", 1); ev("(() => { const z = project.zones[1]; z.scene = null; })()")
+    cc(5, 0); settle()
+    check("but not in a zone playing no scene: content that isn't stored keeps its own", abs(param("width", 1) - w1) < 1e-9 and param("width", 0) < hi - 0.01, (param("width", 0), param("width", 1)))
+    cc(5, 127); settle()
     ev("(() => { const z = project.zones[0]; storeScene(z); z.scenes[0].layers[0].params['b-bars'] = { width: 0.1 }; project.midi.maps[0].takeover = 'pickup'; project.midi.maps[0]._picked = true; })()")
     ev("goScene(project.zones[0], project.zones[0].scenes[0], true)"); settle()
     check("a scene played brings its own value back", abs(param("width") - 0.1) < 1e-9, param("width"))

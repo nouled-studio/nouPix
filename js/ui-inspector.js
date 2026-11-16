@@ -436,7 +436,8 @@ function renderContentTab(body) {
 
   if (rt && rt.error) body.append(sec('Shader error', h('div', { class: 'errbox' }, rt.error)));
   if (src.kind === 'isf' && rt && rt.R) {
-    const ctl = [], roles = macroRolesOf(src, rt);
+    // (the macros act on stored scenes only: with none playing here, nothing follows them)
+    const ctl = [], roles = zoneFollows(z) ? macroRolesOf(src, rt) : {};
     for (const inp of isfInputs(src)) {
       if (!inputShown(inp, L, src)) continue;   // (the Rainbow's colours past how many it uses)
       const label = inp.LABEL || inp.NAME, t = `p:${src.id}:${inp.NAME}`, first = ctl.length;   // t: what a MIDI control drives through it

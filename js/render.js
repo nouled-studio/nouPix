@@ -331,7 +331,7 @@ function renderLook(layers, slot, z) {
     const c = renderSource(srcById(L.src), L, z.w, z.h, z);
     if (!c) continue;
     if (slot === 0 && preview && preview.layer === L) drawPreview(c, z);
-    mixer.layer(slot, c, BLEND_IDX[L.blend] || 0, L.opacity * project.macros.intensity.v, alphaDraw);   // the Intensity macro
+    mixer.layer(slot, c, BLEND_IDX[L.blend] || 0, L.opacity * (zoneFollows(z) ? project.macros.intensity.v : 1), alphaDraw);   // the Intensity macro, on scenes
   }
 }
 // Everything that only shows the picture (the stage, a layer's preview, the source under the mouse, the X-Fader's

@@ -132,6 +132,9 @@ function fixMacroLinks(l, known) {
   }
   return out;
 }
+// The macros and MIDI onto effects' controls act on stored scenes only: a zone playing one of its scenes (also while
+// it is edited) follows them; content put in a zone that plays none shows its own values, as the source is
+const zoneFollows = z => !!(z && z.scene && z.scenes.some(sc => sc.id === z.scene));
 // A layer that keeps its own value for one of an effect's controls instead of following its macro (a colour picked for
 // that layer alone while its macro was on): L.own[source] lists them
 const ownsCtl = (L, srcId, name) => !!(L && L.own && Array.isArray(L.own[srcId]) && L.own[srcId].includes(name));
