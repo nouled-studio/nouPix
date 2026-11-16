@@ -292,13 +292,14 @@ function onKey(e) {
   if (mod) return;
   const digit = /^Digit([1-9])$/.exec(e.code);
   if (digit) { const z = selZone(), sc = z && z.scenes[+digit[1] - 1]; if (sc) goScene(z, sc, e.shiftKey); return; }
+  // Space taps the tempo when set to (Settings → Tempo), wherever the mouse is (the view still pans by its middle button)
+  if (e.code === 'Space' && ui.tapSpace) { e.preventDefault(); if (!e.repeat) tempoTap(); return; }
   // Space is GO while a cue list shows and the mouse is off the stage (on it, Space held pans the view)
   if (e.code === 'Space' && !e.repeat && cuesShown() && shownCueList() && !stageEl.matches(':hover')) { e.preventDefault(); cueGo(shownCueList()); return; }
   // and plays or pauses the timeline shown
   if (e.code === 'Space' && !e.repeat && timelineShown() && shownTimeline() && !stageEl.matches(':hover')) { e.preventDefault(); const T = shownTimeline(); if (tl.playing && tl.id === T.id) tlPause(); else tlPlay(T); return; }
-  // and taps the tempo when the beat comes from tapping (off the stage, where it pans the view); T taps it anyway
-  if (e.code === 'Space' && !e.repeat && ui.tempoSrc === 'tap' && !stageEl.matches(':hover')) { e.preventDefault(); tempoTap(); return; }
   if (e.code === 'Space') { spaceHeld = true; cv.style.cursor = 'grab'; e.preventDefault(); return; }
+  // T taps the tempo
   if (k === 't' && !e.repeat && !e.altKey) { e.preventDefault(); tempoTap(); return; }
   if ((ui.tool === 'path' || ui.tool === 'pen') && pathDraft) {
     if (e.key === 'Enter') { finishPath(); return; }

@@ -185,7 +185,14 @@ try:
     pg.keyboard.press("t"); time.sleep(0.05)
     check("T taps the tempo", ev("tempo.taps.length") == 1)
     pg.keyboard.press("Space"); time.sleep(0.05)
-    check("so does Space, off the stage, when the beat comes from tapping", ev("tempo.taps.length") == 2)
+    check("Space doesn't tap by itself", ev("tempo.taps.length") == 1)
+    box = pg.locator("#tempoSec .checkrow", has_text="Space taps the tempo").locator("input")
+    box.check(); time.sleep(0.1)
+    pg.keyboard.press("Space"); time.sleep(0.05)
+    check("with Space taps the tempo ticked, it does, and that is kept", ev("tempo.taps.length") == 2 and ev("store.get('noupix.ui').tapSpace") is True)
+    pg.locator("#stage").hover(); pg.keyboard.press("Space"); time.sleep(0.05)
+    check("…over the stage too", ev("tempo.taps.length") == 3)
+    pg.mouse.move(5, 5); box.uncheck(); time.sleep(0.1)
 
     # ---------- a MIDI pad onto Tap tempo
     ev("setMidiOn(true)"); time.sleep(0.5)
