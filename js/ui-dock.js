@@ -7,6 +7,7 @@ function renderDock() {
   for (const k of Object.keys(PANELS)) $(`#dockTabs button[data-tab="${k}"]`).hidden = placeOf(k) !== 'bottom';
   if (PANELS[ui.dockTab] && placeOf(ui.dockTab) !== 'bottom') ui.dockTab = Object.keys(PANELS).find(k => placeOf(k) === 'bottom') || 'patch';
   $$('#dockTabs button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.dockTab));
+  tabsInView($('#dockTabs'));
   renderSides();
   const dock = $('#dock');
   dock.classList.toggle('collapsed', ui.dockCollapsed);
@@ -307,6 +308,9 @@ function initSides() {
   // the right panel's tabs (its own and the ones moved there) in a row that scrolls sideways when they don't fit
   const rt = $('#rightTabs'), strip = h('span', { class: 'tabstrip' }, ...$$('#rightTabs > button[data-tab]'), $('#rightMoved'));
   rt.insertBefore(tabStrip(strip), rt.querySelector('.fill'));
+  // and the bottom panel's, which a wide side panel can leave narrow
+  const dt = $('#dockTabs'), dstrip = h('span', { class: 'tabstrip' }, ...$$('#dockTabs > button[data-tab]'));
+  dt.insertBefore(tabStrip(dstrip), dt.querySelector('.fill'));
   for (const side of ['left', 'right']) {
     const grip = $('#' + side + 'Grip'), aside = $('aside.' + side);
     if (!grip) continue;
