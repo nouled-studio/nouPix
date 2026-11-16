@@ -86,25 +86,24 @@ function macroLinksFold(src, rt) {
   if (mappingLocked()) lockPanel(sub, 'Operator: you can see what follows the macros but not change it.');
   return [head, sub];
 }
-// Under an effect's control: the macro it follows, while that macro changes it
-function macroFollows(id) {
-  const d = macroDef(id), el = h('p', { class: 'note via' });
-  bind(() => { const on = macroActive(id); el.hidden = !on; if (on) el.textContent = `Follows ${d.label}` + (d.kind === 'color' || d.kind === 'abs' ? '' : ` (${macroText(id)})`); });
-  return el;
-}
-// Under a colour that follows a colour macro: "Follows Color 2" while the macro is on, or, once a colour was picked for
-// this layer alone, that it keeps its own and a link to follow the macro again
-function ownNote(L, src, name, id) {
-  const d = macroDef(id), text = h('span'), again = h('button', { type: 'button', class: 'linkbtn', title: `This layer takes ${d.label} again, as the others do`,
-    onclick: () => { setOwnCtl(L, src.id, name, false); commit(); renderRight(); } }, `Follow ${d.label} again`);
-  const el = h('p', { class: 'note via' }, text, again);
+// An effect's control that follows a macro: no text in the panel, a thin aluminium line under its name while that macro
+// changes it, what it follows told on pointing at the name. A colour picked for this layer alone (own: the layer, its
+// source and the control): the line dashed, and a link to follow the macro again
+function macroMark(rowEl, id, own) {
+  const d = macroDef(id), lbl = rowEl && (rowEl.querySelector('.lbl') || (rowEl.classList.contains('checkrow') ? rowEl : null));
+  if (!lbl) return;
+  const again = own ? h('button', { type: 'button', class: 'relink', title: `Follow ${d.label} again`, 'aria-label': `Follow ${d.label} again`, html: lineIcon('link'),
+    onclick: e => { e.stopPropagation(); setOwnCtl(own.L, own.src.id, own.name, false); commit(); renderRight(); } }) : null;
+  if (again) lbl.append(again);
   bind(() => {
-    const own = ownsCtl(L, src.id, name), on = macroActive(id);
-    el.hidden = !own && !on;
-    text.textContent = own ? `This layer's own colour, until ${d.label} moves. ` : `Follows ${d.label}. A colour picked here is for this layer only.`;
-    again.hidden = !own;
+    const mine = !!own && ownsCtl(own.L, own.src.id, own.name), on = macroActive(id);
+    lbl.classList.toggle('mac', on && !mine);
+    lbl.classList.toggle('own', mine);
+    if (again) again.hidden = !mine;
+    if (mine) lbl.dataset.tip = `Its own colour|This layer only, until ${d.label} moves. The link follows ${d.label} again.`;
+    else if (on) lbl.dataset.tip = `Follows ${d.label}` + (d.kind === 'color' || d.kind === 'abs' ? '' : ` (${macroText(id)})`) + (d.kind === 'color' ? '|A colour picked here is for this layer only.' : '');
+    else delete lbl.dataset.tip;
   });
-  return el;
 }
 // The values shown in the Content tab and in an open colour picker, after something else moved them (a macro, a MIDI
 // control), at most once a frame

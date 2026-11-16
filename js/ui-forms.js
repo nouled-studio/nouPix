@@ -145,6 +145,7 @@ function initTips(doc = document) {
     if (!t) return;
     on = t;
     timer = setTimeout(() => {
+      if (!t.dataset.tip || !t.isConnected) return;   // (its explanation gone meanwhile: a macro back to neutral)
       if (!el) { el = h('div', { class: 'tip', role: 'tooltip' }); doc.body.append(el); }
       const [head, text] = t.dataset.tip.split('|');
       el.replaceChildren(h('b', {}, head), text ? h('span', {}, text) : '');

@@ -439,7 +439,7 @@ function renderContentTab(body) {
     const ctl = [], roles = macroRolesOf(src, rt);
     for (const inp of isfInputs(src)) {
       if (!inputShown(inp, L, src)) continue;   // (the Rainbow's colours past how many it uses)
-      const label = inp.LABEL || inp.NAME, t = `p:${src.id}:${inp.NAME}`;   // t: what a MIDI control drives through it
+      const label = inp.LABEL || inp.NAME, t = `p:${src.id}:${inp.NAME}`, first = ctl.length;   // t: what a MIDI control drives through it
       // the layer's own value, read again on each sync (a MIDI control may have moved it)
       const set = v => setParam(L, src, inp.NAME, v);
       const holder = { get v() { return paramValue(L, src, inp); }, set v(x) { set(x); } };
@@ -482,13 +482,14 @@ function renderContentTab(body) {
         const sw = cr.querySelector('.cswatch');
         binders.push(() => sw._show(get()));
         ctl.push(cr);
-        if (roles[inp.NAME]) ctl.push(ownNote(L, src, inp.NAME, roles[inp.NAME]));
+        if (roles[inp.NAME]) macroMark(cr, roles[inp.NAME], { L, src, name: inp.NAME });
       } else if (inp.TYPE === 'point2D') {
         const pt = { x: holder.v[0], y: holder.v[1] };
         const up = () => set([pt.x, pt.y]);
         ctl.push(row(label, numInput(pt, 'x', { prefix: 'X', step: 0.01, onInput: up, onCommit: commit }), numInput(pt, 'y', { prefix: 'Y', step: 0.01, onInput: up, onCommit: commit })));
       }
-      if (roles[inp.NAME] && inp.TYPE !== 'color') ctl.push(macroFollows(roles[inp.NAME]));   // the macro it follows, while that changes it
+      // the macro it follows, marked on its name (the first of its rows with one: Speed's Reverse comes after it)
+      if (roles[inp.NAME] && inp.TYPE !== 'color') macroMark(ctl.slice(first).find(e => isEl(e) && ((e.querySelector('.lbl') || {}).textContent || (e.classList.contains('checkrow') && e.textContent))), roles[inp.NAME]);
     }
     ctl.push(...macroLinksFold(src, rt));
     ctl.push(h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { delete L.params[src.id]; commit(); renderRight(); } }, 'Reset to defaults')));
