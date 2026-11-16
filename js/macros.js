@@ -39,20 +39,22 @@ function defaultMacro(d) {
 const defaultMacros = () => Object.fromEntries(MACROS.map(d => [d.id, defaultMacro(d)]));
 // The macros of a file, or of a change from a device: every macro there, with its values in range
 function fixMacros(m) {
-  const out = defaultMacros();
-  if (!isObj(m)) return out;
-  for (const d of MACROS) {
-    const o = m[d.id], x = out[d.id];
-    if (!isObj(o)) continue;
-    if ('on' in x) x.on = !!o.on;
-    if (d.kind === 'color') {
-      x.mode = o.mode === 'rgb' ? 'rgb' : 'hsv';
-      // 360° stays 360°: the same colour as 0°, but a hue fader at the top stays at the top
-      const hue = numOr(o.h, x.h);
-      x.h = hue >= 0 && hue <= 360 ? hue : wrap360(hue); x.s = clamp(numOr(o.s, x.s), 0, 1); x.v = clamp(numOr(o.v, x.v), 0, 1);
-    } else x.v = clamp(numOr(o.v, x.v), 0, macroMax(d));
-  }
+  const out = {};
+  for (const d of MACROS) out[d.id] = fixMacro(d, isObj(m) ? m[d.id] : null);
   return out;
+}
+// One of them (d: its entry in MACROS), in range; anything missing as it starts
+function fixMacro(d, o) {
+  const x = defaultMacro(d);
+  if (!isObj(o)) return x;
+  if ('on' in x) x.on = !!o.on;
+  if (d.kind === 'color') {
+    x.mode = o.mode === 'rgb' ? 'rgb' : 'hsv';
+    // 360° stays 360°: the same colour as 0°, but a hue fader at the top stays at the top
+    const hue = numOr(o.h, x.h);
+    x.h = hue >= 0 && hue <= 360 ? hue : wrap360(hue); x.s = clamp(numOr(o.s, x.s), 0, 1); x.v = clamp(numOr(o.v, x.v), 0, 1);
+  } else x.v = clamp(numOr(o.v, x.v), 0, macroMax(d));
+  return x;
 }
 
 /* ---------- colours ---------- */
@@ -147,8 +149,21 @@ function setOwnCtl(L, srcId, name, on) {
 // Each zone has its own macros (z.macros), which its content follows; All zones' (project.macros) are what the All
 // zones sliders show, and moving one writes it into every zone (setMacro). The set of a zone, or All zones' for none.
 const macrosOf = z => (z && z.macros) || project.macros;
+// The macros of zones that went (deleted, or undone away), by id: an undo that brings one back gives it them, as an
+// undo leaves the macros of the zones that stayed (a few at most are kept)
+const goneMacros = new Map();
+function keepGoneMacros(z) {
+  if (!z || !z.macros) return;
+  goneMacros.delete(z.id); goneMacros.set(z.id, z.macros);
+  if (goneMacros.size > 32) goneMacros.delete(goneMacros.keys().next().value);
+}
 // A scope's set: '' for All zones, or a zone's id
 const macroScopeSet = S => (S ? macrosOf(zoneById(S)) : project.macros);
+// Whether some zone's macro is not where All zones' is (a zone's own moved since): said on All zones' sliders
+function macroMixed(id) {
+  const a = project.macros[id];
+  return project.zones.some(z => { const m = z.macros && z.macros[id]; return !!m && (m.v !== a.v || !!m.on !== !!a.on || m.h !== a.h || m.s !== a.s); });
+}
 // Whether a macro changes anything now: a colour or a shared control when on, the others away from their neutral value
 function macroActive(id, M = project && project.macros) {
   const d = macroDef(id), m = M && M[id];

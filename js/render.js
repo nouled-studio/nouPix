@@ -326,12 +326,13 @@ function hiddenZone(i) {
 let preview = null; // { layer, canvas }: the Content tab's live picture of the selected layer
 function renderLook(layers, slot, z) {
   mixer.begin(slot, z.w, z.h);
+  const level = zoneFollows(z) ? macrosOf(z).intensity.v : 1;   // the zone's Intensity macro, on scenes
   for (const L of layers) {
     if (!L.on || !(L.opacity > 0)) continue;
     const c = renderSource(srcById(L.src), L, z.w, z.h, z);
     if (!c) continue;
     if (slot === 0 && preview && preview.layer === L) drawPreview(c, z);
-    mixer.layer(slot, c, BLEND_IDX[L.blend] || 0, L.opacity * (zoneFollows(z) ? macrosOf(z).intensity.v : 1), alphaDraw);   // the zone's Intensity macro, on scenes
+    mixer.layer(slot, c, BLEND_IDX[L.blend] || 0, L.opacity * level, alphaDraw);
   }
 }
 // Everything that only shows the picture (the stage, a layer's preview, the source under the mouse, the X-Fader's

@@ -336,6 +336,108 @@ try:
           and ev("remoteLive().zoneMacros[project.zones[1].id].saturation.v") == 0.3)
     reset(); settle()
 
+    # ---------- zone macros and MIDI: what could surprise (parts kept, the sliders' mode, Pickup, a zone deleted, one zone left)
+    def two(scene2=True):
+        ev(f"""(() => {{ const p = blankProject('Zones'); p.fixtures.push(newFixture('line', {{ x1: 100, y1: 320, x2: 900, y2: 320, pixels: 8 }}));
+          const z1 = p.zones[0], z2 = newZone({{ name: 'Zone 2', x: 500, w: 500 }}); z1.w = 500; p.zones.push(z2);
+          for (const z of p.zones) {{ const L = newLayer('b-bars'); L.params['b-bars'] = {{ color: [0, 0, 1, 1], background: [0, 0, 1, 1], count: 4 }}; z.layers = [L];
+            if (z === z2 || {str(scene2).lower()}) {{ const sc = {{ id: uid(), name: 'Scene 1', fade: 0, layers: cloneLayers(z.layers) }}; z.scenes = [sc]; z.scene = sc.id; }} }}
+          olm.loadProject(JSON.parse(JSON.stringify(p, replacer))); ui.midiOn = true; ui.midiVc = false; ui.macroScope = ''; updateMidiUI(); }})()"""); settle(0.5)
+    two()
+    Z1, Z2 = ev("project.zones[0].id"), ev("project.zones[1].id")
+
+    # All zones' hue leaves a zone's own saturation and value; its switch off turns every zone's off
+    ev(f"setMacro('color1', {{ h: 0, s: 1, v: 1 }}); setMacro('color1', {{ s: 0.5 }}, '{Z2}'); setMacro('color1', {{ h: 120 }})"); settle()
+    check("All zones' hue moves every zone's hue and leaves zone 2's own saturation", ev("project.zones[1].macros.color1") == {"on": True, "mode": "hsv", "h": 120, "s": 0.5, "v": 1} and ev("project.zones[0].macros.color1.s") == 1, ev("project.zones[1].macros.color1"))
+    check("macroMixed says a zone differs", ev("macroMixed('color1')") and not ev("macroMixed('speed')"))
+    # the sliders' mode alone changes nothing that plays
+    before = ev("JSON.stringify(project.zones.map(z => [z.macros.color1.h, z.macros.color1.s, z.macros.color1.v, z.macros.color1.on]))")
+    ev(f"setMacro('color1', {{ on: false }}, '{Z1}'); setMacro('color1', {{ mode: 'rgb' }})"); settle()
+    check("All zones' HSV or RGB switch leaves every zone's colour and switch", ev("project.zones[0].macros.color1.on") is False and ev("project.zones[1].macros.color1.on") is True
+          and ev("project.zones[1].macros.color1.s") == 0.5 and ev("project.zones.every(z => z.macros.color1.mode === 'rgb')"), ev("project.zones.map(z => z.macros.color1)"))
+    ev("setMacro('color1', { mode: 'hsv' }); setMacro('color1', { on: false })")
+    check("All zones' switch off turns every zone's off", ev("project.zones.every(z => !z.macros.color1.on)"))
+
+    # pickup: a zone's fader after All zones' moved it away
+    ev(f"midiAddMap('midi:K:1:cc:1', 'm:speed'); midiAddMap('midi:K:1:cc:2', 'mz:{Z2}:speed')"); settle()
+    cc(1, 64); cc(1, 70); cc(2, 64); cc(2, 100); settle()
+    z2 = ev("project.zones[1].macros.speed.v")
+    check("zone 2's fader, picked up, moves zone 2 only", abs(z2 - 200 / 127) < 1e-6 and abs(ev("project.zones[0].macros.speed.v") - 140 / 127) < 1e-6, (z2, ev("project.zones[0].macros.speed.v")))
+    cc(1, 72); settle()
+    check("All zones' fader again takes zone 2 back", abs(ev("project.zones[1].macros.speed.v") - 144 / 127) < 1e-6)
+    cc(2, 101); settle()
+    check("zone 2's fader, now away from its value, waits (Pickup) and doesn't jump", abs(ev("project.zones[1].macros.speed.v") - 144 / 127) < 1e-6, ev("project.zones[1].macros.speed.v"))
+    cc(2, 80); cc(2, 72); cc(2, 60); settle()
+    check("…and takes it once it gets there", abs(ev("project.zones[1].macros.speed.v") - 120 / 127) < 1e-6, ev("project.zones[1].macros.speed.v"))
+
+    # a zone deleted: its mapping is Missing, its fader does nothing, undo brings both back
+    ev("ui.macroScope = project.zones[1].id; deleteZone(project.zones[1])"); settle()
+    check("zone deleted: its mapping reads Missing, the panel is back on All zones", ev(f"midiTargetLabel('mz:{Z2}:speed')") == "Missing" and ev("macroScope()") == "" and ev("macroScopeTabs()") is None)
+    cc(2, 10); cc(2, 90); settle()
+    check("its fader does nothing, no errors", not errs, errs[:2])
+    ev("undo()"); settle()
+    check("undo brings the zone and its macros back, its mapping works", len(ev("project.zones")) == 2 and ev(f"midiTargetLabel('mz:{Z2}:speed')") == "Zone 2 · Speed" and abs(ev("project.zones[1].macros.speed.v") - 120 / 127) < 1e-6,
+          (ev(f"midiTargetLabel('mz:{Z2}:speed')"), ev("project.zones.map(z => z.macros.speed.v)")))
+
+    # one zone left with a mapping onto its own macro: the list still shows what it drives
+    ev("deleteZone(project.zones[0])"); settle()
+    with pg.expect_popup() as pi: pg.click("#btnMidi")
+    W = pi.value; W.set_viewport_size({"width": 1180, "height": 760}); settle(0.6)
+    sel = W.locator(".mmap", has_text="CC 2").locator("select.mtarget")
+    check("with one zone, a mapping onto its macro still shows it in its list", sel.input_value() == f"mz:{Z2}:speed" and "Zone 2 · Speed" in sel.locator("option:checked").inner_text(), sel.input_value())
+    check("…and the panel has no tabs and shows All zones'", W.locator(".mmacros .mscope").count() == 0 and W.locator('.mmacros .mslot[data-midi="m:speed"]').count() == 1)
+    ev("undo()"); settle(0.5)
+
+    # learning on a zone's tab
+    ev("project.midi.maps = []; commit()")
+    W.locator(".mports .mmacros .mscope button", has_text="Zone 2").click(); settle(0.4)
+    ev("midiSetLearn(true)"); cc(5, 20); settle(0.3)
+    W.locator(f'.mmacros .mslot[data-midi="mz:{Z2}:intensity"]').click(); settle()
+    check("learning on zone 2's tab maps zone 2's own", ev(f"project.midi.maps.some(w => w.key === 'midi:K:1:cc:5' && w.to === 'mz:{Z2}:intensity')"), ev("project.midi.maps.map(w => w.to)"))
+    W.locator(".mports .mmacros .mscope button", has_text="All zones").click(); settle(0.4)
+    cc(6, 20); settle(0.3)
+    W.locator('.mmacros .mslot[data-midi="m:intensity"]').click(); settle()
+    msg = W.evaluate("[...document.querySelectorAll('#toasts .toast')].map(t => t.textContent).join(' | ')") + ev("[...document.querySelectorAll('#toasts .toast')].map(t => t.textContent).join(' | ')")
+    check("then All zones' Intensity: both stay mapped, and the note says so", ev("project.midi.maps.length") == 2 and "is mapped too" in msg, msg)
+    ev("midiSetLearn(false)")
+    # the ≠ mark on All zones' slider
+    ev(f"setMacro('intensity', {{ v: 1 }}); setMacro('intensity', {{ v: 0.5 }}, '{Z2}')"); settle(0.4)
+    row = W.locator(".mmacros .row", has=W.locator('.mslot[data-midi="m:intensity"]'))
+    check("All zones' Intensity is marked while zone 2 has its own", "mixed" in (row.get_attribute("class") or "") and "sets them all" in (row.get_attribute("title") or ""), row.get_attribute("class"))
+    ev("setMacro('intensity', { v: 0.8 })"); settle(0.4)
+    check("…and not once All zones' moved", "mixed" not in (row.get_attribute("class") or ""), row.get_attribute("class"))
+    # the bay on a zone's tab, with wires to All zones' and the zone's
+    ev(f"ui.midiView = 'bay'; ui.macroScope = '{Z2}'; updateMidiUI()"); settle(0.6)
+    check("the bay on zone 2's tab draws both wires, no errors", W.locator("#bayWires path.wire").count() == 2 and not errs, (W.locator("#bayWires path.wire").count(), errs[:2]))
+    ev("ui.midiView = 'list'; ui.macroScope = ''; updateMidiUI()"); W.close()
+
+    # a colour kept by a layer: only its own zone's macro, or All zones', takes it back
+    two()
+    Z1, Z2 = ev("project.zones[0].id"), ev("project.zones[1].id")
+    ev("setMacro('color1', { h: 0, s: 1, v: 1 })")
+    ev("(() => { const L = project.zones[1].layers[0]; setOwnCtl(L, 'b-bars', 'color', true); commit(); })()")
+    ev(f"setMacro('color1', {{ h: 100 }}, '{Z1}')")
+    check("zone 1's Color 1 moving leaves a colour a layer of zone 2 keeps", ev("project.zones[1].layers[0].own") == {"b-bars": ["color"]})
+    ev(f"setMacro('color1', {{ h: 200 }}, '{Z2}')")
+    check("zone 2's own moving takes it back", ev("project.zones[1].layers[0].own") is None)
+
+    # MIDI onto an effect's control, the first zone playing it from no scene
+    two(scene2=False)
+    ev("project.zones[0].layers[0].params['b-bars'].count = 9; midiAddMap('midi:K:1:cc:9', 'p:b-bars:count'); commit()"); settle()
+    T = ev("(() => { const T = midiTarget('p:b-bars:count'); return T.get(); })()")
+    inp = ev("(() => { const i = controlsOf(srcById('b-bars')).find(x => x.NAME === 'count'); return [i.MIN, i.MAX]; })()")
+    want = (4 - inp[0]) / (inp[1] - inp[0])
+    check("a fader on an effect's control reads the layer it drives (the zone playing a scene), not content with no scene", abs(T - want) < 1e-6, (T, want))
+    for v in (0, 40, 127): cc(9, v)
+    settle()
+    check("…so Pickup gets there, and only the scene's layer moves", ev("project.zones[1].layers[0].params['b-bars'].count") == inp[1] and ev("project.zones[0].layers[0].params['b-bars'].count") == 9,
+          ev("project.zones.map(z => z.layers[0].params['b-bars'].count)"))
+
+    # files: a project saved now opens in the app as before for what 1.6.2 knows (All zones' kept)
+    data = ev("JSON.parse(serialize())")
+    check("files keep All zones' macros where they were, and each zone's beside them", "macros" in data and all("macros" in z for z in data["zones"]))
+    ev('project.midi.maps = []; commit()'); reset(); settle()
+
     # ---------- devices
     ev("remoteFromDevice('a', 'operator', { op: 'macro', id: 'saturation', patch: { v: 0.25 } })")
     ev("remoteFromDevice('b', 'remote', { op: 'macro', id: 'saturation', patch: { v: 0.9 } })")

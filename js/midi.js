@@ -93,7 +93,7 @@ function effectTarget(t) {
   const i = t.indexOf(':', 2), src = i > 2 ? srcById(t.slice(2, i)) : null, name = t.slice(i + 1);
   const inp = src && src.kind === 'isf' && controlsOf(src).find(x => x.NAME === name);
   if (!inp) return null;
-  const label = `${src.name} · ${inp.LABEL || inp.NAME}`, layers = () => project.zones.flatMap(z => z.layers.filter(L => L.src === src.id));
+  const label = `${src.name} · ${inp.LABEL || inp.NAME}`, layers = () => project.zones.filter(zoneFollows).flatMap(z => z.layers.filter(L => L.src === src.id));
   const now = () => paramValue(layers()[0] || { params: {} }, src, inp);
   const put = v => setEffectControl(src, inp.NAME, v);
   if (inp.TYPE === 'bool') return { kind: 'toggle', label, get: () => (now() ? 1 : 0), set: v => put(!!v) };

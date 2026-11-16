@@ -356,7 +356,9 @@ function restore(s) {
   for (const g of p.groups) { const o = project.groups.find(x => x.id === g.id); if (o) g.open = o.open; }
   // the macros are live controls, like the master on a desk: an undo, or a device's copy, leaves them where they are
   p.macros = project.macros;
-  for (const z of p.zones) { const o = before.get(z.id); if (o && o.macros) z.macros = o.macros; }   // each zone's too
+  // each zone's too; a zone that goes with this keeps them for when it comes back, one that comes back takes them
+  for (const z of project.zones) if (!p.zones.some(x => x.id === z.id)) keepGoneMacros(z);
+  for (const z of p.zones) { const m = (before.get(z.id) || {}).macros || goneMacros.get(z.id); if (m) z.macros = m; }
   project = p;
   ui.selRot = null;   // a selection's turned frame belonged to the geometry being replaced
   ui.sel = new Set([...ui.sel].filter(id => fxById(id)));

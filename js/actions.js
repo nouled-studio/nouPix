@@ -107,6 +107,7 @@ function duplicateZone(z) {
 function deleteZone(z) {
   if (!z) return;
   project.zones = project.zones.filter(x => x !== z);
+  keepGoneMacros(z);   // an undo brings it back with its macros where they were
   if (mixer.ok) mixer.prune(new Set(project.zones.map(x => x.id)));
   if (ui.zone === z.id) { ui.zone = null; ui.layer = null; }
   syncMedia(); commit(); renderRight(); renderSrcList();
@@ -761,16 +762,17 @@ function moveScene(d, z, to = z.scenes.length) {
 function setMacro(id, patch, zone = '') {
   const z = zone ? zoneById(zone) : null;
   if (zone && !z) return;
-  const M = macroScopeSet(zone), d = macroDef(id), m = M[id];
-  if (!d || !m || !isObj(patch)) return;
+  const M = macroScopeSet(zone), d = macroDef(id);
+  if (!d || !M[id] || !isObj(patch)) return;
   if (REMOTE_CLIENT) remoteOp(Object.assign({ op: 'macro', id, patch }, zone ? { zone } : {}));   // the main computer has the last word, and tells every device
-  const next = Object.assign({}, m, patch);
-  if ('on' in m && !('on' in patch)) next.on = true;
-  M[id] = fixMacros({ [id]: next })[id];
-  const zones = z ? [z] : project.zones;
-  if (!z) for (const x of zones) if (x.macros) x.macros[id] = fixMacros({ [id]: M[id] })[id];
+  // moved: a value changed, not only its switch or how its sliders read (HSV or RGB)
+  const moved = Object.keys(patch).some(k => k !== 'on' && k !== 'mode'), zones = z ? [z] : project.zones;
+  const put = S => { const m = S[id], next = Object.assign({}, m, patch); if (moved && 'on' in m && !('on' in patch)) next.on = true; S[id] = fixMacro(d, next); };
+  put(M);
+  // All zones': what moved goes into every zone, which keeps the rest of its own (All zones' hue leaves a zone's value)
+  if (!z) for (const x of zones) if (x.macros && x.macros[id]) put(x.macros);
   // a colour macro moved (its fader, the MIDI window, a device): the layers that kept their own colour take it again
-  if (d.kind === 'color' && Object.keys(patch).some(k => k !== 'on' && k !== 'mode') && macroRetake(id, zones)) remoteChanged();
+  if (d.kind === 'color' && moved && macroRetake(id, zones)) remoteChanged();
   saveSoon(); remoteLiveChanged(); updateMacrosUI();
 }
 // Every layer (of these zones) keeping its own value for a control that follows this macro follows it again; whether any did

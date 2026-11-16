@@ -199,7 +199,7 @@ function midiTargetSelect(w, pick = to => midiSetMap(w.id, { to })) {
     !w.to ? h('option', { value: '', selected: true }, 'Choose what it moves…') : midiTarget(w.to) ? null : h('option', { value: w.to, selected: true }, 'Missing: it was deleted'),
     opt('master', 'Master'), opt('blackout', 'Blackout'), opt('xf', 'X-Fader'), opt('tap', 'Tap tempo'),
     // All zones' macros, then (with two zones or more) each zone's own
-    [''].concat(project.zones.length > 1 ? project.zones.map(z => z.id) : []).map(S => h('optgroup', { label: S ? `Macros · ${zoneById(S).name}` : 'Macros' },
+    [''].concat(project.zones.filter(z => project.zones.length > 1 || w.to.startsWith(`mz:${z.id}:`)).map(z => z.id)).map(S => h('optgroup', { label: S ? `Macros · ${zoneById(S).name}` : 'Macros' },
       MACROS.map(d => (d.kind === 'color' ? MACRO_PARTS[macroScopeSet(S)[d.id].mode].map((p, i) => macroTarget(d.id, S, i)) : [macroTarget(d.id, S)]).map(t => opt(t, midiTargetLabel(t)))))),
     project.groups.length ? h('optgroup', { label: 'Groups' }, project.groups.map(g => opt('gr:' + g.id, groupName(g) + ' dimmer'))) : null,
     project.zones.slice().reverse().map(z => h('optgroup', { label: z.name },

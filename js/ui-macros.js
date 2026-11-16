@@ -17,7 +17,7 @@ function toggleMacroOpen(key) {
 const bind = f => { binders.push(f); f(); };
 const foldBtn = (open, label, onclick, title) => h('button', { class: 'mfold' + (open ? ' open' : ''), type: 'button', 'aria-expanded': String(open), title, onclick }, icon('chev'), label);
 // Which macros the panel shows: All zones' ('') or a zone's (its id), while that zone is there
-const macroScope = () => (ui.macroScope && zoneById(ui.macroScope) ? ui.macroScope : '');
+const macroScope = () => (ui.macroScope && project.zones.length > 1 && zoneById(ui.macroScope) ? ui.macroScope : '');
 // All zones, then each zone (the top one first, as in the Scenes panel), as tabs over the macros (with two zones or
 // more): moving All zones' sets every zone's, a zone's only that zone's
 function macroScopeTabs() {
@@ -44,9 +44,16 @@ function macroSlider(id, S = '') {
   const r = sliderRow(d.label, holder, 'v', { min: 0, max: macroMax(d), step: 0.01, fmt: d.kind === 'mult' ? v => v.toFixed(2) + '×' : pct, midi: macroTarget(id, S),
     label: d.kind === 'abs' ? macroSwitch(id, d.label, S) : null });
   if (d.kind === 'abs') bind(() => r.classList.toggle('off', !M()[id].on));
-  r.title = d.kind === 'mult' ? 'Every effect\'s speed: 1× leaves them as they are.' : id === 'intensity' ? 'The level of every layer: 100 % leaves them as they are.'
+  const what = d.kind === 'mult' ? 'Every effect\'s speed: 1× leaves them as they are.' : id === 'intensity' ? 'The level of every layer: 100 % leaves them as they are.'
     : id === 'saturation' ? 'Every effect\'s saturation: 100 % leaves them as they are.' : `Sets the ${d.label.toLowerCase()} of every effect that has one, each in its own range.`;
+  macroMixedMark(r, id, S, what);
   return r;
+}
+// On All zones' sliders: a small ≠ after the name while some zone is elsewhere (its own was moved since), and why
+const MIXED_NOTE = 'Some zones have their own value now: moving this sets them all.';
+function macroMixedMark(r, id, S, what = '') {
+  if (S) { r.title = what; return; }
+  bind(() => { const mixed = macroMixed(id); if (r.classList.contains('mixed') !== mixed || !r.title) { r.classList.toggle('mixed', mixed); r.title = (what + (mixed ? ' ' + MIXED_NOTE : '')).trim(); } });
 }
 // A colour macro: its switch and its swatch; opened, a slider for each part, which a MIDI fader can drive
 function macroColor(id, S = '') {
@@ -57,8 +64,9 @@ function macroColor(id, S = '') {
   r.classList.add('mcolor');
   r.dataset.midi = macroTarget(id, S, 0);   // learnt as its first part (Hue, or Red in RGB); opened, each part has its slider
   bind(() => { const c = toHex(macroRgb(M()[id])); fill.style.background = c; hex.textContent = c; r.classList.toggle('off', !M()[id].on); });
+  macroMixedMark(r, id, S);
   if (!open) return [r];
-  const mode = seg([['hsv', 'HSV'], ['rgb', 'RGB']], m.mode, v => { setMacro(id, { mode: v, on: M()[id].on }, S); renderRight(); });
+  const mode = seg([['hsv', 'HSV'], ['rgb', 'RGB']], m.mode, v => { setMacro(id, { mode: v }, S); renderRight(); });
   const parts = MACRO_PARTS[m.mode].map(([k, name], i) => {
     const hue = k === 'h', holder = { get v() { return macroPart(M()[id], i) * (hue ? 360 : 1); }, set v(x) { setMacroPart(id, i, hue ? x / 360 : x, S); } };
     return sliderRow(name, holder, 'v', { min: 0, max: hue ? 360 : 1, step: hue ? 1 : 0.01, fmt: hue ? v => Math.round(v) + '°' : pct, midi: macroTarget(id, S, i) });
