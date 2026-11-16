@@ -86,7 +86,7 @@ function macroLinksFold(src, rt) {
   if (mappingLocked()) lockPanel(sub, 'Operator: you can see what follows the macros but not change it.');
   return [head, sub];
 }
-// An effect's control that follows a macro: no text in the panel, a thin aluminium line under its name while that macro
+// An effect's control that follows a macro: no text in the panel, a thin yellow line (as MIDI's) under its name while that macro
 // changes it, what it follows told on pointing at the name. A colour picked for this layer alone (own: the layer, its
 // source and the control): the line dashed, and a link to follow the macro again
 function macroMark(rowEl, id, own) {

@@ -1241,11 +1241,11 @@ body.sceneswin > .dockbody { height: 100%; }
 .row.mlinks .msum { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 .row.mchg > .lbl { color: var(--accent); }
 .note.via[hidden] { display: none; }
-/* a control following a macro: a thin aluminium line under its name (what it follows on pointing at it); a colour kept
+/* a control following a macro: a thin yellow line under its name, as MIDI marks what it drives (what it follows on pointing at it); a colour kept
    for this layer alone: the line dashed, and a link icon to follow the macro again */
-.lbl.mac, .lbl.own { text-decoration: underline 1px var(--fader); text-underline-offset: 4px; cursor: help; padding-bottom: 5px; margin-bottom: -5px; }
+.lbl.mac, .lbl.own { text-decoration: underline 1px var(--midi); text-underline-offset: 4px; cursor: help; padding-bottom: 5px; margin-bottom: -5px; }
 .lbl.own { text-decoration-style: dashed; }
-.lbl .relink { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 4px; padding: 0; vertical-align: middle; border: 0; background: none; color: var(--fader); cursor: pointer; }
+.lbl .relink { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 4px; padding: 0; vertical-align: middle; border: 0; background: none; color: var(--midi); cursor: pointer; }
 .lbl .relink:hover { color: var(--text); }
 .lbl .relink[hidden] { display: none; }
 .lbl .relink .li { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.3; }
