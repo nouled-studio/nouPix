@@ -218,7 +218,14 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   What the browser kept under `openledmapper.*` (or `weft.*`) moves to `noupix.*` once (`carryOverStorage`).
 - New versions: once the bridge says which version runs (`showVersion`), the main window asks GitHub's API for the latest
   release (`checkUpdates`, from the page, so the browser's own certificates are used), every time it starts (`checkUpdates(false, true)`) and at most once a day while it runs (`ui.updateAt`),
-  with Settings → Updates on (`ui.updates`); a version skipped (`ui.updateSkip`) isn't told of again by itself. A browser
+  with Settings → Updates on (`ui.updates`); a version skipped (`ui.updateSkip`) isn't told of again by itself. The window's
+  Download fits this computer, which the bridge tells in `hello.platform` (`platform_info`: `os` windows, mac or linux, `arch`
+  x64 or arm64, a Mac's Intel app under Rosetta counted as arm64, `app` when packed, else the source's `dir` and whether
+  it is a `git` clone): in the app, the release's file for it (`updateAsset`: the Windows setup, the Mac disk image for
+  Apple silicon or Intel; only from the repository's own downloads), opened straight away; the release's page when no file
+  fits or the window has been open over 6 hours (`UPDATE_STALE`: a newer one may be out); running from the source (Linux,
+  or `python noupix.py` anywhere), the terminal commands instead (`updateCommands`: `git pull` in its folder, or a clone),
+  with Copy commands and Open GitHub. A browser
   driven by tests (`navigator.webdriver`) never looks by itself, so the suites stay offline.
 
 ## Remote control
@@ -343,7 +350,8 @@ choosing zones, the zone menu), the fade for new scenes in Settings, undo, files
 Remote page (the option, the card, moving it both ways).
 `test_update.py` checks looking for a new version, with GitHub's answer simulated (never asked for real): versions compared,
 the window (notes as plain text, Download, Later, Skip this version), at every start and once a day, nothing by itself in a test browser, when off or
-offline, Settings → Updates and Check now.
+offline, Settings → Updates and Check now; Download as the file for this computer (Windows, Mac with Apple silicon or Intel, never a file from elsewhere),
+the release's page with no file or from an old window, and from the source the commands (a clone's pull, a clone anew, python on Windows), Copy commands and Open GitHub.
 `test_effects.py` checks the Radar sweep's strong line leading and its glow fading behind it, every effect's colours' alpha (Bars' background see-through over a layer, Solid color at 50%, the picker's Alpha), the Rainbow's colors (the rainbow at first, 1 to 5 each in turn, alpha over a layer below, the Content tab showing as many as it uses, files from before) and the 22 effects added after 1.1.0: they compile, Speed −1..1 on the Speed macro (still at 0, moving at 1, reverse the same
 movement backwards), nothing moving but by speed, colours on Color 1 and 2, the filters, a lit thumbnail; and Rainbow's and Plasma's
 Colors: Rainbow as before, Color A to B between their two colours (on Color 1 and 2).

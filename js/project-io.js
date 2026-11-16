@@ -285,7 +285,7 @@ function hydrate(p) {
     z.opacity = isFinite(z.opacity) ? clamp(+z.opacity, 0, 1) : 1;
     if (!z.scenes.some(sc => sc.id === z.scene)) z.scene = null;
     z.playlists = fixPlaylists(z.playlists, z.scenes);
-    z.macros = isObj(zn.macros) ? zn.macros : null;   // repaired below, with All zones'
+    z.macros = isObj(zn) && isObj(zn.macros) ? zn.macros : null;   // repaired below, with All zones'
     clampZone(z, out.settings);
     return z;
   });

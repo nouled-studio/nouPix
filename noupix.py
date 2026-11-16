@@ -33,6 +33,7 @@ import http.client
 import http.server
 import json
 import os
+import platform
 import re
 import secrets
 import shutil
@@ -1652,6 +1653,29 @@ class MediaHandler:
 
 # --------------------------------------------------------------------------- HTTP handler
 
+def platform_info():
+    """This computer, for the page's update window: which download fits it (the app, on Windows or a Mac with Apple
+    silicon or Intel), or, running from the source, how to bring that up to date (its folder, a git clone or not)."""
+    if platform_info.known is None:
+        osn = "windows" if sys.platform.startswith("win") else "mac" if sys.platform == "darwin" else "linux"
+        arch = "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x64"
+        if osn == "mac" and arch == "x64":
+            # the Intel app on a Mac with Apple silicon (Rosetta) says x86_64: the Apple silicon download fits it
+            try:
+                out = subprocess.run(["sysctl", "-in", "sysctl.proc_translated"], capture_output=True, text=True, timeout=3).stdout
+                if out.strip() == "1":
+                    arch = "arm64"
+            except (OSError, subprocess.SubprocessError):
+                pass
+        app = bool(getattr(sys, "frozen", False))
+        here = os.path.dirname(os.path.abspath(__file__))
+        platform_info.known = {"os": osn, "arch": arch, "app": app, **({} if app else {"dir": here, "git": os.path.exists(os.path.join(here, ".git"))})}
+    return platform_info.known
+
+
+platform_info.known = None
+
+
 def local_ips():
     ips = set()
     try:
@@ -1895,6 +1919,7 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
             "nodes": list(art.nodes.values()),
             "remote": self.server.remote.status(),
             "startup": self.server.startup.meta(),
+            "platform": platform_info(),
             **({"startupProject": self.server.startup.first()} if first and self.server.startup.first() else {}),
         })
 

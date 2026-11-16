@@ -70,6 +70,7 @@ class FakeArt:
     discovery = True
     def __init__(s): s.sent = []; s.wled = FakeWled()
     def poll(s, address): s.sent.append(address)
+    def prune(s, nets, since): pass
 class FakeWS:
     def __init__(s): s.out = []
     def send_json(s, o): s.out.append(o)
