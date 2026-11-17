@@ -74,9 +74,11 @@ try:
     lay = E("""(() => { const R = s => { const e = $('#rightHost ' + s); return e && e.getBoundingClientRect(); }, btn = R('.xfbtn'), strip = R('.sfoot .xfade'), foot = R('.sfoot'), host = $('#rightHost').getBoundingClientRect();
       const parts = ['.xfside.a .xfpv', '.xfside.a .xfwho', '.xfmid', '.xfside.b .xfwho', '.xfside.b .xfpv'].map(R).filter(Boolean);
       const apart = parts.every((r, i) => !i || r.left >= parts[i - 1].right - 1);
-      return { below: strip.top >= btn.bottom, wide: strip.width > host.width - 40, apart, inside: parts.every(r => r.right <= foot.right + 1 && r.left >= foot.left - 1),
+      const mid = R('.xfmid');
+      return { below: strip.top >= btn.bottom, centred: Math.abs((strip.left + strip.right) / 2 - (foot.left + foot.right) / 2) < 3, fader: Math.round(mid.width), apart, inside: parts.every(r => r.right <= foot.right + 1 && r.left >= foot.left - 1),
         heads: $$('#rightHost .zhead').every(e => e.classList.contains('compact')) }; })()""")
-    check("narrow, the X-Fader's strip on a line of its own under its buttons, across the panel, nothing overlapping", lay["below"] and lay["wide"] and lay["apart"] and lay["inside"], lay)
+    check("narrow, the X-Fader's strip on a line of its own under its buttons, centred, its fader no longer than on a wide panel, nothing overlapping",
+          lay["below"] and lay["centred"] and lay["fader"] <= 190 and lay["apart"] and lay["inside"], lay)
     check("…every zone with a one-line head there, as A and B", lay["heads"], lay)
     # a zone's slider as long at 100% as below it
     sw = lambda: E("$('#rightHost .zhead input[type=range]').getBoundingClientRect().width")
@@ -91,10 +93,21 @@ try:
       const parts = ['.sleft', '.xfside.a .xfpv', '.xfside.a .xfwho', '.xfmid', '.xfside.b .xfwho', '.xfside.b .xfpv', '.sbtns'].map(R).filter(Boolean), out = [];
       for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++) { const a = parts[i], b = parts[j];
         if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) out.push([i, j]); }
-      return [parts.length, out, R('.sfoot .xfade').top >= R('.xfbtn').bottom]; })()""")
-    check("the bottom panel narrow: the X-Fader's strip under its buttons, nothing overlapping", ov[0] == 7 and not ov[1] and ov[2], ov)
+      return [parts.length, out, R('.sfoot .xfade').top >= R('.xfbtn').bottom, Math.round(R('.xfmid').width)]; })()""")
+    check("the bottom panel narrow: the X-Fader's strip under its buttons, its fader its usual length, nothing overlapping", ov[0] == 7 and not ov[1] and ov[2] and ov[3] <= 190, ov)
     E("$('#dock').style.width = ''; window.dispatchEvent(new Event('resize')); setPanelPlace('scenes', 'right')"); time.sleep(0.4)
     E("setXfadeOn(false)"); time.sleep(0.3)
+
+    # ---------- the bottom panel left narrow by a wide side panel: as wide as it shows, its tabs on one line, the cue
+    # list's bar and rows inside it (they used to slide under the side panel)
+    E("(() => { const L = addCueList() || project.cueLists.at(-1); recordCue(L); recordCue(L); ui.sideW.right = 2000; renderSides(); ui.dockTab = 'cues'; renderDock(); })()"); time.sleep(0.5)
+    nd = E("""(() => { const d = $('#dock').getBoundingClientRect(), side = $('aside.right').getBoundingClientRect(), R = e => e.getBoundingClientRect();
+      const tabs = $$('#dockTabs button[data-tab]').filter(b => !b.hidden).map(b => Math.round(R(b).height));
+      const inside = ['.cuegobtn', '.cuebtns', '.cue .x', '.cue .cthen'].map(s => $('#dockBody ' + s)).filter(Boolean).every(e => R(e).right <= d.right + 1);
+      return { w: Math.round(d.width), edge: d.right <= side.left + 2, tabs, inside }; })()""")
+    check("the bottom panel narrow beside a wide side panel: no wider than it shows, its tabs on one line, the cue list inside it",
+          230 <= nd["w"] < 330 and nd["edge"] and all(t <= 32 for t in nd["tabs"]) and nd["inside"], nd)
+    E("ui.sideW.right = 460; renderSides(); ui.dockTab = 'scenes'; renderDock()"); time.sleep(0.3)
 
     # ---------- the ✕, the left side, several at once
     pg.click("#rightTabs .mplaces button[data-place=bottom]"); time.sleep(0.5)

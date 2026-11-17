@@ -108,18 +108,19 @@ input, select, textarea { font-weight: 400; }
 
 /* ---------- app frame ---------- */
 #app { height: 100%; overflow: hidden; display: grid; grid-template-rows: 46px minmax(0, 1fr) 24px; }
-.workspace { display: grid; grid-template-columns: var(--lw, 250px) minmax(0, 1fr) var(--rw, 300px); min-height: 0; }
-.workspace.noright { grid-template-columns: var(--lw, 250px) minmax(0, 1fr); }
+/* the stage and the bottom panel keep at least 240px: in a window too small for a side as wide as set, the side gives way */
+.workspace { display: grid; grid-template-columns: minmax(0, var(--lw, 250px)) minmax(240px, 1fr) minmax(0, var(--rw, 300px)); min-height: 0; }
+.workspace.noright { grid-template-columns: minmax(0, var(--lw, 250px)) minmax(240px, 1fr); }
 .workspace.noright > .right { display: none; }
 /* the left column folded too (or alone): the stage takes its room */
-.workspace.noleft { grid-template-columns: minmax(0, 1fr) var(--rw, 300px); }
+.workspace.noleft { grid-template-columns: minmax(240px, 1fr) minmax(0, var(--rw, 300px)); }
 .workspace.noleft.noright { grid-template-columns: minmax(0, 1fr); }
 .workspace.noleft > .left { display: none; }
 .fixtures .phead #btnHideLeft { margin-left: 2px; }
 #btnLeft.on, #btnRight.on { color: var(--accent); border-color: var(--accent); }
 #btnTheme svg { width: 15px; height: 15px; }
 .right .tabs button { padding: 0 10px; }
-.center { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; border-inline: 1px solid var(--line); }
+.center { display: grid; grid-template-rows: minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); min-width: 0; min-height: 0; border-inline: 1px solid var(--line); }
 /* there the scenes wrap in a grid that fits the width, instead of a row scrolling sideways; A above B when narrow */
 .panelhost .scenerow.wrap { flex-direction: column; align-items: stretch; }
 .panelhost .scenerow.wrap .stiles, .panelhost .scenerow.xfcol .stiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; align-items: start; }
@@ -135,6 +136,9 @@ input, select, textarea { font-weight: 400; }
 .scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .zt { font-size: 12px; }
 .scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .btn.sm { height: 18px; padding-top: 0; padding-bottom: 0; }
 .scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .zstop, .scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .plbtn { width: 18px; height: 18px; }
+/* its buttons without boxes too (+ Store), so its two lines fit the small scenes' height */
+.scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .gbtn { height: 18px; }
+.scenepanel.ss-s .scenerow:not(.wrap):not(.xfcol) .zhead .zc { min-height: 18px; }
 .scenepanel.ss-s .scenerow { padding-top: 3px; padding-bottom: 3px; }
 .scenepanel.ss-l .scenerow:not(.wrap):not(.xfcol) .zhead { height: 80px; }
 .scenepanel.ss-s .scenerow.xfcol .stiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -333,7 +337,7 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .hint { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 3; background: color-mix(in srgb, var(--bg1) 92%, transparent); border: 1px solid var(--line2); border-radius: 0; padding: 5px 12px; font-size: 12px; color: var(--text2); pointer-events: none; white-space: nowrap; }
 
 /* ---------- bottom dock ---------- */
-.dock { height: var(--bottom-h); display: grid; grid-template-rows: 32px minmax(0,1fr); background: var(--bg1); border-top: 1px solid var(--line); position: relative; }
+.dock { height: var(--bottom-h); display: grid; grid-template-rows: 32px minmax(0,1fr); grid-template-columns: minmax(0, 1fr); background: var(--bg1); border-top: 1px solid var(--line); position: relative; }
 .dock.collapsed { height: 32px; }
 .dock.collapsed .dockbody { display: none; }
 .dock .grip { position: absolute; left: 0; right: 0; top: -3px; height: 6px; cursor: ns-resize; z-index: 4; }
@@ -864,6 +868,12 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .seg button:first-child { border-left: 0; }
 /* the chosen one: raised, with a red line under it (no red fill) */
 .seg button.on { background: var(--bg4); color: var(--text); font-weight: 500; box-shadow: inset 0 -2px 0 var(--accent); }
+/* All zones' macro while some zone has its own value */
+.mmacros .row.mixed > .lbl::after { content: '≠'; margin-left: 6px; color: var(--muted); }
+/* the macros' scope: All zones, then each zone, wrapping when there are many */
+.seg.mscope { display: flex; flex-wrap: wrap; width: 100%; margin: 0 0 8px; }
+.seg.mscope button { flex: 1 0 auto; white-space: nowrap; padding: 0 8px; }
+.bay .seg.mscope { flex: none; width: auto; margin: 0 0 4px; }
 .readonly { font-family: var(--mono); font-size: 11.5px; color: var(--text2); padding: 4px 0; }
 .addr { font-family: var(--mono); font-size: 11.5px; background: var(--bg2); border: 1px solid var(--line2); border-radius: var(--r); padding: 6px 8px; color: var(--text); line-height: 1.5; }
 .addr.warn { border-color: color-mix(in srgb, var(--warn) 40%, transparent); color: var(--warn); }
@@ -915,6 +925,7 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .modal { width: min(420px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--bg1); border: 1px solid var(--line2); border-radius: 0; }
 .modal.wide { width: min(640px, 100%); }
 .modal.xwide { width: min(1040px, 100%); }
+.modal.note .mb p { margin: 0; line-height: 1.5; }
 .modal .mb.outset h4 { margin: 10px -16px 0; padding: 10px 16px 0; border-top: 1px solid var(--line2); font: 600 12px var(--label); letter-spacing: .16em; text-transform: uppercase; color: var(--text); display: flex; align-items: center; gap: 8px; }
 /* a protocol's name keeps its case (sACN, not SACN) inside a label set in capitals */
 .pname { text-transform: none; }
@@ -922,6 +933,7 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .modal header { padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px; }
 .modal .mb { padding: 12px 16px; display: grid; gap: 10px; min-height: 0; overflow: auto; }
 .updmodal { width: min(520px, 100%); }
+.updcmd { margin: 0 0 10px; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--line); color: var(--text); font: 400 11.5px/1.6 var(--mono); white-space: pre; overflow: auto; user-select: text; -webkit-user-select: text; }
 .updnotes { max-height: 240px; overflow: auto; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--line); color: var(--text2); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .modal footer { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
 .toasts { position: fixed; right: 14px; bottom: 34px; display: grid; gap: 6px; z-index: 60; }
@@ -1239,6 +1251,14 @@ body.sceneswin > .dockbody { height: 100%; }
 .row.mlinks .msum { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 .row.mchg > .lbl { color: var(--accent); }
 .note.via[hidden] { display: none; }
+/* a control following a macro: a thin yellow line under its name, as MIDI marks what it drives (what it follows on pointing at it); a colour kept
+   for this layer alone: the line dashed, and a link icon to follow the macro again */
+.lbl.mac, .lbl.own { text-decoration: underline 1px var(--midi); text-underline-offset: 4px; cursor: help; padding-bottom: 5px; margin-bottom: -5px; }
+.lbl.own { text-decoration-style: dashed; }
+.lbl .relink { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 4px; padding: 0; vertical-align: middle; border: 0; background: none; color: var(--midi); cursor: pointer; }
+.lbl .relink:hover { color: var(--text); }
+.lbl .relink[hidden] { display: none; }
+.lbl .relink .li { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.3; }
 /* a check row with a button at its end (Settings → Remote control → HTTP triggers) */
 .checkline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pwrow { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -1353,6 +1373,14 @@ body.sceneswin > .dockbody { height: 100%; }
   .cue { grid-template-columns: 20px 14px 34px minmax(0, 1fr) 46px 70px 22px; }
   .cue .cacts { display: none; }
   .cuegobtn { width: 76px; height: 46px; font-size: 17px; }
+}
+/* very narrow (the bottom panel beside a wide side panel): Back and Stop under GO, a cue's length left to its editor */
+@container cues (max-width: 420px) {
+  .cuego { grid-template-columns: auto minmax(0, 1fr); row-gap: 4px; }
+  .cuebtns { grid-column: 1 / -1; }
+  .cue { grid-template-columns: 18px 12px 28px minmax(0, 1fr) auto 22px; gap: 6px; }
+  .cue .cfade { display: none; }
+  .cuerows { padding: 6px 8px; }
 }
 
 /* ---------- timelines ---------- */
@@ -1560,9 +1588,10 @@ aside.left.tabbed .fixtures .phead { display: none; }
   .sfoot { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
   .sfoot > .sleft { grid-row: 1; grid-column: 1; }
   .sfoot > .sbtns { grid-row: 1; grid-column: 2; }
-  .sfoot > .xfade { grid-row: 2; grid-column: 1 / -1; justify-self: stretch; }
+  /* on a line of its own, centred and as big as on a wide panel: stretched, its fader grew as long as the panel */
+  .sfoot > .xfade { grid-row: 2; grid-column: 1 / -1; justify-self: center; }
   .sfoot > span:empty { display: none; }
-  .sfoot .xfmid { flex: 1 1 auto; min-width: 70px; }
+  .sfoot .xfmid { min-width: 70px; }
   .sfoot .xfwho { flex: 0 1 96px; }
 }
 @container spanel (max-width: 400px) { .sfoot .xfpv { display: none; } }

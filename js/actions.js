@@ -68,6 +68,7 @@ function zoneAbove(i) {
 // New zones go under the others: zones higher in the list cover the ones below
 function addZone(rect) {
   const z = newZone(Object.assign({ name: nextZoneName() }, rect));
+  z.macros = fixMacros(project.macros);   // its macros start as All zones' are now
   clampZone(z);
   project.zones.unshift(z);
   ui.zone = z.id; ui.layer = null;
@@ -106,6 +107,7 @@ function duplicateZone(z) {
 function deleteZone(z) {
   if (!z) return;
   project.zones = project.zones.filter(x => x !== z);
+  keepGoneMacros(z);   // an undo brings it back with its macros where they were
   if (mixer.ok) mixer.prune(new Set(project.zones.map(x => x.id)));
   if (ui.zone === z.id) { ui.zone = null; ui.layer = null; }
   syncMedia(); commit(); renderRight(); renderSrcList();
@@ -669,7 +671,7 @@ function deleteCue(L, c) {
 
 /* ---------- scenes ---------- */
 // Each zone has its own scenes. A scene is a copy of the zone's layers; recalling it crossfades that zone to it.
-const lookOf = layers => JSON.stringify(layers.map(L => [L.src, L.on, L.opacity, L.blend, L.params[L.src] || {}]));
+const lookOf = layers => JSON.stringify(layers.map(L => [L.src, L.on, L.opacity, L.blend, L.params[L.src] || {}, (L.own && L.own[L.src]) || []]));
 const snapshotLayers = z => cloneLayers(z.layers).map(L => Object.assign(L, { params: L.src && L.params[L.src] ? { [L.src]: L.params[L.src] } : {} }));
 // A scene picked by hand: the zone fades to it over the scene's own fade, and its playlist pauses
 function goScene(z, sc, cut = false) {
@@ -701,6 +703,7 @@ function storeScene(z) {
   if (project.settings.sceneShots) sceneShot(z, sc);
   z.scene = sc.id; ui.zone = z.id;
   commit();
+  syncContentSoon();   // now a scene: its controls follow the macros, and the Content tab marks them
   toast(`Stored ${sc.name} in ${z.name}. Use ⋯ on its button to rename it or change its fade time.`);
 }
 // A scene's picture: its zone as it looks now, small (160 wide), kept with the scene and shown on its button.
@@ -737,6 +740,7 @@ function updateScene(z, sc) {
   sc.layers = snapshotLayers(z); z.scene = sc.id;
   if (project.settings.sceneShots) sceneShot(z, sc);
   commit();
+  syncContentSoon();
   toast(`${sc.name} updated`);
 }
 // Move a scene ('zoneId:sceneId') into a zone: onto a scene it takes that scene's place, onto the row it goes last
@@ -754,17 +758,39 @@ function moveScene(d, z, to = z.scenes.length) {
 /* ---------- macros ---------- */
 // A macro moved: from its slider, a MIDI control or a device. Moving a colour or a shared control that is off turns
 // it on. Like the master, it is saved but not a step of undo, and the devices hear it at once.
-function setMacro(id, patch) {
-  const d = macroDef(id), m = project.macros[id];
-  if (!d || !m || !isObj(patch)) return;
-  if (REMOTE_CLIENT) remoteOp({ op: 'macro', id, patch });   // the main computer has the last word, and tells every device
-  const next = Object.assign({}, m, patch);
-  if ('on' in m && !('on' in patch)) next.on = true;
-  project.macros[id] = fixMacros({ [id]: next })[id];
+// zone: a zone's id for that zone's own macro; none (or '') for All zones, which every zone takes
+function setMacro(id, patch, zone = '') {
+  const z = zone ? zoneById(zone) : null;
+  if (zone && !z) return;
+  const M = macroScopeSet(zone), d = macroDef(id);
+  if (!d || !M[id] || !isObj(patch)) return;
+  if (REMOTE_CLIENT) remoteOp(Object.assign({ op: 'macro', id, patch }, zone ? { zone } : {}));   // the main computer has the last word, and tells every device
+  // moved: a value changed, not only its switch or how its sliders read (HSV or RGB)
+  const moved = Object.keys(patch).some(k => k !== 'on' && k !== 'mode'), zones = z ? [z] : project.zones;
+  const put = S => { const m = S[id], next = Object.assign({}, m, patch); if (moved && 'on' in m && !('on' in patch)) next.on = true; S[id] = fixMacro(d, next); };
+  put(M);
+  // All zones': what moved goes into every zone, which keeps the rest of its own (All zones' hue leaves a zone's value)
+  if (!z) for (const x of zones) if (x.macros && x.macros[id]) put(x.macros);
+  // a colour macro moved (its fader, the MIDI window, a device): the layers that kept their own colour take it again
+  if (d.kind === 'color' && moved && macroRetake(id, zones)) remoteChanged();
   saveSoon(); remoteLiveChanged(); updateMacrosUI();
 }
+// Every layer (of these zones) keeping its own value for a control that follows this macro follows it again; whether any did
+function macroRetake(id, zones = project.zones) {
+  let n = 0;
+  for (const z of zones) for (const L of z.layers) {
+    if (!L.own) continue;
+    for (const [sid, names] of Object.entries(L.own)) {
+      const src = srcById(sid);
+      if (!src) continue;
+      const roles = macroRolesOf(src, effectRt(src));
+      for (const name of names) if (roles[name] === id) { setOwnCtl(L, sid, name, false); n++; }
+    }
+  }
+  return n > 0;
+}
 // Part i of a colour macro (hue, saturation, value; or red, green, blue) set to x, from 0 to 1
-function setMacroPart(id, i, x) { const m = project.macros[id]; if (m && macroDef(id).kind === 'color') setMacro(id, macroPartPatch(m, i, clamp(x, 0, 1))); }
+function setMacroPart(id, i, x, zone = '') { const m = macroScopeSet(zone)[id]; if (m && macroDef(id).kind === 'color') setMacro(id, macroPartPatch(m, i, clamp(x, 0, 1)), zone); }
 // Which macro a control of an effect follows (a macro's id, or '' for none), for that effect wherever it plays. What
 // its name makes it follow is the default, and isn't kept.
 function setMacroLink(src, name, id) {
@@ -786,7 +812,7 @@ function resetMacroLinks(src) {
 // brings its own value back.
 function setEffectControl(src, name, v) {
   let n = 0;
-  for (const z of project.zones) for (const L of z.layers) if (L.src === src.id) { setParam(L, src, name, v); n++; }
+  for (const z of project.zones) if (zoneFollows(z)) for (const L of z.layers) if (L.src === src.id) { setParam(L, src, name, v); n++; }
   if (!n) return;
   remoteChanged(); commitSoft(); syncContentSoon();
 }

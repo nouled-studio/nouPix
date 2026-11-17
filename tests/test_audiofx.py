@@ -138,6 +138,19 @@ try:
     check("with Multiply it masks: the content shows only on the lit bar", m[2] > 40 and sum(v for i, v in enumerate(m) if i != 2) < 10, m)
     check("and it is the content's colours, not white", len({tuple(cols[i:i + 3]) for i in range(0, 30, 3)}) > 2, cols[:9])
 
+    # ---------- its background: a colour, see-through to the layers below
+    ev(f"""(() => {{ const z = {Z}; z.layers = [Object.assign(newLayer('b-solid'), {{ params: {{ 'b-solid': {{ color: [0, 0, 1, 1] }} }} }}), Object.assign(newLayer('b-fxchase'), {{ params: {{ 'b-fxchase': {{ color: [1, 0, 0, 1], fade: 0 }} }} }})]; ui.layer = z.layers[1].id; commit(); renderRight(); }})()""")
+    time.sleep(0.3)
+    px = lambda i: (look(1, 0.3), ev(f"Array.from(olm.project.fixtures[{i}]._col.slice(0, 3))"))[1]
+    check("black behind the lit step at first, hiding the layer below", px(1)[0] > 200 and px(0) == [0, 0, 0], (px(1), px(0)))
+    check("its Background row in the Content tab", pg.locator("#rightBody .sec", has_text="Chase").locator(".row", has=pg.locator(".lbl", has_text="Background")).count() == 1)
+    ev(f"(() => {{ const q = {Z}.layers[1].params['b-fxchase']; q.background = [0, 1, 0, 1]; commit(); }})()")
+    check("a colour behind it", px(0) == [0, 255, 0] and px(1)[0] > 200, (px(0), px(1)))
+    ev(f"(() => {{ const q = {Z}.layers[1].params['b-fxchase']; q.background = [0, 0, 0, 0]; commit(); }})()")
+    check("see-through: the layer below shows where no step is lit, the lit step over it", px(0) == [0, 0, 255] and px(1)[0] > 200 and px(1)[2] < 10, (px(0), px(1)))
+    ev(f"(() => {{ const q = {Z}.layers[1].params['b-fxchase']; q.background = [0, 0, 0, 0.5]; commit(); }})()")
+    check("half see-through: half the layer below", 110 < px(0)[2] < 145, px(0))
+
     # ---------- per zone
     ev(f"""(() => {{ const z = {Z}; z.w = 500; z.layers = [Object.assign(newLayer('b-fxchase'), {{ params: {{ 'b-fxchase': {{ by: 'fixtures', fade: 0 }} }} }})]; markGeom(); commit(); }})()""")
     time.sleep(0.3)

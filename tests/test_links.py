@@ -46,6 +46,7 @@ try:
           p.zones[0].layers = [newLayer(srcs[0])];
           if (srcs[1]) {{ const z = newZone({{ name: 'Zone 2', w: 1000, h: 640 }}); z.layers = [newLayer(srcs[1])]; p.zones.push(z); }}
           p.macroLinks = {links or {}};
+          for (const z of p.zones) {{ const sc = {{ id: uid(), name: 'Scene 1', fade: 0, layers: cloneLayers(z.layers) }}; z.scenes = [sc]; z.scene = sc.id; }}
           olm.loadProject(JSON.parse(JSON.stringify(p, replacer))); ui.rightTab = 'content'; ui.zone = olm.project.zones[0].id; ui.layer = olm.project.zones[0].layers[0].id;
           showRight(true); renderRight(); }})()"""); settle(0.5)
     col = lambda i=0: ev(f"Array.from(olm.project.fixtures[0]._col.slice({i * 3}, {i * 3 + 3}))")
@@ -74,7 +75,7 @@ try:
     check("a choice is a step of undo", ev("project.macroLinks") == {} and col() == [255, 0, 0])
     ev("redo()"); settle()
     check("and of redo", ev("project.macroLinks") == {"b-solid": {"color": ""}} and col() == [0, 0, 255])
-    ev("project.macros = defaultMacros(); updateMacrosUI()")
+    ev("project.macros = defaultMacros(); project.zones.forEach(z => z.macros = defaultMacros()); updateMacrosUI()")
 
     load("b-rainbow")
     key = "project.zones[0].layers[0].id + '|b-rainbow'"
@@ -87,14 +88,14 @@ try:
     ev("setMacro('speed', { v: 1 })"); a1, b1 = rate(ka), rate(kb)
     ev("setMacro('speed', { v: 2 })"); a2, b2 = rate(ka), rate(kb)
     check("each clock's rate on its own: one still follows Speed, the one taken out doesn't", abs(a2 / a1 - 2) < 0.15 and abs(b2 / b1 - 1) < 0.15, (a1, a2, b1, b2))
-    ev("project.macros = defaultMacros(); updateMacrosUI()")
+    ev("project.macros = defaultMacros(); project.zones.forEach(z => z.macros = defaultMacros()); updateMacrosUI()")
 
     load("b-plasma", links={"b-plasma": {"range": "width"}})
     check("a control without a macro of its own can follow a shared control", roles("b-plasma").get("range") == "width", roles("b-plasma"))
     ev("setMacro('width', { on: true, v: 1 })"); settle()
     hi = ev("controlsOf(srcById('b-plasma')).find(i => i.NAME === 'range').MAX")
     check("it goes to the same point of its own range", abs(uni("b-plasma", "range") - hi) < 1e-6, (uni("b-plasma", "range"), hi))
-    ev("project.macros = defaultMacros(); updateMacrosUI()")
+    ev("project.macros = defaultMacros(); project.zones.forEach(z => z.macros = defaultMacros()); updateMacrosUI()")
     load("b-bars", links={"b-bars": {"color": "speed", "width": "intensity", "count": 7}})
     check("a file's choices that an effect can't follow are left out or ignored: its controls follow by name",
           roles("b-bars") == {"color": "color1", "background": "color2", "count": "count", "width": "width", "softness": "softness", "speed": "speed", "angle": "angle"}
@@ -130,10 +131,11 @@ try:
     pg.locator("#rightBody .msub button:has-text('As their names say')").click(); settle()
     check("As their names say: back to the usual", ev("project.macroLinks") == {} and pg.locator("#rightBody .row.mchg").count() == 0)
     ev("setMacro('speed', { v: 1.5 })"); settle()
-    check("the note under a control says what it follows", pg.locator("#rightBody .note.via:visible").all_inner_texts() == ["Follows Speed (1.50×)"], pg.locator("#rightBody .note.via:visible").all_inner_texts())
+    marks = lambda: ev("[...document.querySelectorAll('#rightBody .lbl.mac, #rightBody .lbl.own')].map(l => l.dataset.tip)")
+    check("a control's name is marked and says what it follows on pointing at it, no text in the panel", marks() == ["Follows Speed (1.50×)"] and pg.locator("#rightBody .note.via").count() == 0, marks())
     ev("setMacroLink(srcById('b-bars'), 'speed', '')"); settle()
-    check("and doesn't once it is taken out", pg.locator("#rightBody .note.via:visible").count() == 0)
-    ev("project.macros = defaultMacros(); remote.role = 'operator'; renderRight()"); settle()
+    check("and isn't once it is taken out", marks() == [], marks())
+    ev("project.macros = defaultMacros(); project.zones.forEach(z => z.macros = defaultMacros()); remote.role = 'operator'; renderRight()"); settle()
     check("an operator sees the choices but can't change them", pg.locator("#rightBody .msub").last.locator("select:disabled").count() == 7 and "Operator" in pg.locator("#rightBody .msub").last.inner_text())
     ev("remote.role = null; renderRight()")
 
@@ -167,6 +169,10 @@ try:
     ev("project.midi.maps = [Object.assign(newMidiMap('midi:nanoKONTROL2:1:cc:5', 'p:b-bars:width'), { takeover: 'jump' })]")
     cc(5, 127); settle()
     check("on Jump it goes at once, and in every layer that plays that effect (both zones)", abs(param("width", 0) - hi) < 1e-9 and abs(param("width", 1) - hi) < 1e-9, (param("width", 0), param("width", 1)))
+    w1 = param("width", 1); ev("(() => { const z = project.zones[1]; z.scene = null; })()")
+    cc(5, 0); settle()
+    check("but not in a zone playing no scene: content that isn't stored keeps its own", abs(param("width", 1) - w1) < 1e-9 and param("width", 0) < hi - 0.01, (param("width", 0), param("width", 1)))
+    cc(5, 127); settle()
     ev("(() => { const z = project.zones[0]; storeScene(z); z.scenes[0].layers[0].params['b-bars'] = { width: 0.1 }; project.midi.maps[0].takeover = 'pickup'; project.midi.maps[0]._picked = true; })()")
     ev("goScene(project.zones[0], project.zones[0].scenes[0], true)"); settle()
     check("a scene played brings its own value back", abs(param("width") - 0.1) < 1e-9, param("width"))

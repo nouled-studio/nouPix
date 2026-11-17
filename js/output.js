@@ -244,6 +244,7 @@ function connectBridge() {
     if (m.t === 'hello') { bridge.hello = m; if (usesDdp()) markPatch(); showVersion(m.version); (m.nodes || []).forEach(n => bridge.nodes.set(n.ip + '#' + n.bindIndex, n)); updateBridgeUI(); updateDiscoveryUI(); remoteHello(m.remote); if (m.startupProject) openStartupProject(m.startupProject); }
     else if (m.t === 'stats') { bridge.stats = m; updateBridgeUI(); }
     else if (m.t === 'node') { bridge.nodes.set(m.node.ip + '#' + m.node.bindIndex, m.node); updateDiscoveryUI(); }
+    else if (m.t === 'nodegone') { (m.keys || []).forEach(k => bridge.nodes.delete(k)); updateDiscoveryUI(); }
     else if (m.t === 'polled') {
       if (bridge.hello && Array.isArray(m.nets)) bridge.hello.nets = m.nets;
       toast(m.targets.length ? 'ArtPoll sent to ' + m.targets.join(', ') : 'ArtPoll not sent: no network to send it on', m.targets.length ? '' : 'warn');

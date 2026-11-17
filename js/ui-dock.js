@@ -7,6 +7,7 @@ function renderDock() {
   for (const k of Object.keys(PANELS)) $(`#dockTabs button[data-tab="${k}"]`).hidden = placeOf(k) !== 'bottom';
   if (PANELS[ui.dockTab] && placeOf(ui.dockTab) !== 'bottom') ui.dockTab = Object.keys(PANELS).find(k => placeOf(k) === 'bottom') || 'patch';
   $$('#dockTabs button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.dockTab));
+  tabsInView($('#dockTabs'));
   renderSides();
   const dock = $('#dock');
   dock.classList.toggle('collapsed', ui.dockCollapsed);
@@ -307,6 +308,9 @@ function initSides() {
   // the right panel's tabs (its own and the ones moved there) in a row that scrolls sideways when they don't fit
   const rt = $('#rightTabs'), strip = h('span', { class: 'tabstrip' }, ...$$('#rightTabs > button[data-tab]'), $('#rightMoved'));
   rt.insertBefore(tabStrip(strip), rt.querySelector('.fill'));
+  // and the bottom panel's, which a wide side panel can leave narrow
+  const dt = $('#dockTabs'), dstrip = h('span', { class: 'tabstrip' }, ...$$('#dockTabs > button[data-tab]'));
+  dt.insertBefore(tabStrip(dstrip), dt.querySelector('.fill'));
   for (const side of ['left', 'right']) {
     const grip = $('#' + side + 'Grip'), aside = $('aside.' + side);
     if (!grip) continue;
@@ -969,6 +973,18 @@ function addNodeAsController(n, asked) {
   ui.selCtrl = c.id; ui.selCtrls = new Set(); ui.dockTab = 'patch';
   markPatch(); commit(); updateDiscoveryUI();   // its row now offers Refresh
   toast(`Added ${c.name} on ${protoName(c)}. Set its outputs to match how the device is set up.`);
+  if (isAdvatek(n) && !isSacn(c)) advatekNote(u);
+}
+// Advatek's devices (PixLite…) and their Advatek Assistant count Art-Net universes from 1, where Art-Net, and nouPix,
+// count from 0: worth saying when one is added, before its outputs are matched to the patch. (On sACN both count from 1.)
+const isAdvatek = n => /pixlite|advatek/i.test(`${n.shortName || ''} ${n.longName || ''}`);
+function advatekNote(u) {
+  const plus = list => universeList(list.map(x => x + 1));
+  noteBox('Advatek counts universes from 1',
+    'Advatek Assistant shows Art-Net universe 0 as universe 1. nouPix shows universes as they are sent, from 0.',
+    'So subtract 1 from the numbers in Advatek Assistant: its universe 1 is universe 0 here, its 16 is 15 here.',
+    ...(u.length ? [`This device listens on universes ${universeList(u)}: ${plus(u)} in Advatek Assistant.`] : []),
+    'On sACN both count from 1, so the numbers are the same.');
 }
 // A WLED tells exactly how it receives (its JSON API): one output of its LEDs, by pixels, from its universe and
 // address, whole pixels per universe as WLED expects; refreshing a known one sets all that again

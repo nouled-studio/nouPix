@@ -44,7 +44,8 @@ function tempoSection() {
   kids.push(tipRow(row('Bar', seg([[4, '4/4'], [2, '2/4']], per, v => { ui.tempoBpb = +v; savePrefs(); updateTempoUI(); })), 'Beats in a bar: the lines count them, 1 on the downbeat.'),
     h('div', { class: 'actions' },
       midiButton(h('button', { class: 'btn', type: 'button', title: 'Tap on every beat. The first tap is beat 1. A MIDI pad can tap too.', onpointerdown: e => { e.preventDefault(); tempoTap(); } }, 'Tap'), 'tap'),
-      h('button', { class: 'btn', type: 'button', title: 'The beat nearest now becomes beat 1 of the bar', onclick: () => tempoDownbeat() }, 'Downbeat')));
+      h('button', { class: 'btn', type: 'button', title: 'The beat nearest now becomes beat 1 of the bar', onclick: () => tempoDownbeat() }, 'Downbeat')),
+    tipRow(checkRow('Space taps the tempo', ui, 'tapSpace', () => savePrefs()), 'Space taps instead of GO, play or panning the view. T always taps.'));
   const el = h('div', { class: 'sec tempo', id: 'tempoSec' }, h('h3', null, 'Tempo'), kids);
   tempoSecEl = el;
   tempoFrame(performance.now(), true);
@@ -231,6 +232,8 @@ function chaseSection(L, src) {
     return h('label', { class: 'checkrow chstep' + (on ? '' : ' off') }, box, h('span', { class: 'mono ix' }, String(i + 1)), h('span', { class: 'nm' }, name(s)));
   }) : h('p', { class: 'note' }, p.by === 'groups' ? 'No groups in this zone yet: group fixtures (G), or chase single fixtures.' : 'No fixtures in this zone yet.'));
   const cr = colorRow('Color', () => chaseParams(L, src).color, c => wr('color', c), () => commit(), `${L.id}:${src.id}:color`);
+  const bg = tipRow(colorRow('Background', () => chaseParams(L, src).background, c => wr('background', c), () => commit(), `${L.id}:${src.id}:background`),
+    'Black at first. Lower its Alpha to see the layers below through it.');
   const kids = [tempoNote(false),
     tipRow(row('Steps', seg([['groups', 'Groups'], ['fixtures', 'Fixtures']], p.by, v => { const q = (L.params[src.id] = Object.assign({}, L.params[src.id] || {})); q.by = v; q.skip = []; commit(); renderRight(); })),
       'What lights in turn: each group, or each fixture, in the fixture list’s order. Untick one to leave it out.'),
@@ -240,7 +243,7 @@ function chaseSection(L, src) {
     tipRow(row('Mode', seg([['one', 'One'], ['fill', 'Fill']], p.mode, v => put('mode', v))), 'One: a step at a time. Fill: the steps add up until the round starts again.'),
     tipRow(sliderRow('Fade', { get v() { return chaseParams(L, src).fade; }, set v(x) { wr('fade', x); } }, 'v', { min: 0, max: 1, step: 0.01, fmt: pct, onCommit: () => commit() }),
       '0: each step stays lit until the next. More: it fades out over its step.'),
-    cr,
+    cr, bg,
     h('p', { class: 'note' }, 'As a mask: put it above other content with Blend: Multiply, so that content shows only on the lit fixtures.')];
   return sec('Chase', kids);
 }

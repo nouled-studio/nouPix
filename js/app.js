@@ -26,9 +26,28 @@ function showVersion(v) {
 // computer, with Settings → Updates on, when nouPix starts (atStart) and at most once a day while it runs, and never in a browser driven by tests (they check it
 // themselves); with no internet it says nothing. Asked for (Check now), it always answers.
 const UPDATE_URL = 'https://api.github.com/repos/nouled-studio/nouPix/releases/latest';
-// Download goes to the newest release, whatever it is by then: a window shown before a newer one came out never
-// leads to the older one
+// The newest release's page, whatever it is by then: where Download goes when no file of the release fits this
+// computer, and from a window left open so long (UPDATE_STALE) that a newer one may have come out meanwhile
 const LATEST_PAGE = 'https://github.com/nouled-studio/nouPix/releases/latest';
+const SOURCE_REPO = 'https://github.com/nouled-studio/nouPix.git', RELEASE_FILES = 'https://github.com/nouled-studio/nouPix/releases/download/';
+const UPDATE_STALE = 6 * 3600e3;
+// The file of a release for the app on this computer (the bridge says which it is, hello.platform): the Windows setup,
+// or the Mac disk image for Apple silicon or Intel; null running from the source (Linux, or python noupix.py anywhere),
+// or when the release has no such file
+function updateAsset(rel, p = bridge.hello && bridge.hello.platform) {
+  if (!isObj(p) || !p.app) return null;
+  const end = p.os === 'windows' ? '-windows-setup.exe' : p.os === 'mac' ? (p.arch === 'arm64' ? '-macos-apple-silicon.dmg' : '-macos-intel.dmg') : null;
+  const a = end && (Array.isArray(rel.assets) ? rel.assets : []).find(a => isObj(a) && typeof a.name === 'string' && a.name.endsWith(end)
+    && typeof a.browser_download_url === 'string' && a.browser_download_url.startsWith(RELEASE_FILES));
+  return a ? { name: a.name, url: a.browser_download_url } : null;
+}
+// Running from the source: the terminal commands that bring it up to date. In a git clone, a pull in its folder; a
+// copy that is no clone is cloned anew.
+function updateCommands(p = bridge.hello && bridge.hello.platform) {
+  if (!isObj(p) || p.app) return null;
+  const py = p.os === 'windows' ? 'python' : 'python3', dir = typeof p.dir === 'string' && p.dir ? p.dir : '';
+  return (p.git && dir ? [`cd "${dir}"`, 'git pull'] : [`git clone ${SOURCE_REPO}`, 'cd nouPix']).concat(`${py} noupix.py`).join('\n');
+}
 const versionParts = v => (String(v || '').match(/\d+/g) || []).slice(0, 3).map(Number);
 function newerVersion(a, b) {   // whether version a comes after version b
   const x = versionParts(a), y = versionParts(b);
@@ -52,19 +71,35 @@ async function checkUpdates(asked, atStart) {
   updateDialog(latest, mine, rel);
 }
 function updateDialog(latest, mine, rel) {
-  const close = () => bg.remove();
+  const close = () => bg.remove(), shown = Date.now();
+  const file = updateAsset(rel), cmds = updateCommands();
+  const go = url => { window.open(Date.now() - shown > UPDATE_STALE ? LATEST_PAGE : url, '_blank'); close(); };
+  const copy = () => {
+    const done = () => toast('Copied. Stop nouPix, then paste the commands in a terminal.');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(cmds).then(done, () => toast('Select the commands and copy them.', 'warn'));
+    else toast('Select the commands and copy them.', 'warn');
+  };
   // the release's notes as plain text: GitHub writes them in Markdown (**bold**, ## heads, `code`)
   const notes = String(rel.body || '').replace(/\r/g, '').replace(/\*\*|`/g, '').replace(/^#+\s*/gm, '').trim().slice(0, 4000);
   const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
     h('div', { class: 'modal updmodal', role: 'dialog', 'aria-label': 'New version' },
       h('header', null, `nouPix ${latest} is available`),
       h('div', { class: 'mb' },
-        h('p', null, `You have ${mine}. Download the new version, then install it over this one: your projects and settings stay.`),
+        cmds ? h('p', null, `You have ${mine}, running from its source. To update it, stop nouPix and run this in a terminal: your projects and settings stay.`)
+          : h('p', null, `You have ${mine}. Download the new version, then install it over this one: your projects and settings stay.`),
+        cmds ? h('pre', { class: 'updcmd', 'aria-label': 'Commands to update' }, cmds) : null,
         notes ? h('div', { class: 'updnotes' }, notes) : null),
       h('footer', null,
         h('button', { class: 'btn', type: 'button', title: "Don't tell me about this version again", onclick: () => { ui.updateSkip = latest; savePrefs(); close(); } }, 'Skip this version'),
         h('button', { class: 'btn', type: 'button', onclick: close }, 'Later'),
-        h('button', { class: 'btn primary', type: 'button', onclick: () => { window.open(LATEST_PAGE, '_blank'); close(); } }, 'Download'))));
+        // from the source: the release's page beside the commands; the app: its file for this computer, straight away
+        cmds ? h('button', { class: 'btn', type: 'button', title: 'The release on GitHub, with the apps for Windows and Mac', onclick: () => go(LATEST_PAGE) }, 'Open GitHub') : null,
+        cmds ? h('button', { class: 'btn primary', type: 'button', onclick: copy }, 'Copy commands')
+          : h('button', { class: 'btn primary', type: 'button', title: file ? file.name : 'The release on GitHub', onclick: () => {
+            const stale = Date.now() - shown > UPDATE_STALE;
+            go(file ? file.url : LATEST_PAGE);
+            if (file && !stale) toast(`Downloading ${file.name}. Quit nouPix before you install it.`);
+          } }, 'Download'))));
   uiDocNow().body.append(bg);
 }
 // The look: black (the default) or white, one click away in the top bar and in Settings. It is this computer's
@@ -292,11 +327,15 @@ function onKey(e) {
   if (mod) return;
   const digit = /^Digit([1-9])$/.exec(e.code);
   if (digit) { const z = selZone(), sc = z && z.scenes[+digit[1] - 1]; if (sc) goScene(z, sc, e.shiftKey); return; }
+  // Space taps the tempo when set to (Settings → Tempo), wherever the mouse is (the view still pans by its middle button)
+  if (e.code === 'Space' && ui.tapSpace) { e.preventDefault(); if (!e.repeat) tempoTap(); return; }
   // Space is GO while a cue list shows and the mouse is off the stage (on it, Space held pans the view)
   if (e.code === 'Space' && !e.repeat && cuesShown() && shownCueList() && !stageEl.matches(':hover')) { e.preventDefault(); cueGo(shownCueList()); return; }
   // and plays or pauses the timeline shown
   if (e.code === 'Space' && !e.repeat && timelineShown() && shownTimeline() && !stageEl.matches(':hover')) { e.preventDefault(); const T = shownTimeline(); if (tl.playing && tl.id === T.id) tlPause(); else tlPlay(T); return; }
   if (e.code === 'Space') { spaceHeld = true; cv.style.cursor = 'grab'; e.preventDefault(); return; }
+  // T taps the tempo
+  if (k === 't' && !e.repeat && !e.altKey) { e.preventDefault(); tempoTap(); return; }
   if ((ui.tool === 'path' || ui.tool === 'pen') && pathDraft) {
     if (e.key === 'Enter') { finishPath(); return; }
     if (e.key === 'Backspace') { pathDraft.pts.splice(-2); pathDraft.ctl.splice(-4); e.preventDefault(); return; }

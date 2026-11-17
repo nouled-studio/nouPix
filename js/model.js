@@ -78,7 +78,7 @@ const ui = {
   autosave: false,   // every change written to the project's file too (project-io.js)
   updates: true, updateAt: 0, updateSkip: '',   // looking for a new version once a day; when it last looked; a version not to tell of (app.js)
 };
-const UI_PREFS = ['hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'places', 'sideOpen', 'sideW', 'sceneSize', 'tlZoom', 'tlRowH', 'tlAudioFold', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
+const UI_PREFS = ['tapSpace', 'hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'places', 'sideOpen', 'sideW', 'sceneSize', 'tlZoom', 'tlRowH', 'tlAudioFold', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
   'tempoSrc', 'tempoIn', 'tempoTrim', 'tempoBpb', 'tempoOn', 'tempoBpm', 'tempoLo', 'tempoHi'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
@@ -156,7 +156,7 @@ function newLayer(src = null) { return { id: uid(), src, params: {}, opacity: 1,
 const cloneLayers = layers => JSON.parse(JSON.stringify(layers));
 // A zone is a rectangle of the canvas with its own layers, scenes and playlists; content is drawn to fit it.
 // Zones later in the list are higher up and cover the ones below, as far as their opacity goes.
-function newZone(props = {}) { return Object.assign({ id: uid(), name: 'Zone 1', tag: '', x: 0, y: 0, w: 1000, h: 640, opacity: 1, layers: [], scenes: [], scene: null, playlists: [] }, props); }
+function newZone(props = {}) { return Object.assign({ id: uid(), name: 'Zone 1', tag: '', x: 0, y: 0, w: 1000, h: 640, opacity: 1, layers: [], scenes: [], scene: null, playlists: [], macros: defaultMacros() }, props); }
 // A playlist plays some of its zone's scenes in turn (playlists.js). A step's fade null follows the playlist's,
 // and the playlist's null follows each scene's own. end: 'loop', 'stop', or the id of the playlist to play next.
 function newPlaylist(props = {}) { return Object.assign({ id: uid(), name: 'Playlist 1', steps: [], fade: null, end: 'loop', autoplay: false }, props); }

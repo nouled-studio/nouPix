@@ -436,10 +436,11 @@ function renderContentTab(body) {
 
   if (rt && rt.error) body.append(sec('Shader error', h('div', { class: 'errbox' }, rt.error)));
   if (src.kind === 'isf' && rt && rt.R) {
+    // (the macros act on stored scenes only: with none playing here, nothing follows them; the marks look as they sync)
     const ctl = [], roles = macroRolesOf(src, rt);
     for (const inp of isfInputs(src)) {
       if (!inputShown(inp, L, src)) continue;   // (the Rainbow's colours past how many it uses)
-      const label = inp.LABEL || inp.NAME, t = `p:${src.id}:${inp.NAME}`;   // t: what a MIDI control drives through it
+      const label = inp.LABEL || inp.NAME, t = `p:${src.id}:${inp.NAME}`, first = ctl.length;   // t: what a MIDI control drives through it
       // the layer's own value, read again on each sync (a MIDI control may have moved it)
       const set = v => setParam(L, src, inp.NAME, v);
       const holder = { get v() { return paramValue(L, src, inp); }, set v(x) { set(x); } };
@@ -470,26 +471,26 @@ function renderContentTab(body) {
       } else if (inp.TYPE === 'event') {
         ctl.push(row(label, midiButton(h('button', { class: 'btn', type: 'button', onclick: () => { set(true); setTimeout(() => set(false), 80); } }, 'Trigger'), t)));
       } else if (inp.TYPE === 'color') {
-        // while it follows a colour macro that is on, it shows that colour (what goes out), and a colour chosen here
-        // sets the macro; the layer's own colour comes back when the macro is off
-        const via = () => (roles[inp.NAME] && macroActive(roles[inp.NAME]) ? roles[inp.NAME] : null);
-        const get = () => (via() ? macroRgb(project.macros[via()]).concat(1) : paramValue(L, src, inp));
+        // while it follows a colour macro that is on, it shows that colour (what goes out); a colour chosen here is this
+        // layer's alone: it stops following the macro, the other layers keep following it, and "Follow … again" undoes it
+        const via = () => (roles[inp.NAME] && zoneFollows(z) && macroActive(roles[inp.NAME], macrosOf(z)) && !ownsCtl(L, src.id, inp.NAME) ? roles[inp.NAME] : null);
+        const get = () => (via() ? macroRgb(macrosOf(z)[via()]).concat(1) : paramValue(L, src, inp));
         const put = c => {
-          const id = via();
-          if (!id) { set(c); return; }
-          const [hh, s, v] = macroRgbHsv(c[0], c[1], c[2]);
-          setMacro(id, { h: s > 0 && v > 0 ? hh : project.macros[id].h, s, v });
+          if (via()) setOwnCtl(L, src.id, inp.NAME, true);
+          set(c);
         };
-        const cr = colorRow(label, get, put, () => { if (!via()) commit(); }, `${L.id}:${src.id}:${inp.NAME}`);
+        const cr = colorRow(label, get, put, () => commit(), `${L.id}:${src.id}:${inp.NAME}`);
         const sw = cr.querySelector('.cswatch');
         binders.push(() => sw._show(get()));
         ctl.push(cr);
+        if (roles[inp.NAME]) macroMark(cr, roles[inp.NAME], { L, src, name: inp.NAME }, z);
       } else if (inp.TYPE === 'point2D') {
         const pt = { x: holder.v[0], y: holder.v[1] };
         const up = () => set([pt.x, pt.y]);
         ctl.push(row(label, numInput(pt, 'x', { prefix: 'X', step: 0.01, onInput: up, onCommit: commit }), numInput(pt, 'y', { prefix: 'Y', step: 0.01, onInput: up, onCommit: commit })));
       }
-      if (roles[inp.NAME]) ctl.push(macroFollows(roles[inp.NAME]));   // the macro it follows, while that changes it
+      // the macro it follows, marked on its name (the first of its rows with one: Speed's Reverse comes after it)
+      if (roles[inp.NAME] && inp.TYPE !== 'color') macroMark(ctl.slice(first).find(e => isEl(e) && ((e.querySelector('.lbl') || {}).textContent || (e.classList.contains('checkrow') && e.textContent))), roles[inp.NAME], null, z);
     }
     ctl.push(...macroLinksFold(src, rt));
     ctl.push(h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { delete L.params[src.id]; commit(); renderRight(); } }, 'Reset to defaults')));

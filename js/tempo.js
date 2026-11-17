@@ -21,9 +21,34 @@ tempo.anchor = performance.now();
 // The beat clock at time t (ms, as performance.now()): beats since the anchor, the beat's number in its bar (0 is
 // the downbeat), and the phase within the beat (0 to 1)
 // (tempo.fixed, set by tests only, holds the clock at that beat)
-function tempoAt(t = performance.now()) {
-  const b = tempo.fixed ?? (t - tempo.anchor) / (60000 / tempo.bpm), n = Math.floor(b), per = tempoBpb();
+// With no time given (now: what the content plays), the clock as it glides onto a new tap (tempoGlide); with a time,
+// the taps' own clock (the BPM shown, the dot, any moment worked out)
+function tempoAt(t) {
+  const now = t == null, at = now ? performance.now() : t;
+  const b = tempo.fixed ?? (at - tempo.anchor) / (60000 / tempo.bpm) + (now ? tempoGlide(at) : 0), n = Math.floor(b), per = tempoBpb();
   return { beat: b, n, inBar: ((n % per) + per) % per, phase: b - n, bpm: tempo.bpm };
+}
+// A new tap moves the beat: the content doesn't jump there but catches up, the offset between where it plays and where
+// the taps say shrinking by itself within about a beat and a half, never faster than 40 % of the tempo (so it never
+// runs backwards, and a chase doesn't race). Advanced only as time goes on.
+const GLIDE_BEATS = 1.5, GLIDE_MAX = 0.4;
+function tempoGlide(t) {
+  if (!tempo.off) { tempo.offT = t; return 0; }
+  const dt = t - (tempo.offT ?? t);
+  if (dt > 0) {
+    const P = 60000 / tempo.bpm, cap = GLIDE_MAX * dt / P;
+    tempo.off -= clamp(tempo.off * Math.min(1, dt / (GLIDE_BEATS * P)), -cap, cap);
+    if (Math.abs(tempo.off) < 1e-4) tempo.off = 0;
+    tempo.offT = t;
+  }
+  return tempo.off;
+}
+// The taps' clock is about to change (anchor, BPM): where the content plays now stays, and glides onto the new clock,
+// which is moved by whole bars so it catches up the shortest way (the first tap stays a bar's first beat)
+function tempoGlideFrom(t, before) {
+  const P = 60000 / tempo.bpm, per = tempoBpb(), off = before - (t - tempo.anchor) / P, k = Math.round(off / per);
+  tempo.anchor -= k * per * P;
+  tempo.off = off - k * per; tempo.offT = t;
 }
 const tempoBpb = () => (ui.tempoBpb === 2 ? 2 : 4);
 // Whether there is a beat to show: listening has found one, or it was tapped since nouPix started
@@ -47,7 +72,7 @@ function tempoDownbeat(t = performance.now()) {
 // line through them, so one tap a little early or late doesn't throw it). A pause of 2 s starts a new run. Tapping
 // while listening switches to tapping: the two would fight.
 function tempoTap(t = performance.now()) {
-  const T = tempo.taps;
+  const T = tempo.taps, before = tempo.tapped || ui.tempoSrc !== 'tap' ? tempoAt().beat : null;   // where the content plays now
   if (T.length && t - T[T.length - 1] > 2000) { T.length = 0; tempo.tapN = 0; }
   T.push(t); tempo.tapN = (tempo.tapN || 0) + 1; tempo.tapped = true;
   if (T.length > 8) T.shift();
@@ -66,6 +91,7 @@ function tempoTap(t = performance.now()) {
       ui.tempoBpm = Math.round(tempo.bpm * 10) / 10; savePrefs();
     }
   }
+  if (before != null && tempo.fixed == null) tempoGlideFrom(performance.now(), before);
   tempo.locked = true;
   updateTempoUI();
 }
@@ -449,7 +475,7 @@ function audioInputValue(name, t, still, band) {
 // (L.params, kept by scenes): by ('groups' or 'fixtures'), skip (ids left out), every (beats a step lasts), order
 // ('forward', 'back', 'pingpong', 'random'), mode ('one' lit at a time, or 'fill' adding up through the round),
 // fade (0: lit the whole step; up to 1: fading out over the step), color.
-const CHASE_DEFAULT = { by: 'groups', skip: [], every: 1, order: 'forward', mode: 'one', fade: 0.5, color: [1, 1, 1, 1] };
+const CHASE_DEFAULT = { by: 'groups', skip: [], every: 1, order: 'forward', mode: 'one', fade: 0.5, color: [1, 1, 1, 1], background: [0, 0, 0, 1] };
 function chaseParams(L, src) {
   const p = Object.assign({}, CHASE_DEFAULT, (L.params && L.params[src.id]) || {});
   if (!['groups', 'fixtures'].includes(p.by)) p.by = 'groups';
@@ -459,6 +485,7 @@ function chaseParams(L, src) {
   if (!['one', 'fill'].includes(p.mode)) p.mode = 'one';
   p.fade = clamp(numOr(p.fade, 0.5), 0, 1);
   if (!Array.isArray(p.color) || p.color.length < 3) p.color = [1, 1, 1, 1];
+  if (!Array.isArray(p.background) || p.background.length < 3) p.background = [0, 0, 0, 1];
   return p;
 }
 // Its steps, in the fixture list's order: each a list of fixtures (a group's, or one); by groups with no groups,
@@ -502,19 +529,22 @@ function chaseLit(p, n, b) {
 function drawChase(src, L, w, h, z, t) {
   const top = mediaCanvas.height - h, p = chaseParams(L, src), area = z || { x: 0, y: 0, w: project.settings.compW, h: project.settings.compH };
   mctx.save();
-  mctx.fillStyle = '#000'; mctx.fillRect(0, top, w, h);
-  const b = t != null ? t : tempoAt().beat, sx = w / area.w, sy = h / area.h, col = p.color.slice(0, 3).map(v => Math.round(clamp(v, 0, 1) * 255));
+  // its background, see-through as its alpha says (black by default); a lit step over it as its colour at its fade
+  const rgb = c => c.slice(0, 3).map(v => Math.round(clamp(v, 0, 1) * 255)).join(','), al = c => clamp(numOr(c[3], 1), 0, 1);
+  mctx.clearRect(0, top, w, h);
+  mctx.fillStyle = `rgba(${rgb(p.background)},${al(p.background)})`; mctx.fillRect(0, top, w, h);
+  const b = t != null ? t : tempoAt().beat, sx = w / area.w, sy = h / area.h, col = rgb(p.color), ca = al(p.color);
   const steps = chaseSteps(p, z);
   if (!steps.length && t != null) {
     // a thumbnail with nothing to chase yet: four bars taking turns
     const lit = chaseLit(p, 4, b);
-    for (let i = 0; i < 4; i++) { const v = lit.get(i) || 0; mctx.fillStyle = `rgb(${col.map(c => Math.round(c * v)).join(',')})`; mctx.fillRect(w * (0.1 + i * 0.21), top + h * 0.2, w * 0.15, h * 0.6); }
+    for (let i = 0; i < 4; i++) { const v = lit.get(i) || 0; mctx.fillStyle = `rgba(${col},${v * ca})`; mctx.fillRect(w * (0.1 + i * 0.21), top + h * 0.2, w * 0.15, h * 0.6); }
   } else {
     const lit = chaseLit(p, steps.length, b);
     for (const [i, v] of lit) {
       const s = steps[i];
       if (!s || !(v > 0.002)) continue;
-      mctx.fillStyle = `rgb(${col.map(c => Math.round(c * v)).join(',')})`;
+      mctx.fillStyle = `rgba(${col},${v * ca})`;
       for (const f of s.fx) {
         const P = f._pts, d = Math.max(2, (f._pitch || 4) * Math.min(sx, sy));
         for (let i2 = 0; i2 < P.length; i2 += 2) mctx.fillRect((P[i2] - area.x) * sx - d / 2, top + (P[i2 + 1] - area.y) * sy - d / 2, d, d);

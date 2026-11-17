@@ -39,20 +39,22 @@ function defaultMacro(d) {
 const defaultMacros = () => Object.fromEntries(MACROS.map(d => [d.id, defaultMacro(d)]));
 // The macros of a file, or of a change from a device: every macro there, with its values in range
 function fixMacros(m) {
-  const out = defaultMacros();
-  if (!isObj(m)) return out;
-  for (const d of MACROS) {
-    const o = m[d.id], x = out[d.id];
-    if (!isObj(o)) continue;
-    if ('on' in x) x.on = !!o.on;
-    if (d.kind === 'color') {
-      x.mode = o.mode === 'rgb' ? 'rgb' : 'hsv';
-      // 360° stays 360°: the same colour as 0°, but a hue fader at the top stays at the top
-      const hue = numOr(o.h, x.h);
-      x.h = hue >= 0 && hue <= 360 ? hue : wrap360(hue); x.s = clamp(numOr(o.s, x.s), 0, 1); x.v = clamp(numOr(o.v, x.v), 0, 1);
-    } else x.v = clamp(numOr(o.v, x.v), 0, macroMax(d));
-  }
+  const out = {};
+  for (const d of MACROS) out[d.id] = fixMacro(d, isObj(m) ? m[d.id] : null);
   return out;
+}
+// One of them (d: its entry in MACROS), in range; anything missing as it starts
+function fixMacro(d, o) {
+  const x = defaultMacro(d);
+  if (!isObj(o)) return x;
+  if ('on' in x) x.on = !!o.on;
+  if (d.kind === 'color') {
+    x.mode = o.mode === 'rgb' ? 'rgb' : 'hsv';
+    // 360° stays 360°: the same colour as 0°, but a hue fader at the top stays at the top
+    const hue = numOr(o.h, x.h);
+    x.h = hue >= 0 && hue <= 360 ? hue : wrap360(hue); x.s = clamp(numOr(o.s, x.s), 0, 1); x.v = clamp(numOr(o.v, x.v), 0, 1);
+  } else x.v = clamp(numOr(o.v, x.v), 0, macroMax(d));
+  return x;
 }
 
 /* ---------- colours ---------- */
@@ -132,15 +134,45 @@ function fixMacroLinks(l, known) {
   }
   return out;
 }
+// The macros and MIDI onto effects' controls act on stored scenes only: a zone playing one of its scenes (also while
+// it is edited) follows them; content put in a zone that plays none shows its own values, as the source is
+const zoneFollows = z => !!(z && z.scene && z.scenes.some(sc => sc.id === z.scene));
+// A layer that keeps its own value for one of an effect's controls instead of following its macro (a colour picked for
+// that layer alone while its macro was on): L.own[source] lists them
+const ownsCtl = (L, srcId, name) => !!(L && L.own && Array.isArray(L.own[srcId]) && L.own[srcId].includes(name));
+function setOwnCtl(L, srcId, name, on) {
+  const list = (L.own && Array.isArray(L.own[srcId]) ? L.own[srcId] : []).filter(n => n !== name);
+  if (on) list.push(name);
+  if (list.length) (L.own || (L.own = {}))[srcId] = list;
+  else if (L.own) { delete L.own[srcId]; if (!Object.keys(L.own).length) delete L.own; }
+}
+// Each zone has its own macros (z.macros), which its content follows; All zones' (project.macros) are what the All
+// zones sliders show, and moving one writes it into every zone (setMacro). The set of a zone, or All zones' for none.
+const macrosOf = z => (z && z.macros) || project.macros;
+// The macros of zones that went (deleted, or undone away), by id: an undo that brings one back gives it them, as an
+// undo leaves the macros of the zones that stayed (a few at most are kept)
+const goneMacros = new Map();
+function keepGoneMacros(z) {
+  if (!z || !z.macros) return;
+  goneMacros.delete(z.id); goneMacros.set(z.id, z.macros);
+  if (goneMacros.size > 32) goneMacros.delete(goneMacros.keys().next().value);
+}
+// A scope's set: '' for All zones, or a zone's id
+const macroScopeSet = S => (S ? macrosOf(zoneById(S)) : project.macros);
+// Whether some zone's macro is not where All zones' is (a zone's own moved since): said on All zones' sliders
+function macroMixed(id) {
+  const a = project.macros[id];
+  return project.zones.some(z => { const m = z.macros && z.macros[id]; return !!m && (m.v !== a.v || !!m.on !== !!a.on || m.h !== a.h || m.s !== a.s); });
+}
 // Whether a macro changes anything now: a colour or a shared control when on, the others away from their neutral value
-function macroActive(id) {
-  const d = macroDef(id), m = project && project.macros[id];
+function macroActive(id, M = project && project.macros) {
+  const d = macroDef(id), m = M && M[id];
   if (!d || !m) return false;
   return d.kind === 'color' || d.kind === 'abs' ? !!m.on : m.v !== 1;
 }
 // A control's value with its macro on it (not Speed, which works through the clocks)
-function macroOver(id, inp, v) {
-  const d = macroDef(id), m = project.macros[id];
+function macroOver(id, inp, v, M = project.macros) {
+  const d = macroDef(id), m = M[id];
   if (!d || !m) return v;
   if (d.kind === 'color') return m.on ? macroRgb(m).concat(Array.isArray(v) && v.length > 3 ? v[3] : 1) : v;
   if (d.kind === 'scale') return typeof v === 'number' ? v * m.v : v;
@@ -151,8 +183,8 @@ function macroOver(id, inp, v) {
   return v;
 }
 // How a macro reads, for the panels: 1.25×, 80 %, a colour's hue, saturation and value
-function macroText(id) {
-  const d = macroDef(id), m = project.macros[id];
+function macroText(id, M = project.macros) {
+  const d = macroDef(id), m = M[id];
   if (d.kind === 'mult') return m.v.toFixed(2) + '×';
   if (d.kind === 'color') return `${Math.round(m.h)}° · ${pct(m.s)} · ${pct(m.v)}`;
   return pct(m.v);

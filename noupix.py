@@ -33,6 +33,7 @@ import http.client
 import http.server
 import json
 import os
+import platform
 import re
 import secrets
 import shutil
@@ -46,7 +47,7 @@ import urllib.parse
 import uuid
 import webbrowser
 
-VERSION = "1.6.2"
+VERSION = "1.6.3"
 HERE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 ARTNET_PORT = 6454
 WS_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -55,6 +56,8 @@ OP_POLL, OP_POLL_REPLY, OP_DMX, OP_SYNC = 0x2000, 0x2100, 0x5000, 0x5200
 HOLD_AFTER = 1.0   # seconds without frames from the page before the bridge starts repeating the last one
 HOLD_EVERY = 0.5   # how often the held frame is repeated, so controllers don't time out
 POLL_AGAIN = 0.25  # seconds before each ArtPoll goes out a second time
+POLL_WAIT = 4.0    # seconds a Discover waits for answers: a device on a network it asked that didn't answer is gone
+MOVED_AFTER = 2.0  # a device (by its MAC) answering from a new address: its old address, quiet this long, is let go
 WS_SILENT = 10.0   # seconds a window may not answer the bridge's pings before it is taken as gone
 
 # sACN (ANSI E1.31), sent instead of Art-Net when the project says so: the same universes, numbered from 1 (the page's
@@ -360,13 +363,46 @@ class ArtNet:
                     self.found(node)
 
     def found(self, node):
-        """A device that answered: kept, and told to every window."""
+        """A device that answered: kept, and told to every window. A device that now answers from another address
+        (a new IP set, or one from DHCP) is the same device: what it answered from before goes, so it isn't listed
+        twice. Only when that address has been quiet a moment: a device that really answers on two keeps both."""
+        mac = node.get("mac") or ""
+        if mac and mac.strip("0:"):
+            now = time.time()
+            self.forget([k for k, n in list(self.nodes.items())
+                         if n.get("mac") == mac and n.get("ip") != node["ip"] and now - n.get("seen", 0) > MOVED_AFTER])
         self.nodes["%s#%d" % (node["ip"], node["bindIndex"])] = node
+        self.tell({"t": "node", "node": node})
+
+    def tell(self, msg):
         for fn in list(self.listeners):
             try:
-                fn(node)
+                fn(msg)
             except Exception:
                 pass
+
+    def forget(self, keys):
+        keys = [k for k in keys if self.nodes.pop(k, None) is not None]
+        if keys:
+            self.tell({"t": "nodegone", "keys": keys})
+
+    def prune(self, nets, since):
+        """After a Discover: the devices on the networks it asked that didn't answer it are gone (switched off,
+        unplugged, moved). Devices on other networks stay as they were."""
+        def on(ip):
+            try:
+                a = struct.unpack(">I", socket.inet_aton(ip))[0]
+            except OSError:
+                return False
+            for n in nets:
+                try:
+                    net, mask = (struct.unpack(">I", socket.inet_aton(n[k]))[0] for k in ("ip", "mask"))
+                except (OSError, KeyError):
+                    continue
+                if a & mask == net & mask:
+                    return True
+            return False
+        self.forget([k for k, n in list(self.nodes.items()) if n.get("seen", 0) < since and on(n.get("from") or n.get("ip") or "")])
 
 
 def parse_poll_reply(d, addr):
@@ -1617,6 +1653,29 @@ class MediaHandler:
 
 # --------------------------------------------------------------------------- HTTP handler
 
+def platform_info():
+    """This computer, for the page's update window: which download fits it (the app, on Windows or a Mac with Apple
+    silicon or Intel), or, running from the source, how to bring that up to date (its folder, a git clone or not)."""
+    if platform_info.known is None:
+        osn = "windows" if sys.platform.startswith("win") else "mac" if sys.platform == "darwin" else "linux"
+        arch = "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x64"
+        if osn == "mac" and arch == "x64":
+            # the Intel app on a Mac with Apple silicon (Rosetta) says x86_64: the Apple silicon download fits it
+            try:
+                out = subprocess.run(["sysctl", "-in", "sysctl.proc_translated"], capture_output=True, text=True, timeout=3).stdout
+                if out.strip() == "1":
+                    arch = "arm64"
+            except (OSError, subprocess.SubprocessError):
+                pass
+        app = bool(getattr(sys, "frozen", False))
+        here = os.path.dirname(os.path.abspath(__file__))
+        platform_info.known = {"os": osn, "arch": arch, "app": app, **({} if app else {"dir": here, "git": os.path.exists(os.path.join(here, ".git"))})}
+    return platform_info.known
+
+
+platform_info.known = None
+
+
 def local_ips():
     ips = set()
     try:
@@ -1850,7 +1909,7 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
         ws = WebSocket(self.rfile, self.wfile, self.connection)
         first = not self.server.seen_window   # the first window since the bridge started opens the startup project
         self.server.window_count(+1)
-        on_node = lambda node: ws.send_json({"t": "node", "node": node})
+        on_node = lambda msg: ws.send_json(msg)
         art.listeners.add(on_node)
         vin_message, vin_closed = self.server.vin.window(ws)
         ws.send_json({
@@ -1860,6 +1919,7 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
             "nodes": list(art.nodes.values()),
             "remote": self.server.remote.status(),
             "startup": self.server.startup.meta(),
+            "platform": platform_info(),
             **({"startupProject": self.server.startup.first()} if first and self.server.startup.first() else {}),
         })
 
@@ -1942,7 +2002,14 @@ class Handler(MediaHandler, http.server.BaseHTTPRequestHandler):
             if not isinstance(ifaces, list) and not targets:
                 targets = ["255.255.255.255"]
             targets = list(dict.fromkeys(targets))
+            since = time.time()
             errors = [e for e in (art.poll(t) for t in targets) if e]
+            # once the devices have had time to answer, those on the networks asked that didn't are let go
+            asked = [n for n in nets if isinstance(ifaces, list) and n["ip"] in ifaces]
+            if asked:
+                t = threading.Timer(POLL_WAIT, art.prune, (asked, since))
+                t.daemon = True
+                t.start()
             ws.send_json({"t": "polled", "targets": targets, "nets": nets})
             for err in errors:
                 ws.send_json({"t": "error", "msg": err})

@@ -16,36 +16,60 @@ function toggleMacroOpen(key) {
 // the MIDI window for the macros drawn there)
 const bind = f => { binders.push(f); f(); };
 const foldBtn = (open, label, onclick, title) => h('button', { class: 'mfold' + (open ? ' open' : ''), type: 'button', 'aria-expanded': String(open), title, onclick }, icon('chev'), label);
-// A label with a tick that switches a colour or a shared control on and off
-function macroSwitch(id, label) {
-  const d = macroDef(id), box = h('input', { type: 'checkbox', 'aria-label': d.label + ' on', title: 'On: the effects follow it. Off: each keeps its own.', onchange: e => setMacro(id, { on: e.target.checked }) });
-  bind(() => { box.checked = !!project.macros[id].on; });
+// Which macros the panel shows: All zones' ('') or a zone's (its id), while that zone is there
+const macroScope = () => (ui.macroScope && project.zones.length > 1 && zoneById(ui.macroScope) ? ui.macroScope : '');
+// All zones, then each zone (the top one first, as in the Scenes panel), as tabs over the macros (with two zones or
+// more): moving All zones' sets every zone's, a zone's only that zone's
+function macroScopeTabs() {
+  if (project.zones.length < 2) return null;
+  const zs = project.zones.slice().reverse();
+  const el = seg([['', 'All zones'], ...zs.map(z => [z.id, z.name])], macroScope(), v => { ui.macroScope = v; updateMidiUI(); });
+  el.classList.add('mscope');
+  $$('button', el).forEach((b, i) => {
+    const z = zs[i - 1];
+    b.dataset.mscope = z ? z.id : '';
+    b.title = z ? `${z.name}'s own: only its content follows them` : 'Moving one sets it in every zone';
+  });
+  return el;
+}
+// A label with a tick that switches a colour or a shared control on and off (S: the scope, '' or a zone's id)
+function macroSwitch(id, label, S = '') {
+  const d = macroDef(id), box = h('input', { type: 'checkbox', 'aria-label': d.label + ' on', title: 'On: the effects follow it. Off: each keeps its own.', onchange: e => setMacro(id, { on: e.target.checked }, S) });
+  bind(() => { box.checked = !!macroScopeSet(S)[id].on; });
   return h('span', { class: 'lbl mlbl' }, box, label);
 }
 // A macro's slider: moving it (or its MIDI control) turns a shared control on
-function macroSlider(id) {
-  const d = macroDef(id), holder = { get v() { return project.macros[id].v; }, set v(x) { setMacro(id, { v: x }); } };
-  const r = sliderRow(d.label, holder, 'v', { min: 0, max: macroMax(d), step: 0.01, fmt: d.kind === 'mult' ? v => v.toFixed(2) + '×' : pct, midi: 'm:' + id,
-    label: d.kind === 'abs' ? macroSwitch(id, d.label) : null });
-  if (d.kind === 'abs') bind(() => r.classList.toggle('off', !project.macros[id].on));
-  r.title = d.kind === 'mult' ? 'Every effect\'s speed: 1× leaves them as they are.' : id === 'intensity' ? 'The level of every layer: 100 % leaves them as they are.'
+function macroSlider(id, S = '') {
+  const d = macroDef(id), M = () => macroScopeSet(S), holder = { get v() { return M()[id].v; }, set v(x) { setMacro(id, { v: x }, S); } };
+  const r = sliderRow(d.label, holder, 'v', { min: 0, max: macroMax(d), step: 0.01, fmt: d.kind === 'mult' ? v => v.toFixed(2) + '×' : pct, midi: macroTarget(id, S),
+    label: d.kind === 'abs' ? macroSwitch(id, d.label, S) : null });
+  if (d.kind === 'abs') bind(() => r.classList.toggle('off', !M()[id].on));
+  const what = d.kind === 'mult' ? 'Every effect\'s speed: 1× leaves them as they are.' : id === 'intensity' ? 'The level of every layer: 100 % leaves them as they are.'
     : id === 'saturation' ? 'Every effect\'s saturation: 100 % leaves them as they are.' : `Sets the ${d.label.toLowerCase()} of every effect that has one, each in its own range.`;
+  macroMixedMark(r, id, S, what);
   return r;
 }
+// On All zones' sliders: a small ≠ after the name while some zone is elsewhere (its own was moved since), and why
+const MIXED_NOTE = 'Some zones have their own value now: moving this sets them all.';
+function macroMixedMark(r, id, S, what = '') {
+  if (S) { r.title = what; return; }
+  bind(() => { const mixed = macroMixed(id); if (r.classList.contains('mixed') !== mixed || !r.title) { r.classList.toggle('mixed', mixed); r.title = (what + (mixed ? ' ' + MIXED_NOTE : '')).trim(); } });
+}
 // A colour macro: its switch and its swatch; opened, a slider for each part, which a MIDI fader can drive
-function macroColor(id) {
-  const d = macroDef(id), open = macroOpen().has(id), m = project.macros[id];
+function macroColor(id, S = '') {
+  const d = macroDef(id), open = macroOpen().has(id), M = () => macroScopeSet(S), m = M()[id];
   const fill = h('i'), hex = h('span', { class: 'mono' });
-  const r = row(macroSwitch(id, foldBtn(open, d.label, () => toggleMacroOpen(id), open ? 'Fold its parts' : 'Its hue, saturation and value, for MIDI faders')),
+  const r = row(macroSwitch(id, foldBtn(open, d.label, () => toggleMacroOpen(id), open ? 'Fold its parts' : 'Its hue, saturation and value, for MIDI faders'), S),
     h('span', { class: 'cswatch still', title: 'The colour the effects follow while it is on' }, fill, hex));
   r.classList.add('mcolor');
-  r.dataset.midi = `m:${id}.0`;   // learnt as its first part (Hue, or Red in RGB); opened, each part has its slider
-  bind(() => { const c = toHex(macroRgb(project.macros[id])); fill.style.background = c; hex.textContent = c; r.classList.toggle('off', !project.macros[id].on); });
+  r.dataset.midi = macroTarget(id, S, 0);   // learnt as its first part (Hue, or Red in RGB); opened, each part has its slider
+  bind(() => { const c = toHex(macroRgb(M()[id])); fill.style.background = c; hex.textContent = c; r.classList.toggle('off', !M()[id].on); });
+  macroMixedMark(r, id, S);
   if (!open) return [r];
-  const mode = seg([['hsv', 'HSV'], ['rgb', 'RGB']], m.mode, v => { setMacro(id, { mode: v, on: project.macros[id].on }); renderRight(); });
+  const mode = seg([['hsv', 'HSV'], ['rgb', 'RGB']], m.mode, v => { setMacro(id, { mode: v }, S); renderRight(); });
   const parts = MACRO_PARTS[m.mode].map(([k, name], i) => {
-    const hue = k === 'h', holder = { get v() { return macroPart(project.macros[id], i) * (hue ? 360 : 1); }, set v(x) { setMacroPart(id, i, hue ? x / 360 : x); } };
-    return sliderRow(name, holder, 'v', { min: 0, max: hue ? 360 : 1, step: hue ? 1 : 0.01, fmt: hue ? v => Math.round(v) + '°' : pct, midi: `m:${id}.${i}` });
+    const hue = k === 'h', holder = { get v() { return macroPart(M()[id], i) * (hue ? 360 : 1); }, set v(x) { setMacroPart(id, i, hue ? x / 360 : x, S); } };
+    return sliderRow(name, holder, 'v', { min: 0, max: hue ? 360 : 1, step: hue ? 1 : 0.01, fmt: hue ? v => Math.round(v) + '°' : pct, midi: macroTarget(id, S, i) });
   });
   return [r, h('div', { class: 'msub' }, row('Sliders', mode), ...parts)];
 }
@@ -53,15 +77,15 @@ function macroColor(id) {
 // a fader moving a macro moves its slider there.
 let macroBinders = [];
 function macrosPanel() {
-  const shared = macroOpen().has('shared'), abs = MACROS.filter(d => d.kind === 'abs'), keep = binders;
+  const shared = macroOpen().has('shared'), abs = MACROS.filter(d => d.kind === 'abs'), keep = binders, S = macroScope();
   binders = [];
   const nOn = h('span', { class: 'msum' });
-  bind(() => { const n = abs.filter(d => project.macros[d.id].on).length; nOn.textContent = n ? `${n} on` : ''; });
-  const el = h('div', { class: 'mmacros' },
-    macroSlider('speed'), macroSlider('intensity'), macroSlider('saturation'),
-    ...macroColor('color1'), ...macroColor('color2'),
+  bind(() => { const n = abs.filter(d => macroScopeSet(S)[d.id].on).length; nOn.textContent = n ? `${n} on` : ''; });
+  const el = h('div', { class: 'mmacros' }, macroScopeTabs(),
+    macroSlider('speed', S), macroSlider('intensity', S), macroSlider('saturation', S),
+    ...macroColor('color1', S), ...macroColor('color2', S),
     h('div', { class: 'row mshared' }, foldBtn(shared, 'Shared controls', () => toggleMacroOpen('shared'), shared ? 'Fold them' : 'Angle, Softness, Scale, Count, Size, Width, Density, Fade'), nOn),
-    shared ? h('div', { class: 'msub' }, abs.map(d => macroSlider(d.id))) : null);
+    shared ? h('div', { class: 'msub' }, abs.map(d => macroSlider(d.id, S))) : null);
   macroBinders = binders; binders = keep;
   return el;
 }
@@ -86,11 +110,24 @@ function macroLinksFold(src, rt) {
   if (mappingLocked()) lockPanel(sub, 'Operator: you can see what follows the macros but not change it.');
   return [head, sub];
 }
-// Under an effect's control: the macro it follows, while that macro changes it
-function macroFollows(id) {
-  const d = macroDef(id), el = h('p', { class: 'note via' });
-  bind(() => { const on = macroActive(id); el.hidden = !on; if (on) el.textContent = `Follows ${d.label}` + (d.kind === 'color' || d.kind === 'abs' ? '' : ` (${macroText(id)})`); });
-  return el;
+// An effect's control that follows a macro: no text in the panel, a thin yellow line (as MIDI's) under its name while that macro
+// changes it, what it follows told on pointing at the name. A colour picked for this layer alone (own: the layer, its
+// source and the control): the line dashed, and a link to follow the macro again. z: the zone, whose macros it follows
+function macroMark(rowEl, id, own, z) {
+  const d = macroDef(id), lbl = rowEl && (rowEl.querySelector('.lbl') || (rowEl.classList.contains('checkrow') ? rowEl : null));
+  if (!lbl) return;
+  const again = own ? h('button', { type: 'button', class: 'relink', title: `Follow ${d.label} again`, 'aria-label': `Follow ${d.label} again`, html: lineIcon('link'),
+    onclick: e => { e.stopPropagation(); setOwnCtl(own.L, own.src.id, own.name, false); commit(); renderRight(); } }) : null;
+  if (again) lbl.append(again);
+  bind(() => {
+    const M = macrosOf(z), follows = !z || zoneFollows(z), mine = follows && !!own && ownsCtl(own.L, own.src.id, own.name), on = follows && macroActive(id, M);
+    lbl.classList.toggle('mac', on && !mine);
+    lbl.classList.toggle('own', mine);
+    if (again) again.hidden = !mine;
+    if (mine) lbl.dataset.tip = `Its own colour|This layer only, until ${d.label} moves. The link follows ${d.label} again.`;
+    else if (on) lbl.dataset.tip = `Follows ${d.label}` + (d.kind === 'color' || d.kind === 'abs' ? '' : ` (${macroText(id, M)})`) + (d.kind === 'color' ? '|A colour picked here is for this layer only.' : '');
+    else delete lbl.dataset.tip;
+  });
 }
 // The values shown in the Content tab and in an open colour picker, after something else moved them (a macro, a MIDI
 // control), at most once a frame
