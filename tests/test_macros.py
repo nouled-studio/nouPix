@@ -98,7 +98,8 @@ try:
     key = "project.zones[0].layers[0].id + '|b-rainbow'"
     r1 = rate(key); ev("setMacro('speed', { v: 2 })"); r2 = rate(key)
     check("Speed at 2× runs an effect twice as fast", abs(r2 / r1 - 2) < 0.1, (r1, r2))
-    ev("setMacro('speed', { v: 0 })"); a = col(3); settle(0.6); b = col(3)
+    # (the colours read are a frame or two behind the picture: read once the stopped frames are out)
+    ev("setMacro('speed', { v: 0 })"); settle(0.3); a = col(3); settle(0.6); b = col(3)
     check("at 0 it stops, where it was", a == b and rate(key) == 0, (a, b))
     load("b-strobe")
     skey = "project.zones[0].layers[0].id + '|b-strobe|flash'"
