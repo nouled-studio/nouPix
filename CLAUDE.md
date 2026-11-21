@@ -12,7 +12,9 @@ noupix.py              ── the bridge (Python 3.8+, standard library only): s
 login.html, remote.html── what other devices open: the login page, and the phone page; /app is index.html
 desktop/               ── Electron window that starts the bridge and loads http://127.0.0.1:<port>/; owns .noupix and
                           .noupixpkg (icons in desktop/resources, made by icons/make_file_icons.py from the two SVGs):
-                          a file double-clicked goes to the page's openPath, which has the bridge read it (POST /open-path)
+                          a file double-clicked goes to the page's openPath, which has the bridge read it (POST /open-path);
+                          the Windows setup installs for every user (admin once) and lets the bridge through Windows
+                          Firewall, removing the rule again on uninstall (desktop/resources/installer.nsh)
 ```
 
 ## The interface

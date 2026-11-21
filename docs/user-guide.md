@@ -10,7 +10,7 @@ The interface runs in your browser. `noupix.py` is a small local server that sen
 
 **The app (Windows and macOS).** Download it from the [Releases](https://github.com/nouled-studio/openLEDmapper/releases) page. Nothing else to install, and you don't need Chrome. It needs Windows 10 or newer, or macOS 12 (Monterey) or newer.
 
-- **Windows:** `…-windows-setup.exe`. Run it: it installs nouPix and adds it to the Start menu and the desktop.
+- **Windows:** `…-windows-setup.exe`. Run it and allow it admin rights: it installs nouPix for every user of the computer, adds it to the Start menu and the desktop, and lets it through Windows Firewall so node discovery works without asking. An install of 1.6.3 or earlier (for you only) is replaced.
 - **Mac:** `…-macos-apple-silicon.dmg` (Macs with an M1 or newer) or `…-macos-intel.dmg`. Open it and drag nouPix onto Applications.
 
 The apps aren't signed yet, so the first time you open one:
@@ -35,7 +35,7 @@ The nouPix window has its own browser profile (in `~/.noupix/browser-profile`), 
 - `--default-browser` opens your normal browser instead (output can then slow down when that window is hidden).
 - `--browser-path PATH` picks the browser if it isn't found automatically.
 
-On Windows, allow nouPix (or Python) through the firewall on private networks when asked, otherwise node discovery won't receive replies.
+Run from the source on Windows, allow Python through the firewall when asked (on private and public networks: a computer cabled straight to a controller is often on an "unidentified", public, network), otherwise node discovery won't receive replies. The app's setup does this for you.
 
 ## The look
 

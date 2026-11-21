@@ -165,7 +165,7 @@ jobs:
           if [ -f "$f" ]; then { cat "$f"; printf '\n\n'; } >> notes.md; else echo "::warning::No $f: the release has only the downloads and the list of changes"; fi
           cat >> notes.md <<'DOWNLOADS'
           **Download** the file for your computer:
-          - **Windows:** `…-windows-setup.exe`, then run it. It installs nouPix for you and adds it to the Start menu.
+          - **Windows:** `…-windows-setup.exe`, then run it and allow it admin rights. It installs nouPix, adds it to the Start menu and lets it through Windows Firewall.
           - **Mac with Apple silicon (M1 or newer):** `…-macos-apple-silicon.dmg`
           - **Mac with an Intel processor:** `…-macos-intel.dmg`
 

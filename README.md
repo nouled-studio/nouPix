@@ -63,7 +63,7 @@ On a Mac, open the `.dmg` and drag nouPix onto Applications. The apps aren't sig
 - **Windows:** SmartScreen says it protected your PC. Click **More info → Run anyway**.
 - **macOS:** click **Done** on the warning, then **System Settings → Privacy & Security → Open Anyway**.
 
-On Windows, allow nouPix through the firewall on private networks when asked, or node discovery won't work. To follow the music, allow the microphone (or the sound input you choose) the first time you listen, in Settings → Tempo.
+On Windows the setup asks for admin rights once: it installs nouPix for every user and lets it through Windows Firewall, so node discovery works without a firewall question. Run from the source, allow Python through the firewall when asked. To follow the music, allow the microphone (or the sound input you choose) the first time you listen, in Settings → Tempo.
 
 ## Run from the source (Linux, Raspberry Pi, any computer)
 

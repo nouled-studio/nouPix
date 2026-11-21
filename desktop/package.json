@@ -84,7 +84,8 @@
     },
     "nsis": {
       "oneClick": true,
-      "perMachine": false,
+      "perMachine": true,
+      "include": "resources/installer.nsh",
       "createDesktopShortcut": true,
       "runAfterFinish": true,
       "artifactName": "nouPix-${version}-windows-setup.${ext}"
