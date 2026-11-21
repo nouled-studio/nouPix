@@ -19,10 +19,11 @@
   Push $0
   Push $1
   !insertmacro noupixDropRules "$INSTDIR\${NOUPIX_BRIDGE}"
-  ; An install for this user only (1.6.3 and before) is removed just before this; its rules go too.
+  ; An install for this user only (1.6.3 and before) is removed just before this; its rules go too. It was in
+  ; a folder named after the package (noupix-desktop), where this one is named after the product (nouPix).
   ReadEnvStr $1 LOCALAPPDATA
   ${if} $1 != ""
-    !insertmacro noupixDropRules "$1\Programs\${APP_FILENAME}\${NOUPIX_BRIDGE}"
+    !insertmacro noupixDropRules "$1\Programs\${APP_PACKAGE_NAME}\${NOUPIX_BRIDGE}"
   ${endIf}
   ; Every network type: a computer cabled straight to a controller is often on an "unidentified network",
   ; which Windows counts as public. The bridge only listens where it needs to (UDP 6454 for replies, the
