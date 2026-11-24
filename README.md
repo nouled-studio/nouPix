@@ -34,7 +34,7 @@ A pixel-mapping tool for LED installations, by nouled studio. Draw or import you
 
 ![The Patch panel: two controllers, one on Art-Net and one on DDP with its outputs set by pixels, with their fixtures and channels](docs/images/feature-patch.webp)
 
-**Control it live.** MIDI controllers (with Learn, a patch bay and Flash pads), phones and tablets on the network, and HTTP triggers for show control software.
+**Control it live.** MIDI controllers (with Learn, a patch bay and Flash pads; see [MIDI mapping](docs/midi-mapping.md)), phones and tablets on the network, and HTTP triggers for show control software.
 
 <table>
 <tr>
@@ -78,6 +78,7 @@ On Windows or macOS you can also double-click `start-noupix.bat` or `start-noupi
 ## Learn it
 
 - **[Getting started guide (PDF)](docs/nouPix-getting-started.pdf):** from an empty project to a running show, step by step, with pictures.
+- **[MIDI mapping](docs/midi-mapping.md)** ([PDF](docs/nouPix-midi-mapping.pdf)): learn your controller, macros for all zones or one zone, how each mapping moves, the patch bay.
 - **[User guide](docs/user-guide.md):** everything nouPix does, in detail.
 - To see it working first: **Project ▾ → Load demo layout**, or open one of the [examples](examples/).
 
