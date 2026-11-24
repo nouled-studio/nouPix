@@ -227,7 +227,13 @@ while dragging, or when the fixture or pixel under it changes (`hoverPixel` look
   Apple silicon or Intel; only from the repository's own downloads), opened straight away; the release's page when no file
   fits or the window has been open over 6 hours (`UPDATE_STALE`: a newer one may be out); running from the source (Linux,
   or `python noupix.py` anywhere), the terminal commands instead (`updateCommands`: `git pull` in its folder, or a clone),
-  with Copy commands and Open GitHub. A browser
+  with Copy commands and Open GitHub. The desktop app downloads the file itself (it sets `window.noupixApp.download` once
+  the page has loaded): its Download hands the app the file's address (`window.open`; the app takes only nouPix's own
+  release files, `UPDATE_FILE` in `desktop/main.js`, and saves them in Downloads without asking), the window stays open
+  with a thin bar and the megabytes (`updateProgress`), then where the file is and Install now (Open installer on a Mac,
+  with how to install; `updateDownloaded`; `updateFailed` says it couldn't, and Download tries again); closed meanwhile, a
+  small window says it is downloaded (`updateReadyDialog`). Install now sets the address to `#install-update`, and the app
+  starts the setup (Windows) or opens the disk image (Mac) it downloaded, then quits (`installUpdate` in main.js). A browser
   driven by tests (`navigator.webdriver`) never looks by itself, so the suites stay offline.
 
 ## Remote control
@@ -352,7 +358,7 @@ choosing zones, the zone menu), the fade for new scenes in Settings, undo, files
 Remote page (the option, the card, moving it both ways).
 `test_update.py` checks looking for a new version, with GitHub's answer simulated (never asked for real): versions compared,
 the window (notes as plain text, Download, Later, Skip this version), at every start and once a day, nothing by itself in a test browser, when off or
-offline, Settings → Updates and Check now; Download as the file for this computer (Windows, Mac with Apple silicon or Intel, never a file from elsewhere),
+offline, Settings → Updates and Check now; in the app (its part simulated), Download kept in the window with its bar, not asked twice, Install now asking the app, a small window when it finished closed, a failure, the Mac's Open installer; Download as the file for this computer (Windows, Mac with Apple silicon or Intel, never a file from elsewhere),
 the release's page with no file or from an old window, and from the source the commands (a clone's pull, a clone anew, python on Windows), Copy commands and Open GitHub.
 `test_effects.py` checks the Radar sweep's strong line leading and its glow fading behind it, every effect's colours' alpha (Bars' background see-through over a layer, Solid color at 50%, the picker's Alpha), the Rainbow's colors (the rainbow at first, 1 to 5 each in turn, alpha over a layer below, the Content tab showing as many as it uses, files from before) and the 22 effects added after 1.1.0: they compile, Speed −1..1 on the Speed macro (still at 0, moving at 1, reverse the same
 movement backwards), nothing moving but by speed, colours on Color 1 and 2, the filters, a lit thumbnail; and Rainbow's and Plasma's

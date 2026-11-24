@@ -950,6 +950,11 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .modal .mb { padding: 12px 16px; display: grid; gap: 10px; min-height: 0; overflow: auto; }
 .updmodal { width: min(520px, 100%); }
 .updcmd { margin: 0 0 10px; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--line); color: var(--text); font: 400 11.5px/1.6 var(--mono); white-space: pre; overflow: auto; user-select: text; -webkit-user-select: text; }
+/* the new version coming into Downloads (in the desktop app): a thin bar, where it is, Install now */
+.updstat { margin: 0 0 10px; }
+.updstat .note { margin: 6px 0; }
+.updbar { height: 2px; background: var(--line2); overflow: hidden; }
+.updbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s linear; }
 .updnotes { max-height: 240px; overflow: auto; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--line); color: var(--text2); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .modal footer { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
 .toasts { position: fixed; right: 14px; bottom: 34px; display: grid; gap: 6px; z-index: 60; }
