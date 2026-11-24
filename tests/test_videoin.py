@@ -51,7 +51,7 @@ try:
     check("the Content tab shows Camera input and Image", "camera input" in heads and "image" in heads, heads)
     check("…its device, its state and size", pg.locator("#rightBody select[aria-label=Device]").input_value() == ev(f"{cam()}.device")
           and "640 × 480" in pg.locator("#rightBody").inner_text(), pg.locator("#rightBody").inner_text()[:200])
-    tile = pg.locator("#srcList .tile", has_text="Camera")
+    tile = pg.locator("#srcList .tile:not(.newin)", has_text="Camera")
     check("the source list tags it CAM", tile.count() >= 1 and "CAM" in tile.first.inner_text(), tile.first.inner_text() if tile.count() else "")
 
     # ---------- its processing, on a picture we know: red on the left, blue on the right
@@ -60,7 +60,7 @@ try:
       paint(); window._painter = setInterval(paint, 40);
       const s = {cam()}; devState(s).off = true; releaseMedia(s.id);
       const v = document.createElement('video'); v.muted = true; v.srcObject = c.captureStream(30); v.play(); mediaEls.set(s.id, v); s.fit = 'stretch'; commit(); }})()""")
-    settle(1)
+    pg.wait_for_function(f"mediaEls.get({cam()}.id).videoWidth > 0", timeout=10000); settle(1)
     proc = lambda js: ev(f"(() => {{ const p = {cam()}.proc; {js}; }})()") or settle()
     check("as it is: red left, blue right", ends() == ([255, 0, 0], [0, 0, 255]), ends())
     proc("p.flipH = true"); check("flipped horizontally: blue left, red right", ends() == ([0, 0, 255], [255, 0, 0]), ends())
@@ -145,6 +145,7 @@ try:
     settle(0.5)
     check("the Ambilight is a built-in source", ev("!!srcById('b-ambilight') && srcById('b-ambilight').kind === 'ambilight'") and pg.locator("#srcList .tile", has_text="Ambilight").count() >= 1)
     check("following nothing yet, it shows nothing and asks for a source", ends() == ([0, 0, 0], [0, 0, 0]) and "Choose the picture it follows" in pg.locator("#rightBody").inner_text(), ends())
+    pg.wait_for_function("mediaEls.get('pic') && mediaEls.get('pic').videoWidth > 0", timeout=10000)
     pg.locator("#rightBody select[aria-label='What the Ambilight follows']").select_option("pic"); settle(1.2)
     check("chosen from the Content tab, a step of undo", ev("project.zones[0].layers[0].params['b-ambilight'].from") == "pic")
     a, b = ends()
