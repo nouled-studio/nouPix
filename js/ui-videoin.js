@@ -26,6 +26,12 @@ function deviceSections(src) {
   if (!named.length && !REMOTE_CLIENT) listVideoDevices().then(l => { if (l.some(d => d.deviceId)) renderRight(); });
   return [sec(cap ? 'Video input' : 'Camera input', k), videoProcSection(src)];
 }
+// A flip, as a button with its drawing: lit while on
+function flipButton(p, key, label, done) {
+  const b = h('button', { type: 'button', class: p[key] ? 'on' : '', title: label, 'aria-label': label, 'aria-pressed': String(!!p[key]), html: lineIcon(key) });
+  b.addEventListener('click', () => { p[key] = !p[key]; b.classList.toggle('on', p[key]); b.setAttribute('aria-pressed', String(p[key])); done(); });
+  return b;
+}
 // What it does to its picture: live as it is moved, one step of undo when let go
 function videoProcSection(src) {
   const p = src.proc, live = () => markThumb(src), done = () => { markThumb(src); commit(); };
@@ -33,8 +39,7 @@ function videoProcSection(src) {
   const crop = (label, key) => sliderRow(label, p, key, { min: 0, max: 0.45, step: 0.01, fmt: pct, onInput: live, onCommit: done });
   const open = macroOpen().has('crop');
   return sec('Image',
-    checkRow('Flip horizontally', p, 'flipH', done),
-    checkRow('Flip vertically', p, 'flipV', done),
+    row('Flip', h('div', { class: 'seg flips' }, flipButton(p, 'flipH', 'Flip horizontally', done), flipButton(p, 'flipV', 'Flip vertically', done))),
     row('Rotate', seg([[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], p.rotate, v => { p.rotate = +v; done(); })),
     checkRow('Invert', p, 'invert', done),
     sl('Brightness', 'brightness', 2, '100 % leaves it as it is.'),

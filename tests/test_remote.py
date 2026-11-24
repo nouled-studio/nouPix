@@ -220,7 +220,8 @@ try:
     H("(() => { olm.project.fixtures[1].name = 'Renamed here'; commit(); })()")
     check("a change on the main computer reaches the programmer", until(pr, "olm.project.fixtures[1].name === 'Renamed here'"))
     pr.click("#btnAddSrc"); items = pr.locator(".menu button").evaluate_all("l => l.map(b => [b.textContent, b.disabled])"); pr.keyboard.press("Escape")
-    check("videos and screen capture are added on the main computer only", any("ISF" in t and not d for t, d in items) and all(d for t, d in items if "video" in t or "Screen" in t), items)
+    check("videos and screen capture are added on the main computer only", any("ISF" in t and not d for t, d in items) and all(d for t, d in items if "video" in t or "Screen" in t)
+          and pr.locator("#srcList .tile.newin").count() == 0, items)
     H("setOutput(false)"); P_("setOutput(true)"); time.sleep(0.6)   # the main window sends from the start: off first
     check("a device can't switch Art-Net on", not H("ui.outputOn"))
     H("setOutput(true)")

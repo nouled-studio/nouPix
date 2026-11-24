@@ -38,7 +38,7 @@ with sync_playwright() as pw:
     try:
         pg = br.new_page(viewport={"width": 1440, "height": 900})
         pg.goto(f"http://127.0.0.1:{PORT + 1}/"); pg.wait_for_function("window.olm && olm.bridge.connected"); time.sleep(0.4)
-        pg.click("#btnAddSrc"); pg.get_by_text("NDI or OMT stream…").click()
+        pg.locator("#srcList [data-input=ndi]").click()
         note = wait(lambda: "NDI Tools" in pg.locator(".vmodal").inner_text() and pg.locator(".vmodal").inner_text())
         check("without NDI the window says to install NDI Tools", bool(note), pg.locator(".vmodal").inner_text())
         pg.get_by_role("button", name="Cancel").click()
@@ -64,7 +64,7 @@ with sync_playwright() as pw:
           olm.loadProject(p); ui.selZone = olm.project.zones[0].id; renderAll(); })()"""); time.sleep(0.5)
 
         # ---------- found and chosen
-        pg.click("#btnAddSrc"); pg.get_by_text("NDI or OMT stream…").click()
+        pg.locator("#srcList [data-input=ndi]").click()
         row = pg.locator(".vrow", has_text="nouPix test")
         check("the window lists the NDI sources on the network", wait(lambda: row.count() == 1), pg.locator(".vmodal").inner_text())
         row.click()

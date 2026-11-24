@@ -44,10 +44,10 @@ try:
       p.fixtures = [newFixture('line', { x1: 40, y1: 50, x2: 160, y2: 50, pixels: 2 })];
       olm.loadProject(p); ui.selZone = olm.project.zones[0].id; renderAll(); })()"""); time.sleep(0.5)
 
-    pg.click("#btnAddSrc"); pg.get_by_text("NDI or OMT stream…").click()
+    pg.locator("#srcList [data-input=omt]").click()
     row = pg.locator(".vrow", has_text="nouPix OMT")
     check("the window lists the OMT source", wait(lambda: row.count() == 1) and "OMT" in row.inner_text(), pg.locator(".vmodal").inner_text())
-    check("and says NDI isn't installed", "NDI Tools" in pg.locator(".vmodal").inner_text())
+    check("the OMT tile's window is about OMT only: no word of NDI", "NDI" not in pg.locator(".vmodal").inner_text(), pg.locator(".vmodal").inner_text())
     row.click()
     src = ev("olm.project.sources.at(-1)"); sid = src["id"]
     check("choosing it adds an OMT source", src["kind"] == "stream" and src["proto"] == "omt" and src["stream"] == "NOUPIX-TEST (nouPix OMT)" and src["name"] == "nouPix OMT", src)
@@ -66,7 +66,7 @@ try:
     check("and it comes back by itself", wait(lambda: (lambda c: c[2] > 240 and c[5] > 240)(col()), 15), col())
     # ---------- libomt ending its process: only OMT's helper stops, the bridge goes on and says why
     open(abort, "w").close()
-    pg.click("#btnAddSrc"); pg.get_by_text("NDI or OMT stream…").click()
+    pg.locator("#srcList [data-input=omt]").click()
     modal = lambda: pg.locator(".vmodal").inner_text() if pg.locator(".vmodal").count() else ""
     check("libomt failing while looking for sources: the window says OMT's library stopped, and why",
           wait(lambda: "OMT's library stopped" in modal() and "asked to fail" in modal()), modal())
@@ -74,7 +74,7 @@ try:
     check("the stream waits", wait(lambda: ev(f"streamState(srcById('{sid}'))") == "waiting"))
     pg.get_by_role("button", name="Cancel").click()
     os.remove(abort); time.sleep(11)
-    pg.click("#btnAddSrc"); pg.get_by_text("NDI or OMT stream…").click()
+    pg.locator("#srcList [data-input=omt]").click()
     check("a few seconds later a new helper finds the source again", wait(lambda: pg.locator(".vrow", has_text="nouPix OMT").count() == 1), modal())
     pg.get_by_role("button", name="Cancel").click()
     put(255, 255, 0, 0, 255, 255)

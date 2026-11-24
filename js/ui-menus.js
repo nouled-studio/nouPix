@@ -16,28 +16,30 @@ function highlightMenu(anchor) {
 /* ---------- choosing an NDI or OMT stream ---------- */
 // The sources the bridge finds on the network, asked for again every second and a half while the window is open.
 // For a new source (src null) or another stream for one already there.
-function streamPicker(src) {
+function streamPicker(src, only = src ? null : '') {
   let timer = 0;
   const list = h('div', { class: 'vlist', role: 'listbox', 'aria-label': 'Streams' });
   const close = () => { clearInterval(timer); streams.onFound = null; bg.remove(); };
   const pick = s => { close(); setStreamSource(src, s.proto, s.name); };
   const draw = () => {
-    const info = streams.info || {}, got = streams.found, ready = Object.keys(STREAM_PROTOS).filter(p => info[p] && info[p].ok);
+    // only: the stream kind asked for (an NDI or OMT tile), or every kind
+    const kinds = Object.keys(STREAM_PROTOS).filter(p => !only || p === only);
+    const info = streams.info || {}, got = streams.found.filter(s => kinds.includes(s.proto)), ready = kinds.filter(p => info[p] && info[p].ok);
     let empty = null;
     if (!bridge.connected) empty = 'nouPix isn’t connected to its bridge (noupix.py), which receives the streams.';
     else if (!streams.info) empty = 'Looking…';
     else if (!got.length) empty = ready.length ? `Looking… No ${ready.map(p => STREAM_PROTOS[p]).join(' or ')} source found on the network yet. Sources from other computers can take a few seconds to appear.` : null;
     // what isn't installed, and how to get it
-    const missing = Object.keys(STREAM_PROTOS).filter(p => info[p] && !info[p].ok).map(p => h('p', { class: 'note' }, info[p].note));
+    const missing = kinds.filter(p => info[p] && !info[p].ok).map(p => h('p', { class: 'note' }, info[p].note));
     list.replaceChildren(...(empty ? [h('p', { class: 'note' }, empty)] : []), ...got.map(s => h('button', {
       class: 'vrow' + (src && src.stream === s.name ? ' on' : ''), type: 'button', role: 'option', onclick: () => pick(s) },
       h('span', { class: 'ic' }, icon('stream')), h('span', { class: 'nm' }, s.name), h('span', { class: 'meta' }, STREAM_PROTOS[s.proto]))), ...missing);
   };
   const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
     h('div', { class: 'modal vmodal', role: 'dialog', 'aria-label': 'Stream' },
-      h('header', null, src ? 'Stream for ' + src.name : 'Add an NDI or OMT stream'),
+      h('header', null, src ? 'Stream for ' + src.name : only ? `Add an ${STREAM_PROTOS[only]} stream` : 'Add an NDI or OMT stream'),
       h('div', { class: 'mb' }, list,
-        h('p', { class: 'note' }, 'Programs sending NDI or OMT show here.')),
+        h('p', { class: 'note' }, `Programs sending ${only ? STREAM_PROTOS[only] : 'NDI or OMT'} show here.`)),
       h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'))));
   streams.onFound = draw;
   draw(); findStreams();
@@ -405,10 +407,8 @@ function addFixtureMenu(anchor) {
   menu(anchor, [['Line / strip', mk('line')], ['Matrix', mk('matrix')], ['Circle / ring', mk('circle')], ['Dot (one big pixel)', mk('dot')], ['Path (draw on stage)', () => setTool('path')], '-', ['Import from SVG…', () => $('#fileSvg').click()]]);
 }
 function addSourceMenu(anchor) {
-  // files and screens play on the main computer: a device can't hand it a file of its own
-  const here = REMOTE_CLIENT ? { disabled: true, title: 'Add videos, images, screen capture and streams on the main computer.' } : null;
-  menu(anchor, [['ISF shader file (.fs)…', () => $('#fileIsf').click()], ['Image or video file…', () => pickMedia(null), here || { title: MEDIA_FORMATS }], ['Screen / window capture', addScreenSource, here],
-    ['Camera input', () => addDeviceSource('camera'), here || { title: 'A webcam or camera on this computer' }],
-    ['Video input', () => addDeviceSource('capture'), here || { title: 'A capture card on this computer: HDMI or SDI in (Cam Link, Magewell, Blackmagic…)' }],
-    ['NDI or OMT stream…', () => streamPicker(null), here || { title: 'Video from another program or computer on the network, sent with NDI or OMT' }]]);
+  // files: the live inputs (screen, streams, camera, video input) are tiles among the sources (INPUT_TILES); files play
+  // on the main computer: a device can't hand it a file of its own
+  const here = REMOTE_CLIENT ? { disabled: true, title: 'Add videos and images on the main computer.' } : null;
+  menu(anchor, [['ISF shader file (.fs)…', () => $('#fileIsf').click()], ['Image or video file…', () => pickMedia(null), here || { title: MEDIA_FORMATS }]]);
 }

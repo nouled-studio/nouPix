@@ -156,8 +156,14 @@ in the tool rail and the stage bar), 1.3–1.6 lines. The set has 67: the 58 of 
 **Line icons** (`LINE_ICONS`, `lineIcon` in `util.js`) are for buttons without a box: the same 16 × 16 grid with a
 thinner 1.2 line and square ends, so they sit quietly beside the label voice. They are play, pause, stop, back, the
 loop's three states (once, loop, region) and loop around everything (`loopfit`), fit (also the stage's Fit), marker,
-audio, snap (a magnet), plus, more (⋯), the two zoom arrows (`hzoom`, `vzoom`), edit (the pencil) and the length fitted
-to the contents (`lenfit`). A line icon and a boxed icon never mean two things: Fit is the same picture everywhere. The phone remote draws its own play, pause, next, playlist and
+audio, snap (a magnet), plus, more (⋯), the two zoom arrows (`hzoom`, `vzoom`), edit (the pencil), the length fitted
+to the contents (`lenfit`), and the two flips of a camera's or video input's picture (`flipH`, `flipV`: a dashed axis,
+the picture on one side in outline and its mirror filled on the other; in their own pair of boxed buttons in the Content
+tab, lit as a segmented button). The icon set also has `camera` (Camera input) and `capture` (Video input).
+**Live inputs** (Camera input, Video input, NDI stream, OMT stream, Screen capture) are tiles among the sources: their
+picture a placeholder, the input's icon larger in grey over a faint field of LED dots, and a small red + in the corner
+(it adds one); an input that is off shows the same placeholder without the +. The Patch tab's Channel monitor and Output
+settings sit in its tab row without a box: a red icon and a grey label, white when pointed at. A line icon and a boxed icon never mean two things: Fit is the same picture everywhere. The phone remote draws its own play, pause, next, playlist and
 `touch` larger, on a 24 grid for fingers.
 
 Text signs that every font draws the same are fine: × · – → ← ↑ ↓ ° ✓ ⇧ ⌘ « » ‹ › ⋯ ▾ ▴. Signs that phones and some systems

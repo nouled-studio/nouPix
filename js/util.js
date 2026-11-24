@@ -104,6 +104,9 @@ const LINE_ICONS = {
 };
 // (the timeline's length set to the end of what is on it: its contents with the end line right after them)
 LINE_ICONS.lenfit = '<rect x="1.5" y="5" width="9" height="6"/><path d="M13.5 2.5v11"/><path d="M10.5 8h3"/>';
+// flip: an axis (dashed) with the picture on one side and its mirror, filled, on the other
+LINE_ICONS.flipH = '<path d="M8 1.5v13" stroke-dasharray="1.6 1.4"/><path d="M6 4.5L2 8l4 3.5z"/><path d="M10 4.5L14 8l-4 3.5z" fill="currentColor"/>';
+LINE_ICONS.flipV = '<path d="M1.5 8h13" stroke-dasharray="1.6 1.4"/><path d="M4.5 6L8 2l3.5 4z"/><path d="M4.5 10L8 14l3.5-4z" fill="currentColor"/>';
 const lineIcon = k => `<svg class="li" viewBox="0 0 16 16" aria-hidden="true">${LINE_ICONS[k] || ''}</svg>`;
 const ICONS = {
   stream: '<svg viewBox="0 0 16 16"><circle cx="8" cy="9" r="1.6" fill="currentColor"/><path d="M5.2 6.3a3.8 3.8 0 0 0 0 5.4M10.8 6.3a3.8 3.8 0 0 1 0 5.4M3.2 4.3a6.6 6.6 0 0 0 0 9.4M12.8 4.3a6.6 6.6 0 0 1 0 9.4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',

@@ -578,6 +578,14 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .tile .tb .ic { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
 .tile .tb .ic svg { width: 22px; height: 22px; }
 .tile:hover .tb { border-color: var(--line3); }
+/* a live input without a picture (a tile that adds one, or one that is off): its line drawing, larger, over a faint field
+   of LEDs; a tile that adds one has a small red plus in its corner */
+.tile.ph .tb { background: radial-gradient(circle, color-mix(in srgb, var(--text) 13%, transparent) 0.9px, transparent 1.3px) 50% 50% / 9px 9px, var(--bg1); }
+.tile.ph .tb canvas { opacity: 0; }
+.tile.ph .tb .ic { color: var(--text2); }
+.tile.ph .tb .ic svg { width: 38%; height: 38%; }
+.tile.ph:hover .tb .ic { color: var(--text); }
+.tile .tb .plus { position: absolute; top: 4px; right: 5px; font: 500 13px/1 var(--mono); color: var(--accent); }
 .tile.live .tb::after { content: ''; position: absolute; inset: 0; border: 2px solid var(--live); border-radius: 0; pointer-events: none; }
 .tile.used .tb::before { content: ''; position: absolute; top: 4px; left: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--live); box-shadow: 0 0 0 2px var(--bg1); z-index: 1; }
 .tile .tag { position: absolute; left: 4px; bottom: 4px; font: 9px/13px var(--mono); padding: 0 4px; border-radius: 0; background: color-mix(in srgb, var(--bg0) 82%, transparent); color: var(--text2); }
@@ -872,6 +880,10 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .seg button:first-child { border-left: 0; }
 /* the chosen one: raised, with a red line under it (no red fill) */
 .seg button.on { background: var(--bg4); color: var(--text); font-weight: 500; box-shadow: inset 0 -2px 0 var(--accent); }
+/* a camera's or video input's flips: two buttons with their drawings */
+.seg.flips { width: 100%; }
+.seg.flips button { display: grid; place-items: center; }
+.seg.flips .li { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: square; stroke-linejoin: miter; }
 /* All zones' macro while some zone has its own value */
 .mmacros .row.mixed > .lbl::after { content: '≠'; margin-left: 6px; color: var(--muted); }
 /* the macros' scope: All zones, then each zone, wrapping when there are many */
