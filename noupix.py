@@ -405,20 +405,20 @@ class ArtNet:
         self.forget([k for k, n in list(self.nodes.items()) if n.get("seen", 0) < since and on(n.get("from") or n.get("ip") or "")])
 
 
-# Devices whose ArtPollReply has the sACN bit (GoodOutputA bit 0) the wrong way round, by their OEM code: set while
-# they take Art-Net, clear while they take sACN. DiGidot's (the C1, as of its firmware in 2026).
-SACN_BIT_INVERTED = {0x0FD0: "DiGidot"}
+# Devices that tell their protocol by their ports rather than by the sACN bit, by their OEM code. A DiGidot (the C1,
+# its firmware of 2026) on Art-Net lists its ports, with GoodOutputA bit 0 set all the same; on sACN it lists none.
+NO_PORTS_ON_SACN = {0x0FD0: "DiGidot"}
 
 
 def reply_sacn(d):
     """Whether an ArtPollReply says its device takes sACN: GoodOutputA bit 0 set on all its output ports (some nodes set
     it on a port that isn't an output, or on one port of several, and still take Art-Net); one set wholly to sACN may
-    list no outputs, and then any port says it. Read the other way round for SACN_BIT_INVERTED's devices."""
+    list no outputs, and then any port says it. NO_PORTS_ON_SACN's devices take sACN when they list no ports."""
     nports = min(d[173], 4)
     out_ports = [i for i in range(nports) if d[174 + i] & 0x80]
     sacn = all(d[182 + i] & 0x01 for i in out_ports) if out_ports else any(d[182 + i] & 0x01 for i in range(nports))
-    if (d[20] << 8 | d[21]) in SACN_BIT_INVERTED and nports:
-        sacn = not any(d[182 + i] & 0x01 for i in (out_ports or range(nports)))
+    if (d[20] << 8 | d[21]) in NO_PORTS_ON_SACN:
+        sacn = not nports
     return bool(sacn)
 
 

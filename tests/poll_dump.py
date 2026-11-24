@@ -44,7 +44,7 @@ def describe(d, addr, raw=False):
     # nouPix's own reading (noupix.py, reply_sacn; here as it was before 1.6.4 when noupix.py can't be found)
     nx = noupix_module()
     sacn = nx.reply_sacn(d) if nx and hasattr(nx, "reply_sacn") else (all(goa[i] & 1 for i in outs) if outs else any(goa[i] & 1 for i in range(nports)))
-    quirk = nx and getattr(nx, "SACN_BIT_INVERTED", {}).get(struct.unpack(">H", d[20:22])[0])
+    quirk = nx and getattr(nx, "NO_PORTS_ON_SACN", {}).get(struct.unpack(">H", d[20:22])[0])
     L = []
     L.append("=" * 78)
     L.append("%s  %r  (%s)" % (addr[0], text(d[26:44]), text(d[44:108])))
@@ -55,19 +55,19 @@ def describe(d, addr, raw=False):
     L.append("  firmware %d.%d   OEM 0x%04x   ESTA 0x%04x   style %d   %d bytes" % (
         d[16], d[17], struct.unpack(">H", d[20:22])[0], struct.unpack("<H", d[24:26])[0], at(200), len(d)))
     L.append("  net %d  sub %d  ports %d (outputs: %s)" % (d[18] & 0x7F, d[19] & 0x0F, nports, ", ".join(str(i + 1) for i in outs) or "none")
-             + ("   (no ports: a device restarting after a change answers like this for a moment)" if not nports else ""))
+             + (("   (no ports: a %s on sACN answers like this)" % quirk if quirk else "   (no ports: a device on sACN, or restarting after a change, may answer like this)") if not nports else ""))
     for i in range(nports):
         L.append("  port %d: type %s  universe %d" % (i + 1, "0x%02x" % types[i] + (" out" if types[i] & 0x80 else "") + (" in" if types[i] & 0x40 else ""),
                                                       ((d[18] & 0x7F) << 8) | ((d[19] & 0x0F) << 4) | (swout[i] & 0x0F)))
-        # the sACN bit as this device means it: on a DiGidot, set means Art-Net
-        L.append("          GoodOutputA %s" % bits(goa[i], ["sACN bit: Art-Net on a %s" % quirk if quirk else GOOD_OUT_A[0]] + GOOD_OUT_A[1:]))
+        # the sACN bit as this device means it: a DiGidot sets it on Art-Net too, and tells by its ports
+        L.append("          GoodOutputA %s" % bits(goa[i], ["sACN bit: unused on a %s" % quirk if quirk else GOOD_OUT_A[0]] + GOOD_OUT_A[1:]))
         L.append("          GoodOutputB %s" % bits(gob[i], GOOD_OUT_B))
         L.append("          GoodInput   %s" % bits(gin[i], GOOD_IN))
     L.append("  Status1  0x%02x" % d[23])
     L.append("  Status2  %s" % bits(at(212), STATUS2))
     L.append("  Status3  %s" % bits(at(217), STATUS3))
     L.append("  sACN priority %d" % at(194))
-    L.append("  -> nouPix reads it as: %s%s" % ("sACN" if sacn else "Art-Net", "  (a %s: its sACN bit read the other way round)" % quirk if quirk else ""))
+    L.append("  -> nouPix reads it as: %s%s" % ("sACN" if sacn else "Art-Net", "  (a %s: sACN when it lists no ports)" % quirk if quirk else ""))
     if raw:
         for o in range(0, len(d), 16):
             L.append("  %04x  %s" % (o, " ".join("%02x" % b for b in d[o:o + 16])))
