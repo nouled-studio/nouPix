@@ -552,7 +552,7 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .zones input[type=range], .layers input[type=range] { height: 16px; }
 .chipsline { display: flex; flex-wrap: wrap; gap: 4px; }
 .lpreview { display: block; max-width: 100%; border-radius: 0; background: #000; border: 1px solid var(--line2); }
-.srcfind { padding: 8px 10px 0; display: flex; gap: 6px; }
+.srcfind { padding: 8px 10px 10px; display: flex; gap: 6px; border-bottom: 1px solid var(--line); }   /* air under it, and a line the tiles scroll under */
 .srchbox { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; }
 .srchbox svg { position: absolute; left: 7px; width: 13px; height: 13px; color: var(--muted); pointer-events: none; }
 .srchbox input { width: 100%; padding-left: 26px; }
