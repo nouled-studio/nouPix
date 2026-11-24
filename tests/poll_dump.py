@@ -106,7 +106,7 @@ def noupix_module():
             import noupix
             noupix_module.m = noupix
         except Exception as e:
-            print("  (couldn't load noupix.py: %s)" % e)
+            pass   # on its own: the reading as Art-Net 4 describes it, and the networks guessed
             noupix_module.m = False
     return noupix_module.m
 
@@ -115,13 +115,27 @@ noupix_module.m = None
 
 
 def networks():
-    """This computer's networks (address, mask, broadcast), as nouPix's bridge lists them for its Discover."""
+    """This computer's networks (address, mask, broadcast), as nouPix's bridge lists them for its Discover; without
+    noupix.py beside it, this computer's addresses with the usual masks (255.0.0.0 for 2.x and 10.x, else /24)."""
     nx = noupix_module()
     try:
-        return nx.network_interfaces() if nx else []
+        if nx:
+            return nx.network_interfaces()
     except Exception as e:
         print("  (couldn't list the network cards: %s)" % e)
-        return []
+    ips = set()
+    try: ips.update(socket.gethostbyname_ex(socket.gethostname())[2])
+    except OSError: pass
+    for probe in ("10.255.255.255", "2.255.255.255", "192.168.255.255", "8.8.8.8"):
+        try:
+            u = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); u.connect((probe, 9)); ips.add(u.getsockname()[0]); u.close()
+        except OSError: pass
+    out = []
+    for ip in sorted(i for i in ips if not i.startswith("127.") and i != "0.0.0.0"):
+        mask = "255.0.0.0" if ip.split(".")[0] in ("2", "10") else "255.255.255.0"
+        a, m = (struct.unpack("!I", socket.inet_aton(x))[0] for x in (ip, mask))
+        out.append({"name": "", "ip": ip, "mask": mask, "prefix": bin(m).count("1"), "broadcast": socket.inet_ntoa(struct.pack("!I", (a & m) | (~m & 0xFFFFFFFF)))})
+    return out
 
 
 def inside(ip, net):
