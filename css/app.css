@@ -346,12 +346,16 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .tabs button:hover { color: var(--text2); }
 .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
 .tabs .fill { flex: 1; }
-.tabs .tabtools { display: flex; align-items: center; gap: 6px; padding-right: 8px; }
-/* the Channel monitor and Output settings buttons: a square with the icon, the label beside it */
-#btnOutSet, #btnMon { height: 26px; padding: 0 10px 0 0; gap: 8px; border: 1px solid var(--line2); background: var(--bg3); color: var(--text2); }
-#btnOutSet:hover, #btnMon:hover { background: var(--bg4); border-color: var(--line3); color: var(--text); }
-#btnOutSet .ic, #btnMon .ic { display: grid; place-items: center; width: 24px; height: 24px; border-right: 1px solid var(--line2); color: var(--accent); }
-#btnMon.on { border-color: var(--sel); color: var(--text); }
+.tabs .tabtools { display: flex; align-items: center; gap: 18px; padding: 0 14px 0 10px; }
+/* the Channel monitor and Output settings buttons: part of the tab row, no box: a red icon and a grey label, white
+   when pointed at; the monitor open, white with a short red line under it */
+#btnOutSet, #btnMon { position: relative; height: 26px; padding: 0 2px; gap: 7px; border: 0; background: none; color: var(--muted);
+  font: 600 10.5px/1 var(--label); letter-spacing: .12em; text-transform: uppercase; transition: color .15s ease; }
+#btnOutSet:hover, #btnMon:hover { background: none; color: var(--text); }
+#btnOutSet .ic, #btnMon .ic { display: grid; place-items: center; width: 16px; height: 16px; color: var(--accent); }
+#btnOutSet .ic svg, #btnMon .ic svg { width: 16px; height: 16px; }
+#btnMon.on { color: var(--sel); }
+#btnMon.on::after { content: ''; position: absolute; left: 25%; right: 25%; bottom: -2px; height: 1px; background: var(--accent); }
 /* the Channel monitor's own window */
 body.monwin { height: 100vh; margin: 0; display: flex; flex-direction: column; background: var(--bg1); color: var(--text); }
 body.monwin > .monitor { flex: 1; min-height: 0; }
