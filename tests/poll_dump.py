@@ -5,10 +5,11 @@
 # device meanwhile and see which bytes follow. Standard library only; quit nouPix first (both want port 6454).
 #
 #   python3 tests/poll_dump.py                      broadcast, then print what answered
+#   python3 tests/poll_dump.py --net 10             only the network card(s) whose address starts 10.
 #   python3 tests/poll_dump.py --ip 192.168.1.50    ask that device directly (also works across subnets)
 #   python3 tests/poll_dump.py --ip 192.168.1.50 --watch
 #   python3 tests/poll_dump.py --raw                the whole reply in hex as well
-import argparse, socket, struct, sys, time
+import argparse, os, socket, struct, sys, time
 
 PORT = 6454
 POLL = b"Art-Net\x00" + struct.pack("<H", 0x2000) + bytes([0, 14, 0x02, 0])   # ProtVer 14, reply on change
@@ -92,14 +93,40 @@ def poll(s, targets):
             except OSError as e: print("  (couldn't send to %s: %s)" % (t, e))
 
 
+def networks():
+    """This computer's networks (address, mask, broadcast), as nouPix's bridge lists them for its Discover."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        import noupix
+        return noupix.network_interfaces()
+    except Exception as e:
+        print("  (couldn't list the network cards: %s)" % e)
+        return []
+
+
+def inside(ip, net):
+    a, n, m = (struct.unpack("!I", socket.inet_aton(x))[0] for x in (ip, net["ip"], net["mask"]))
+    return a & m == n & m
+
+
 def main():
     ap = argparse.ArgumentParser(description="Dump ArtPollReply packets and how nouPix reads them.")
     ap.add_argument("--ip", action="append", default=[], help="a device's address to ask directly (repeatable)")
+    ap.add_argument("--net", help="only the network card(s) whose address starts so (10, 10.0, 2…): asked on their broadcast, other answers left out")
     ap.add_argument("--watch", action="store_true", help="poll every 2 s and print each change")
     ap.add_argument("--raw", action="store_true", help="also print every reply in hex")
     ap.add_argument("--wait", type=float, default=3.0, help="seconds to wait for answers (default 3)")
     a = ap.parse_args()
-    targets = a.ip + ["255.255.255.255"]
+    # Each network card's own broadcast, as nouPix asks: 255.255.255.255 goes out of one card only (the one with the
+    # default route), so a device on another card's network never hears it
+    nets = networks()
+    if a.net:
+        pre = a.net.rstrip(".") + "."
+        nets = [n for n in nets if n["ip"].startswith(pre)]
+        if not nets:
+            sys.exit("No network card here has an address starting %s. This computer's: %s" % (pre, ", ".join("%s/%d (%s)" % (n["ip"], n["prefix"], n["name"]) for n in networks()) or "none found"))
+        for n in nets: print("Network card %s %s/%d, broadcast %s" % (n["name"], n["ip"], n["prefix"], n["broadcast"]))
+    targets = list(dict.fromkeys(a.ip + [n["broadcast"] for n in nets] + ([] if a.net else ["255.255.255.255"])))
     s = sock()
     print("Asking %s ..." % ", ".join(targets))
     seen, last_poll, stop = {}, 0, time.time() + a.wait
@@ -115,6 +142,8 @@ def main():
                 continue
             if d[:8] != b"Art-Net\x00" or len(d) < 10 or struct.unpack("<H", d[8:10])[0] != 0x2100:
                 continue   # our own poll coming back, or other Art-Net traffic
+            if a.net and addr[0] not in a.ip and not any(inside(addr[0], n) for n in nets):
+                continue   # a device on another network card's network
             got, out = describe(d, addr, a.raw)
             if not got:
                 print(out); continue
