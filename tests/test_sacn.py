@@ -245,6 +245,14 @@ try:
         d = bytearray(239); d[0:8] = b"Art-Net\x00"; d[8:10] = (0x2100).to_bytes(2, "little"); d[10:14] = socket.inet_aton(ip); d[173] = len(bits)
         for i, (b, o) in enumerate(zip(bits, outs)): d[174 + i] = 0x80 if o else 0; d[182 + i] = b; d[190 + i] = i
         return noupix.parse_poll_reply(bytes(d), (ip, 6454))
+    # DiGidot (OEM 0x0FD0) sets the bit while it takes Art-Net and clears it on sACN: read the other way round
+    def digidot(bits, oem=0x0FD0):
+        d = bytearray(239); d[0:8] = b"Art-Net\x00"; d[8:10] = (0x2100).to_bytes(2, "little"); d[10:14] = socket.inet_aton("10.0.0.10")
+        d[20], d[21] = oem >> 8, oem & 0xFF; d[173] = len(bits); d[212] = 0x09
+        for i, b in enumerate(bits): d[174 + i] = 0xC0; d[182 + i] = b; d[190 + i] = i + 1
+        return noupix.parse_poll_reply(bytes(d), ("10.0.0.10", 6454))
+    dg = [digidot([1, 1])["sacn"], digidot([0, 0])["sacn"], digidot([1, 1], oem=0x0FD1)["sacn"], digidot([1, 1])["oem"]]
+    check("a DiGidot's sACN bit is read the other way round (set on Art-Net, clear on sACN); other makers' as the standard says", dg == [False, True, True, 0x0FD0], dg)
     mixed = [reply2("10.0.0.70", [0, 1], [True, False])["sacn"], reply2("10.0.0.71", [1, 0], [True, True])["sacn"], reply2("10.0.0.72", [1, 1], [True, True])["sacn"]]
     check("the sACN bit counts on outputs only, and on all of them", mixed == [False, False, True], mixed)
     a, s_ = reply("10.0.0.61"), reply("10.0.0.62", sacn=True, switch=True, out=False)

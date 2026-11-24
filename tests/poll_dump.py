@@ -14,7 +14,7 @@ import argparse, os, socket, struct, sys, time
 PORT = 6454
 POLL = b"Art-Net\x00" + struct.pack("<H", 0x2000) + bytes([0, 14, 0x02, 0])   # ProtVer 14, reply on change
 
-GOOD_OUT_A = ["sACN selected", "merge LTP", "short", "merging", "text", "SIPs", "test packets", "sending"]
+GOOD_OUT_A = ["sACN bit", "merge LTP", "short", "merging", "text", "SIPs", "test packets", "sending"]
 GOOD_OUT_B = ["", "", "", "", "background discovery off", "discovery not running", "continuous output", "RDM off"]
 GOOD_IN = ["", "", "receive errors", "input disabled", "text", "SIPs", "test packets", "data received"]
 STATUS2 = ["web config", "DHCP on", "DHCP capable", "15-bit addresses", "can switch Art-Net/sACN", "squawking",
@@ -40,8 +40,10 @@ def describe(d, addr, raw=False):
     types, gin, goa, swout = d[174:178], d[178:182], d[182:186], d[190:194]
     gob = d[213:217] if len(d) >= 217 else b"\x00" * 4
     outs = [i for i in range(nports) if types[i] & 0x80]
-    # nouPix's own reading (noupix.py, parse_poll_reply)
-    sacn = all(goa[i] & 1 for i in outs) if outs else any(goa[i] & 1 for i in range(nports))
+    # nouPix's own reading (noupix.py, reply_sacn; here as it was before 1.6.4 when noupix.py can't be found)
+    nx = noupix_module()
+    sacn = nx.reply_sacn(d) if nx and hasattr(nx, "reply_sacn") else (all(goa[i] & 1 for i in outs) if outs else any(goa[i] & 1 for i in range(nports)))
+    quirk = nx and getattr(nx, "SACN_BIT_INVERTED", {}).get(struct.unpack(">H", d[20:22])[0])
     L = []
     L.append("=" * 78)
     L.append("%s  %r  (%s)" % (addr[0], text(d[26:44]), text(d[44:108])))
@@ -62,7 +64,7 @@ def describe(d, addr, raw=False):
     L.append("  Status2  %s" % bits(at(212), STATUS2))
     L.append("  Status3  %s" % bits(at(217), STATUS3))
     L.append("  sACN priority %d" % at(194))
-    L.append("  -> nouPix reads it as: %s" % ("sACN" if sacn else "Art-Net"))
+    L.append("  -> nouPix reads it as: %s%s" % ("sACN" if sacn else "Art-Net", "  (a %s: its sACN bit read the other way round)" % quirk if quirk else ""))
     if raw:
         for o in range(0, len(d), 16):
             L.append("  %04x  %s" % (o, " ".join("%02x" % b for b in d[o:o + 16])))
@@ -93,12 +95,27 @@ def poll(s, targets):
             except OSError as e: print("  (couldn't send to %s: %s)" % (t, e))
 
 
+def noupix_module():
+    """nouPix's bridge (noupix.py, beside tests/), for its own reading of the replies and its list of networks."""
+    if noupix_module.m is None:
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            import noupix
+            noupix_module.m = noupix
+        except Exception as e:
+            print("  (couldn't load noupix.py: %s)" % e)
+            noupix_module.m = False
+    return noupix_module.m
+
+
+noupix_module.m = None
+
+
 def networks():
     """This computer's networks (address, mask, broadcast), as nouPix's bridge lists them for its Discover."""
+    nx = noupix_module()
     try:
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        import noupix
-        return noupix.network_interfaces()
+        return nx.network_interfaces() if nx else []
     except Exception as e:
         print("  (couldn't list the network cards: %s)" % e)
         return []
