@@ -408,5 +408,7 @@ function addSourceMenu(anchor) {
   // files and screens play on the main computer: a device can't hand it a file of its own
   const here = REMOTE_CLIENT ? { disabled: true, title: 'Add videos, images, screen capture and streams on the main computer.' } : null;
   menu(anchor, [['ISF shader file (.fs)…', () => $('#fileIsf').click()], ['Image or video file…', () => pickMedia(null), here || { title: MEDIA_FORMATS }], ['Screen / window capture', addScreenSource, here],
+    ['Camera input', () => addDeviceSource('camera'), here || { title: 'A webcam or camera on this computer' }],
+    ['Video input', () => addDeviceSource('capture'), here || { title: 'A capture card on this computer: HDMI or SDI in (Cam Link, Magewell, Blackmagic…)' }],
     ['NDI or OMT stream…', () => streamPicker(null), here || { title: 'Video from another program or computer on the network, sent with NDI or OMT' }]]);
 }

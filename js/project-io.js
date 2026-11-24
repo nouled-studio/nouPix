@@ -228,7 +228,8 @@ function hydrate(p) {
   const builtins = builtinSources(), srcIds = new Set(builtins.map(s => s.id));
   const custom = (Array.isArray(p.sources) ? p.sources : []).filter(s => isObj(s) && !s.builtin && isId(s.id) && !srcIds.has(s.id) && srcIds.add(s.id));
   for (const s of custom) {
-    if (!['isf', 'image', 'video', 'screen', 'stream'].includes(s.kind)) s.kind = 'image';
+    if (!['isf', 'image', 'video', 'screen', 'stream', 'camera', 'capture'].includes(s.kind)) s.kind = 'image';
+    if (isDeviceSource(s)) fixDeviceSource(s);   // a camera or video input (videoin.js)
     if (typeof s.name !== 'string') s.name = s.name != null ? String(s.name) : 'Source';
     if (s.kind === 'isf' && typeof s.code !== 'string') s.code = '';
     if ('rate' in s) s.rate = numOr(s.rate, 1);

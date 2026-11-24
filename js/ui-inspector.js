@@ -499,6 +499,8 @@ function renderContentTab(body) {
     body.append(sec('Parameters', ctl));
   }
   if (src.kind === 'chase') body.append(chaseSection(L, src));
+  if (src.kind === 'ambilight') body.append(ambilightSection(L, src));   // ui-videoin.js
+  if (isDeviceSource(src)) body.append(...deviceSections(src));
   if (src.kind === 'image' || src.kind === 'video') {
     const el = mediaEls.get(src.id);
     const k = [];

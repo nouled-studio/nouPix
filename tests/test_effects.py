@@ -21,7 +21,7 @@ try:
     errs = []; pg.on("pageerror", lambda e: errs.append(str(e))); pg.on("console", lambda m: errs.append(m.text) if app_error(m) else None)
     pg.goto(f"http://127.0.0.1:{PORT}/"); pg.wait_for_function("window.olm && olm.bridge.connected"); time.sleep(0.5)
     ev = pg.evaluate
-    check("all 22 are in the library", ev("ids => ids.every(id => BUILTINS.some(b => b.id === id))", NEW) and ev("BUILTINS.length") == 72, ev("BUILTINS.length"))
+    check("all 22 are in the library", ev("ids => ids.every(id => BUILTINS.some(b => b.id === id))", NEW) and ev("BUILTINS.length") == 73, ev("BUILTINS.length"))
 
     # ---------- Radar sweep: the strong line first, its glow fading behind it (a point lights at once, then fades)
     rad = ev("""(() => { const src = srcById('b-sweep'), rt = runtimeOf(src), out = [];

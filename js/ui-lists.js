@@ -234,6 +234,8 @@ const SRC_SEARCH = { smooth: 'calm', soft: 'calm', slow: 'calm', relaxing: 'calm
 const SRC_FACET_OF = new Map(SRC_FACETS.flatMap(f => f.values.map(([v]) => [v, f.key])));
 function srcTags(s) {
   if (s.kind === 'chase') return ['lively', 'show', 'geometric', 'beat', 'chase', 'audio', 'mask', 'sequencer'];
+  if (s.kind === 'ambilight') return ['calm', 'ambient', 'gradient', 'flow', 'ambilight', 'tv', 'video', 'glow', 'edges'];
+  if (isDeviceSource(s)) return s.kind === 'camera' ? ['camera', 'webcam', 'live', 'video'] : ['capture', 'hdmi', 'sdi', 'live', 'video', 'input'];
   if (s.kind !== 'isf') return s.kind === 'stream' ? ['capture', 'ndi', 'live'] : [s.kind === 'screen' ? 'capture' : s.kind];
   const hdr = headerOf(s), c = hdr && hdr.CATEGORIES;
   return Array.isArray(c) ? c.map(t => String(t).toLowerCase()) : [];
@@ -281,17 +283,17 @@ function renderSrcList() {
   const shown = project.sources.filter(s => srcMatches(s, q));
   if (!shown.length) { grid.replaceChildren(h('div', { class: 'none' }, q ? `Nothing matches “${q}” with these filters.` : 'No source matches these filters.')); return; }
   grid.replaceChildren(...shown.map(s => {
-    const kind = s.kind === 'isf' ? 'ISF' : s.kind === 'screen' ? 'CAP' : s.kind === 'video' ? 'VID' : s.kind === 'stream' ? STREAM_PROTOS[s.proto] : 'IMG';
-    const missing = ['image', 'video', 'screen'].includes(s.kind) && !mediaEls.get(s.id) || isStream(s) && streamState(s) !== 'ok';
+    const kind = s.kind === 'isf' ? 'ISF' : s.kind === 'screen' ? 'CAP' : s.kind === 'video' ? 'VID' : s.kind === 'camera' ? 'CAM' : s.kind === 'capture' ? 'IN' : s.kind === 'stream' ? STREAM_PROTOS[s.proto] : 'IMG';
+    const missing = ['image', 'video', 'screen', 'camera', 'capture'].includes(s.kind) && !mediaEls.get(s.id) || isStream(s) && streamState(s) !== 'ok';
     const rt = s.kind === 'isf' && runtimes.get(s.id);
     const live = L && L.src === s.id, used = usedBy.get(s.id);
     const loading = missing && s.media && s._mediaGone !== s.media;   // coming from the media library
-    const tag = missing ? [s.kind === 'screen' || isStream(s) && streamState(s) !== 'connecting' ? 'OFF' : isStream(s) || loading ? '…' : 'RELINK', 'warn'] : rt && rt.error ? ['ERROR', 'err'] : s.builtin ? null : [kind, ''];
+    const tag = missing ? [s.kind === 'screen' || isDeviceSource(s) || isStream(s) && streamState(s) !== 'connecting' ? 'OFF' : isStream(s) || loading ? '…' : 'RELINK', 'warn'] : rt && rt.error ? ['ERROR', 'err'] : s.builtin ? null : [kind, ''];
     const fs = srcFacets(s), kw = srcTags(s).filter(t => !SRC_FACET_OF.has(t));
     const tags = [SRC_FACETS.filter(f => f.key !== 'type' && fs[f.key]).map(f => srcLabel(f.key, fs[f.key])).join(' · '), kw.join(', ')].filter(Boolean).join('\n');
     const tile = h('div', { class: 'tile' + (live ? ' live' : used ? ' used' : ''), role: 'button', tabindex: 0,
       title: (live ? `${s.name}: playing in ${where}` : `${s.name}${used ? ': playing in ' + used : ''}. Click to play it in ${where}`) + (tags ? `\n${tags}` : '') },
-      h('div', { class: 'tb' }, h('span', { class: 'ic' }, icon(s.kind === 'isf' || s.kind === 'chase' ? 'isf' : s.kind)), thumbOf(s),
+      h('div', { class: 'tb' }, h('span', { class: 'ic' }, icon(s.kind === 'isf' || s.kind === 'chase' || s.kind === 'ambilight' ? 'isf' : s.kind)), thumbOf(s),
         tag ? h('span', { class: 'tag ' + tag[1] }, tag[0]) : null,
         s.builtin ? null : h('button', { class: 'x', type: 'button', title: 'Remove source', 'aria-label': 'Remove ' + s.name, onclick: e => { e.stopPropagation(); removeSource(s); } }, icon('x'))),
       h('span', { class: 'nm' }, s.name));

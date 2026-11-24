@@ -46,7 +46,7 @@ function toggleLockSel() {
 
 /* ---------- sources ---------- */
 function removeSource(s) {
-  releaseMedia(s.id); dropRuntime(s.id); thumbs.delete(s.id);
+  releaseMedia(s.id); dropRuntime(s.id); thumbs.delete(s.id); forgetDevice(s.id);
   project.sources = project.sources.filter(x => x !== s);
   for (const z of project.zones) for (const L of z.layers.concat(...z.scenes.map(sc => sc.layers))) if (L.src === s.id) L.src = null;
   renderSrcList(); renderRight(); commit();
@@ -957,6 +957,28 @@ function addScreenSource() {
   loadSource(src.id); ui.rightTab = 'content';
   commit(); renderSrcList(); renderRight();
   startCapture(src);
+}
+
+// A camera or a video input (a capture card): a new source, opened at once on the first device of its kind
+function addDeviceSource(kind) {
+  const n = project.sources.filter(s => s.kind === kind).length, base = kind === 'camera' ? 'Camera' : 'Video input';
+  const src = fixDeviceSource({ id: uid(), kind, name: n ? `${base} ${n + 1}` : base });
+  project.sources.push(src);
+  loadSource(src.id); ui.rightTab = 'content';
+  commit(); renderSrcList(); renderRight();
+  startDevice(src);
+}
+// Another device for it: closed and opened again on that one
+function setSourceDevice(src, id) {
+  const d = devices.list.find(x => x.deviceId === id);
+  src.device = id; src.label = d ? d.label : '';
+  releaseMedia(src.id); devState(src).off = false;
+  commit(); startDevice(src);
+}
+// Its size or rate asked again: it opens again with them
+function setDeviceFormat(src, key, v) {
+  src[key] = v; commit();
+  restartDevice(src);
 }
 
 // A stream from the network (NDI or OMT): a new source, or another stream for one already there

@@ -219,6 +219,7 @@ function drawMedia(src, w, h) {
   const el = mediaEls.get(src.id);
   if (!el) return false;
   if (el._done && src.kind === 'video' && src.endHold === false) return false;   // played once, then black
+  if (isDeviceSource(src)) return drawProcessed(el, src, w, h, top);   // a camera or video input, through its processing
   const iw = el.videoWidth || el.naturalWidth || el.width, ih = el.videoHeight || el.naturalHeight || el.height;   // a video, an image, or a stream's canvas
   if (!iw || !ih) return false;
   let dw = w, dh = h;
@@ -239,6 +240,7 @@ function renderSource(src, L, w, h, z) {
   if (!src) return null;
   alphaDraw = null;
   if (src.kind === 'chase') return drawChase(src, L, w, h, z, null) ? mediaCanvas : null;
+  if (src.kind === 'ambilight') { const ok = drawAmbilight(src, L, w, h, z, null); alphaDraw = null; return ok ? mediaCanvas : null; }   // videoin.js
   if (src.kind === 'isf') {
     const rt = runtimeOf(src);
     if (!rt.R) return null;
@@ -260,6 +262,8 @@ function syncMedia() {
   loadLibraryMedia();
   const used = new Set();
   for (const z of project.zones) for (const L of z.layers.concat(z._fade && z._fade.from || [])) if (L.on && L.src) used.add(L.src);
+  ambiUses(used);      // the pictures Ambilights follow play as if shown
+  syncDevices(used);   // cameras and video inputs open while shown (videoin.js)
   for (const [id, el] of mediaEls) {
     if (!(el instanceof HTMLVideoElement)) continue;
     const src = srcById(id), shown = used.has(id), was = el._shown;
@@ -405,6 +409,7 @@ function drawThumb(src, still) {
       img = glCanvas;
     }
   } else if (src.kind === 'chase') { drawChase(src, { params: {} }, THUMB, THUMB, null, still ? 1.08 : clockT * 2); img = mediaCanvas; }
+  else if (src.kind === 'ambilight') { drawAmbilight(src, { params: {} }, THUMB, THUMB, null, still ? 1 : clockT); img = mediaCanvas; }
   else if (drawMedia(src, THUMB, THUMB)) img = mediaCanvas;
   c._stale = !img && src.kind !== 'isf' && mediaEls.has(src.id); // media still loading: try again next frame
   if (!img) return;

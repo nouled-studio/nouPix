@@ -133,6 +133,7 @@ SUITES = [   # name, function, part of --quick
     ("wled", simple("test_wled.py", 8242, 200), True),
     ("ddp", simple("test_ddp.py", 8250, 200), True),
     ("discovery", simple("test_discovery.py", 8266, 120), True),
+    ("videoin", simple("test_videoin.py", 8268, 300), True),
     ("keep", simple("test_keep.py", 8252, 200), True),
     ("panels", simple("test_panels.py", 8254, 120), True),
     ("side", simple("test_scenes_side.py", 8256, 180), True),
