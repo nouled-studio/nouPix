@@ -94,7 +94,7 @@ with sync_playwright() as pw:
 
     # ---------- source facets and search
     ev("olm.ui.srcFacets = {}; olm.ui.srcFilter = ''; renderSrcList()")
-    n_all = ev("document.querySelectorAll('#srcList .tile').length")
+    n_all = ev("document.querySelectorAll('#srcList .tile:not(.newin)').length")   # (the live inputs' tiles are no sources yet)
     nb = ev("BUILTINS.length")
     check("all built-ins listed", n_all == nb, (n_all, nb))
     check("every built-in has a mood, use, look and motion", ev("olm.project.sources.filter(s => s.builtin).every(s => { const f = srcFacets(s); return f.mood && f.use && f.look && f.motion; })"))
@@ -104,7 +104,7 @@ with sync_playwright() as pw:
     show = ev("[...document.querySelectorAll('#srcList .tile .nm')].map(e => e.textContent)")
     check("Show lists the show sources only", 0 < len(show) < n_all and ev("ui.srcFacets.use") == "show", show)
     pg.select_option("#srcFacets select", ""); time.sleep(0.2)
-    check("All shows them all again", ev("document.querySelectorAll('#srcList .tile').length") == n_all)
+    check("All shows them all again", ev("document.querySelectorAll('#srcList .tile:not(.newin)').length") == n_all)
     ev("olm.ui.srcFacets = { mood: 'party' }; renderSrcList()")
     party = ev("[...document.querySelectorAll('#srcList .tile .nm')].map(e => e.textContent)")
     check("the party sources (mood stays in the search)", "Disco dots" in party and "Aurora" not in party and len(party) >= 5, party)

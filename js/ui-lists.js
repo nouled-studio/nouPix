@@ -220,7 +220,7 @@ const SRC_FACETS = [
   { key: 'use', label: 'Use', values: [['architectural', 'Architectural'], ['ambient', 'Ambient'], ['show', 'Show'], ['utility', 'Utility']] },
   { key: 'look', label: 'Look', values: [['fill', 'Fill'], ['gradient', 'Gradient'], ['organic', 'Organic'], ['particles', 'Particles'], ['lines', 'Lines'], ['radial', 'Radial'], ['geometric', 'Geometric']] },
   { key: 'motion', label: 'Motion', values: [['still', 'Still'], ['drift', 'Drift'], ['flow', 'Flow'], ['chase', 'Chase'], ['flash', 'Flash'], ['beat', 'Beat']] },
-  { key: 'type', label: 'Type', values: [['generator', 'Generators'], ['shader', 'My shaders'], ['media', 'Media']] },
+  { key: 'type', label: 'Type', values: [['generator', 'Generators'], ['shader', 'My shaders'], ['media', 'Media'], ['input', 'Live inputs']] },
 ];
 const SRC_ALIASES = {
   smooth: 'calm', slow: 'calm', soft: 'calm', relaxing: 'calm', energetic: 'lively', disco: ['party', 'show'], club: ['party', 'show'], party: 'party',
@@ -232,15 +232,27 @@ const SRC_ALIASES = {
 // Words people search for that name a facet value: they match by that value, not by text
 const SRC_SEARCH = { smooth: 'calm', soft: 'calm', slow: 'calm', relaxing: 'calm', disco: 'party', club: 'party', atmospheric: 'ambient', atmosphere: 'ambient', architecture: 'architectural', facade: 'architectural', bpm: 'beat' };
 const SRC_FACET_OF = new Map(SRC_FACETS.flatMap(f => f.values.map(([v]) => [v, f.key])));
+// The live inputs, as tiles among the sources: each adds one (and plays it in the layer), drawn as a placeholder
+const LIVE_KINDS = ['screen', 'stream', 'camera', 'capture'];
+const INPUT_TILES = [
+  { id: 'new:camera', name: 'Camera input', icon: 'camera', tags: ['camera', 'webcam', 'live', 'video'], tip: 'A webcam or camera on this computer', add: () => addDeviceSource('camera') },
+  { id: 'new:capture', name: 'Video input', icon: 'capture', tags: ['capture', 'hdmi', 'sdi', 'card', 'live', 'video'], tip: 'A capture card on this computer: HDMI or SDI in (Cam Link, Magewell, Blackmagic…)', add: () => addDeviceSource('capture') },
+  { id: 'new:ndi', name: 'NDI stream', icon: 'stream', tags: ['ndi', 'stream', 'network', 'live'], tip: 'Video from another program or computer on the network, sent with NDI', add: () => streamPicker(null, 'ndi') },
+  { id: 'new:omt', name: 'OMT stream', icon: 'stream', tags: ['omt', 'stream', 'network', 'live'], tip: 'Video from another program or computer on the network, sent with OMT', add: () => streamPicker(null, 'omt') },
+  { id: 'new:screen', name: 'Screen capture', icon: 'screen', tags: ['capture', 'screen', 'window', 'live'], tip: 'A screen or a window of this computer', add: () => addScreenSource() },
+].map(t => Object.assign(t, { kind: 'newinput' }));
 function srcTags(s) {
+  if (s.kind === 'newinput') return s.tags;
   if (s.kind === 'chase') return ['lively', 'show', 'geometric', 'beat', 'chase', 'audio', 'mask', 'sequencer'];
+  if (s.kind === 'ambilight') return ['calm', 'ambient', 'gradient', 'flow', 'ambilight', 'tv', 'video', 'glow', 'edges'];
+  if (isDeviceSource(s)) return s.kind === 'camera' ? ['camera', 'webcam', 'live', 'video'] : ['capture', 'hdmi', 'sdi', 'live', 'video', 'input'];
   if (s.kind !== 'isf') return s.kind === 'stream' ? ['capture', 'ndi', 'live'] : [s.kind === 'screen' ? 'capture' : s.kind];
   const hdr = headerOf(s), c = hdr && hdr.CATEGORIES;
   return Array.isArray(c) ? c.map(t => String(t).toLowerCase()) : [];
 }
 // The source's value in each facet; tags listed first win
 function srcFacets(s) {
-  const out = { type: s.builtin ? 'generator' : s.kind === 'isf' ? 'shader' : 'media' };
+  const out = { type: s.builtin ? 'generator' : s.kind === 'isf' ? 'shader' : s.kind === 'newinput' || LIVE_KINDS.includes(s.kind) ? 'input' : 'media' };
   for (const t of srcTags(s)) for (const v of [t, ...[].concat(SRC_ALIASES[t] || [])]) {
     const k = SRC_FACET_OF.get(v);
     if (k && !out[k]) out[k] = v;
@@ -270,6 +282,17 @@ function renderSrcFacets() {
   pick.title = 'Show the sources for one use';
   $('#srcFacets').replaceChildren(pick);
 }
+// A live input's tile: its picture a placeholder (its line drawing over a faint field of LEDs, a small red plus); a click
+// adds one and plays it in the layer
+function inputTile(t, where) {
+  const go = () => t.add();
+  const tile = h('div', { class: 'tile ph newin', role: 'button', tabindex: 0, 'data-input': t.id.slice(4), title: `${t.name}: ${t.tip}. Click to add one and play it in ${where}` },
+    h('div', { class: 'tb' }, h('span', { class: 'ic' }, icon(t.icon)), h('span', { class: 'plus', 'aria-hidden': 'true' }, '+')),
+    h('span', { class: 'nm' }, t.name));
+  tile.addEventListener('click', go);
+  tile.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+  return tile;
+}
 function renderSrcList() {
   renderSrcFacets();
   const grid = $('#srcList');
@@ -278,20 +301,23 @@ function renderSrcList() {
   const usedBy = new Map();
   for (const zz of project.zones) zz.layers.forEach((l, i) => { if (l.on && l.src && l !== L) usedBy.set(l.src, (usedBy.has(l.src) ? usedBy.get(l.src) + ', ' : '') + `${zz.name} layer ${i + 1}`); });
   const q = (ui.srcFilter || '').trim().toLowerCase();
-  const shown = project.sources.filter(s => srcMatches(s, q));
+  // the live inputs' tiles after the built-ins, before the sources added (not on a device: they play on the main computer)
+  const builtins = project.sources.filter(s => s.builtin);
+  const shown = builtins.concat(REMOTE_CLIENT ? [] : INPUT_TILES, project.sources.filter(s => !s.builtin)).filter(s => srcMatches(s, q));
   if (!shown.length) { grid.replaceChildren(h('div', { class: 'none' }, q ? `Nothing matches “${q}” with these filters.` : 'No source matches these filters.')); return; }
   grid.replaceChildren(...shown.map(s => {
-    const kind = s.kind === 'isf' ? 'ISF' : s.kind === 'screen' ? 'CAP' : s.kind === 'video' ? 'VID' : s.kind === 'stream' ? STREAM_PROTOS[s.proto] : 'IMG';
-    const missing = ['image', 'video', 'screen'].includes(s.kind) && !mediaEls.get(s.id) || isStream(s) && streamState(s) !== 'ok';
+    if (s.kind === 'newinput') return inputTile(s, where);
+    const kind = s.kind === 'isf' ? 'ISF' : s.kind === 'screen' ? 'CAP' : s.kind === 'video' ? 'VID' : s.kind === 'camera' ? 'CAM' : s.kind === 'capture' ? 'IN' : s.kind === 'stream' ? STREAM_PROTOS[s.proto] : 'IMG';
+    const missing = ['image', 'video', 'screen', 'camera', 'capture'].includes(s.kind) && !mediaEls.get(s.id) || isStream(s) && streamState(s) !== 'ok';
     const rt = s.kind === 'isf' && runtimes.get(s.id);
     const live = L && L.src === s.id, used = usedBy.get(s.id);
     const loading = missing && s.media && s._mediaGone !== s.media;   // coming from the media library
-    const tag = missing ? [s.kind === 'screen' || isStream(s) && streamState(s) !== 'connecting' ? 'OFF' : isStream(s) || loading ? '…' : 'RELINK', 'warn'] : rt && rt.error ? ['ERROR', 'err'] : s.builtin ? null : [kind, ''];
+    const tag = missing ? [s.kind === 'screen' || isDeviceSource(s) || isStream(s) && streamState(s) !== 'connecting' ? 'OFF' : isStream(s) || loading ? '…' : 'RELINK', 'warn'] : rt && rt.error ? ['ERROR', 'err'] : s.builtin ? null : [kind, ''];
     const fs = srcFacets(s), kw = srcTags(s).filter(t => !SRC_FACET_OF.has(t));
     const tags = [SRC_FACETS.filter(f => f.key !== 'type' && fs[f.key]).map(f => srcLabel(f.key, fs[f.key])).join(' · '), kw.join(', ')].filter(Boolean).join('\n');
-    const tile = h('div', { class: 'tile' + (live ? ' live' : used ? ' used' : ''), role: 'button', tabindex: 0,
+    const tile = h('div', { class: 'tile' + (live ? ' live' : used ? ' used' : '') + (missing && LIVE_KINDS.includes(s.kind) ? ' ph' : ''), role: 'button', tabindex: 0,
       title: (live ? `${s.name}: playing in ${where}` : `${s.name}${used ? ': playing in ' + used : ''}. Click to play it in ${where}`) + (tags ? `\n${tags}` : '') },
-      h('div', { class: 'tb' }, h('span', { class: 'ic' }, icon(s.kind === 'isf' || s.kind === 'chase' ? 'isf' : s.kind)), thumbOf(s),
+      h('div', { class: 'tb' }, h('span', { class: 'ic' }, icon(s.kind === 'isf' || s.kind === 'chase' || s.kind === 'ambilight' ? 'isf' : s.kind)), thumbOf(s),
         tag ? h('span', { class: 'tag ' + tag[1] }, tag[0]) : null,
         s.builtin ? null : h('button', { class: 'x', type: 'button', title: 'Remove source', 'aria-label': 'Remove ' + s.name, onclick: e => { e.stopPropagation(); removeSource(s); } }, icon('x'))),
       h('span', { class: 'nm' }, s.name));

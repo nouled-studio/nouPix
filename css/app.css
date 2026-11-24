@@ -346,12 +346,16 @@ aside { background: var(--bg1); min-height: 0; display: flex; flex-direction: co
 .tabs button:hover { color: var(--text2); }
 .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
 .tabs .fill { flex: 1; }
-.tabs .tabtools { display: flex; align-items: center; gap: 6px; padding-right: 8px; }
-/* the Channel monitor and Output settings buttons: a square with the icon, the label beside it */
-#btnOutSet, #btnMon { height: 26px; padding: 0 10px 0 0; gap: 8px; border: 1px solid var(--line2); background: var(--bg3); color: var(--text2); }
-#btnOutSet:hover, #btnMon:hover { background: var(--bg4); border-color: var(--line3); color: var(--text); }
-#btnOutSet .ic, #btnMon .ic { display: grid; place-items: center; width: 24px; height: 24px; border-right: 1px solid var(--line2); color: var(--accent); }
-#btnMon.on { border-color: var(--sel); color: var(--text); }
+.tabs .tabtools { display: flex; align-items: center; gap: 18px; padding: 0 14px 0 10px; }
+/* the Channel monitor and Output settings buttons: part of the tab row, no box: a red icon and a grey label, white
+   when pointed at; the monitor open, white with a short red line under it */
+#btnOutSet, #btnMon { position: relative; height: 26px; padding: 0 2px; gap: 7px; border: 0; background: none; color: var(--muted);
+  font: 600 10.5px/1 var(--label); letter-spacing: .12em; text-transform: uppercase; transition: color .15s ease; }
+#btnOutSet:hover, #btnMon:hover { background: none; color: var(--text); }
+#btnOutSet .ic, #btnMon .ic { display: grid; place-items: center; width: 16px; height: 16px; color: var(--accent); }
+#btnOutSet .ic svg, #btnMon .ic svg { width: 16px; height: 16px; }
+#btnMon.on { color: var(--sel); }
+#btnMon.on::after { content: ''; position: absolute; left: 25%; right: 25%; bottom: -2px; height: 1px; background: var(--accent); }
 /* the Channel monitor's own window */
 body.monwin { height: 100vh; margin: 0; display: flex; flex-direction: column; background: var(--bg1); color: var(--text); }
 body.monwin > .monitor { flex: 1; min-height: 0; }
@@ -552,7 +556,7 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .zones input[type=range], .layers input[type=range] { height: 16px; }
 .chipsline { display: flex; flex-wrap: wrap; gap: 4px; }
 .lpreview { display: block; max-width: 100%; border-radius: 0; background: #000; border: 1px solid var(--line2); }
-.srcfind { padding: 8px 10px 0; display: flex; gap: 6px; }
+.srcfind { padding: 8px 10px 10px; display: flex; gap: 6px; border-bottom: 1px solid var(--line); }   /* air under it, and a line the tiles scroll under */
 .srchbox { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; }
 .srchbox svg { position: absolute; left: 7px; width: 13px; height: 13px; color: var(--muted); pointer-events: none; }
 .srchbox input { width: 100%; padding-left: 26px; }
@@ -574,6 +578,14 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .tile .tb .ic { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
 .tile .tb .ic svg { width: 22px; height: 22px; }
 .tile:hover .tb { border-color: var(--line3); }
+/* a live input without a picture (a tile that adds one, or one that is off): its line drawing, larger, over a faint field
+   of LEDs; a tile that adds one has a small red plus in its corner */
+.tile.ph .tb { background: radial-gradient(circle, color-mix(in srgb, var(--text) 13%, transparent) 0.9px, transparent 1.3px) 50% 50% / 9px 9px, var(--bg1); }
+.tile.ph .tb canvas { opacity: 0; }
+.tile.ph .tb .ic { color: var(--text2); }
+.tile.ph .tb .ic svg { width: 38%; height: 38%; }
+.tile.ph:hover .tb .ic { color: var(--text); }
+.tile .tb .plus { position: absolute; top: 4px; right: 5px; font: 500 13px/1 var(--mono); color: var(--accent); }
 .tile.live .tb::after { content: ''; position: absolute; inset: 0; border: 2px solid var(--live); border-radius: 0; pointer-events: none; }
 .tile.used .tb::before { content: ''; position: absolute; top: 4px; left: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--live); box-shadow: 0 0 0 2px var(--bg1); z-index: 1; }
 .tile .tag { position: absolute; left: 4px; bottom: 4px; font: 9px/13px var(--mono); padding: 0 4px; border-radius: 0; background: color-mix(in srgb, var(--bg0) 82%, transparent); color: var(--text2); }
@@ -868,6 +880,10 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 .seg button:first-child { border-left: 0; }
 /* the chosen one: raised, with a red line under it (no red fill) */
 .seg button.on { background: var(--bg4); color: var(--text); font-weight: 500; box-shadow: inset 0 -2px 0 var(--accent); }
+/* a camera's or video input's flips: two buttons with their drawings */
+.seg.flips { width: 100%; }
+.seg.flips button { display: grid; place-items: center; }
+.seg.flips .li { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: square; stroke-linejoin: miter; }
 /* All zones' macro while some zone has its own value */
 .mmacros .row.mixed > .lbl::after { content: '≠'; margin-left: 6px; color: var(--muted); }
 /* the macros' scope: All zones, then each zone, wrapping when there are many */

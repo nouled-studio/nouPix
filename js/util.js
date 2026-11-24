@@ -104,6 +104,9 @@ const LINE_ICONS = {
 };
 // (the timeline's length set to the end of what is on it: its contents with the end line right after them)
 LINE_ICONS.lenfit = '<rect x="1.5" y="5" width="9" height="6"/><path d="M13.5 2.5v11"/><path d="M10.5 8h3"/>';
+// flip: an axis (dashed) with the picture on one side and its mirror, filled, on the other
+LINE_ICONS.flipH = '<path d="M8 1.5v13" stroke-dasharray="1.6 1.4"/><path d="M6 4.5L2 8l4 3.5z"/><path d="M10 4.5L14 8l-4 3.5z" fill="currentColor"/>';
+LINE_ICONS.flipV = '<path d="M1.5 8h13" stroke-dasharray="1.6 1.4"/><path d="M4.5 6L8 2l3.5 4z"/><path d="M4.5 10L8 14l3.5-4z" fill="currentColor"/>';
 const lineIcon = k => `<svg class="li" viewBox="0 0 16 16" aria-hidden="true">${LINE_ICONS[k] || ''}</svg>`;
 const ICONS = {
   stream: '<svg viewBox="0 0 16 16"><circle cx="8" cy="9" r="1.6" fill="currentColor"/><path d="M5.2 6.3a3.8 3.8 0 0 0 0 5.4M10.8 6.3a3.8 3.8 0 0 1 0 5.4M3.2 4.3a6.6 6.6 0 0 0 0 9.4M12.8 4.3a6.6 6.6 0 0 1 0 9.4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
@@ -124,6 +127,8 @@ const ICONS = {
   image: '<svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 12l3.5-4 2.5 3 1.5-1.5L13 12" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
   video: '<svg viewBox="0 0 16 16"><rect x="2" y="3.5" width="12" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M7 6v4l3.5-2z" fill="currentColor"/></svg>',
   screen: '<svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6 14h4M8 11v3" stroke="currentColor" stroke-width="1.4"/></svg>',
+  camera: '<svg viewBox="0 0 16 16"><rect x="1.5" y="4.5" width="9.5" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M11 7l3.5-2v6L11 9z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+  capture: '<svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 5.5v4M6.3 8L8 9.7 9.7 8" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 13.5h6" stroke="currentColor" stroke-width="1.4"/></svg>',
   eye: '<svg viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>',
   eyeOff: '<svg viewBox="0 0 16 16"><path d="M2 2l12 12M6.2 4A7 7 0 018 3.5C12 3.5 14.5 8 14.5 8a12 12 0 01-2 2.6M9.9 12.2A6 6 0 018 12.5C4 12.5 1.5 8 1.5 8a12 12 0 012.4-3" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
   bulb: '<svg viewBox="0 0 16 16"><path d="M8 1.8a4.3 4.3 0 00-2.6 7.7c.5.4.8 1 .8 1.6v.6h3.6v-.6c0-.6.3-1.2.8-1.6A4.3 4.3 0 008 1.8z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.3 13.2h3.4M6.8 14.8h2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',

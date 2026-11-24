@@ -47,7 +47,7 @@ import urllib.parse
 import uuid
 import webbrowser
 
-VERSION = "1.6.3"
+VERSION = "1.6.4"
 HERE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 ARTNET_PORT = 6454
 WS_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -405,6 +405,23 @@ class ArtNet:
         self.forget([k for k, n in list(self.nodes.items()) if n.get("seen", 0) < since and on(n.get("from") or n.get("ip") or "")])
 
 
+# Devices that tell their protocol by their ports rather than by the sACN bit, by their OEM code. A DiGidot (the C1,
+# its firmware of 2026) on Art-Net lists its ports, with GoodOutputA bit 0 set all the same; on sACN it lists none.
+NO_PORTS_ON_SACN = {0x0FD0: "DiGidot"}
+
+
+def reply_sacn(d):
+    """Whether an ArtPollReply says its device takes sACN: GoodOutputA bit 0 set on all its output ports (some nodes set
+    it on a port that isn't an output, or on one port of several, and still take Art-Net); one set wholly to sACN may
+    list no outputs, and then any port says it. NO_PORTS_ON_SACN's devices take sACN when they list no ports."""
+    nports = min(d[173], 4)
+    out_ports = [i for i in range(nports) if d[174 + i] & 0x80]
+    sacn = all(d[182 + i] & 0x01 for i in out_ports) if out_ports else any(d[182 + i] & 0x01 for i in range(nports))
+    if (d[20] << 8 | d[21]) in NO_PORTS_ON_SACN:
+        sacn = not nports
+    return bool(sacn)
+
+
 def parse_poll_reply(d, addr):
     if len(d) < 197:
         return None
@@ -415,13 +432,10 @@ def parse_poll_reply(d, addr):
     for i in range(nports):
         if d[174 + i] & 0x80:  # port can output DMX
             outs.append((net << 8) | (sub << 4) | (d[190 + i] & 0x0F))
-    # Art-Net 4: an output port set to receive sACN instead of Art-Net (GoodOutputA bit 0), and a node that can switch
-    # between the two (Status2 bit 4). Older nodes leave both clear: Art-Net. A node is on sACN when all its output
-    # ports say so (some set the bit on a port that isn't an output, or on one port of several, and still take
-    # Art-Net: it answered ArtPoll after all); one set wholly to sACN may list no outputs, and then any port says it.
+    # Art-Net 4: an output port set to receive sACN instead of Art-Net (GoodOutputA bit 0, reply_sacn), and a node
+    # that can switch between the two (Status2 bit 4). Older nodes leave both clear: Art-Net.
     status2 = d[212] if len(d) >= 213 else 0
     out_ports = [i for i in range(nports) if d[174 + i] & 0x80]
-    sacn = all(d[182 + i] & 0x01 for i in out_ports) if out_ports else any(d[182 + i] & 0x01 for i in range(nports))
     return {
         "ip": socket.inet_ntoa(d[10:14]) if d[10:14] != b"\x00\x00\x00\x00" else addr[0],
         "from": addr[0],
@@ -432,7 +446,8 @@ def parse_poll_reply(d, addr):
         "outUniverses": outs,
         "mac": ":".join("%02x" % b for b in d[201:207]) if len(d) >= 207 else "",
         "bindIndex": d[211] if len(d) >= 212 else 0,
-        "sacn": bool(sacn),
+        "sacn": reply_sacn(d),
+        "oem": d[20] << 8 | d[21],
         "outPorts": len(out_ports),
         "canSwitch": bool(status2 & 0x10),
         "seen": time.time(),
