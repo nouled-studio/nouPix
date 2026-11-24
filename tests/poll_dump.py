@@ -53,11 +53,13 @@ def describe(d, addr, raw=False):
         ":".join("%02x" % b for b in d[201:207]) if len(d) >= 207 else "-"))
     L.append("  firmware %d.%d   OEM 0x%04x   ESTA 0x%04x   style %d   %d bytes" % (
         d[16], d[17], struct.unpack(">H", d[20:22])[0], struct.unpack("<H", d[24:26])[0], at(200), len(d)))
-    L.append("  net %d  sub %d  ports %d (outputs: %s)" % (d[18] & 0x7F, d[19] & 0x0F, nports, ", ".join(str(i + 1) for i in outs) or "none"))
+    L.append("  net %d  sub %d  ports %d (outputs: %s)" % (d[18] & 0x7F, d[19] & 0x0F, nports, ", ".join(str(i + 1) for i in outs) or "none")
+             + ("   (no ports: a device restarting after a change answers like this for a moment)" if not nports else ""))
     for i in range(nports):
         L.append("  port %d: type %s  universe %d" % (i + 1, "0x%02x" % types[i] + (" out" if types[i] & 0x80 else "") + (" in" if types[i] & 0x40 else ""),
                                                       ((d[18] & 0x7F) << 8) | ((d[19] & 0x0F) << 4) | (swout[i] & 0x0F)))
-        L.append("          GoodOutputA %s" % bits(goa[i], GOOD_OUT_A))
+        # the sACN bit as this device means it: on a DiGidot, set means Art-Net
+        L.append("          GoodOutputA %s" % bits(goa[i], ["sACN bit: Art-Net on a %s" % quirk if quirk else GOOD_OUT_A[0]] + GOOD_OUT_A[1:]))
         L.append("          GoodOutputB %s" % bits(gob[i], GOOD_OUT_B))
         L.append("          GoodInput   %s" % bits(gin[i], GOOD_IN))
     L.append("  Status1  0x%02x" % d[23])
