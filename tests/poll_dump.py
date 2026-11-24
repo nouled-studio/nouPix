@@ -9,6 +9,7 @@
 #   python3 tests/poll_dump.py --ip 192.168.1.50    ask that device directly (also works across subnets)
 #   python3 tests/poll_dump.py --ip 192.168.1.50 --watch
 #   python3 tests/poll_dump.py --raw                the whole reply in hex as well
+#   python3 tests/poll_dump.py --net 10 --brief     one line per reply, every 2 s: a timeline while you switch
 import argparse, os, socket, struct, sys, time
 
 PORT = 6454
@@ -134,8 +135,10 @@ def main():
     ap.add_argument("--net", help="only the network card(s) whose address starts so (10, 10.0, 2…): asked on their broadcast, other answers left out")
     ap.add_argument("--watch", action="store_true", help="poll every 2 s and print each change")
     ap.add_argument("--raw", action="store_true", help="also print every reply in hex")
+    ap.add_argument("--brief", action="store_true", help="poll every 2 s and print one line per reply (time, ports, the sACN bits, nouPix's reading)")
     ap.add_argument("--wait", type=float, default=3.0, help="seconds to wait for answers (default 3)")
     a = ap.parse_args()
+    a.watch = a.watch or a.brief
     # Each network card's own broadcast, as nouPix asks: 255.255.255.255 goes out of one card only (the one with the
     # default route), so a device on another card's network never hears it
     nets = networks()
@@ -167,6 +170,12 @@ def main():
             if not got:
                 print(out); continue
             key, sig, sacn = got
+            if a.brief:
+                n = min(d[173], 4)
+                print("%s  %-15s %-18s ports %d  GoodOutputA %-12s -> %s" % (time.strftime("%H:%M:%S"), addr[0], repr(text(d[26:44]))[:18], n,
+                      " ".join("%02x" % d[182 + i] for i in range(n)) or "-", "sACN" if sacn else "Art-Net"))
+                seen[key] = sig
+                continue
             if seen.get(key) == sig:
                 continue
             if key in seen:
