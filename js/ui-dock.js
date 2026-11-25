@@ -1130,7 +1130,7 @@ function patchCoach() {
 const PATCH_WAYS = [
   ['byUni', 'Unis', 'Auto-patch by universes.', 'Set how many universes each output has and where each starts (universe and channel). Drag fixtures onto an output: nouPix patches them one after another.', 'For example: DiGidot, ENTTEC Pixelator and Octo, MADRIX NEBULA'],
   ['byPx', 'Pix', 'Auto-patch by pixels.', 'Set how many pixels each output has: nouPix works out the universes. Each output starts right after the last (Next ch), on a new universe (Next uni) or where you type it (Man). Drag fixtures onto an output: nouPix patches them one after another.', 'For example: Advatek PixLite, WLED, Visual Productions SpiNode'],
-  ['byHand', 'Man', 'Full control.', 'No outputs. Drag fixtures onto the controller: each takes the next free address. Then set any fixture\'s universe and channel yourself, in the Inspector.', 'For any device, and DMX fixtures behind a node (ENTTEC ODE, DMXking eDMX)']
+  ['byHand', 'Man', 'Full control.', 'No outputs. Drag fixtures onto the controller: each takes the next free address. Then set any fixture\'s universe and channel yourself, in the Inspector.', 'For advanced users: large rigs over many universes, an existing patch to copy over, DMX fixtures behind a node (ENTTEC ODE, DMXking eDMX).']
 ];
 function patchHelp() {
   const D = uiDocNow();
