@@ -284,6 +284,10 @@ function fixOutputPlan(c) {
     if (Array.isArray(c.outUnis)) c.outUnis = c.outUnis.slice(0, 128).map(l => (Array.isArray(l) ? l.map(Number).filter(v => Number.isInteger(v) && v >= 0 && v <= 32767).slice(0, 64) : []));
     else delete c.outUnis;
   }
+  if ('uniAt' in c) {
+    if (Array.isArray(c.uniAt)) c.uniAt = c.uniAt.slice(0, 128).map(a => (a && typeof a === 'object' && Number.isFinite(Number(a.u)) ? { u: int(a.u, 0, 32767, 0), ch: int(a.ch, 1, 512, 1) } : null));
+    else delete c.uniAt;
+  }
   if ('outAt' in c) {
     if (Array.isArray(c.outAt)) c.outAt = c.outAt.slice(0, 128).map(a => (a && typeof a === 'object' && Number.isFinite(Number(a.u)) ? { u: int(a.u, 0, 32767, 0), ch: int(a.ch, 1, 512, 1) } : null));
     else delete c.outAt;

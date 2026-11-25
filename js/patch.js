@@ -79,8 +79,10 @@ function ctrlOuts(c) {
       base = Math.max(...list) + 1;
       continue;
     }
-    const b = place === 'start' && c.outStarts && Number.isInteger(c.outStarts[o]) ? c.outStarts[o] : base;
-    out.push({ base: b, upo: n, start, end: n * 512, px: 0 });
+    // its start typed on its line (uniAt), or from a file of before (outStarts); else right after the output before
+    const at = c.uniAt && c.uniAt[o];
+    const b = at ? at.u : place === 'start' && c.outStarts && Number.isInteger(c.outStarts[o]) ? c.outStarts[o] : base;
+    out.push({ base: b, upo: n, start: at ? at.ch - 1 : start, end: n * 512, px: 0 });
     base = b + n;
   }
   return out;

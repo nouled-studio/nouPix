@@ -413,6 +413,11 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .outbar .chev { display: flex; align-items: center; gap: 12px; height: 24px; padding: 0 4px 0 2px; border: 0; background: none; color: var(--text2); cursor: pointer;
   font: 600 9.5px var(--label); letter-spacing: .14em; text-transform: uppercase; }
 .outbar .chev:hover { color: var(--text); }
+.outhead.uni { grid-template-columns: 14px 52px auto minmax(0,1fr) 170px; }
+.outhead.uni .octl { flex-wrap: nowrap; gap: 8px; }
+.outhead .spinnum .inp, .outhead .spinnum > input { width: 66px; }
+.outhead .spinnum input { height: 24px; }
+.outhead .spinnum .spin .btn { height: 12px; }
 .spinnum { display: inline-flex; align-items: stretch; gap: 0; }
 .spinnum .inp, .spinnum > input { width: 78px; }
 .spinnum .inp input { height: 26px; }
