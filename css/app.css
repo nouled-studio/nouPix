@@ -1014,7 +1014,8 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
   #app { height: auto; overflow: visible; grid-template-rows: auto auto auto; }
   .topbar { overflow: visible; }
   .topbar { flex-wrap: wrap; padding: 8px 16px; height: auto; row-gap: 8px; }
-  .workspace { grid-template-columns: 1fr; }
+  /* one column, with a side panel folded too (those rules are more specific) */
+  .workspace, .workspace.noright, .workspace.noleft, .workspace.noleft.noright { grid-template-columns: minmax(0, 1fr); }
   .center { border: 0; order: 1; }
   .stagewrap { height: 62vh; }
   .left { order: 2; max-height: 60vh; border-top: 1px solid var(--line); }

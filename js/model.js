@@ -8,7 +8,14 @@
 // its fixtures, a zone's on its scenes' edge, a scene's on its mark while it plays.
 const TAGS = ['#2f7bff', '#00c2ff', '#00d68f', '#8fe000', '#ff8a00', '#ff2fd1', '#9b5cff', '#ff5c8a'];
 const isTag = c => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
-const ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR', 'RGBW', 'GRBW', 'WRGB', 'W'];
+const ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR', 'RGBW', 'GRBW', 'WRGB', 'W', 'WC', 'CW'];
+// Tunable white: two channels a pixel, warm (W) and cold (C), in either order. The content's colour picks the mix:
+// reds and oranges the warm channel, teals and blues the cold one, white and greys both (twMix, twBias; outputTunable)
+const isTunable = o => o === 'WC' || o === 'CW';
+// What a colour order is, in words, for the lists that offer them
+const orderLabel = o => (o === 'WC' ? 'Warm, Cold  (tunable white)' : o === 'CW' ? 'Cold, Warm  (tunable white)' : o + (o.length === 4 ? '  (RGBW)' : o === 'W' ? '  (mono)' : ''));
+// The light of each channel of a tunable white fixture, as the stage shows it
+const TW_WARM = [255, 165, 80], TW_COLD = [200, 222, 255];
 const TYPE_LABEL = { line: 'Line', circle: 'Circle', matrix: 'Matrix', path: 'Path', dot: 'Dot' };
 // Dimming curves: how a pixel's level (its content after the fixture's dimmer and trims and the master) becomes its
 // DMX value. Gamma works on every fixture; the others need 16-bit fixtures, whose fine channel keeps the low end
@@ -228,7 +235,7 @@ function nextName(type) {
   return label + ' ' + n;
 }
 // The channels a pixel of a controller's output takes, in Pixels mode: mono, RGB, RGBW, 16-bit RGB, 16-bit RGBW
-const CH_PER_PX = [1, 3, 4, 6, 8];
+const CH_PER_PX = [1, 2, 3, 4, 6, 8];
 // A controller: its protocol (Art-Net or sACN, as the last one added), and its outputs, either a number of universes
 // each (mode 'universes', upo) or a number of pixels each (mode 'pixels': pxOut pixels of chPx channels), from its
 // start universe and start channel

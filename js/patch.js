@@ -166,7 +166,8 @@ function computePatch() {
           lin = end;
         }
         const oi = [];
-        for (const ch of f.order) oi.push(ch === 'R' ? 0 : ch === 'G' ? 1 : ch === 'B' ? 2 : f.order.length === 1 ? 4 : 3);
+        // tunable white: 5 the warm channel, 6 the cold one
+        for (const ch of f.order) oi.push(isTunable(f.order) ? (ch === 'W' ? 5 : 6) : ch === 'R' ? 0 : ch === 'G' ? 1 : ch === 'B' ? 2 : f.order.length === 1 ? 4 : 3);
         f._out = { unis, lin: L, oi };
         f._patch = { ctrl: c, out: o, pos: info.fixtures, first, last, base, list: L.list, overflow: ovf, manual, overlap, outside };
         info.fixtures++; info.pixels += n - ovf; info.overflow += ovf;

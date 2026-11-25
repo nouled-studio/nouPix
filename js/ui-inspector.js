@@ -95,7 +95,8 @@ function renderInspector(body) {
   if (f.type !== 'matrix' && f.type !== 'dot') P.push(numRow('Pixels', f, 'pixels', geo({ int: true, min: 1, max: MAX_FX_PIXELS, onInput: v => { if (lockedPitch(f)) setPixelsAtPitch(f, v); markGeom(); syncInspector(); } })));
   if (pitched) P.push(...pitchRows(f));
   else if (f.pitchLock > 0 && f.type === 'circle') P.push(h('p', { class: 'note' }, 'Pitch lock: round circles only.'));
-  P.push(row('Color order', selectEl(ORDERS.map(o => [o, o + (o.length === 4 ? '  (RGBW)' : o === 'W' ? '  (mono)' : '')]), f.order, v => { f.order = v; markPatch(); commit(); renderRight(); }, { aria: 'Color order' })));
+  P.push(row('Color order', selectEl(ORDERS.map(o => [o, orderLabel(o)]), f.order, v => { f.order = v; markPatch(); commit(); renderRight(); }, { aria: 'Color order' })));
+  if (isTunable(f.order)) P.push(...tunableRows(f));
   P.push(...trimRows([f]));
   P.push(...dimmingRows([f]));
   if (f.type !== 'matrix' && f.type !== 'dot') P.push(checkRow('Reverse direction', f, 'reverse', () => { markGeom(); commit(); }));
@@ -197,8 +198,24 @@ function curveGraph(f) {
   el._draw = draw;
   return el;
 }
+// Tunable white: which channel is which (the colour order), how the two mix on white, and the balance between them
+function tunableRows(f) {
+  const redo = () => { commit(); renderRight(); };
+  const bal = sliderRow('Balance', { get v() { return f.twBias || 0; }, set v(x) { if (Math.abs(x) < 0.02) delete f.twBias; else f.twBias = x; } }, 'v',
+    { min: -1, max: 1, step: 0.01, fmt: v => (Math.abs(v) < 0.02 ? 'even' : `${Math.round(Math.abs(v) * 100)}% ${v < 0 ? 'warmer' : 'colder'}`), onCommit: commit });
+  return [
+    tipRow(row('Channels', seg([['WC', 'Warm, Cold'], ['CW', 'Cold, Warm']], f.order, v => { f.order = v; markPatch(); redo(); })), 'Which channel comes first on the wire: the warm white or the cold one.'),
+    tipRow(row('On white', seg([['max', 'Both full'], ['even', 'Shared']], f.twMix === 'even' ? 'even' : 'max', v => { if (v === 'even') f.twMix = 'even'; else delete f.twMix; redo(); })),
+      'Reds and oranges light the warm channel, teals and blues the cold one. On white both light: both full (the brightest), or sharing one level (the same brightness whatever the colour).'),
+    tipRow(bal, 'Moves every colour towards the warm or the cold channel.')
+  ];
+}
 function trimRows(list) {
-  const hasW = list.some(f => f.order.includes('W')), one = list.length === 1, tmp = list[0].trim.slice();
+  const one = list.length === 1, tmp = list[0].trim.slice();
+  // tunable white: a trim for the warm channel and one for the cold
+  if (list.every(f => isTunable(f.order))) return [['Warm trim', 0], ['Cold trim', 1]].map(([label, i]) =>
+    sliderRow(label, one ? list[0].trim : tmp, i, { min: 0, max: 1, step: 0.01, fmt: pct, onInput: v => { if (!one) list.forEach(f => { f.trim[i] = v; }); }, onCommit: commit }));
+  const hasW = list.some(f => f.order.includes('W') && !isTunable(f.order));
   return [['Red trim', 0], ['Green trim', 1], ['Blue trim', 2], ['White trim', 3]].filter(([, i]) => i < 3 || hasW).map(([label, i]) =>
     sliderRow(label, one ? list[0].trim : tmp, i, { min: 0, max: 1, step: 0.01, fmt: pct, onInput: v => { if (!one) list.forEach(f => { f.trim[i] = v; }); }, onCommit: commit }));
 }
@@ -336,7 +353,7 @@ function renderMulti(body, sel) {
         : h('h3', null, `${sel.length} fixtures selected`),
       h('p', { class: 'note' }, `${fmtN(px)} pixels`),
       sel.some(strung) ? row('Pixels each', pxIn) : null,
-      row('Color order', selectEl([['', 'Mixed / keep'], ...ORDERS.map(o => [o, o])], sel.every(f => f.order === sel[0].order) ? sel[0].order : '', v => { if (!v) return; sel.forEach(f => { f.order = v; }); markPatch(); commit(); renderRight(); }, { aria: 'Color order for all' })),
+      row('Color order', selectEl([['', 'Mixed / keep'], ...ORDERS.map(o => [o, orderLabel(o)])], sel.every(f => f.order === sel[0].order) ? sel[0].order : '', v => { if (!v) return; sel.forEach(f => { f.order = v; }); markPatch(); commit(); renderRight(); }, { aria: 'Color order for all' })),
       ...trimRows(sel),
       ...dimmingRows(sel),
       h('div', { class: 'actions' },

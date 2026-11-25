@@ -72,6 +72,39 @@ function output16(f, o, kr, kg, kb, kw, wm) {
     }
   }
 }
+// A tunable white fixture (two channels a pixel, warm and cold): the content's colour sets the mix. How cold it is goes
+// from how much more blue than red it has (reds and oranges: warm only; teals and blues: cold only; white, greys and
+// greens: both), moved by the fixture's balance (twBias, −1 warmer to 1 colder); its brightness from its brightest part.
+// Both full on white (twMix 'max', the brightest the fixture gives), or the two sharing one level (twMix 'even'). The
+// warm and cold trims are the fixture's first two; each channel through the fixture's gamma, or its curve on 16-bit.
+function outputTunable(f, o, dim, tr) {
+  const col = f._col, disp = f._disp, n = f._n, lins = o ? o.lin : null, oi = o ? o.oi : null, unis = o ? o.unis : null;
+  const b16 = f.bits === 16, lut = b16 ? curveLUT(fxCurve(f), curveParam(f)) : gammaLUT(f.gamma);
+  const even = f.twMix === 'even', bias = (f.twBias || 0) * 0.5, kW = tr[0], kC = tr[1];
+  for (let i = 0, j = 0; i < n; i++, j += 3) {
+    const r = col[j], g = col[j + 1], b = col[j + 2], top = r > g ? (r > b ? r : b) : (g > b ? g : b);
+    let w = 0, c = 0;
+    if (top > 0) {
+      let t = 0.5 + 0.5 * (b - r) / top + bias;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const I = top / 255 * dim;
+      w = I * (even ? 1 - t : Math.min(1, 2 * (1 - t))) * kW;
+      c = I * (even ? t : Math.min(1, 2 * t)) * kC;
+    }
+    // the stage shows the light it makes: the warm and the cold white added
+    disp[j] = w * TW_WARM[0] + c * TW_COLD[0]; disp[j + 1] = w * TW_WARM[1] + c * TW_COLD[1]; disp[j + 2] = w * TW_WARM[2] + c * TW_COLD[2];
+    if (!o) continue;
+    const lin = lins[i];
+    if (lin < 0) continue;
+    for (let k = 0; k < oi.length; k++) {
+      const x = oi[k] === 5 ? w : c;
+      if (b16) {
+        const v = Math.round(curveAt(lut, x) * 65535), L = lin + 2 * k, M = L + 1;
+        unis[L >> 9].data[L & 511] = v >> 8; unis[M >> 9].data[M & 511] = v & 255;
+      } else { const L = lin + k; unis[L >> 9].data[L & 511] = lut[Math.round(x * 255)]; }
+    }
+  }
+}
 function buildOutput() {
   const s = project.settings;
   for (const U of universes) U.data.fill(0);
@@ -82,6 +115,7 @@ function buildOutput() {
     const dim = f.enabled ? m * f.dimmer * (f.group != null ? groups.get(f.group) ?? 1 : 1) : 0;   // and its group's dimmer
     const kr = dim * tr[0], kg = dim * tr[1], kb = dim * tr[2], kw = tr[3];
     const o = f._out;
+    if (isTunable(f.order)) { outputTunable(f, o, dim, tr); continue; }
     if (!o) { for (let j = 0; j < 3 * n; j += 3) { disp[j] = col[j] * kr; disp[j + 1] = col[j + 1] * kg; disp[j + 2] = col[j + 2] * kb; } continue; }
     if (f.bits === 16) { output16(f, o, kr, kg, kb, kw, wm); continue; }
     const lins = o.lin, oi = o.oi, nc = oi.length, unis = o.unis, lut = gammaLUT(f.gamma);

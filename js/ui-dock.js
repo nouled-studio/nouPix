@@ -739,11 +739,11 @@ function renderCtrlEditor(edit, c) {
     manual || own ? null : px
       ? f('Pixels', small(numInput(c, 'pxOut', { int: true, min: 1, max: 10000, aria: 'Pixels per output', onCommit: onStruct }), 72), 'Pixels per output')
       : f('Universes', small(numInput(c, 'upo', { int: true, min: 1, max: 64, aria: 'Universes per output', onCommit: onStruct }), 64), 'Universes per output'),
-    px ? f('Pixel', selectEl(CH_PER_PX.map(n => [n, { 1: 'Mono · 1 ch', 3: 'RGB · 3 ch', 4: 'RGBW · 4 ch', 6: 'RGB 16-bit · 6 ch', 8: 'RGBW 16-bit · 8 ch' }[n]]), c.chPx,
+    px ? f('Pixel', selectEl(CH_PER_PX.map(n => [n, { 1: 'Mono · 1 ch', 2: 'Tunable white · 2 ch', 3: 'RGB · 3 ch', 4: 'RGBW · 4 ch', 6: 'RGB 16-bit · 6 ch', 8: 'RGBW 16-bit · 8 ch' }[n]]), c.chPx,
       v => { c.chPx = +v; markPatch(); commit(); }, { aria: 'Channels per pixel' }), 'The pixels the controller drives: how many channels each takes') : null,
     manual || ddp ? null : px
-      ? h('label', { class: 'f', 'data-tip': 'Next output starts|Next channel: right where the output before ends (Advatek with Automatic Sequential Channels, WLED). New universe: on channel 1 of the next universe (SpiNode, most SPI boards). Typed: each output\'s start typed on its line (Advatek without Automatic Sequential Channels, Falcon).' },
-        h('span', null, 'Next output starts'), seg([['channel', 'Next channel'], ['universe', 'New universe'], ['typed', 'Typed']], pxPlace, v => setPxPlace(c, v)))
+      ? h('label', { class: 'f', 'data-tip': 'Next output starts|Next ch: right where the output before ends (Advatek with Automatic Sequential Channels, WLED). Next uni: on channel 1 of the next universe (SpiNode, most SPI boards). Manual: each output\'s start universe and channel typed on its line (Advatek without Automatic Sequential Channels, Falcon).' },
+        h('span', null, 'Next output starts'), seg([['channel', 'Next ch'], ['universe', 'Next uni'], ['typed', 'Manual']], pxPlace, v => setPxPlace(c, v)))
       : h('label', { class: 'f', 'data-tip': 'Outputs start|In order: each output on the universe after the last one of the output before. Start typed: each output\'s first universe typed on its line (ENTTEC). Each typed: every universe of each output typed, in any order (MADRIX NEBULA).' },
         h('span', null, 'Outputs start'), seg([['order', 'In order'], ['start', 'Start typed'], ['each', 'Each typed']], uniPlace, v => setUniPlace(c, v))),
     // with sACN (or a device that counts from 1) the first universe is typed and shown one higher, as the device counts
@@ -1078,9 +1078,9 @@ const PATCH_WAYS = [
   ['Universes per port, one after another', 'DiGidot, ENTTEC Octo, DMXking, most Art-Net nodes', 'Universes · In order'],
   ['The first universe of each port typed', 'ENTTEC Pixelator', 'Universes · Start typed'],
   ['Every universe of each port typed', 'MADRIX NEBULA, ENTTEC Pixel Port', 'Universes · Each typed'],
-  ['Pixels per port, each port on a new universe', 'SpiNode, most SPI boards', 'Pixels · New universe'],
-  ['Pixels per port, each going on where the last ends', 'Advatek (Automatic Sequential Channels), WLED', 'Pixels · Next channel'],
-  ['Pixels per port, with a start universe and channel each', 'Advatek (without it), Falcon', 'Pixels · Typed'],
+  ['Pixels per port, each port on a new universe', 'SpiNode, most SPI boards', 'Pixels · Next uni'],
+  ['Pixels per port, each going on where the last ends', 'Advatek (Automatic Sequential Channels), WLED', 'Pixels · Next ch'],
+  ['Pixels per port, with a start universe and channel each', 'Advatek (without it), Falcon', 'Pixels · Manual start'],
   ['No ports: an address per fixture', 'DMX nodes, odd rigs', 'Manual']
 ];
 function patchHelp() {
@@ -1207,11 +1207,12 @@ function manualPatch(edit, c) {
 }
 // Fixtures patched onto a controller set to pixels of another kind (RGB onto RGBW…): the colours would shift along the
 // output, so a short window asks which to change, the fixtures or the controller
-const PX_TYPES = { 1: 'Mono', 3: 'RGB', 4: 'RGBW', 6: 'RGB 16-bit', 8: 'RGBW 16-bit' };
+const PX_TYPES = { 1: 'Mono', 2: 'Tunable white', 3: 'RGB', 4: 'RGBW', 6: 'RGB 16-bit', 8: 'RGBW 16-bit' };
 function orderFor(order, n) {   // a colour order of n colours, as near the one it had as there is
   if (n === 1) return 'W';
-  if (n === 4) return order.length === 4 ? order : ORDERS.includes(order + 'W') ? order + 'W' : 'RGBW';
-  const o = order.replace('W', '');
+  if (n === 2) return isTunable(order) ? order : 'WC';
+  if (n === 4) return order.length === 4 ? order : !isTunable(order) && ORDERS.includes(order + 'W') ? order + 'W' : 'RGBW';
+  const o = isTunable(order) ? '' : order.replace('W', '');
   return o.length === 3 ? o : 'RGB';
 }
 function pixelTypeCheck(ids, c) {

@@ -1137,18 +1137,14 @@ function setCtrlMode(c, mode) {
   ensureChains(c);
   markPatch(); commit(); renderRight();
 }
-// Same for all off: each output its own count, starting from the one for all
+// Same for all off: each output its own count (the ones it had before, outputs without one starting from the one for
+// all); on again: the one for all as it was. Neither overwrites the other, so ticking and unticking loses nothing.
 function setOwnCounts(c, own) {
   if (own) {
     c.same = false;
     const fill = (a, v) => { a = Array.isArray(a) ? a : []; while (a.length < c.outputs) a.push(v); return a; };
     c.upos = fill(c.upos, c.upo); c.pxOuts = fill(c.pxOuts, c.pxOut);
-  } else {
-    delete c.same;
-    // the first output's count becomes the one for all
-    if (c.upos && c.upos[0]) c.upo = c.upos[0];
-    if (c.pxOuts && c.pxOuts[0]) c.pxOut = c.pxOuts[0];
-  }
+  } else delete c.same;
   markPatch(); commit();
 }
 // How the outputs start, filled from where they are now so nothing moves until a value is changed

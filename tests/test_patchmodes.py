@@ -47,9 +47,9 @@ try:
     check("…and the Rings (OUT 3) and Wave (OUT 4) follow", addr("Ring 1").startswith("U 8") and addr("Wave").startswith("U 11"), (addr("Ring 1"), addr("Wave")))
     h0 = ev("hist.idx")
     pg.click("#ctrlSame"); time.sleep(0.2)
-    check("Same for all on again: OUT 1's count for every output, one step of undo", outs() == ['0+4', '4+4', '8+4', '12+4'] and ev("hist.idx") == h0 + 1, outs())
-    ev("undo()"); time.sleep(0.2); refresh()
-    check("…undone: each its own again", outs() == ['0+4', '4+4', '8+3', '11+3'], outs())
+    check("Same for all on again: the one for all as it was, one step of undo", outs() == ['0+4', '4+4', '8+4', '12+4'] and ev("hist.idx") == h0 + 1, outs())
+    pg.click("#ctrlSame"); time.sleep(0.2)
+    check("…and off again: each output's own counts as they were, nothing lost", outs() == ['0+4', '4+4', '8+3', '11+3'], outs())
 
     # ---------- Start typed (ENTTEC): the first universe of each output
     pg.click(".ctrl-fields .seg button:has-text('Start typed')"); time.sleep(0.2)
@@ -77,7 +77,7 @@ try:
     ev(f"(() => {{ const c = {C}; c.chPx = 4; c.pxOuts = [437, 437, 331, 331]; markPatch(); commit(); renderDock(); }})()"); time.sleep(0.2)
     check("Pixels, Next channel (as before): RGBW 437 px take 3 universes and 212 channels, the next going on in that universe",
           ev(f"ctrlOuts({C}).map(L => L.base + '.' + (L.start + 1))") == ['0.1', '3.213', '6.425', '9.213'], ev(f"ctrlOuts({C}).map(L => L.base + '.' + (L.start + 1))"))
-    pg.click(".ctrl-fields .seg button:has-text('New universe')"); time.sleep(0.2)
+    pg.click(".ctrl-fields .seg button:has-text('Next uni')"); time.sleep(0.2)
     check("New universe: each output on channel 1 of a new one, the DiGidot's 0, 4, 8, 11", ev(f"ctrlOuts({C}).map(L => L.base + '.' + (L.start + 1))") == ['0.1', '4.1', '8.1', '11.1'],
           ev(f"ctrlOuts({C}).map(L => L.base + '.' + (L.start + 1))"))
 
@@ -95,7 +95,7 @@ try:
     ends = lambda: ev(f"ctrlOuts({P}).map(L => (L.base + 1) + '.' + (L.start + 1) + '-' + (L.base + Math.floor((L.end - 1) / 512) + 1) + '.' + ((L.end - 1) % 512 + 1))")
     check("Next channel (Automatic Sequential Channels): the Advatek's own start and end of outputs 1 to 5",
           ends()[:5] == ['1.1-2.117', '2.118-4.3', '4.4-6.171', '6.172-9.114', '9.115-12.333'], ends()[:5])
-    pg.click(".ctrl-fields .seg button:has-text('Typed')"); time.sleep(0.2)
+    pg.click(".ctrl-fields .seg button:has-text('Manual') >> nth=1"); time.sleep(0.2)
     check("Typed: each output's start on its line, filled from where it was", ends()[:5] == ['1.1-2.117', '2.118-4.3', '4.4-6.171', '6.172-9.114', '9.115-12.333']
           and pg.locator(".outrow").nth(1).locator(".octl button", has_text="Follow").count() == 1 and pg.locator(".outrow").nth(0).locator(".octl button").count() == 0)
     o6 = pg.locator(".outrow").nth(5).locator(".octl input"); o6.nth(1).fill("16"); o6.nth(1).press("Enter"); time.sleep(0.1)
@@ -180,7 +180,7 @@ try:
     check("the three steps until Got it", pg.locator(".pcoach").count() == 1 and "Drag fixtures" in pg.locator(".pcoach").inner_text())
     pg.locator(".pcoach button", has_text="How patching works").click(); time.sleep(0.2)
     hp = pg.locator(".modal.phelp")
-    check("How patching works: the steps, and a table from what the device's page looks like to the mode", hp.count() == 1 and hp.locator(".pways tr").count() == 8 and "Pixels · Typed" in hp.inner_text())
+    check("How patching works: the steps, and a table from what the device's page looks like to the mode", hp.count() == 1 and hp.locator(".pways tr").count() == 8 and "Pixels · Manual start" in hp.inner_text())
     hp.locator(".btn.primary").click(); time.sleep(0.1)
     pg.locator(".pcoach button", has_text="Got it").click(); time.sleep(0.2)
     check("Got it: gone, and kept for next time", pg.locator(".pcoach").count() == 0 and ev("JSON.parse(localStorage.getItem('noupix.ui')).patchHelped") is True)
@@ -188,7 +188,7 @@ try:
     # ---------- DDP
     ev("(() => { const c = project.controllers[1]; c.protocol = 'ddp'; ensureChains(c); ui.selCtrl = c.id; markPatch(); commit(); renderAll(); })()"); time.sleep(0.2)
     check("DDP: Pixels or Manual (it has no universes)", pg.locator(".ctrl-fields .seg button", has_text="Universes").count() == 0 and pg.locator(".ctrl-fields .seg button", has_text="Manual").count() == 1
-          and pg.locator(".ctrl-fields .seg button", has_text="Next channel").count() == 0)
+          and pg.locator(".ctrl-fields .seg button", has_text="Next ch").count() == 0)
 
     check("no errors in the page", not errs, errs[:3])
     br.close()

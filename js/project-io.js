@@ -56,6 +56,9 @@ function fixFixture(f, i, ids) {
   if (typeof f.name !== 'string') f.name = f.name != null ? String(f.name) : TYPE_LABEL[f.type] + ' ' + (i + 1);
   delete f.tag;   // a fixture shows its group's colour; up to 0.9 each had one of its own
   if (!ORDERS.includes(f.order)) { const o = String(f.order || '').toUpperCase(); f.order = ORDERS.includes(o) ? o : 'RGB'; }
+  // tunable white's mix and balance: absent as at first
+  if (f.twMix !== 'even') delete f.twMix;
+  if ('twBias' in f) { const b = clamp(numOr(f.twBias, 0), -1, 1); if (b) f.twBias = b; else delete f.twBias; }
   f.dimmer = numOr(f.dimmer, 1);
   if (isObj(f.addr)) f.addr = { u: clamp(Math.round(numOr(f.addr.u, 0)), 0, 32767), ch: clamp(Math.round(numOr(f.addr.ch, 1)), 1, 512) }; else delete f.addr;
   f.trim = [0, 1, 2, 3].map(i => clamp(numOr(Array.isArray(f.trim) ? f.trim[i] : undefined, legacyTrim[i]), 0, 1));
