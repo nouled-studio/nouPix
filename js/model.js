@@ -270,7 +270,7 @@ function ensureChains(c) {
 // uniPlace (Universes): 'order' each after the one before, 'start' its first universe typed (outStarts), 'each' every
 // universe typed (outUnis); pxPlace (Pixels): 'channel' on from the channel the one before ends at, 'universe' on a
 // new universe, 'typed' its start typed (outAt: { u, ch }); from1: the device shows universe 0 as 1 (only what is shown).
-const UNI_PLACES = ['order', 'start', 'each'], PX_PLACES = ['channel', 'universe', 'typed'];
+const UNI_PLACES = ['order', 'start'], PX_PLACES = ['channel', 'universe', 'typed'];
 function fixOutputPlan(c) {
   const int = (v, lo, hi, d) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? clamp(n, lo, hi) : d; };
   if (c.same === false || c.same === true) { if (c.same) delete c.same; } else delete c.same;

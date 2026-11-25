@@ -767,8 +767,8 @@ function renderCtrlEditor(edit, c) {
       ddp ? null : px
         ? h('span', { 'data-tip': 'Next output starts|Next ch: where the output before ends (Advatek with Automatic Sequential Channels, WLED). Next uni: on channel 1 of the next universe. Manual: each output\'s start on its line (Advatek without Automatic Sequential Channels).' },
           seg([['channel', 'Next ch'], ['universe', 'Next uni'], ['typed', 'Manual']], pxPlace, v => setPxPlace(c, v)))
-        : h('span', { 'data-tip': 'Outputs start|In order: each output after the one before. Start typed: each output\'s first universe on its line (ENTTEC Pixelator). Each typed: every universe of each output on its line (MADRIX NEBULA).' },
-          seg([['order', 'In order'], ['start', 'Start typed'], ['each', 'Each typed']], uniPlace, v => setUniPlace(c, v))),
+        : h('span', { 'data-tip': 'Outputs start|In order: each output after the one before. Start typed: each output\'s first universe on its line (ENTTEC Pixelator).' },
+          seg([['order', 'In order'], ['start', 'Start typed']], uniPlace, v => setUniPlace(c, v))),
       ordered ? h('span', null, 'from') : h('span', { class: 'note' }, 'each output\'s start on its line'),
       ordered && !ddp ? spinNum(U, 'v', { int: true, min: off, max: 32767 + off, prefix: 'U', aria: 'Start universe', onCommit: onStruct }) : null,
       ordered ? spinNum(run, 'v', { int: true, min: 1, max: 512, prefix: 'ch', aria: 'Start channel', onCommit: onStruct }) : null,
@@ -1096,7 +1096,6 @@ function patchCoach() {
 const PATCH_WAYS = [
   ['Universes per output, one after another', 'Universes · In order', 'DiGidot'],
   ['The first universe of each output', 'Universes · Start typed', 'ENTTEC Pixelator'],
-  ['Every universe of each output', 'Universes · Each typed', 'MADRIX NEBULA'],
   ['Pixels per output, each on a new universe', 'Pixels · Next uni', ''],
   ['Pixels per output, each going on where the last ends', 'Pixels · Next ch', 'Advatek (Automatic Sequential Channels on), WLED'],
   ['Pixels per output, and a start universe and channel for each', 'Pixels · Manual', 'Advatek (Automatic Sequential Channels off)'],
