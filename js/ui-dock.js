@@ -718,37 +718,33 @@ function renderCtrlEditor(edit, c) {
     + '16-bit fixtures take two channels per colour (coarse, then fine): 6 for RGB, so 85 pixels fill channels 1 to 510; 8 for RGBW, so 64 fill a universe.';
   const ddp = isDdp(c), manual = c.mode === 'manual', px = c.mode === 'pixels', own = c.same === false;
   const uniPlace = c.uniPlace || 'order', pxPlace = c.pxPlace || 'channel', off = uniOff(c);
-  const more = ui.ctrlMore || (ui.ctrlMore = new Set()), open = more.has(c.id);
-  // 1. the device: on, name, address (what it reported to Discovery told on pointing at it), protocol; ⋯ for the rest
+  // 1. the device: on, name, address (what it reported to Discovery told on pointing at it), protocol, delete
   const rep = !ddp && c.discovered && c.discovered.length ? `Reported: U ${universeList(c.discovered.map(u => uniLabel(u, c)))}, the universes this device said it listens to when Discovery found it.` : '';
   const ipBox = h('span', { class: 'ipbox', 'data-tip': rep ? `IP address|${rep}` : null }, small(ipIn, 130));
-  const moreBtn = h('button', { class: 'gbtn more' + (open ? ' on' : ''), type: 'button', 'aria-expanded': String(open), 'aria-label': 'More settings',
-    'data-tip': 'More|Counts from, Skip ch 511–512, delete the controller.', onclick: () => { open ? more.delete(c.id) : more.add(c.id); renderDock(); } }, '⋯');
+  // Delete asks first, so a stray click can't remove a controller and its patch
+  const del = h('button', { class: 'btn icon trash', type: 'button', title: 'Delete this controller', 'aria-label': 'Delete controller ' + c.name, onclick: () => askDeleteControllers([c]) }, icon('trash'));
   edit.append(h('div', { class: 'ctrl-fields' },
     en,
     small(textInput(c, 'name', { aria: 'Controller name', onInput: () => {}, onCommit: () => { commit(); renderRight(); } }), 150),
     ipBox,
     h('span', { 'data-tip': 'Protocol|What this controller receives. sACN counts universes from 1. DDP has no universes: one run of channels from 1.' },
       seg([['artnet', 'Art-Net'], ['sacn', 'sACN'], ['ddp', 'DDP']], c.protocol, v => { c.protocol = v; ensureChains(c); markPatch(); commit(); })),
-    h('span', { style: { flex: 1 } }), moreBtn));
-  // what is set once and forgotten: Counts from, Skip ch 511–512 (only where a pixel could be split), delete
-  if (open) {
-    const odd = n => 512 % n !== 0;
-    const skipMatters = !ddp && !manual && (c.split || (px ? odd(c.chPx) : !c.chains.flat().length || c.chains.flat().some(id => { const g = fxById(id); return g && odd(BPP(g)); })));
-    edit.append(h('div', { class: 'ctrl-more' },
-      ddp || isSacn(c) ? null : h('span', { class: 'mf', 'data-tip': 'Counts from|Some devices show Art-Net universe 0 as 1 (Advatek). Set it as yours does and nouPix shows its numbers; what is sent doesn\'t change.' },
-        h('span', { class: 'ml' }, 'Counts from'), seg([['0', '0'], ['1', '1']], c.from1 ? '1' : '0', v => { if (v === '1') c.from1 = true; else delete c.from1; markPatch(); commit(); renderRight(); })),
-      skipMatters ? h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
-        h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')) : null,
-      ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null,
-      h('span', { style: { flex: 1 } }),
-      h('button', { class: 'gbtn danger', type: 'button', onclick: () => askDeleteControllers([c]) }, 'Delete controller')));
-  }
+    ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null,
+    h('span', { style: { flex: 1 } }), del));
+  // how the device numbers universes, and whether a pixel may be split: beside where universes and channels are set
+  const odd = n => 512 % n !== 0;
+  const skipMatters = !ddp && (c.split || (px ? odd(c.chPx) : !c.chains.flat().length || c.chains.flat().some(id => { const g = fxById(id); return g && odd(BPP(g)); })));
+  const numbering = () => [
+    ddp || isSacn(c) ? null : h('span', { class: 'mf', 'data-tip': 'Counts from|Some devices show Art-Net universe 0 as 1 (Advatek). Set it as yours does and nouPix shows its numbers; what is sent doesn\'t change.' },
+      h('span', { class: 'ml' }, 'Counts from'), seg([['0', '0'], ['1', '1']], c.from1 ? '1' : '0', v => { if (v === '1') c.from1 = true; else delete c.from1; markPatch(); commit(); renderRight(); })),
+    skipMatters ? h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
+      h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')) : null];
   // 2. Patch by, and what it is for on pointing at the i
   edit.append(h('div', { class: 'ctrl-line' },
     h('span', { class: 'ml' }, 'Patch by'),
     seg((ddp ? [] : [['universes', 'Universes']]).concat([['pixels', 'Pixels'], ['manual', 'Manual']]), c.mode, v => setCtrlMode(c, v)),
-    h('button', { class: 'pinfo', type: 'button', 'aria-label': 'Which mode is my device?', 'data-tip': patchModeTip(c), onclick: patchHelp }, 'i')));
+    h('button', { class: 'pinfo', type: 'button', 'aria-label': 'Which mode is my device?', 'data-tip': patchModeTip(c), onclick: patchHelp }, 'i'),
+    manual ? h('span', { style: { flex: 1 } }) : null, manual ? numbering() : null));
   if (!manual) {
     // 3. the outputs as a sentence: 16 outputs × 400 px RGB, each its own
     const eachOwn = h('input', { type: 'checkbox', checked: own, id: 'ctrlSame' });
@@ -764,14 +760,8 @@ function renderCtrlEditor(edit, c) {
       h('label', { class: 'checkrow', for: 'ctrlSame', 'data-tip': 'Each its own|Off: one number for every output. On: each output has its own, typed on its line below.' }, eachOwn, 'each its own')));
     // 4. where the outputs start: how they follow each other, and the first one's address
     const ordered = px ? pxPlace !== 'typed' : uniPlace === 'order';
-    const addr = { get v() { return ddp ? `ch ${c.startUniverse * 512 + c.startCh}` : `U ${c.startUniverse + off} · ch ${c.startCh}`; }, set v(t) {
-      const n = String(t).match(/\d+/g) || [];
-      if (ddp) { if (n.length) c.startCh = clamp(+n[n.length - 1], 1, 512); return; }
-      if (n.length >= 2) { c.startUniverse = clamp(+n[0] - off, 0, 32767); c.startCh = clamp(+n[1], 1, 512); }
-      else if (n.length === 1) c.startUniverse = clamp(+n[0] - off, 0, 32767);
-    } };
-    const addrIn = textInput(addr, 'v', { aria: 'Starts at', onCommit: onStruct });
-    addrIn.classList.add('addrin');
+    const U = { get v() { return c.startUniverse + off; }, set v(x) { c.startUniverse = x - off; } };
+    const run = { get v() { return c.startCh; }, set v(x) { c.startCh = x; } };
     edit.append(h('div', { class: 'ctrl-line sent' },
       h('span', null, 'starting'),
       ddp ? null : px
@@ -780,7 +770,9 @@ function renderCtrlEditor(edit, c) {
         : h('span', { 'data-tip': 'Outputs start|In order: each output after the one before. Start typed: each output\'s first universe on its line (ENTTEC Pixelator). Each typed: every universe of each output on its line (MADRIX NEBULA).' },
           seg([['order', 'In order'], ['start', 'Start typed'], ['each', 'Each typed']], uniPlace, v => setUniPlace(c, v))),
       ordered ? h('span', null, 'from') : h('span', { class: 'note' }, 'each output\'s start on its line'),
-      ordered ? h('span', { 'data-tip': 'Starts at|Where output 1 starts, as the device counts: type 2 numbers, the universe and the channel.' }, addrIn) : null));
+      ordered && !ddp ? spinNum(U, 'v', { int: true, min: off, max: 32767 + off, prefix: 'U', aria: 'Start universe', onCommit: onStruct }) : null,
+      ordered ? spinNum(run, 'v', { int: true, min: 1, max: 512, prefix: 'ch', aria: 'Start channel', onCommit: onStruct }) : null,
+      h('span', { class: 'sep' }), numbering()));
   }
   const coach = patchHint(c);
   if (coach) edit.append(coach);
@@ -789,8 +781,7 @@ function renderCtrlEditor(edit, c) {
   const folds = ui.foldOuts || (ui.foldOuts = new Set());
   const foldAll = shut => { c.chains.forEach((_, o) => { const k = c.id + ':' + o; shut ? folds.add(k) : folds.delete(k); }); renderDock(); };
   edit.append(h('div', { class: 'outbar' },
-    h('span', { style: { flex: 1 } }),
-    foldButtons(foldAll)));
+    foldButtons(foldAll, c.chains.every((_, o) => folds.has(c.id + ':' + o)), 'outputs')));
   const outs = h('div', { class: 'outs' });
   c.chains.forEach((chain, o) => {
     const info = (c._outs && c._outs[o]) || Object.assign({ pixels: 0, overflow: 0, ch: 0 }, ctrlOuts(c)[o]);
@@ -801,7 +792,7 @@ function renderCtrlEditor(edit, c) {
       h('div', { class: 'bar' }, h('i', { style: { width: (info.overflow ? 100 : pct) + '%' } })),
       h('div', { class: 'lbl' }, h('span', null, info.px ? `${fmtN(info.pixels)}/${fmtN(info.px)} px` : `${fmtN(info.pixels)} px`), h('span', null, info.overflow ? `${info.overflow} px over` : ddp ? `${fmtN(info.ch - info.start)} ch` : `${usedU}/${info.upo} U`)));
     const head = h('div', { class: 'outhead', title: 'Click to fold or unfold. Drop fixtures here to add them at the end.' },
-      h('span', { class: 'fold' }, folds.has(key) ? '▸' : '▾'),
+      h('span', { class: 'fold' + (folds.has(key) ? ' shut' : '') }, icon('chev')),
       h('span', { class: 'on' }, 'OUT ' + (o + 1)),
       outSpan(c, info),
       h('span', { class: 'omid' }, outControls(c, o), h('span', { class: 'sum' }, n ? `${n} fixture${n === 1 ? '' : 's'} · ${fmtN(info.ch)} ch` : 'empty')),
@@ -855,11 +846,17 @@ function patchRow(c, fid, k, chain, o, outs) {
   if (o !== null) row.addEventListener('dragover', () => { $$('.prow.dropat', outs).forEach(x => x.classList.remove('dropat')); row.classList.add('dropat'); });
   return row;
 }
-// Fold all and Unfold all, as two icons without boxes
-function foldButtons(foldAll) {
-  const fold = gbtn({ icon: 'foldAll', label: 'Fold all', onclick: () => foldAll(true) }), open = gbtn({ icon: 'unfoldAll', label: 'Unfold all', onclick: () => foldAll(false) });
-  fold.dataset.tip = 'Fold all|Every output shows its line only.'; open.dataset.tip = 'Unfold all|Every output shows its fixtures.';
-  return h('span', { class: 'folds' }, fold, open);
+// Fold or unfold every output (or universe) at once: the fixture list's chevron, on the left above theirs
+function foldButtons(foldAll, shut, what) {
+  return h('button', { class: 'chev all' + (shut ? ' shut' : ''), type: 'button', 'aria-label': shut ? 'Unfold all' : 'Fold all', 'aria-expanded': String(!shut),
+    title: shut ? `Unfold all ${what}` : `Fold all ${what}`, onclick: () => foldAll(!shut) }, icon('chev'), h('span', null, shut ? `Unfold all` : `Fold all`));
+}
+// A number with ▴ ▾ beside it (Shift: ×10); the arrow keys step it too
+function spinNum(obj, key, o) {
+  const el = numInput(obj, key, o), inp = el.tagName === 'INPUT' ? el : el.querySelector('input');
+  const step = (n, e) => { obj[key] = clamp(Math.round(obj[key] + n * (e && e.shiftKey ? 10 : 1)), o.min ?? -1e9, o.max ?? 1e9); inp.value = fmtV(obj[key]); if (o.onCommit) o.onCommit(); };
+  const arrow = (n, txt) => h('button', { class: 'btn', type: 'button', tabindex: -1, 'aria-label': (n > 0 ? 'Up' : 'Down') + ': ' + (o.aria || ''), onclick: e => step(n, e) }, txt);
+  return h('span', { class: 'spinnum' }, el, h('div', { class: 'spin' }, arrow(1, '▴'), arrow(-1, '▾')));
 }
 // One place earlier (-1) or later (+1) on their outputs. Several on one output move together, keeping their order;
 // one already at the start (or end) stays.
@@ -1185,10 +1182,10 @@ function manualPatch(edit, c) {
   const keys = [...groups.keys()].sort((a, b) => a - b);
   const foldAll = shut => { keys.forEach(u => { const k = c.id + ':u' + u; shut ? folds.add(k) : folds.delete(k); }); renderDock(); };
   edit.append(h('div', { class: 'outbar' },
-    sorted.length > 1 ? h('button', { class: 'btn sm', type: 'button', 'data-tip': 'Address in sequence|The fixtures picked (or all of them) one after another, from the first one\'s address, in the order of their addresses.',
-      onclick: () => { addressInSequence(seqIds, firstAt()); toast(`${seqIds.length} fixtures one after another.`); } }, picked.length > 1 ? `Address ${picked.length} in sequence` : 'Address all in sequence') : null,
+    foldButtons(foldAll, keys.length > 0 && keys.every(u => folds.has(c.id + ':u' + u)), 'universes'),
     h('span', { style: { flex: 1 } }),
-    foldButtons(foldAll)));
+    sorted.length > 1 ? h('button', { class: 'btn sm', type: 'button', 'data-tip': 'Address in sequence|The fixtures picked (or all of them) one after another, from the first one\'s address, in the order of their addresses.',
+      onclick: () => { addressInSequence(seqIds, firstAt()); toast(`${seqIds.length} fixtures one after another.`); } }, picked.length > 1 ? `Address ${picked.length} in sequence` : 'Address all in sequence') : null));
   const outs = h('div', { class: 'outs' });
   for (const u of keys) {
     const ids = groups.get(u), key = c.id + ':u' + u, n = ids.length;
@@ -1205,7 +1202,7 @@ function manualPatch(edit, c) {
       return outSpan(c, { base: 0, upo: MANUAL_UNIS, start: lo, end: hi + 1 });
     })();
     const head = h('div', { class: 'outhead', title: 'Click to fold or unfold. Drop fixtures here: they take the next free channels of this universe.' },
-      h('span', { class: 'fold' }, folds.has(key) ? '▸' : '▾'), h('span', { class: 'on' }, lab), span,
+      h('span', { class: 'fold' + (folds.has(key) ? ' shut' : '') }, icon('chev')), h('span', { class: 'on' }, lab), span,
       h('span', { class: 'sum' }, `${n} fixture${n === 1 ? '' : 's'} · ${fmtN(ch)} ch`), usage);
     head.addEventListener('click', () => { folds.has(key) ? folds.delete(key) : folds.add(key); renderDock(); });
     const list = h('div', { class: 'outlist' });

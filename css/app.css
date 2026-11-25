@@ -407,7 +407,17 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .outhead { display: grid; grid-template-columns: 14px 52px 108px minmax(0,1fr) 170px; align-items: center; gap: 8px; padding: 5px 12px; min-height: 34px; cursor: pointer; position: sticky; top: 33px; z-index: 1; background: var(--bg1); }
 /* stays on screen above the outputs while the controller's settings scroll away */
 .outbar { position: sticky; top: 0; z-index: 2; height: 33px; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--bg2); border-bottom: 1px solid var(--line); }
-.outhead .fold { color: var(--muted); font-size: 10px; }
+.outhead .fold { color: var(--text2); display: flex; align-items: center; }
+.outhead .fold svg, .outbar .chev svg { width: 10px; height: 10px; transition: transform .12s; }
+.outhead .fold.shut svg, .outbar .chev.shut svg { transform: rotate(-90deg); }
+.outbar .chev { display: flex; align-items: center; gap: 12px; height: 24px; padding: 0 4px 0 2px; border: 0; background: none; color: var(--text2); cursor: pointer;
+  font: 600 9.5px var(--label); letter-spacing: .14em; text-transform: uppercase; }
+.outbar .chev:hover { color: var(--text); }
+.spinnum { display: inline-flex; align-items: stretch; gap: 0; }
+.spinnum .inp, .spinnum > input { width: 78px; }
+.spinnum .inp input { height: 26px; }
+.spinnum .spin { width: 18px; }
+.spinnum .spin .btn { height: 13px; }
 .outbar .folds { display: flex; gap: 2px; }
 /* a controller's settings: the device on one line, the rest as sentences under it; what is set once behind ⋯ */
 .ctrl-fields .ipbox { display: inline-flex; }
@@ -420,6 +430,8 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .ctrl-line.sent { color: var(--text2); font-size: 13px; }
 .ctrl-line .sn { width: 64px; height: 26px; }
 .ctrl-line .x { color: var(--muted); }
+.ctrl-line.sent .ml { font: inherit; letter-spacing: 0; text-transform: none; color: var(--text2); }
+.ctrl-line .sep { width: 1px; height: 18px; background: var(--line2); margin: 0 4px; }
 .ctrl-line select { width: auto; min-width: 110px; height: 26px; flex: none; }
 .ctrl-line .checkrow { margin-left: 6px; }
 .ctrl-line .addrin { width: 120px; height: 26px; font-family: var(--mono); font-size: 12px; }
