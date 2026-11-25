@@ -753,8 +753,9 @@ function renderCtrlEditor(edit, c) {
       ddp ? 'The channel output 1 starts at, counted from 1; each next output goes on from where the one before it ends' : 'The channel output 1 starts at'),
     ddp || isSacn(c) ? null : h('label', { class: 'f', 'data-tip': 'Device counts from|Some devices show Art-Net universe 0 as 1 (Advatek\'s Assistant). Set it as yours does, and nouPix shows its numbers. Only what is shown changes, never what is sent.' },
       h('span', null, 'Counts from'), seg([['0', '0'], ['1', '1']], c.from1 ? '1' : '0', v => { if (v === '1') c.from1 = true; else delete c.from1; markPatch(); commit(); renderRight(); })),
-    !ddp && c.discovered && c.discovered.length ? f('ArtPoll', h('span', { class: 'reported' }, 'U ' + universeList(c.discovered)),
-      `Universes this device reported when discovered (${c.discovered.length}). Set the outputs to how the device is set up.`) : null,
+    // what the device said it listens to when Discovery found it, as a reminder; told on pointing at it
+    !ddp && c.discovered && c.discovered.length ? h('label', { class: 'f', 'data-tip': `Reported universes|The ${c.discovered.length} universe${c.discovered.length > 1 ? 's' : ''} this device said it listens to when Discovery found it. It doesn't say which output each one is on: set the outputs as on the device's own page.` },
+      h('span', null, 'Reported'), h('span', { class: 'reported' }, 'U ' + universeList(c.discovered.map(u => uniLabel(u, c))))) : null,
     ddp || manual ? null : h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')),
     ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null,
