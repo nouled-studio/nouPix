@@ -718,14 +718,16 @@ function renderCtrlEditor(edit, c) {
   const ipBox = h('span', { class: 'ipbox', 'data-tip': rep ? `Reported|U ${universeList(c.discovered.map(u => uniLabel(u, c)))}` : null }, small(ipIn, 130));
   // Delete asks first, so a stray click can't remove a controller and its patch
   const del = h('button', { class: 'btn icon trash', type: 'button', title: 'Delete this controller', 'aria-label': 'Delete controller ' + c.name, onclick: () => askDeleteControllers([c]) }, icon('trash'));
-  edit.append(h('div', { class: 'ctrl-fields' },
+  const devLine = h('div', { class: 'ctrl-fields' },
     en,
     small(textInput(c, 'name', { aria: 'Controller name', onInput: () => {}, onCommit: () => { commit(); renderRight(); } }), 150),
     ipBox,
     h('span', { 'data-tip': 'Protocol|What the device receives.' },
       seg([['artnet', 'Art-Net'], ['sacn', 'sACN'], ['ddp', 'DDP']], c.protocol, v => { c.protocol = v; ensureChains(c); markPatch(); commit(); })),
     ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null,
-    h('span', { style: { flex: 1 } }), del));
+    del);
+  del.style.marginLeft = 'auto';   // always at the line's right end, wrapped or not
+  edit.append(devLine);
   // how the device numbers universes, and whether a pixel may be split: beside where universes and channels are set
   const odd = n => 512 % n !== 0;
   const skipMatters = !ddp && (c.split || (px ? odd(c.chPx) : !c.chains.flat().length || c.chains.flat().some(id => { const g = fxById(id); return g && odd(BPP(g)); })));
@@ -742,7 +744,9 @@ function renderCtrlEditor(edit, c) {
     ...MODES.map(([m, ic, tip, word]) => h('button', { type: 'button', class: c.mode === m ? 'on' : '', 'aria-label': tip.split('|')[0], 'data-tip': tip, onclick: () => setCtrlMode(c, m), html: lineIcon(ic) + `<span>${word}</span>` }))),
     h('button', { class: 'pinfo', type: 'button', 'aria-label': 'How patching works', 'data-tip': 'How patching works', onclick: patchHelp }, 'i'));
   // the mode, and how the device counts, on one line that stays put whatever is chosen below
-  edit.append(h('div', { class: 'ctrl-line sent' }, patchBy, h('span', { style: { flex: 1 } }), numbering()));
+  // the patch mode goes with the protocol, on the device's line; how the device counts at the end of the outputs' line
+  devLine.insertBefore(patchBy, del);
+  if (manual) edit.append(h('div', { class: 'ctrl-line sent' }, h('span', { style: { flex: 1 } }), numbering()));
   if (!manual) {
     // 3. the outputs as a sentence: 16 outputs × 400 px RGB, each its own
     // Same for all, ticked at first: one count for every output; off, each output's own on its line
@@ -758,6 +762,7 @@ function renderCtrlEditor(edit, c) {
       px ? selectEl(CH_PER_PX.map(n => [n, { 1: 'Mono', 2: 'Tunable white', 3: 'RGB', 4: 'RGBW', 6: 'RGB 16-bit', 8: 'RGBW 16-bit' }[n]]), c.chPx,
         v => { c.chPx = +v; markPatch(); commit(); }, { aria: 'Pixel type' }) : null,
       h('label', { class: 'checkrow', for: 'ctrlSame', 'data-tip': own ? 'Same for all|Off: each output has its own count, on its line.' : 'Same for all|One count for every output.' }, sameAll, 'same for all'),
+      h('span', { style: { flex: 1 } }), numbering()
     ));
     // 4. where the outputs start: how they follow each other, and the first one's address
     const ordered = px ? pxPlace !== 'typed' : uniPlace === 'order';

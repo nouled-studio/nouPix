@@ -435,6 +435,8 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .ctrl-line.sent { color: var(--text2); font-size: 13px; }
 .ctrl-line .sn { width: 64px; height: 26px; }
 .ctrl-line .x { color: var(--muted); }
+.ctrl-fields .pby { flex-wrap: nowrap; white-space: nowrap; }
+.ctrl-fields .pby .ml { font: inherit; color: var(--text2); font-size: 13px; }
 .ctrl-line .mf { display: inline-flex; align-items: center; gap: 8px; }
 .ctrl-line .skiprow { margin-left: 14px; }
 .ctrl-line .checkrow { white-space: nowrap; }
@@ -445,6 +447,8 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .ctrl-line .checkrow { margin-left: 6px; }
 .ctrl-line .addrin { width: 120px; height: 26px; font-family: var(--mono); font-size: 12px; }
 .ctrl-edit .ctrl-more, .ctrl-edit .ctrl-line { padding-right: max(12px, calc(100% - var(--cap))); }
+/* the controller's settings lines may run wider than its outputs, so the patch mode stays beside the protocol */
+.ctrl-edit .ctrl-fields, .ctrl-edit .ctrl-line { padding-right: max(12px, calc(100% - 1120px)); }
 .outbar .folds .li { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: square; stroke-linejoin: miter; }
 .outhead .on { font-weight: 600; font-size: 12px; }
 .outhead .ur { display: grid; position: relative; padding-left: 13px; font-family: var(--mono); font-size: 10.5px; line-height: 1.35; white-space: nowrap; }
@@ -1072,7 +1076,8 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
   .patch { grid-template-columns: 1fr; }
   .ctrl-list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 180px; }
   .outhead { grid-template-columns: 14px 52px 1fr; }
-  .outhead .sum, .outhead .usage { grid-column: 2 / -1; }
+  .outhead, .outhead.uni { grid-template-columns: 14px 52px 1fr; }
+  .outhead .sum, .outhead .usage, .outhead .omid { grid-column: 2 / -1; }
   .prow { grid-template-columns: 8px 18px 8px minmax(60px, 1fr) 40px 44px 20px; }
   .prow .ad { display: none; }
   .monitor .mbody { grid-template-columns: 1fr; }
