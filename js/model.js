@@ -293,6 +293,9 @@ function fixOutputPlan(c) {
     else delete c.outAt;
   }
   if (c.from1) c.from1 = true; else delete c.from1;
+  // the maker Discovery found it to be (a WLED patches by pixels only)
+  if (!['advatek', 'enttec', 'digidot', 'madrix', 'spinode', 'wled'].includes(c.maker)) delete c.maker;
+  else if (c.maker === 'wled' && c.mode === 'universes') c.mode = 'pixels';
 }
 const fxById = id => project.fixtures.find(f => f.id === id);
 const ctrlById = id => project.controllers.find(c => c.id === id);

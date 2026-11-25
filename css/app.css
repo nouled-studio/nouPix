@@ -474,6 +474,11 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .modal.phelp { width: min(720px, calc(100vw - 32px)); }
 .psteps { margin: 0 0 14px; padding-left: 20px; color: var(--text2); display: grid; gap: 4px; }
 .psteps li::marker { color: var(--accent); font-family: var(--mono); }
+.modal.choose .ways { display: grid; gap: 6px; margin-top: 10px; }
+.modal.choose .way { height: auto; padding: 8px 12px; display: grid; justify-items: start; justify-content: start; gap: 2px; text-align: left; }
+.modal.choose .way b { font: 600 11px var(--label); letter-spacing: .14em; color: var(--text); }
+.modal.choose .way small { font: 300 12.5px var(--ui); letter-spacing: 0; text-transform: none; color: var(--text2); }
+.modal.choose .way:hover b { color: var(--accent); }
 .pmode { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .pmode:first-child { padding-top: 0; }
 .pmode .pm { display: inline-flex; align-items: center; gap: 7px; height: 20px; color: var(--text); }

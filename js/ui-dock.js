@@ -736,7 +736,8 @@ function renderCtrlEditor(edit, c) {
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')) : null];
   // 2. Patch mode: three icons, what each is told on pointing at it; the i opens the help
   const MODES = [['universes', 'byUni', 'Universes|A number of universes per output.', 'Unis'], ['pixels', 'byPx', 'Pixels|A number of pixels per output: nouPix works out the universes.', 'Pix'],
-    ['manual', 'byHand', 'Manual|No outputs: each fixture its own address.', 'Man']].filter(([m]) => !(ddp && m === 'universes'));
+    ['manual', 'byHand', 'Manual|No outputs: each fixture its own address.', 'Man']].filter(([m]) => !(ddp && m === 'universes') && !(c.maker === 'wled' && m !== 'pixels'));
+  if (c.maker === 'wled') MODES[0][2] = 'Pixels|A WLED patches by pixels only: its LEDs in a row, from its universe.';
   const patchBy = h('span', { class: 'pby' }, h('span', { class: 'ml' }, 'Patch mode'), h('span', { class: 'seg icons', role: 'group', 'aria-label': 'Patch mode' },
     ...MODES.map(([m, ic, tip, word]) => h('button', { type: 'button', class: c.mode === m ? 'on' : '', 'aria-label': tip.split('|')[0], 'data-tip': tip, onclick: () => setCtrlMode(c, m), html: lineIcon(ic) + `<span>${word}</span>` }))),
     h('button', { class: 'pinfo', type: 'button', 'aria-label': 'How patching works', 'data-tip': 'How patching works', onclick: patchHelp }, 'i'));
@@ -1023,8 +1024,45 @@ function addNodeAsController(n, asked) {
   project.controllers.push(c);
   ui.selCtrl = c.id; ui.selCtrls = new Set(); ui.dockTab = 'patch';
   markPatch(); commit(); updateDiscoveryUI();   // its row now offers Refresh
-  toast(`Added ${c.name} on ${protoName(c)}. Set its outputs to match how the device is set up.`);
-  if (isAdvatek(n) && !isSacn(c)) advatekNote(u);
+  const mk = makerOf(n);
+  if (!mk) { toast(`Added ${c.name} on ${protoName(c)}. Set its outputs to match how the device is set up.`); return; }
+  // a maker we know: set it up as its devices are, asking which way when they can be set more than one way
+  c.maker = mk.id;
+  if (mk.from1 && !isSacn(c)) c.from1 = true;
+  const apply = o => { Object.assign(c, o.set); ensureChains(c); markPatch(); commit(); renderRight(); toast(`${c.name}: ${o.label}. Set the outputs' counts as on the device.`); };
+  if (mk.ways.length === 1) { apply(mk.ways[0]); return; }
+  markPatch(); commit();
+  chooseBox(`${mk.name} found: how is it set up?`,
+    `Pick what ${c.name}'s own setup page says.` + (c.from1 ? ` It numbers universes from 1, so nouPix shows them that way too (Counts from 1).` : ''),
+    mk.ways.map(o => ({ label: o.label, note: o.note, fn: () => apply(o) })));
+}
+// Makers whose devices nouPix sets up when Discovery adds one: the patch mode (asked when there are several ways), and
+// Advatek's counting from 1. A WLED is added by its own JSON (addWledAsController), by pixels only.
+const MAKERS = [
+  { id: 'advatek', name: 'Advatek', re: /pixlite|advatek/i, from1: true, ways: [
+    { label: 'Pix · Next ch', note: 'Automatic Sequential Channels on', set: { mode: 'pixels', pxPlace: undefined } },
+    { label: 'Pix · Man', note: 'Automatic Sequential Channels off: a start per output', set: { mode: 'pixels', pxPlace: 'typed' } },
+    { label: 'Unis', note: 'Universes per output', set: { mode: 'universes' } }] },
+  { id: 'enttec', name: 'ENTTEC', re: /enttec|pixelator|\bocto\b/i, ways: [
+    { label: 'Unis', note: 'Universes per output, each with its first universe', set: { mode: 'universes' } },
+    { label: 'Pix · Next uni', note: 'Pixels per output', set: { mode: 'pixels', pxPlace: 'universe' } }] },
+  { id: 'digidot', name: 'DiGidot', re: /digidot/i, oem: 0x0FD0, ways: [{ label: 'Unis', note: '', set: { mode: 'universes' } }] },
+  { id: 'madrix', name: 'MADRIX', re: /madrix|nebula|luna\b|stella\b/i, ways: [{ label: 'Unis', note: '', set: { mode: 'universes' } }] },
+  { id: 'spinode', name: 'SpiNode', re: /spinode|visual productions/i, ways: [{ label: 'Pix', note: '', set: { mode: 'pixels' } }] }
+];
+const makerOf = n => MAKERS.find(m => (m.oem && n.oem === m.oem) || m.re.test(`${n.shortName || ''} ${n.longName || ''}`));
+// A short window offering a few ways, each a button with a word under it; Esc or a click outside leaves things as they are
+function chooseBox(title, text, options) {
+  const D = uiDocNow(), close = () => { bg.remove(); D.removeEventListener('keydown', key, true); };
+  const key = e => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal note choose', role: 'dialog', 'aria-label': title },
+      h('header', null, title), h('div', { class: 'mb' }, h('p', null, text),
+        h('div', { class: 'ways' }, ...options.map(o => h('button', { class: 'btn way', type: 'button', onclick: () => { close(); o.fn(); } }, h('b', null, o.label), o.note ? h('small', null, o.note) : null)))),
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Later'))));
+  D.body.append(bg);
+  D.addEventListener('keydown', key, true);
+  bg.querySelector('.btn.way').focus();
 }
 // Advatek's devices (PixLite…) and their Advatek Assistant count Art-Net universes from 1, where Art-Net, and nouPix,
 // count from 0: worth saying when one is added, before its outputs are matched to the patch. (On sACN both count from 1.)
@@ -1046,6 +1084,7 @@ function addWledAsController(n, same) {
   let c = same;
   if (c) Object.assign(c, set);
   else { c = newController(Object.assign({ name: n.shortName || n.ip, ip: n.ip }, set)); project.controllers.push(c); }
+  c.maker = 'wled';   // a WLED lays its LEDs out in a row: by pixels only
   ensureChains(c);
   if (n.universes.length) c.discovered = n.universes.slice();
   ui.selCtrl = c.id; ui.selCtrls = new Set(); ui.dockTab = 'patch';
