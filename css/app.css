@@ -474,6 +474,14 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .modal.phelp { width: min(720px, calc(100vw - 32px)); }
 .psteps { margin: 0 0 14px; padding-left: 20px; color: var(--text2); display: grid; gap: 4px; }
 .psteps li::marker { color: var(--accent); font-family: var(--mono); }
+.pmode { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.pmode:first-child { padding-top: 0; }
+.pmode .pm { display: inline-flex; align-items: center; gap: 7px; height: 20px; color: var(--text); }
+.pmode .pm b { font: 600 10.5px var(--label); letter-spacing: .14em; text-transform: uppercase; }
+.pmode .li { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: square; }
+.pmode p { margin: 0; color: var(--text2); }
+.pmode p.seen { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.phelp .mb > .note { margin: 12px 0 0; color: var(--muted); }
 .pways { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 10px; }
 .pways th { text-align: left; font: 600 9.5px var(--label); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding: 5px 8px; border-bottom: 1px solid var(--line2); }
 .pways td { padding: 5px 8px; border-bottom: 1px solid var(--line); color: var(--text2); vertical-align: top; }

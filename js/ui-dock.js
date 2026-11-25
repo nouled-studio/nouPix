@@ -1093,27 +1093,23 @@ function patchCoach() {
   return coach;
 }
 // The rows of the help: what the device's page looks like, and the mode that matches it
+// The three patch modes, as the help tells them: what you set, what nouPix does, where we've seen them
 const PATCH_WAYS = [
-  ['Universes per output, each with its start universe and channel', 'Universes', 'DiGidot, ENTTEC Pixelator'],
-  ['Pixels per output, each on a new universe', 'Pixels · Next uni', ''],
-  ['Pixels per output, each going on where the last ends', 'Pixels · Next ch', 'Advatek (Automatic Sequential Channels on), WLED'],
-  ['Pixels per output, and a start universe and channel for each', 'Pixels · Manual', 'Advatek (Automatic Sequential Channels off)'],
-  ['Nothing per output: each fixture has its own address', 'Manual', '']
+  ['byUni', 'Unis', 'Auto-patch by universes.', 'Set how many universes each output has and where each starts (universe and channel). Drag fixtures onto an output: nouPix patches them one after another.', 'Seen on DiGidot, ENTTEC Pixelator'],
+  ['byPx', 'Pix', 'Auto-patch by pixels.', 'Set how many pixels each output has: nouPix works out the universes. Each output starts right after the last (Next ch), on a new universe (Next uni) or where you type it (Man). Drag fixtures onto an output: nouPix patches them one after another.', 'Seen on Advatek, WLED'],
+  ['byHand', 'Man', 'Full control.', 'No outputs. Drag fixtures onto the controller: each takes the next free address. Then set any fixture\'s universe and channel yourself, in the Inspector.', 'Works with any device, and DMX fixtures behind a node']
 ];
 function patchHelp() {
   const D = uiDocNow();
   const close = () => bg.remove();
   const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
-    h('div', { class: 'modal phelp', role: 'dialog', 'aria-label': 'How patching works' },
-      h('header', null, 'How patching works'),
+    h('div', { class: 'modal phelp', role: 'dialog', 'aria-label': 'Patch mode' },
+      h('header', null, 'Patch mode'),
       h('div', { class: 'mb' },
-        h('ol', { class: 'psteps' },
-          h('li', null, h('b', null, 'Add a controller'), ' for each device: its IP address and protocol.'),
-          h('li', null, h('b', null, 'Choose the patch mode'), ' to match the device\'s own setup page.'),
-          h('li', null, h('b', null, 'Drag fixtures'), ' onto the outputs they are wired to, in the order the data runs. On a Manual controller each takes the next free address.')),
-        h('table', { class: 'pways' }, h('tr', null, h('th', null, 'The device asks for'), h('th', null, 'In nouPix'), h('th', null, 'Seen on')),
-          ...PATCH_WAYS.map(r => h('tr', null, ...r.map(x => h('td', null, x || '—'))))),
-        h('p', null, 'If the device numbers universes from 1, set Counts from to 1.')),
+        ...PATCH_WAYS.map(([ic, word, what, how, seen]) => h('div', { class: 'pmode' },
+          h('span', { class: 'pm', html: lineIcon(ic) + `<b>${word}</b>` }),
+          h('div', null, h('p', null, h('b', null, what), ' ', how), h('p', { class: 'seen' }, seen)))),
+        h('p', { class: 'note' }, 'Set the mode as the device\'s own setup page is. If the device numbers universes from 1, set Counts from to 1.')),
       h('footer', null, h('button', { class: 'btn primary', type: 'button', onclick: close }, 'OK'))));
   D.body.append(bg);
   bg.querySelector('.btn.primary').focus();
