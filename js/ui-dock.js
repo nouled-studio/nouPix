@@ -745,18 +745,19 @@ function renderCtrlEditor(edit, c) {
   edit.append(h('div', { class: 'ctrl-line sent' }, patchBy, h('span', { style: { flex: 1 } }), numbering()));
   if (!manual) {
     // 3. the outputs as a sentence: 16 outputs × 400 px RGB, each its own
-    const eachOwn = h('input', { type: 'checkbox', checked: own, id: 'ctrlSame' });
-    eachOwn.addEventListener('change', () => setOwnCounts(c, eachOwn.checked));
+    // Same for all, ticked at first: one count for every output; off, each output's own on its line
+    const sameAll = h('input', { type: 'checkbox', checked: !own, id: 'ctrlSame' });
+    sameAll.addEventListener('change', () => setOwnCounts(c, !sameAll.checked));
     const num = (obj, key, o) => { const el = numInput(obj, key, o); el.classList.add('sn'); return el; };
     edit.append(h('div', { class: 'ctrl-line sent' },
       num(c, 'outputs', { int: true, min: 1, max: 128, aria: 'Outputs', onCommit: onStruct }), h('span', null, c.outputs === 1 ? 'output' : 'outputs'),
       h('span', { class: 'x' }, '×'),
-      own ? h('input', { class: 'sn', disabled: true, value: '', placeholder: 'each', 'aria-label': 'Each output its own' })
+      own ? h('input', { class: 'sn', disabled: true, value: '', placeholder: '—', 'aria-label': 'Each output has its own count' })
         : px ? num(c, 'pxOut', { int: true, min: 1, max: 10000, aria: 'Pixels per output', onCommit: onStruct }) : num(c, 'upo', { int: true, min: 1, max: 64, aria: 'Universes per output', onCommit: onStruct }),
       h('span', null, px ? 'px' : 'universes'),
       px ? selectEl(CH_PER_PX.map(n => [n, { 1: 'Mono', 2: 'Tunable white', 3: 'RGB', 4: 'RGBW', 6: 'RGB 16-bit', 8: 'RGBW 16-bit' }[n]]), c.chPx,
         v => { c.chPx = +v; markPatch(); commit(); }, { aria: 'Pixel type' }) : null,
-      h('label', { class: 'checkrow', for: 'ctrlSame', 'data-tip': 'Each its own|A count per output, on its line.' }, eachOwn, 'each its own'),
+      h('label', { class: 'checkrow', for: 'ctrlSame', 'data-tip': own ? 'Same for all|Off: each output has its own count, on its line.' : 'Same for all|One count for every output.' }, sameAll, 'same for all'),
     ));
     // 4. where the outputs start: how they follow each other, and the first one's address
     const ordered = px ? pxPlace !== 'typed' : uniPlace === 'order';
