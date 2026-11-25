@@ -483,7 +483,6 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .usage { display: grid; gap: 3px; }
 .usage .bar { height: 5px; border-radius: 0; background: var(--bg4); overflow: hidden; }
 .usage .bar i { display: block; height: 100%; background: var(--live); }
-.usage.full .bar i { background: var(--warn); }
 .usage.ovf .bar i { background: var(--danger); }
 .usage .lbl { font-family: var(--mono); font-size: 10.5px; color: var(--muted); display: flex; justify-content: space-between; }
 .usage.ovf .lbl { color: var(--danger); }

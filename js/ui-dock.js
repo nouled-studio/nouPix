@@ -775,7 +775,7 @@ function renderCtrlEditor(edit, c) {
     const usedU = Math.ceil(info.ch / 512), key = c.id + ':' + o, n = chain.filter(fxById).length;
     // how full it is: its pixels in Pixels mode, else its channels
     const pct = Math.min(100, info.px ? info.pixels / info.px * 100 : info.ch / (info.upo * 512) * 100);
-    const usage = h('div', { class: 'usage' + (info.overflow ? ' ovf' : pct > 92 ? ' full' : '') },
+    const usage = h('div', { class: 'usage' + (info.overflow ? ' ovf' : '') },
       h('div', { class: 'bar' }, h('i', { style: { width: (info.overflow ? 100 : pct) + '%' } })),
       h('div', { class: 'lbl' }, h('span', null, info.px ? `${fmtN(info.pixels)}/${fmtN(info.px)} px` : `${fmtN(info.pixels)} px`), h('span', null, info.overflow ? `${info.overflow} px over` : ddp ? `${fmtN(info.ch - info.start)} ch` : `${usedU}/${info.upo} U`)));
     const head = h('div', { class: 'outhead', title: 'Click to fold or unfold. Drop fixtures here to add them at the end.' },
@@ -1171,7 +1171,7 @@ function manualPatch(edit, c) {
     const lab = u < 0 ? 'NOT SENT' : ddp ? 'ch ' + (u * 512 + 1) : 'U ' + uniLabel(u, c);
     const ch = used.get(u) || 0, pct = Math.min(100, ch / 512 * 100);
     const over = ch > 512 || ids.some(id => fxById(id)._clash);
-    const usage = h('div', { class: 'usage' + (over ? ' ovf' : pct > 92 ? ' full' : '') },
+    const usage = h('div', { class: 'usage' + (over ? ' ovf' : '') },
       h('div', { class: 'bar' }, h('i', { style: { width: (over ? 100 : pct) + '%' } })),
       h('div', { class: 'lbl' }, h('span', null, `${fmtN(Math.min(ch, 512))}/512 ch`), h('span', null, over ? 'channels shared' : `${fmtN(ids.reduce((a, id) => a + pixelCount(fxById(id)), 0))} px`)));
     // where its channels start and end, as an output's span
