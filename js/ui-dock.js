@@ -710,24 +710,19 @@ function renderCtrlEditor(edit, c) {
   // Whole pixels: a universe ends at channel 510 for RGB, so no pixel is split between two universes
   const skip = h('input', { type: 'checkbox', checked: !c.split, id: 'ctrlSkip' });
   skip.addEventListener('change', () => { c.split = !skip.checked; markPatch(); commit(); });
-  const SKIP_INFO = 'A universe has 512 channels, but 512 is not a multiple of 3: an RGB pixel takes 3 channels, so 170 pixels fill channels 1 to 510.\n\n'
-    + 'On (standard): channels 511 and 512 stay empty and the 171st pixel starts at channel 1 of the next universe, so no pixel is split between two universes. This is what nearly every pixel controller expects (PixLite, Falcon, Advatek, WLED…): keep it on.\n\n'
-    + 'Off: all 512 channels are used, and the 171st pixel gets red and green on 511–512 and blue on channel 1 of the next universe. Only for controllers set to continuous addressing, or for plain DMX channels.\n\n'
-    + 'If colours look shifted from the second universe on, this setting does not match the controller.\n'
-    + 'RGBW pixels take 4 channels: 128 fill a universe exactly, so nothing is skipped either way.\n'
-    + '16-bit fixtures take two channels per colour (coarse, then fine): 6 for RGB, so 85 pixels fill channels 1 to 510; 8 for RGBW, so 64 fill a universe.';
+  const SKIP_INFO = 'RGB pixels: channels 511 and 512 stay empty, so no pixel is split between two universes (standard).\nOff: all 512 used, for devices set to continuous channels.';
   const ddp = isDdp(c), manual = c.mode === 'manual', px = c.mode === 'pixels', own = c.same === false;
   const uniPlace = c.uniPlace || 'order', pxPlace = c.pxPlace || 'channel', off = uniOff(c);
   // 1. the device: on, name, address (what it reported to Discovery told on pointing at it), protocol, delete
   const rep = !ddp && c.discovered && c.discovered.length ? `Reported: U ${universeList(c.discovered.map(u => uniLabel(u, c)))}, the universes this device said it listens to when Discovery found it.` : '';
-  const ipBox = h('span', { class: 'ipbox', 'data-tip': rep ? `IP address|${rep}` : null }, small(ipIn, 130));
+  const ipBox = h('span', { class: 'ipbox', 'data-tip': rep ? `Reported|U ${universeList(c.discovered.map(u => uniLabel(u, c)))}` : null }, small(ipIn, 130));
   // Delete asks first, so a stray click can't remove a controller and its patch
   const del = h('button', { class: 'btn icon trash', type: 'button', title: 'Delete this controller', 'aria-label': 'Delete controller ' + c.name, onclick: () => askDeleteControllers([c]) }, icon('trash'));
   edit.append(h('div', { class: 'ctrl-fields' },
     en,
     small(textInput(c, 'name', { aria: 'Controller name', onInput: () => {}, onCommit: () => { commit(); renderRight(); } }), 150),
     ipBox,
-    h('span', { 'data-tip': 'Protocol|What this controller receives. sACN counts universes from 1. DDP has no universes: one run of channels from 1.' },
+    h('span', { 'data-tip': 'Protocol|What the device receives.' },
       seg([['artnet', 'Art-Net'], ['sacn', 'sACN'], ['ddp', 'DDP']], c.protocol, v => { c.protocol = v; ensureChains(c); markPatch(); commit(); })),
     ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null,
     h('span', { style: { flex: 1 } }), del));
@@ -735,29 +730,31 @@ function renderCtrlEditor(edit, c) {
   const odd = n => 512 % n !== 0;
   const skipMatters = !ddp && (c.split || (px ? odd(c.chPx) : !c.chains.flat().length || c.chains.flat().some(id => { const g = fxById(id); return g && odd(BPP(g)); })));
   const numbering = () => [
-    ddp || isSacn(c) ? null : h('span', { class: 'mf', 'data-tip': 'Counts from|Some devices show Art-Net universe 0 as 1 (Advatek). Set it as yours does and nouPix shows its numbers; what is sent doesn\'t change.' },
+    ddp || isSacn(c) ? null : h('span', { class: 'mf', 'data-tip': 'Counts from|How the device numbers universes. Only the display changes.' },
       h('span', { class: 'ml' }, 'Counts from'), seg([['0', '0'], ['1', '1']], c.from1 ? '1' : '0', v => { if (v === '1') c.from1 = true; else delete c.from1; markPatch(); commit(); renderRight(); })),
     skipMatters ? h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')) : null];
-  // 2. Patch by, and what it is for on pointing at the i
-  edit.append(h('div', { class: 'ctrl-line' },
-    h('span', { class: 'ml' }, 'Patch by'),
-    seg((ddp ? [] : [['universes', 'Universes']]).concat([['pixels', 'Pixels'], ['manual', 'Manual']]), c.mode, v => setCtrlMode(c, v)),
-    h('button', { class: 'pinfo', type: 'button', 'aria-label': 'Which mode is my device?', 'data-tip': patchModeTip(c), onclick: patchHelp }, 'i'),
-    manual ? h('span', { style: { flex: 1 } }) : null, manual ? numbering() : null));
+  // 2. Patch by: three icons, what each is told on pointing at it; the i opens the help
+  const MODES = [['universes', 'byUni', 'Universes|A number of universes per output.'], ['pixels', 'byPx', 'Pixels|A number of pixels per output: nouPix works out the universes.'],
+    ['manual', 'byHand', 'Manual|No outputs: each fixture its own address.']].filter(([m]) => !(ddp && m === 'universes'));
+  const patchBy = h('span', { class: 'pby' }, h('span', { class: 'seg icons', role: 'group', 'aria-label': 'Patch by' },
+    ...MODES.map(([m, ic, tip]) => h('button', { type: 'button', class: c.mode === m ? 'on' : '', 'aria-label': tip.split('|')[0], 'data-tip': tip, onclick: () => setCtrlMode(c, m), html: lineIcon(ic) }))),
+    h('button', { class: 'pinfo', type: 'button', 'aria-label': 'How patching works', 'data-tip': 'How patching works', onclick: patchHelp }, 'i'));
+  if (manual) edit.append(h('div', { class: 'ctrl-line sent' }, patchBy, h('span', { class: 'sep' }), numbering()));
   if (!manual) {
     // 3. the outputs as a sentence: 16 outputs × 400 px RGB, each its own
     const eachOwn = h('input', { type: 'checkbox', checked: own, id: 'ctrlSame' });
     eachOwn.addEventListener('change', () => setOwnCounts(c, eachOwn.checked));
     const num = (obj, key, o) => { const el = numInput(obj, key, o); el.classList.add('sn'); return el; };
     edit.append(h('div', { class: 'ctrl-line sent' },
+      patchBy, h('span', { class: 'sep' }),
       num(c, 'outputs', { int: true, min: 1, max: 128, aria: 'Outputs', onCommit: onStruct }), h('span', null, c.outputs === 1 ? 'output' : 'outputs'),
       own ? null : h('span', { class: 'x' }, '×'),
       own ? null : px ? num(c, 'pxOut', { int: true, min: 1, max: 10000, aria: 'Pixels per output', onCommit: onStruct }) : num(c, 'upo', { int: true, min: 1, max: 64, aria: 'Universes per output', onCommit: onStruct }),
       own ? null : h('span', null, px ? 'px' : c.upo === 1 ? 'universe' : 'universes'),
       px ? selectEl(CH_PER_PX.map(n => [n, { 1: 'Mono', 2: 'Tunable white', 3: 'RGB', 4: 'RGBW', 6: 'RGB 16-bit', 8: 'RGBW 16-bit' }[n]]), c.chPx,
         v => { c.chPx = +v; markPatch(); commit(); }, { aria: 'Pixel type' }) : null,
-      h('label', { class: 'checkrow', for: 'ctrlSame', 'data-tip': 'Each its own|Off: one number for every output. On: each output has its own, typed on its line below.' }, eachOwn, 'each its own'),
+      h('label', { class: 'checkrow', for: 'ctrlSame', 'data-tip': 'Each its own|A count per output, on its line.' }, eachOwn, 'each its own'),
       px ? null : h('span', { class: 'sep' }), px ? null : numbering()));
     // 4. where the outputs start: how they follow each other, and the first one's address
     const ordered = px ? pxPlace !== 'typed' : uniPlace === 'order';
@@ -767,7 +764,7 @@ function renderCtrlEditor(edit, c) {
     if (px || ddp) edit.append(h('div', { class: 'ctrl-line sent' },
       h('span', null, 'starting'),
       ddp ? null : px
-        ? h('span', { 'data-tip': 'Next output starts|Next ch: where the output before ends (Advatek with Automatic Sequential Channels, WLED). Next uni: on channel 1 of the next universe. Manual: each output\'s start on its line (Advatek without Automatic Sequential Channels).' },
+        ? h('span', { 'data-tip': 'Next output starts|Right after the last, on a new universe, or typed per output.' },
           seg([['channel', 'Next ch'], ['universe', 'Next uni'], ['typed', 'Manual']], pxPlace, v => setPxPlace(c, v)))
         : h('span', { 'data-tip': 'Outputs start|In order: each output after the one before. Start typed: each output\'s first universe on its line (ENTTEC Pixelator).' },
           seg([['order', 'In order'], ['start', 'Start typed']], uniPlace, v => setUniPlace(c, v))),
@@ -793,7 +790,7 @@ function renderCtrlEditor(edit, c) {
     const usage = h('div', { class: 'usage' + (info.overflow ? ' ovf' : '') },
       h('div', { class: 'bar' }, h('i', { style: { width: (info.overflow ? 100 : pct) + '%' } })),
       h('div', { class: 'lbl' }, h('span', null, info.px ? `${fmtN(info.pixels)}/${fmtN(info.px)} px` : `${fmtN(info.pixels)} px`), h('span', null, info.overflow ? `${info.overflow} px over` : ddp ? `${fmtN(info.ch - info.start)} ch` : `${usedU}/${info.upo} U`)));
-    const head = h('div', { class: 'outhead' + (c.mode === 'universes' ? ' uni' : ''), title: 'Click to fold or unfold. Drop fixtures here to add them at the end.' },
+    const head = h('div', { class: 'outhead' + (c.mode === 'universes' ? ' uni' : ''), title: 'Click to fold · drop fixtures here' },
       h('span', { class: 'fold' + (folds.has(key) ? ' shut' : '') }, icon('chev')),
       h('span', { class: 'on' }, 'OUT ' + (o + 1)),
       // Universes: where it starts typed here, where it ends said after; Pixels: where it starts and ends, worked out
@@ -1157,8 +1154,8 @@ function outControls(c, o, startOnly) {
     kids.push(lab('U'), numInput(u, 'v', { int: true, min: off, max: 32767 + off, aria: `OUT ${o + 1} start universe`, onCommit: redo }),
       lab('ch'), numInput(ch, 'v', { int: true, min: 1, max: 512, aria: `OUT ${o + 1} start channel`, onCommit: redo }));
     if (o > 0) kids.push(
-      h('button', { class: 'gbtn', type: 'button', 'data-tip': `Follow|Start right where OUT ${o} ends, as Automatic Sequential Channels would.`, onclick: () => outAfterPrevious(c, o, false) }, 'Follow'),
-      h('button', { class: 'gbtn', type: 'button', 'data-tip': `New universe|Start on channel 1 of the universe after OUT ${o} ends.`, onclick: () => outAfterPrevious(c, o, true) }, 'New U'));
+      h('button', { class: 'gbtn', type: 'button', 'data-tip': `Follow|Right after OUT ${o}.`, onclick: () => outAfterPrevious(c, o, false) }, 'Follow'),
+      h('button', { class: 'gbtn', type: 'button', 'data-tip': `New universe|After OUT ${o}, on channel 1.`, onclick: () => outAfterPrevious(c, o, true) }, 'New U'));
   }
   return kids.length ? wrap(...kids) : null;
 }
