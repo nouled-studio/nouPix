@@ -34,7 +34,7 @@ try:
           outs() == ['0+4', '4+4', '8+4', '12+4'] and not any(k in saved for k in ('same', 'upos', 'pxOuts', 'uniPlace', 'pxPlace', 'outStarts', 'outUnis', 'outAt', 'from1')), (outs(), list(saved)))
     check("the Patch tab: Patch by Universes, Pixels, Manual; Same for all; the line saying what the mode is for",
           pg.locator(".ctrl-fields .seg button", has_text="Manual").count() == 1 and pg.locator("#ctrlSame").is_checked()
-          and "Universes per output" in pg.locator(".phint").inner_text() and pg.locator(".phint .linkbtn").count() == 1)
+          and "Universes per output" in (pg.locator(".pinfo").get_attribute("data-tip") or ""))
 
     # ---------- Universes, each output its own count (DiGidot: 4, 4, 3, 3)
     pg.click("#ctrlSame"); time.sleep(0.2)
@@ -118,26 +118,26 @@ try:
     before = {n: addr(n) for n in ("Panel A", "Strip 2", "Ring 3")}
     pg.click(".ctrl-fields .seg button:has-text('Manual')"); time.sleep(0.3)
     check("into Manual: every fixture keeps its address, and is listed with its universe and channel",
-          all(addr(n) == before[n] for n in before) and pg.locator(".mrow:not(.head)").count() == 8 and "kept their addresses" in pg.locator(".toast").last.inner_text(), ({n: addr(n) for n in before}, before))
-    check("…no outputs, Same for all or Start uni for a manual controller", pg.locator(".outrow").count() == 0 and pg.locator("#ctrlSame").count() == 0
-          and pg.locator(".ctrl-fields label:has-text('Start uni')").count() == 0 and "Manual" in pg.locator(".phint").inner_text())
+          all(addr(n) == before[n] for n in before) and pg.locator(".ctrl-edit .prow").count() == 8 and "kept their addresses" in pg.locator(".toast").last.inner_text(), ({n: addr(n) for n in before}, before))
+    check("…no outputs, Same for all or Start uni for a manual controller: a block per universe instead", pg.locator(".outhead .on", has_text="OUT").count() == 0 and pg.locator("#ctrlSame").count() == 0
+          and pg.locator(".ctrl-fields label:has-text('Start uni')").count() == 0 and "Manual" in (pg.locator(".pinfo").get_attribute("data-tip") or "") and pg.locator(".outhead .on", has_text="U 0").count() == 1)
     check("…its badges show the address", ev("(() => { ensurePatch(); renderFxList(); return document.querySelector('#fxList li[data-id=\"' + project.fixtures.find(f => f.name === 'Strip 2').id + '\"] .badge').textContent; })()").startswith("A U"))
     # a new one comes to the next free address
     ev("(() => { const f = newFixture('line', { id: 'NEW', name: 'Extra', x1: 100, y1: 600, x2: 300, y2: 600, pixels: 100 }); project.fixtures.push(f); markGeom(); commit(); })()"); time.sleep(0.2)
-    pg.drag_and_drop("#fxList li:has-text('Extra')", ".mbox"); time.sleep(0.3)
+    pg.drag_and_drop("#fxList li:has-text('Extra')", ".outrow.mfree"); time.sleep(0.3)
     nf = ev("fxById('NEW').addr")
     top = ev("Math.max(...project.controllers[0].chains[0].filter(id => id !== 'NEW').map(id => { const p = fxById(id)._patch; return p.base * 512 + p.last; }))")
     check("a fixture dropped on the list takes the next free address: right after the last channel used, as it fits there",
           nf and nf['u'] * 512 + nf['ch'] - 1 == top + 1, (nf, top))
     ev("(() => { const f = newFixture('line', { id: 'BIG', name: 'Big', x1: 100, y1: 620, x2: 300, y2: 620, pixels: 165 }); project.fixtures.push(f); markGeom(); commit(); })()"); time.sleep(0.2)
-    pg.drag_and_drop("#fxList li:has-text('Big')", ".mbox"); time.sleep(0.3)
+    pg.drag_and_drop("#fxList li:has-text('Big')", ".outrow.mfree"); time.sleep(0.3)
     nb = ev("fxById('BIG').addr")
     check("…and on a new universe when it would not fit in what is left of that one (495 channels)", nb == {'u': nf['u'] + 1, 'ch': 1}, (nb, nf))
     ev("(() => { unassign('BIG'); project.fixtures = project.fixtures.filter(f => f.id !== 'BIG'); markGeom(); markPatch(); commit(); })()"); time.sleep(0.2)
     # a clash: two fixtures on the same address
     ev("(() => { fxById('NEW').addr = { u: 0, ch: 1 }; markPatch(); commit(); ensurePatch(); renderAll(); })()"); time.sleep(0.2)
     check("two fixtures on the same channels: said, both marked, red in the list", any("share channels" in x for x in ev("patchConflicts"))
-          and ev("fxById('NEW')._clash && fxById('NEW')._clash.name") == "Panel A" and pg.locator(".mrow.clash").count() == 2, ev("patchConflicts"))
+          and ev("fxById('NEW')._clash && fxById('NEW')._clash.name") == "Panel A" and pg.locator(".ctrl-edit .prow.ovf").count() == 2, ev("patchConflicts"))
     # the Inspector: its address, Next free
     ev("(() => { ui.sel = new Set(['NEW']); onSelection(); renderRight(); })()"); time.sleep(0.3)
     ins = pg.locator("#rightBody")

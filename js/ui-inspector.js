@@ -275,16 +275,18 @@ function advancedPatch(f) {
   const redo = () => { markPatch(); commit(); renderRight(); };
   // Manual: its address is always its own, with the next free one a click away
   if (c.mode === 'manual') {
-    if (!f.addr) f.addr = { u: c.startUniverse, ch: 1 };
+    // where it is now: its own address, or (none yet) where it landed; typing sets its own
+    const cur = () => f.addr || (p.first >= 0 ? addrOf(p, p.first) : { u: c.startUniverse, ch: 1 });
+    const own = () => (f.addr = f.addr || Object.assign({}, cur()));
     const off = uniOff(c), next = () => { const a = manualNextFree(c, f); f.addr = a; redo(); toast(`${f.name} at ${chLabel(a, c, ' ')}, the next free address.`); };
     const res = [];
     if (isDdp(c)) {
-      const run = { get v() { return f.addr.u * 512 + f.addr.ch; }, set v(x) { f.addr.u = Math.floor((x - 1) / 512); f.addr.ch = (x - 1) % 512 + 1; } };
+      const run = { get v() { return cur().u * 512 + cur().ch; }, set v(x) { own(); f.addr.u = Math.floor((x - 1) / 512); f.addr.ch = (x - 1) % 512 + 1; } };
       res.push(numRow('Channel', run, 'v', { int: true, min: 1, max: 1 << 24, onCommit: redo }));
     } else {
-      const u = { get v() { return f.addr.u + off; }, set v(x) { f.addr.u = x - off; } };
+      const u = { get v() { return cur().u + off; }, set v(x) { own().u = x - off; } }, ch = { get v() { return cur().ch; }, set v(x) { own().ch = x; } };
       res.push(row('Starts at', numInput(u, 'v', { int: true, min: off, max: 32767 + off, prefix: 'U', aria: 'Universe', onCommit: redo }),
-        numInput(f.addr, 'ch', { int: true, min: 1, max: 512, prefix: 'ch', aria: 'Channel', onCommit: redo })));
+        numInput(ch, 'v', { int: true, min: 1, max: 512, prefix: 'ch', aria: 'Channel', onCommit: redo })));
     }
     res.push(h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', title: 'After the last channel the other fixtures on this controller use', onclick: next }, 'Next free')));
     return res;

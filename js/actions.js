@@ -308,6 +308,7 @@ function duplicateSel() {
   for (const [p, g] of pairs) {
     if (!p || outs.size > 1) continue;
     const chain = p.ctrl.chains[p.out];
+    if (p.ctrl.mode === 'manual') g.addr = manualNextFree(p.ctrl, g);
     chain.push(g.id); markPatch(); computePatch();
     if (g._patch && g._patch.first >= 0 && !g._patch.overflow) placed++;
     else { chain.pop(); markPatch(); computePatch(); left++; }
@@ -316,6 +317,7 @@ function duplicateSel() {
   ui.sel = new Set(out);
   commit(); renderRight();
   if (outs.size > 1) toast(`The copies aren't patched: the originals use ${outs.size} outputs. Right-click → Patch to.`);
+  else if (placed && pairs.some(([p]) => p && p.ctrl.mode === 'manual')) toast(`${placed === 1 ? 'The copy is' : placed + ' copies are'} patched at the next free address.`);
   else if (placed || left) toast((placed ? `${placed === 1 ? 'The copy is' : placed + ' copies are'} patched after the others on the same output.` : '') +
     (left ? ` ${left === 1 ? 'One copy does' : left + ' copies do'} not fit on the output and ${left === 1 ? 'is' : 'are'} not patched.` : ''));
 }
