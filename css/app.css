@@ -442,7 +442,6 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .pways th { text-align: left; font: 600 9.5px var(--label); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding: 5px 8px; border-bottom: 1px solid var(--line2); }
 .pways td { padding: 5px 8px; border-bottom: 1px solid var(--line); color: var(--text2); vertical-align: top; }
 .pways td:last-child { color: var(--text); white-space: nowrap; }
-.devsheet { white-space: pre; overflow-x: auto; max-height: 50vh; }
 /* an output's own count, its first universe, its universes or its start, on its line */
 .outhead .omid { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; min-width: 0; overflow: hidden; }
 .outhead .octl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; cursor: default; min-width: 0; }

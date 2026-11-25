@@ -19,9 +19,6 @@ function renderDock() {
   const mon = $('#btnMon');   // the Channel monitor, next to it
   mon.hidden = ui.dockTab !== 'patch';
   if (!mon.firstChild) mon.append(h('span', { class: 'ic', html: ICONS.monitor }), 'Channel monitor');
-  const sheet = $('#btnSheet');   // and what to type into each device
-  sheet.hidden = ui.dockTab !== 'patch';
-  if (!sheet.firstChild) sheet.append('Set on the device…');
   $('#btnDock').title = ui.dockCollapsed ? 'Expand panel' : 'Collapse panel';
   // where the panel open here goes (bottom, left, right, the Scenes window): in the tab row, the same spot for each
   let dp = $('#dockPlaces');
@@ -1053,7 +1050,7 @@ function patchHint(c) {
       h('ol', null,
         h('li', null, 'Set each controller up as the device\'s own page is: ', h('b', null, 'Patch by'), ' universes, pixels, or manual.'),
         h('li', null, 'Drag fixtures from the list onto an output, or onto a manual controller (in the list here too).'),
-        h('li', null, 'Fine-tune one in the Inspector. ', h('b', null, 'Set on the device…'), ' says what to type into each device.'))),
+        h('li', null, 'Fine-tune one in the Inspector: its output, its order, or its own universe and channel.'))),
     h('div', { class: 'acts' },
       h('button', { class: 'btn sm', type: 'button', onclick: () => { ui.patchHelped = true; savePrefs(); renderDock(); } }, 'Got it'),
       h('button', { class: 'btn sm', type: 'button', onclick: patchHelp }, 'How patching works')));
@@ -1084,8 +1081,8 @@ function patchHelp() {
         h('p', null, 'Which mode? Look at the device\'s own setup page, and find the line that sounds like it:'),
         h('table', { class: 'pways' }, h('tr', null, h('th', null, 'On the device'), h('th', null, 'For example'), h('th', null, 'In nouPix')),
           ...PATCH_WAYS.map(r => h('tr', null, ...r.map(x => h('td', null, x))))),
-        h('p', null, 'Some devices show Art-Net universe 0 as 1 (Advatek): set Counts from to 1, and nouPix shows their numbers. Set on the device… lists what to type into each one.'),
-        h('p', null, 'Colours wrong from the second universe on, or a strip starting in the middle? The device and nouPix don\'t agree on where an output starts: compare Set on the device… with the device\'s page.')),
+        h('p', null, 'Some devices show Art-Net universe 0 as 1 (Advatek): set Counts from to 1, and nouPix shows their numbers.'),
+        h('p', null, 'Colours wrong from the second universe on, or a strip starting in the middle? The device and nouPix don\'t agree on where an output starts: compare where each output starts (on its line) with the device\'s page.')),
       h('footer', null, h('button', { class: 'btn primary', type: 'button', onclick: close }, 'OK'))));
   D.body.append(bg);
   bg.querySelector('.btn.primary').focus();
@@ -1189,36 +1186,6 @@ function dropFixtures(el, onDrop) {
     const ids = d.slice(3).split(',').filter(fxById);
     if (ids.length) onDrop(ids);
   });
-}
-// What to type into each device: where its outputs start and end, in its own numbers (Set on the device…)
-function deviceSheet() {
-  ensurePatch();
-  const lines = [];
-  for (const c of project.controllers) {
-    const off = uniOff(c), ddp = isDdp(c);
-    const at = a => (ddp ? 'ch ' + (a.u * 512 + a.ch) : `U ${a.u + off} ch ${a.ch}`);
-    lines.push(`${ctrlLetter(c)} · ${c.name}  ${c.ip}  ${protoName(c)}${c.from1 && !isSacn(c) ? '  (counts universes from 1)' : ''}`);
-    if (c.mode === 'manual') {
-      for (const id of c.chains[0] || []) { const f = fxById(id), p = f && f._patch; if (p && p.first >= 0) lines.push(`  ${f.name.padEnd(16)} ${at(addrOf(p, p.first))}  →  ${at(addrOf(p, p.last))}`); }
-    } else ctrlOuts(c).forEach((L, o) => {
-      const a = addrOf(L, L.start), b = addrOf(L, Math.max(L.start, (L.end ?? L.upo * 512) - 1));
-      if (c.mode === 'pixels') lines.push(`  Output ${String(o + 1).padStart(2)}  ${String(L.px).padStart(5)} px   start ${at(a)}   end ${at(b)}`);
-      else lines.push(`  Output ${String(o + 1).padStart(2)}  ${L.upo} universe${L.upo > 1 ? 's' : ''}   ${L.list ? 'U ' + L.list.map(u => u + off).join(', ') : `U ${L.base + off}${L.upo > 1 ? '–' + (L.base + L.upo - 1 + off) : ''}`}`);
-    });
-    lines.push('');
-  }
-  const text = lines.join('\n').trim() || 'No controllers yet.';
-  const D = uiDocNow(), close = () => bg.remove();
-  const pre = h('pre', { class: 'updcmd devsheet' }, text);
-  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
-    h('div', { class: 'modal phelp', role: 'dialog', 'aria-label': 'Set on the device' },
-      h('header', null, 'Set on the device'),
-      h('div', { class: 'mb' }, h('p', null, 'What each controller\'s own setup page should say, in its own numbers. Copy it, or keep it for the installer.'), pre),
-      h('footer', null,
-        h('button', { class: 'btn', type: 'button', onclick: () => { try { navigator.clipboard.writeText(text).then(() => toast('Copied.'), () => toast('Select the text and copy it.', 'warn')); } catch (e) { toast('Select the text and copy it.', 'warn'); } } }, 'Copy'),
-        h('button', { class: 'btn primary', type: 'button', onclick: close }, 'OK'))));
-  D.body.append(bg);
-  bg.querySelector('.btn.primary').focus();
 }
 // Where an output starts and ends: universe and channel of its first and last channel, on two short lines
 function outSpan(c, L) {

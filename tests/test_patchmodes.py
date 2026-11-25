@@ -2,7 +2,7 @@
 # in order, each output's first universe typed, or every universe typed), by pixels per output (on from the channel
 # the last one ends at, on a new universe, or each start typed, with Follow and New U), or manual (no outputs: each
 # fixture its own universe and channel, the next free one when it comes, Address in sequence, clashes found by
-# channel). A device that counts from 1, the help, Set on the device…, dropping on a controller, files and undo.
+# channel). A device that counts from 1, the help, dropping on a controller, files and undo.
 import os, sys, time, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import CHROME_ARGS, start_bridge, app_error
@@ -107,11 +107,6 @@ try:
     check("OUT 6 typed at 16 and New U on the rest: the Advatek's whole table, as it shows it", ends() == adv, ends())
     pg.locator(".outrow").nth(1).locator(".octl button", has_text="Follow").click(); time.sleep(0.1)
     check("Follow: right where the output before ends", ends()[1] == '2.118-4.3', ends()[1])
-    pg.click("#btnSheet"); time.sleep(0.3)
-    sheet = pg.locator(".devsheet").inner_text()
-    check("Set on the device…: each output's start and end in the device's numbers", "PixLite 16" in sheet and "counts universes from 1" in sheet
-          and "Output  6    400 px   start U 16 ch 1   end U 18 ch 180" in sheet and "Output  4    331 px   start U 11 ch 1   end U 13 ch 300" in sheet, sheet[:400])
-    pg.locator(".modal.phelp .btn.primary").click(); time.sleep(0.1)
 
     # ---------- dropping a fixture on a controller in the list
     pg.drag_and_drop("#fxList li:has-text('Wave')", ".ctrl-list .ctrl >> nth=1"); time.sleep(0.3)
