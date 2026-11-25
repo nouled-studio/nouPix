@@ -180,7 +180,7 @@ try:
     check("the three steps until Got it", pg.locator(".pcoach").count() == 1 and "Drag fixtures" in pg.locator(".pcoach").inner_text())
     pg.locator(".pcoach button", has_text="How patching works").click(); time.sleep(0.2)
     hp = pg.locator(".modal.phelp")
-    check("How patching works: the steps, and a table from what the device's page looks like to the mode", hp.count() == 1 and hp.locator(".pways tr").count() == 8 and "Pixels · Manual start" in hp.inner_text())
+    check("How patching works: the steps, and a table from what the device's page looks like to the mode", hp.count() == 1 and hp.locator(".pways tr").count() == 8 and "Pixels · Manual" in hp.inner_text() and "Advatek (Automatic Sequential Channels off)" in hp.inner_text())
     hp.locator(".btn.primary").click(); time.sleep(0.1)
     pg.locator(".pcoach button", has_text="Got it").click(); time.sleep(0.2)
     check("Got it: gone, and kept for next time", pg.locator(".pcoach").count() == 0 and ev("JSON.parse(localStorage.getItem('noupix.ui')).patchHelped") is True)

@@ -1075,31 +1075,28 @@ function patchCoach() {
 }
 // The rows of the help: what the device's page looks like, and the mode that matches it
 const PATCH_WAYS = [
-  ['Universes per port, one after another', 'DiGidot, ENTTEC Octo, DMXking, most Art-Net nodes', 'Universes · In order'],
-  ['The first universe of each port typed', 'ENTTEC Pixelator', 'Universes · Start typed'],
-  ['Every universe of each port typed', 'MADRIX NEBULA, ENTTEC Pixel Port', 'Universes · Each typed'],
-  ['Pixels per port, each port on a new universe', 'SpiNode, most SPI boards', 'Pixels · Next uni'],
-  ['Pixels per port, each going on where the last ends', 'Advatek (Automatic Sequential Channels), WLED', 'Pixels · Next ch'],
-  ['Pixels per port, with a start universe and channel each', 'Advatek (without it), Falcon', 'Pixels · Manual start'],
-  ['No ports: an address per fixture', 'DMX nodes, odd rigs', 'Manual']
+  ['Universes per output, one after another', 'Universes · In order', 'DiGidot'],
+  ['The first universe of each output', 'Universes · Start typed', 'ENTTEC Pixelator'],
+  ['Every universe of each output', 'Universes · Each typed', 'MADRIX NEBULA'],
+  ['Pixels per output, each on a new universe', 'Pixels · Next uni', ''],
+  ['Pixels per output, each going on where the last ends', 'Pixels · Next ch', 'Advatek (Automatic Sequential Channels on), WLED'],
+  ['Pixels per output, and a start universe and channel for each', 'Pixels · Manual', 'Advatek (Automatic Sequential Channels off)'],
+  ['Nothing per output: each fixture has its own address', 'Manual', '']
 ];
 function patchHelp() {
   const D = uiDocNow();
   const close = () => bg.remove();
-  const step = (n, t, p) => h('div', { class: 'pstep' }, h('span', { class: 'n' }, n), h('b', null, t), h('p', null, p));
   const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
     h('div', { class: 'modal phelp', role: 'dialog', 'aria-label': 'How patching works' },
       h('header', null, 'How patching works'),
       h('div', { class: 'mb' },
-        h('div', { class: 'psteps' },
-          step('1', 'Add the controller', 'One for each device: its IP address and protocol. Discovery finds them, and fills a WLED in by itself.'),
-          step('2', 'Set it up like the device', 'Patch by universes, pixels or manual, as the device\'s own setup page is.'),
-          step('3', 'Drag fixtures on', 'Onto the output each is wired to, in the order the data runs. On a manual controller each gets the next free address, which you can change.')),
-        h('p', null, 'Which mode? Look at the device\'s own setup page, and find the line that sounds like it:'),
-        h('table', { class: 'pways' }, h('tr', null, h('th', null, 'On the device'), h('th', null, 'For example'), h('th', null, 'In nouPix')),
-          ...PATCH_WAYS.map(r => h('tr', null, ...r.map(x => h('td', null, x))))),
-        h('p', null, 'Some devices show Art-Net universe 0 as 1 (Advatek): set Counts from to 1, and nouPix shows their numbers.'),
-        h('p', null, 'Colours wrong from the second universe on, or a strip starting in the middle? The device and nouPix don\'t agree on where an output starts: compare where each output starts (on its line) with the device\'s page.')),
+        h('ol', { class: 'psteps' },
+          h('li', null, h('b', null, 'Add a controller'), ' for each device: its IP address and protocol.'),
+          h('li', null, h('b', null, 'Choose Patch by'), ' to match the device\'s own setup page.'),
+          h('li', null, h('b', null, 'Drag fixtures'), ' onto the outputs they are wired to, in the order the data runs. On a Manual controller each takes the next free address.')),
+        h('table', { class: 'pways' }, h('tr', null, h('th', null, 'The device asks for'), h('th', null, 'In nouPix'), h('th', null, 'Seen on')),
+          ...PATCH_WAYS.map(r => h('tr', null, ...r.map(x => h('td', null, x || '—'))))),
+        h('p', null, 'If the device numbers universes from 1, set Counts from to 1.')),
       h('footer', null, h('button', { class: 'btn primary', type: 'button', onclick: close }, 'OK'))));
   D.body.append(bg);
   bg.querySelector('.btn.primary').focus();
