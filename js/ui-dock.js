@@ -779,9 +779,6 @@ function renderCtrlEditor(edit, c) {
   if (patchConflicts.length) edit.append(h('div', { class: 'conflict' }, (usesDdp() || /share channels/.test(patchConflicts[0]) ? 'Clash: ' : 'Universe clash: ') + patchConflicts[0] + (patchConflicts.length > 1 ? ` (+${patchConflicts.length - 1} more)` : '')));
   if (c.mode === 'manual') { manualPatch(edit, c); return; }
   const folds = ui.foldOuts || (ui.foldOuts = new Set());
-  const foldAll = shut => { c.chains.forEach((_, o) => { const k = c.id + ':' + o; shut ? folds.add(k) : folds.delete(k); }); renderDock(); };
-  edit.append(h('div', { class: 'outbar' },
-    foldButtons(foldAll, c.chains.every((_, o) => folds.has(c.id + ':' + o)), 'outputs')));
   const outs = h('div', { class: 'outs' });
   c.chains.forEach((chain, o) => {
     const info = (c._outs && c._outs[o]) || Object.assign({ pixels: 0, overflow: 0, ch: 0 }, ctrlOuts(c)[o]);
@@ -846,11 +843,6 @@ function patchRow(c, fid, k, chain, o, outs) {
   row.addEventListener('dragend', () => row.classList.remove('dragging'));
   if (o !== null) row.addEventListener('dragover', () => { $$('.prow.dropat', outs).forEach(x => x.classList.remove('dropat')); row.classList.add('dropat'); });
   return row;
-}
-// Fold or unfold every output (or universe) at once: the fixture list's chevron, on the left above theirs
-function foldButtons(foldAll, shut, what) {
-  return h('button', { class: 'chev all' + (shut ? ' shut' : ''), type: 'button', 'aria-label': shut ? 'Unfold all' : 'Fold all', 'aria-expanded': String(!shut),
-    title: shut ? `Unfold all ${what}` : `Fold all ${what}`, onclick: () => foldAll(!shut) }, icon('chev'), h('span', null, shut ? `Unfold all` : `Fold all`));
 }
 // A number with ▴ ▾ beside it (Shift: ×10); the arrow keys step it too
 function spinNum(obj, key, o) {
@@ -1220,9 +1212,7 @@ function manualPatch(edit, c) {
     }
   }
   const keys = [...groups.keys()].sort((a, b) => a - b);
-  const foldAll = shut => { keys.forEach(u => { const k = c.id + ':u' + u; shut ? folds.add(k) : folds.delete(k); }); renderDock(); };
-  edit.append(h('div', { class: 'outbar' },
-    foldButtons(foldAll, keys.length > 0 && keys.every(u => folds.has(c.id + ':u' + u)), 'universes'),
+  if (sorted.length > 1) edit.append(h('div', { class: 'outbar' },
     h('span', { style: { flex: 1 } }),
     sorted.length > 1 ? h('button', { class: 'btn sm', type: 'button', 'data-tip': 'Address in sequence|The fixtures picked (or all of them) one after another, from the first one\'s address, in the order of their addresses.',
       onclick: () => { addressInSequence(seqIds, firstAt()); toast(`${seqIds.length} fixtures one after another.`); } }, picked.length > 1 ? `Address ${picked.length} in sequence` : 'Address all in sequence') : null));
