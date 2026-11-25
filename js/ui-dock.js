@@ -767,8 +767,7 @@ function renderCtrlEditor(edit, c) {
   const foldAll = shut => { c.chains.forEach((_, o) => { const k = c.id + ':' + o; shut ? folds.add(k) : folds.delete(k); }); renderDock(); };
   edit.append(h('div', { class: 'outbar' },
     h('span', { style: { flex: 1 } }),
-    h('button', { class: 'btn sm', type: 'button', onclick: () => foldAll(true) }, 'Fold all'),
-    h('button', { class: 'btn sm', type: 'button', onclick: () => foldAll(false) }, 'Unfold all')));
+    foldButtons(foldAll)));
   const outs = h('div', { class: 'outs' });
   c.chains.forEach((chain, o) => {
     const info = (c._outs && c._outs[o]) || Object.assign({ pixels: 0, overflow: 0, ch: 0 }, ctrlOuts(c)[o]);
@@ -832,6 +831,12 @@ function patchRow(c, fid, k, chain, o, outs) {
   row.addEventListener('dragend', () => row.classList.remove('dragging'));
   if (o !== null) row.addEventListener('dragover', () => { $$('.prow.dropat', outs).forEach(x => x.classList.remove('dropat')); row.classList.add('dropat'); });
   return row;
+}
+// Fold all and Unfold all, as two icons without boxes
+function foldButtons(foldAll) {
+  const fold = gbtn({ icon: 'foldAll', label: 'Fold all', onclick: () => foldAll(true) }), open = gbtn({ icon: 'unfoldAll', label: 'Unfold all', onclick: () => foldAll(false) });
+  fold.dataset.tip = 'Fold all|Every output shows its line only.'; open.dataset.tip = 'Unfold all|Every output shows its fixtures.';
+  return h('span', { class: 'folds' }, fold, open);
 }
 // One place earlier (-1) or later (+1) on their outputs. Several on one output move together, keeping their order;
 // one already at the start (or end) stays.
@@ -1163,8 +1168,7 @@ function manualPatch(edit, c) {
     sorted.length > 1 ? h('button', { class: 'btn sm', type: 'button', 'data-tip': 'Address in sequence|The fixtures picked (or all of them) one after another, from the first one\'s address, in the order of their addresses.',
       onclick: () => { addressInSequence(seqIds, firstAt()); toast(`${seqIds.length} fixtures one after another.`); } }, picked.length > 1 ? `Address ${picked.length} in sequence` : 'Address all in sequence') : null,
     h('span', { style: { flex: 1 } }),
-    h('button', { class: 'btn sm', type: 'button', onclick: () => foldAll(true) }, 'Fold all'),
-    h('button', { class: 'btn sm', type: 'button', onclick: () => foldAll(false) }, 'Unfold all')));
+    foldButtons(foldAll)));
   const outs = h('div', { class: 'outs' });
   for (const u of keys) {
     const ids = groups.get(u), key = c.id + ':u' + u, n = ids.length;

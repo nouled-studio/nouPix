@@ -408,6 +408,8 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 /* stays on screen above the outputs while the controller's settings scroll away */
 .outbar { position: sticky; top: 0; z-index: 2; height: 33px; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--bg2); border-bottom: 1px solid var(--line); }
 .outhead .fold { color: var(--muted); font-size: 10px; }
+.outbar .folds { display: flex; gap: 2px; }
+.outbar .folds .li { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: square; stroke-linejoin: miter; }
 .outhead .on { font-weight: 600; font-size: 12px; }
 .outhead .ur { display: grid; position: relative; padding-left: 13px; font-family: var(--mono); font-size: 10.5px; line-height: 1.35; white-space: nowrap; }
 .outhead .ur b { font-weight: 400; color: var(--text); }
