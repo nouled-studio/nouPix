@@ -458,8 +458,8 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 /* a controller's line of help, the three steps until Got it, the help window */
 /* the i beside Patch by: what the mode is for on pointing at it, the help on a click */
 .pby { display: inline-flex; align-items: center; gap: 6px; }
-.seg.icons button { width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-.seg.icons .li { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: square; stroke-linejoin: miter; }
+.seg.icons button { padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.seg.icons .li { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: square; stroke-linejoin: miter; }
 .pinfo { width: 16px; height: 16px; padding: 0; border-radius: 50%; border: 1px solid var(--line2); background: none; color: var(--text2); font: italic 600 10.5px/14px Georgia, serif; text-align: center; cursor: help; }
 .pinfo:hover, .pinfo:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
 .linkbtn { background: none; border: 0; padding: 0; font: inherit; color: var(--text); text-decoration: underline; text-decoration-color: var(--line3); text-underline-offset: 3px; cursor: pointer; }

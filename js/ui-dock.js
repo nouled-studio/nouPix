@@ -735,10 +735,10 @@ function renderCtrlEditor(edit, c) {
     skipMatters ? h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')) : null];
   // 2. Patch by: three icons, what each is told on pointing at it; the i opens the help
-  const MODES = [['universes', 'byUni', 'Universes|A number of universes per output.'], ['pixels', 'byPx', 'Pixels|A number of pixels per output: nouPix works out the universes.'],
-    ['manual', 'byHand', 'Manual|No outputs: each fixture its own address.']].filter(([m]) => !(ddp && m === 'universes'));
+  const MODES = [['universes', 'byUni', 'Universes|A number of universes per output.', 'Unis'], ['pixels', 'byPx', 'Pixels|A number of pixels per output: nouPix works out the universes.', 'Pix'],
+    ['manual', 'byHand', 'Manual|No outputs: each fixture its own address.', 'Man']].filter(([m]) => !(ddp && m === 'universes'));
   const patchBy = h('span', { class: 'pby' }, h('span', { class: 'seg icons', role: 'group', 'aria-label': 'Patch by' },
-    ...MODES.map(([m, ic, tip]) => h('button', { type: 'button', class: c.mode === m ? 'on' : '', 'aria-label': tip.split('|')[0], 'data-tip': tip, onclick: () => setCtrlMode(c, m), html: lineIcon(ic) }))),
+    ...MODES.map(([m, ic, tip, word]) => h('button', { type: 'button', class: c.mode === m ? 'on' : '', 'aria-label': tip.split('|')[0], 'data-tip': tip, onclick: () => setCtrlMode(c, m), html: lineIcon(ic) + `<span>${word}</span>` }))),
     h('button', { class: 'pinfo', type: 'button', 'aria-label': 'How patching works', 'data-tip': 'How patching works', onclick: patchHelp }, 'i'));
   if (manual) edit.append(h('div', { class: 'ctrl-line sent' }, patchBy, h('span', { class: 'sep' }), numbering()));
   if (!manual) {
