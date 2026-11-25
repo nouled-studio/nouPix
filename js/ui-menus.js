@@ -242,6 +242,7 @@ function patchToItems(list) {
 function patchTo(ids, c, o) {
   for (const id of ids) assign(id, c, o, -1);
   commit(); renderRight();
+  pixelTypeCheck(ids, c);
   ensurePatch();
   const over = ids.filter(id => { const f = fxById(id); return f && f._patch && f._patch.overflow; }).length;
   if (c.mode === 'manual') { toast(`${ids.length === 1 ? fxById(ids[0]).name : ids.length + ' fixtures'} on ${c.name}, at the next free address: change it in the Patch tab or the Inspector.`); return; }

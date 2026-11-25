@@ -221,6 +221,7 @@ function outputSection(list) {
     const o = +outSel.value || 0;
     list.forEach(x => assign(x.id, c, o));
     commit(); renderRight();
+    pixelTypeCheck(list.map(x => x.id), c);
   };
   const cs = selectEl(ctrlOpts, ctrlId, v => { ctrlId = v; fillOuts(); if (list.length === 1 || !v) apply(); }, { aria: 'Controller' });
   fillOuts();

@@ -673,6 +673,7 @@ function renderPatch(body) {
       for (const id of ids) assign(id, c, 0);
       ui.selCtrl = c.id; commit(); renderRight(); ensurePatch();
       toast(`${ids.length > 1 ? ids.length + ' fixtures' : fxById(ids[0]).name} on ${c.name}${c.mode === 'manual' ? ', each at the next free address' : ' OUT 1, at the end'}.`);
+      pixelTypeCheck(ids, c);
     });
     items.append(item);
   }
@@ -758,7 +759,8 @@ function renderCtrlEditor(edit, c) {
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')),
     ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null,
     h('span', { style: { flex: 1 } }), del));
-  edit.append(patchHint(c));
+  const coach = patchHint(c);
+  if (coach) edit.append(coach);
   if (patchConflicts.length) edit.append(h('div', { class: 'conflict' }, (usesDdp() || /share channels/.test(patchConflicts[0]) ? 'Clash: ' : 'Universe clash: ') + patchConflicts[0] + (patchConflicts.length > 1 ? ` (+${patchConflicts.length - 1} more)` : '')));
   if (c.mode === 'manual') { manualPatch(edit, c); return; }
   const folds = ui.foldOuts || (ui.foldOuts = new Set());
@@ -800,6 +802,7 @@ function renderCtrlEditor(edit, c) {
         for (const id of ids) { if (id === (target && target.dataset.id)) continue; assign(id, c, o, idx); if (idx >= 0) idx = chain.indexOf(id) + 1; }
         commit(); renderRight();
       }, ids);
+      pixelTypeCheck(ids, c);
     });
     outs.append(rowEl);
   });
@@ -1196,6 +1199,41 @@ function manualPatch(edit, c) {
     const f = fxById(ids[0]); toast(`${ids.length > 1 ? ids.length + ' fixtures' : f.name} on ${c.name}${f && f.addr ? ', from ' + chLabel(f.addr, c, ' ') : ''}: the next free address. Change it in the Inspector.`); });
   outs.append(ph);
   edit.append(outs);
+}
+// Fixtures patched onto a controller set to pixels of another kind (RGB onto RGBW…): the colours would shift along the
+// output, so a short window asks which to change, the fixtures or the controller
+const PX_TYPES = { 1: 'Mono', 3: 'RGB', 4: 'RGBW', 6: 'RGB 16-bit', 8: 'RGBW 16-bit' };
+function orderFor(order, n) {   // a colour order of n colours, as near the one it had as there is
+  if (n === 1) return 'W';
+  if (n === 4) return order.length === 4 ? order : ORDERS.includes(order + 'W') ? order + 'W' : 'RGBW';
+  const o = order.replace('W', '');
+  return o.length === 3 ? o : 'RGB';
+}
+function pixelTypeCheck(ids, c) {
+  if (!c || c.mode !== 'pixels') return;
+  const odd = ids.map(fxById).filter(f => f && BPP(f) !== c.chPx);
+  if (!odd.length) return;
+  const kinds = [...new Set(odd.map(BPP))], want = PX_TYPES[c.chPx] || c.chPx + ' ch';
+  const name = odd.length === 1 ? odd[0].name : `${odd.length} fixtures`;
+  const theirs = kinds.length === 1 ? PX_TYPES[kinds[0]] || kinds[0] + ' ch' : 'of other kinds';
+  const D = uiDocNow(), close = () => bg.remove();
+  const toFixtures = () => {
+    const bits = c.chPx >= 6 ? 16 : 8, n = c.chPx / (bits === 16 ? 2 : 1);
+    for (const f of odd) { f.order = orderFor(f.order, n); f.bits = bits; }
+    markPatch(); commit(); renderRight(); close();
+    toast(`${name} set to ${want}.`);
+  };
+  const toCtrl = () => { c.chPx = kinds[0]; markPatch(); commit(); renderRight(); close(); toast(`${c.name} set to ${PX_TYPES[kinds[0]]} pixels.`); };
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal note', role: 'dialog', 'aria-label': 'Pixel type' },
+      h('header', null, 'Check the pixel type'),
+      h('div', { class: 'mb' }, h('p', null, `${name} ${odd.length === 1 ? 'is' : 'are'} ${theirs}, but ${c.name} is set to ${want} pixels. If they don't match, the colours shift along the output.`)),
+      h('footer', null,
+        h('button', { class: 'btn', type: 'button', onclick: close }, 'Leave it'),
+        kinds.length === 1 && PX_TYPES[kinds[0]] ? h('button', { class: 'btn', type: 'button', onclick: toCtrl }, `Controller to ${PX_TYPES[kinds[0]]}`) : null,
+        h('button', { class: 'btn primary', type: 'button', onclick: toFixtures }, `Fixture${odd.length > 1 ? 's' : ''} to ${want}`))));
+  D.body.append(bg);
+  bg.querySelector('.btn.primary').focus();
 }
 // The next free channels in one universe of a manual controller for a fixture, or null when it doesn't fit there
 function manualFreeIn(c, f, u) {
