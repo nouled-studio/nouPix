@@ -582,7 +582,7 @@ function exportCSV() {
   for (const f of project.fixtures) if (!f._patch) order.push(f);
   for (const f of order) {
     const p = f._patch;
-    const a = p && p.first >= 0 ? addrOf(p.base, p.first) : null, b = p && p.first >= 0 ? addrOf(p.base, p.last) : null;
+    const a = p && p.first >= 0 ? addrOf(p, p.first) : null, b = p && p.first >= 0 ? addrOf(p, p.last) : null;
     // on DDP there are no universes: the channels are counted from 1 through the controller's whole run
     const d = p && isDdp(p.ctrl), uOf = x => (x ? (d ? '' : uniLabel(x.u, p.ctrl)) : ''), chOf = x => (x ? (d ? x.u * 512 + x.ch : x.ch) : '');
     rows.push([f.name, TYPE_LABEL[f.type], pixelCount(f), f.order, fxBits(f), p ? p.ctrl.name : '', p ? protoName(p.ctrl) : '', p ? p.ctrl.ip : '', p ? p.out + 1 : '', p ? p.pos + 1 : '', uOf(a), chOf(a), uOf(b), chOf(b), p ? p.overflow : '']);

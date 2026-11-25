@@ -78,7 +78,7 @@ const ui = {
   autosave: false,   // every change written to the project's file too (project-io.js)
   updates: true, updateAt: 0, updateSkip: '',   // looking for a new version once a day; when it last looked; a version not to tell of (app.js)
 };
-const UI_PREFS = ['tapSpace', 'hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'places', 'sideOpen', 'sideW', 'sceneSize', 'tlZoom', 'tlRowH', 'tlAudioFold', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
+const UI_PREFS = ['patchHelped', 'tapSpace', 'hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'places', 'sideOpen', 'sideW', 'sceneSize', 'tlZoom', 'tlRowH', 'tlAudioFold', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
   'tempoSrc', 'tempoIn', 'tempoTrim', 'tempoBpb', 'tempoOn', 'tempoBpm', 'tempoLo', 'tempoHi'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
@@ -245,15 +245,43 @@ function ensureChains(c) {
   c.upo = clamp(Math.round(c.upo) || 1, 1, 64);
   c.startUniverse = clamp(Math.round(c.startUniverse) || 0, 0, 32767);
   c.protocol = c.protocol === 'sacn' || c.protocol === 'ddp' ? c.protocol : 'artnet';
-  c.mode = c.mode === 'pixels' ? 'pixels' : 'universes';
-  // DDP is one run of channels from 0: by pixels, none skipped, no universes to start on
-  if (c.protocol === 'ddp') { c.mode = 'pixels'; c.split = true; c.startUniverse = 0; }
+  c.mode = c.mode === 'pixels' || c.mode === 'manual' ? c.mode : 'universes';
+  // DDP is one run of channels from 0: by pixels (or manual), none skipped, no universes to start on
+  if (c.protocol === 'ddp') { if (c.mode !== 'manual') c.mode = 'pixels'; c.split = true; c.startUniverse = 0; }
   c.pxOut = clamp(Math.round(c.pxOut) || 680, 1, 10000);
   c.chPx = CH_PER_PX.includes(+c.chPx) ? +c.chPx : 3;
   c.startCh = clamp(Math.round(c.startCh) || 1, 1, 512);
+  fixOutputPlan(c);
   if (!Array.isArray(c.chains)) c.chains = [];
+  // Manual: one list of fixtures, each at its own address; switching back puts them all on OUT 1
+  if (c.mode === 'manual') { if (c.chains.length !== 1) c.chains = [c.chains.flat()]; return; }
   while (c.chains.length < c.outputs) c.chains.push([]);
   if (c.chains.length > c.outputs) c.chains.length = c.outputs;
+}
+// How a controller's outputs are laid out, beyond one count for all (absent: as before 1.7, nothing changes):
+// same false: each output its own count (upos: universes, pxOuts: pixels; kept past the outputs, for when they come back);
+// uniPlace (Universes): 'order' each after the one before, 'start' its first universe typed (outStarts), 'each' every
+// universe typed (outUnis); pxPlace (Pixels): 'channel' on from the channel the one before ends at, 'universe' on a
+// new universe, 'typed' its start typed (outAt: { u, ch }); from1: the device shows universe 0 as 1 (only what is shown).
+const UNI_PLACES = ['order', 'start', 'each'], PX_PLACES = ['channel', 'universe', 'typed'];
+function fixOutputPlan(c) {
+  const int = (v, lo, hi, d) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? clamp(n, lo, hi) : d; };
+  if (c.same === false || c.same === true) { if (c.same) delete c.same; } else delete c.same;
+  if ('upos' in c) { if (Array.isArray(c.upos)) c.upos = c.upos.slice(0, 128).map(v => int(v, 1, 64, c.upo)); else delete c.upos; }
+  if ('pxOuts' in c) { if (Array.isArray(c.pxOuts)) c.pxOuts = c.pxOuts.slice(0, 128).map(v => int(v, 1, 10000, c.pxOut)); else delete c.pxOuts; }
+  if ('uniPlace' in c && !UNI_PLACES.includes(c.uniPlace)) delete c.uniPlace;
+  if ('pxPlace' in c && !PX_PLACES.includes(c.pxPlace)) delete c.pxPlace;
+  if ('outStarts' in c) { if (Array.isArray(c.outStarts)) c.outStarts = c.outStarts.slice(0, 128).map(v => int(v, 0, 32767, null)); else delete c.outStarts; }
+  if ('outUnis' in c) {
+    // a universe typed: kept as it is, or dropped when it isn't one
+    if (Array.isArray(c.outUnis)) c.outUnis = c.outUnis.slice(0, 128).map(l => (Array.isArray(l) ? l.map(Number).filter(v => Number.isInteger(v) && v >= 0 && v <= 32767).slice(0, 64) : []));
+    else delete c.outUnis;
+  }
+  if ('outAt' in c) {
+    if (Array.isArray(c.outAt)) c.outAt = c.outAt.slice(0, 128).map(a => (a && typeof a === 'object' && Number.isFinite(Number(a.u)) ? { u: int(a.u, 0, 32767, 0), ch: int(a.ch, 1, 512, 1) } : null));
+    else delete c.outAt;
+  }
+  if (c.from1) c.from1 = true; else delete c.from1;
 }
 const fxById = id => project.fixtures.find(f => f.id === id);
 const ctrlById = id => project.controllers.find(c => c.id === id);

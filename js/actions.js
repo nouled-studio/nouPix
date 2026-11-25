@@ -1108,3 +1108,81 @@ function pasteFromClipboard(point) {
   if (!navigator.clipboard || !navigator.clipboard.readText) return fallback();
   navigator.clipboard.readText().then(t => { let d = null; try { d = JSON.parse(t); } catch (e) { /* not ours */ } isClip(d) ? pasteFixtures(d, point) : fallback(); }, fallback);
 }
+
+/* ---------- a controller's patch: by universes, by pixels, or manual ---------- */
+// Patch by: universes per output, pixels per output, or manual (each fixture its own address). Into Manual, every
+// fixture keeps the address it has; out of it, they all go on OUT 1 in the order of their addresses.
+function setCtrlMode(c, mode) {
+  if (c.mode === mode) return;
+  ensurePatch();
+  const ids = c.chains.flat().filter(fxById);
+  if (mode === 'manual') {
+    for (const id of ids) { const f = fxById(id), p = f._patch; if (p && p.first >= 0) { const a = addrOf(p, p.first); f.addr = { u: a.u, ch: a.ch }; } }
+    c.chains = [ids];
+    c.mode = 'manual';
+    if (ids.length) toast(`${c.name} is manual now: its ${ids.length} fixture${ids.length > 1 ? 's' : ''} kept their addresses. Change one in the list or in the Inspector.`);
+  } else {
+    if (c.mode === 'manual') {
+      const at = id => { const p = fxById(id)._patch; return p && p.first >= 0 ? p.base * 512 + p.first : 1e12; };
+      ids.sort((a, b) => at(a) - at(b));
+      for (const id of ids) delete fxById(id).addr;
+      c.mode = mode;
+      c.chains = [ids];
+      ensureChains(c);
+      if (ids.length) toast(`${ids.length} fixture${ids.length > 1 ? 's' : ''} on OUT 1, in the order of their addresses: drag them to the outputs they are wired to.`);
+    } else c.mode = mode;
+  }
+  ensureChains(c);
+  markPatch(); commit(); renderRight();
+}
+// Same for all off: each output its own count, starting from the one for all
+function setOwnCounts(c, own) {
+  if (own) {
+    c.same = false;
+    const fill = (a, v) => { a = Array.isArray(a) ? a : []; while (a.length < c.outputs) a.push(v); return a; };
+    c.upos = fill(c.upos, c.upo); c.pxOuts = fill(c.pxOuts, c.pxOut);
+  } else {
+    delete c.same;
+    // the first output's count becomes the one for all
+    if (c.upos && c.upos[0]) c.upo = c.upos[0];
+    if (c.pxOuts && c.pxOuts[0]) c.pxOut = c.pxOuts[0];
+  }
+  markPatch(); commit();
+}
+// How the outputs start, filled from where they are now so nothing moves until a value is changed
+function setUniPlace(c, v) {
+  const L = ctrlOuts(c);
+  if (v === 'start') c.outStarts = L.map(x => x.base);
+  if (v === 'each') c.outUnis = L.map(x => Array.from({ length: x.upo }, (_, k) => uniAt(x, k)));
+  if (v === 'order') delete c.uniPlace; else c.uniPlace = v;
+  markPatch(); commit();
+}
+function setPxPlace(c, v) {
+  if (v === 'typed') c.outAt = ctrlOuts(c).map(x => ({ u: x.base, ch: x.start + 1 }));
+  if (v === 'channel') delete c.pxPlace; else c.pxPlace = v;
+  markPatch(); commit();
+}
+// An output's start (Pixels, typed) right after the one before ends, or on the next universe
+function outAfterPrevious(c, o, newUni) {
+  const P = ctrlOuts(c)[o - 1];
+  if (!P) return;
+  let abs = P.base * 512 + P.end;
+  if (abs % 512 && (newUni || (!c.split && abs % 512 + c.chPx > 512))) abs += 512 - abs % 512;
+  c.outAt = c.outAt || [];
+  c.outAt[o] = { u: Math.floor(abs / 512), ch: abs % 512 + 1 };
+  markPatch(); commit();
+}
+// Fixtures on a manual controller one after another, from an address (whole pixels: one that would not fit in
+// what is left of a universe, but fits in one, starts on the next)
+function addressInSequence(ids, from) {
+  let lin = from.u * 512 + from.ch - 1;
+  for (const id of ids) {
+    const f = fxById(id);
+    if (!f) continue;
+    const w = BPP(f), need = (f._n || pixelCount(f)) * w, s = lin % 512;
+    if (s && (s + w > 512 || (need <= 512 && s + need > 512))) lin += 512 - s;
+    f.addr = { u: Math.floor(lin / 512), ch: lin % 512 + 1 };
+    lin = Math.floor(lin / 512) * 512 + pixelRun(lin % 512, f._n || pixelCount(f), w, false);
+  }
+  markPatch(); commit(); renderRight();
+}

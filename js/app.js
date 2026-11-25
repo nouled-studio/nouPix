@@ -270,6 +270,7 @@ function initUI() {
   $('#btnRemote').addEventListener('click', e => remoteMenu(e.currentTarget));
   $('#btnOutSet').addEventListener('click', () => openOutputSettings());
   $('#btnMon').addEventListener('click', () => openMonitor());
+  $('#btnSheet').addEventListener('click', () => deviceSheet());
   $('#beatDot').addEventListener('click', showTempoSettings);
   initMidiUI();
   $('#projName').addEventListener('change', e => { project.name = e.target.value.trim() || 'Untitled'; commit(); });
