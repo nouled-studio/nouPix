@@ -734,10 +734,10 @@ function renderCtrlEditor(edit, c) {
       h('span', { class: 'ml' }, 'Counts from'), seg([['0', '0'], ['1', '1']], c.from1 ? '1' : '0', v => { if (v === '1') c.from1 = true; else delete c.from1; markPatch(); commit(); renderRight(); })),
     skipMatters ? h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')) : null];
-  // 2. Patch by: three icons, what each is told on pointing at it; the i opens the help
+  // 2. Patch mode: three icons, what each is told on pointing at it; the i opens the help
   const MODES = [['universes', 'byUni', 'Universes|A number of universes per output.', 'Unis'], ['pixels', 'byPx', 'Pixels|A number of pixels per output: nouPix works out the universes.', 'Pix'],
     ['manual', 'byHand', 'Manual|No outputs: each fixture its own address.', 'Man']].filter(([m]) => !(ddp && m === 'universes'));
-  const patchBy = h('span', { class: 'pby' }, h('span', { class: 'seg icons', role: 'group', 'aria-label': 'Patch by' },
+  const patchBy = h('span', { class: 'pby' }, h('span', { class: 'ml' }, 'Patch mode'), h('span', { class: 'seg icons', role: 'group', 'aria-label': 'Patch mode' },
     ...MODES.map(([m, ic, tip, word]) => h('button', { type: 'button', class: c.mode === m ? 'on' : '', 'aria-label': tip.split('|')[0], 'data-tip': tip, onclick: () => setCtrlMode(c, m), html: lineIcon(ic) + `<span>${word}</span>` }))),
     h('button', { class: 'pinfo', type: 'button', 'aria-label': 'How patching works', 'data-tip': 'How patching works', onclick: patchHelp }, 'i'));
   if (manual) edit.append(h('div', { class: 'ctrl-line sent' }, patchBy, h('span', { class: 'sep' }), numbering()));
@@ -1065,7 +1065,7 @@ function universeList(u) {
   return parts.join(', ');
 }
 
-// What a controller's mode is for, told on pointing at the i beside Patch by (a click opens the help)
+// What a controller's mode is for, told on pointing at the i beside the patch mode (a click opens the help)
 function patchModeTip(c) {
   const what = PATCH_MODE_TIPS[c.mode];
   return `${what[0]}|${what[1]} Click for which mode fits your device.`;
@@ -1084,7 +1084,7 @@ function patchCoach() {
   const coach = h('div', { class: 'pcoach' },
     h('div', null, h('h4', null, 'Three ways to patch'),
       h('ol', null,
-        h('li', null, 'Set each controller up as the device\'s own page is: ', h('b', null, 'Patch by'), ' universes, pixels, or manual.'),
+        h('li', null, 'Set each controller up as the device\'s own page is: ', h('b', null, 'Patch mode'), ' universes, pixels, or manual.'),
         h('li', null, 'Drag fixtures from the list onto an output, or onto a manual controller (in the list here too).'),
         h('li', null, 'Fine-tune one in the Inspector: its output, its order, or its own universe and channel.'))),
     h('div', { class: 'acts' },
@@ -1109,7 +1109,7 @@ function patchHelp() {
       h('div', { class: 'mb' },
         h('ol', { class: 'psteps' },
           h('li', null, h('b', null, 'Add a controller'), ' for each device: its IP address and protocol.'),
-          h('li', null, h('b', null, 'Choose Patch by'), ' to match the device\'s own setup page.'),
+          h('li', null, h('b', null, 'Choose the patch mode'), ' to match the device\'s own setup page.'),
           h('li', null, h('b', null, 'Drag fixtures'), ' onto the outputs they are wired to, in the order the data runs. On a Manual controller each takes the next free address.')),
         h('table', { class: 'pways' }, h('tr', null, h('th', null, 'The device asks for'), h('th', null, 'In nouPix'), h('th', null, 'Seen on')),
           ...PATCH_WAYS.map(r => h('tr', null, ...r.map(x => h('td', null, x || '—'))))),

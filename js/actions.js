@@ -1112,7 +1112,7 @@ function pasteFromClipboard(point) {
 }
 
 /* ---------- a controller's patch: by universes, by pixels, or manual ---------- */
-// Patch by: universes per output, pixels per output, or manual (each fixture its own address). Into Manual, every
+// Patch mode: universes per output, pixels per output, or manual (each fixture its own address). Into Manual, every
 // fixture keeps the address it has; out of it, they all go on OUT 1 in the order of their addresses.
 function setCtrlMode(c, mode) {
   if (c.mode === mode) return;
