@@ -765,7 +765,7 @@ function renderCtrlEditor(edit, c) {
     const run = { get v() { return c.startCh; }, set v(x) { c.startCh = x; } };
     // Universes: each output's start is on its line; Pixels: how they follow each other, and where the first starts
     if (px || ddp) edit.append(h('div', { class: 'ctrl-line sent' },
-      h('span', null, 'starting'),
+      h('span', null, 'Next out:'),
       ddp ? null : px
         ? h('span', { 'data-tip': 'Next output starts|Right after the last, on a new universe, or typed per output.' },
           seg([['channel', 'Next ch'], ['universe', 'Next uni'], ['typed', 'Manual']], pxPlace, v => setPxPlace(c, v)))
