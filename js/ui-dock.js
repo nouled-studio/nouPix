@@ -741,22 +741,23 @@ function renderCtrlEditor(edit, c) {
   const patchBy = h('span', { class: 'pby' }, h('span', { class: 'ml' }, 'Patch mode'), h('span', { class: 'seg icons', role: 'group', 'aria-label': 'Patch mode' },
     ...MODES.map(([m, ic, tip, word]) => h('button', { type: 'button', class: c.mode === m ? 'on' : '', 'aria-label': tip.split('|')[0], 'data-tip': tip, onclick: () => setCtrlMode(c, m), html: lineIcon(ic) + `<span>${word}</span>` }))),
     h('button', { class: 'pinfo', type: 'button', 'aria-label': 'How patching works', 'data-tip': 'How patching works', onclick: patchHelp }, 'i'));
-  if (manual) edit.append(h('div', { class: 'ctrl-line sent' }, patchBy, h('span', { class: 'sep' }), numbering()));
+  // the mode, and how the device counts, on one line that stays put whatever is chosen below
+  edit.append(h('div', { class: 'ctrl-line sent' }, patchBy, h('span', { style: { flex: 1 } }), numbering()));
   if (!manual) {
     // 3. the outputs as a sentence: 16 outputs × 400 px RGB, each its own
     const eachOwn = h('input', { type: 'checkbox', checked: own, id: 'ctrlSame' });
     eachOwn.addEventListener('change', () => setOwnCounts(c, eachOwn.checked));
     const num = (obj, key, o) => { const el = numInput(obj, key, o); el.classList.add('sn'); return el; };
     edit.append(h('div', { class: 'ctrl-line sent' },
-      patchBy, h('span', { class: 'sep' }),
       num(c, 'outputs', { int: true, min: 1, max: 128, aria: 'Outputs', onCommit: onStruct }), h('span', null, c.outputs === 1 ? 'output' : 'outputs'),
-      own ? null : h('span', { class: 'x' }, '×'),
-      own ? null : px ? num(c, 'pxOut', { int: true, min: 1, max: 10000, aria: 'Pixels per output', onCommit: onStruct }) : num(c, 'upo', { int: true, min: 1, max: 64, aria: 'Universes per output', onCommit: onStruct }),
-      own ? null : h('span', null, px ? 'px' : c.upo === 1 ? 'universe' : 'universes'),
+      h('span', { class: 'x' }, '×'),
+      own ? h('input', { class: 'sn', disabled: true, value: '', placeholder: 'each', 'aria-label': 'Each output its own' })
+        : px ? num(c, 'pxOut', { int: true, min: 1, max: 10000, aria: 'Pixels per output', onCommit: onStruct }) : num(c, 'upo', { int: true, min: 1, max: 64, aria: 'Universes per output', onCommit: onStruct }),
+      h('span', null, px ? 'px' : 'universes'),
       px ? selectEl(CH_PER_PX.map(n => [n, { 1: 'Mono', 2: 'Tunable white', 3: 'RGB', 4: 'RGBW', 6: 'RGB 16-bit', 8: 'RGBW 16-bit' }[n]]), c.chPx,
         v => { c.chPx = +v; markPatch(); commit(); }, { aria: 'Pixel type' }) : null,
       h('label', { class: 'checkrow', for: 'ctrlSame', 'data-tip': 'Each its own|A count per output, on its line.' }, eachOwn, 'each its own'),
-      px ? null : h('span', { class: 'sep' }), px ? null : numbering()));
+    ));
     // 4. where the outputs start: how they follow each other, and the first one's address
     const ordered = px ? pxPlace !== 'typed' : uniPlace === 'order';
     const U = { get v() { return c.startUniverse + off; }, set v(x) { c.startUniverse = x - off; } };
@@ -772,7 +773,7 @@ function renderCtrlEditor(edit, c) {
       ordered ? h('span', null, 'from') : h('span', { class: 'note' }, 'each output\'s start on its line'),
       ordered && !ddp ? spinNum(U, 'v', { int: true, min: off, max: 32767 + off, prefix: 'U', aria: 'Start universe', onCommit: onStruct }) : null,
       ordered ? spinNum(run, 'v', { int: true, min: 1, max: 512, prefix: 'ch', aria: 'Start channel', onCommit: onStruct }) : null,
-      h('span', { class: 'sep' }), numbering()));
+    ));
   }
   const coach = patchHint(c);
   if (coach) edit.append(coach);
