@@ -715,12 +715,12 @@ function renderCtrlEditor(edit, c) {
   const uniPlace = c.uniPlace || 'order', pxPlace = c.pxPlace || 'channel', off = uniOff(c);
   // 1. the device: on, name, address (what it reported to Discovery told on pointing at it), protocol, delete
   const rep = !ddp && c.discovered && c.discovered.length ? `Reported: U ${universeList(c.discovered.map(u => uniLabel(u, c)))}, the universes this device said it listens to when Discovery found it.` : '';
-  const ipBox = h('span', { class: 'ipbox', 'data-tip': rep ? `Reported|U ${universeList(c.discovered.map(u => uniLabel(u, c)))}` : null }, small(ipIn, 130));
+  const ipBox = h('span', { class: 'ipbox', 'data-tip': rep ? `Reported|U ${universeList(c.discovered.map(u => uniLabel(u, c)))}` : null }, small(ipIn, 116));
   // Delete asks first, so a stray click can't remove a controller and its patch
   const del = h('button', { class: 'btn icon trash', type: 'button', title: 'Delete this controller', 'aria-label': 'Delete controller ' + c.name, onclick: () => askDeleteControllers([c]) }, icon('trash'));
   const devLine = h('div', { class: 'ctrl-fields' },
     en,
-    small(textInput(c, 'name', { aria: 'Controller name', onInput: () => {}, onCommit: () => { commit(); renderRight(); } }), 150),
+    small(textInput(c, 'name', { aria: 'Controller name', onInput: () => {}, onCommit: () => { commit(); renderRight(); } }), 130),
     ipBox,
     h('span', { 'data-tip': 'Protocol|What the device receives.' },
       seg([['artnet', 'Art-Net'], ['sacn', 'sACN'], ['ddp', 'DDP']], c.protocol, v => { c.protocol = v; ensureChains(c); markPatch(); commit(); })),
@@ -737,11 +737,12 @@ function renderCtrlEditor(edit, c) {
     skipMatters ? h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')) : null];
   // 2. Patch mode: three icons, what each is told on pointing at it; the i opens the help
-  const MODES = [['universes', 'byUni', 'Universes|A number of universes per output.', 'Unis'], ['pixels', 'byPx', 'Pixels|A number of pixels per output: nouPix works out the universes.', 'Pix'],
-    ['manual', 'byHand', 'Manual|No outputs: each fixture its own address.', 'Man']].filter(([m]) => !(ddp && m === 'universes') && !(c.maker === 'wled' && m !== 'pixels'));
-  if (c.maker === 'wled') MODES[0][2] = 'Pixels|A WLED patches by pixels only: its LEDs in a row, from its universe.';
-  const patchBy = h('span', { class: 'pby' }, h('span', { class: 'ml' }, 'Patch mode'), h('span', { class: 'seg icons', role: 'group', 'aria-label': 'Patch mode' },
-    ...MODES.map(([m, ic, tip, word]) => h('button', { type: 'button', class: c.mode === m ? 'on' : '', 'aria-label': tip.split('|')[0], 'data-tip': tip, onclick: () => setCtrlMode(c, m), html: lineIcon(ic) + `<span>${word}</span>` }))),
+  const MODES = [['universes', 'byUni', 'Patch mode: Unis|A number of universes per output.', 'Unis'], ['pixels', 'byPx', 'Patch mode: Pix|A number of pixels per output: nouPix works out the universes.', 'Pix'],
+    ['manual', 'byHand', 'Patch mode: Man|No outputs: each fixture its own address.', 'Man']].filter(([m]) => !(ddp && m === 'universes') && !(c.maker === 'wled' && m !== 'pixels'));
+  if (c.maker === 'wled') MODES[0][2] = 'Patch mode: Pix|A WLED patches by pixels only: its LEDs in a row, from its universe.';
+  // its name only on pointing at it, so it fits beside the protocol
+  const patchBy = h('span', { class: 'pby' }, h('span', { class: 'seg icons', role: 'group', 'aria-label': 'Patch mode' },
+    ...MODES.map(([m, ic, tip, word]) => h('button', { type: 'button', class: c.mode === m ? 'on' : '', 'aria-label': { Unis: 'Universes', Pix: 'Pixels', Man: 'Manual' }[word], 'data-tip': tip, onclick: () => setCtrlMode(c, m), html: lineIcon(ic) + `<span>${word}</span>` }))),
     h('button', { class: 'pinfo', type: 'button', 'aria-label': 'How patching works', 'data-tip': 'How patching works', onclick: patchHelp }, 'i'));
   // the mode, and how the device counts, on one line that stays put whatever is chosen below
   // the patch mode goes with the protocol, on the device's line; how the device counts at the end of the outputs' line
