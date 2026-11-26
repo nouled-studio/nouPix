@@ -2,7 +2,7 @@
 
 <img src="icons/noupix-256.png" alt="" width="96" align="right">
 
-A pixel-mapping tool for LED installations, by nouled studio. Draw or import your LED fixtures, play effects, shaders, images, video or live streams on them, store looks as scenes and playlists, and send it all out over Art-Net, sACN or DDP.
+Free, open-source LED pixel mapping software for LED installations, by nouled studio. Website and downloads: [noupix.nouled.com](https://noupix.nouled.com). Draw or import your LED fixtures, play effects, shaders, images, video or live streams on them, store looks as scenes and playlists, and send it all out over Art-Net, sACN or DDP.
 
 ![nouPix playing a geometric show: rings, triangles and a diamond matrix in four zones; the fixture list, the stage, the scenes of the X-Fader's two zones side by side with their playlists, the X-Fader under them, and the Content panel](docs/images/app-hero.webp)
 
