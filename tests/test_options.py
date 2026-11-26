@@ -58,6 +58,7 @@ try:
     W = min(R, G, B)
     exp = {'R': R, 'G': G, 'B': B}
     for order in ev("ORDERS"):
+        if order in ('WC', 'CW'): continue   # tunable white: its own mapping (test_patchmodes)
         for wm in (['off', 'sub', 'add'] if 'W' in order and len(order) == 4 else ['off']):
             one([('line', {'pixels': 4, 'order': order})], settings={'whiteMode': wm})
             got = ev("T.bytes()")

@@ -377,8 +377,19 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .ctrl .t { display: flex; align-items: center; gap: 6px; font-weight: 600; }
 .ctrl .t .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ctrl.off .t, .ctrl.off .s { opacity: .4; }
+/* the bin at the right of a controller's name: shown on the one selected and on the one pointed at */
+.ctrl .cdel { width: 20px; height: 18px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; visibility: hidden; flex: none; }
+.ctrl .cdel svg { width: 13px; height: 13px; }
+.ctrl.sel .cdel, .ctrl:hover .cdel, .ctrl .cdel:focus-visible { visibility: visible; }
+.ctrl .cdel:hover { color: var(--danger); }
 .ctrl .s { display: flex; justify-content: space-between; color: var(--muted); }
-.ctrl-list .foot { padding: 8px; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); }
+.ctrl-list .foot { padding: 8px 6px; display: flex; gap: 4px; flex-wrap: wrap; border-top: 1px solid var(--line); }
+.ctrl-list .foot .btn.sm { letter-spacing: .06em; }
+/* Manual: a fixture's start on its row */
+.prow .maddr { display: inline-flex; align-items: center; gap: 6px; }
+.prow .maddr .spinnum .inp, .prow .maddr .spinnum > input { width: 64px; }
+.prow .maddr .spinnum .inp input { height: 22px; }
+.prow .maddr .spinnum .spin .btn { height: 11px; }
 .ctrl-edit { overflow: auto; display: flex; flex-direction: column; min-width: 0; --cap: 840px; }
 /* On a wide dock (the right panel folded) the settings, the outputs and their fixtures keep one width, so the usage
    meters, the bin and Fold all line up with the fixture rows; the bars behind them still run the whole width */
@@ -404,10 +415,52 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 /* An output: a header (fold, name, universes, totals, usage) and its fixtures, one row each, in address order */
 .outrow { border-bottom: 1px solid var(--line); }
 .outrow.drop { background: var(--sel-soft); outline: 1px dashed var(--accent); outline-offset: -2px; }
-.outhead { display: grid; grid-template-columns: 14px 52px 108px minmax(0,1fr) 170px; align-items: center; gap: 8px; padding: 5px 12px; min-height: 34px; cursor: pointer; position: sticky; top: 33px; z-index: 1; background: var(--bg1); }
+.outhead { display: grid; grid-template-columns: 14px 52px 108px minmax(0,1fr) 170px; align-items: center; gap: 8px; padding: 5px 12px; min-height: 34px; cursor: pointer; position: sticky; top: 0; z-index: 1; background: var(--bg1); }
 /* stays on screen above the outputs while the controller's settings scroll away */
-.outbar { position: sticky; top: 0; z-index: 2; height: 33px; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--bg2); border-bottom: 1px solid var(--line); }
-.outhead .fold { color: var(--muted); font-size: 10px; }
+.outbar { position: relative; z-index: 2; height: 33px; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--bg2); border-bottom: 1px solid var(--line); }
+.outhead .fold { color: var(--text2); display: flex; align-items: center; }
+.outhead .fold svg, .outbar .chev svg { width: 10px; height: 10px; transition: transform .12s; }
+.outhead .fold.shut svg, .outbar .chev.shut svg { transform: rotate(-90deg); }
+.outbar .chev { display: flex; align-items: center; gap: 12px; height: 24px; padding: 0 4px 0 2px; border: 0; background: none; color: var(--text2); cursor: pointer;
+  font: 600 9.5px var(--label); letter-spacing: .14em; text-transform: uppercase; }
+.outbar .chev:hover { color: var(--text); }
+.outhead.uni { grid-template-columns: 14px 52px auto minmax(0,1fr) 170px; }
+.outhead.uni .octl { flex-wrap: nowrap; gap: 8px; }
+.outhead .spinnum .inp, .outhead .spinnum > input { width: 66px; }
+.outhead .spinnum input { height: 24px; }
+.outhead .spinnum .spin .btn { height: 12px; }
+.spinnum { display: inline-flex; align-items: stretch; gap: 0; }
+.spinnum .inp, .spinnum > input { width: 78px; }
+.spinnum .inp input { height: 26px; }
+.spinnum .spin { width: 18px; }
+.spinnum .spin .btn { height: 13px; }
+.outbar .folds { display: flex; gap: 2px; }
+/* a controller's settings: the device on one line, the rest as sentences under it; what is set once behind ⋯ */
+.ctrl-fields .ipbox { display: inline-flex; }
+.ctrl-fields .gbtn.more { font-size: 18px; letter-spacing: 0; height: 28px; padding: 0 6px; }
+.ctrl-more { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--bg2); }
+.ctrl-more .mf { display: inline-flex; align-items: center; gap: 8px; }
+.ctrl-more .gbtn.danger { color: var(--accent); }
+.ctrl-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--bg1); }
+.ctrl-line .ml { font: 600 9.5px var(--label); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.ctrl-line.sent { color: var(--text2); font-size: 13px; }
+.ctrl-line .sn { width: 64px; height: 26px; }
+.ctrl-line .x { color: var(--muted); }
+.ctrl-fields .pby { flex-wrap: nowrap; white-space: nowrap; }
+.ctrl-fields .pby .ml { font: inherit; color: var(--text2); font-size: 13px; }
+.ctrl-line .mf { display: inline-flex; align-items: center; gap: 8px; }
+.ctrl-line .skiprow { margin-left: 14px; }
+.ctrl-line .checkrow { white-space: nowrap; }
+.ctrl-line input.sn:disabled { opacity: .5; }
+.ctrl-line.sent .ml { font: inherit; letter-spacing: 0; text-transform: none; color: var(--text2); }
+.ctrl-line .sep { width: 1px; height: 18px; background: var(--line2); margin: 0 4px; }
+.ctrl-line select { width: auto; min-width: 110px; height: 26px; flex: none; }
+.ctrl-line .checkrow { margin-left: 6px; }
+.ctrl-line .addrin { width: 120px; height: 26px; font-family: var(--mono); font-size: 12px; }
+.ctrl-edit .ctrl-more, .ctrl-edit .ctrl-line { padding-right: max(12px, calc(100% - var(--cap))); }
+/* the controller's settings lines may run wider than its outputs, so the patch mode stays beside the protocol */
+.ctrl-edit .ctrl-fields, .ctrl-edit .ctrl-line { padding-right: max(12px, calc(100% - 1120px)); }
+.outbar .folds .li { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: square; stroke-linejoin: miter; }
 .outhead .on { font-weight: 600; font-size: 12px; }
 .outhead .ur { display: grid; position: relative; padding-left: 13px; font-family: var(--mono); font-size: 10.5px; line-height: 1.35; white-space: nowrap; }
 .outhead .ur b { font-weight: 400; color: var(--text); }
@@ -421,6 +474,57 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .outhead .sum { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .outrow.shut .outlist { display: none; }
 .outlist { padding: 2px 12px 8px 30px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
+/* a controller's line of help, the three steps until Got it, the help window */
+/* the i beside Patch by: what the mode is for on pointing at it, the help on a click */
+.pby { display: inline-flex; align-items: center; gap: 6px; }
+.seg.icons button { padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.seg.icons .li { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: square; stroke-linejoin: miter; }
+.pinfo { width: 16px; height: 16px; padding: 0; border-radius: 50%; border: 1px solid var(--line2); background: none; color: var(--text2); font: italic 600 10.5px/14px Georgia, serif; text-align: center; cursor: help; }
+.pinfo:hover, .pinfo:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+.linkbtn { background: none; border: 0; padding: 0; font: inherit; color: var(--text); text-decoration: underline; text-decoration-color: var(--line3); text-underline-offset: 3px; cursor: pointer; }
+.linkbtn:hover { text-decoration-color: var(--text); }
+.pcoach { margin: 8px 12px 0; padding: 9px 12px; border: 1px solid var(--line3); background: var(--bg2); display: flex; gap: 14px; align-items: flex-start; }
+.pcoach > div:first-child { flex: 1; min-width: 0; }
+.pcoach h4 { margin: 0 0 4px; font: 600 10.5px var(--label); letter-spacing: .14em; text-transform: uppercase; color: var(--text); }
+.pcoach ol { margin: 0; padding-left: 18px; color: var(--text2); font-size: 12.5px; }
+.pcoach ol li::marker { color: var(--accent); font-family: var(--mono); }
+.pcoach b, .phelp b { font-weight: 400; color: var(--text); }
+.pcoach .acts { display: flex; flex-direction: column; gap: 6px; }
+.modal.phelp { width: min(720px, calc(100vw - 32px)); }
+.psteps { margin: 0 0 14px; padding-left: 20px; color: var(--text2); display: grid; gap: 4px; }
+.psteps li::marker { color: var(--accent); font-family: var(--mono); }
+.modal.madimp .mb { display: grid; gap: 10px; max-width: 560px; }
+.modal.madimp .maddevs { display: grid; gap: 2px; }
+.modal.madimp .maddevs .mono { font-size: 12px; color: var(--text2); }
+.modal.madimp .madnotes { font-size: 12.5px; color: var(--text2); }
+.modal.madimp .madnotes summary { cursor: pointer; color: var(--text); }
+.modal.choose .ways { display: grid; gap: 6px; margin-top: 10px; }
+.modal.choose .way { height: auto; padding: 8px 12px; display: grid; justify-items: start; justify-content: start; gap: 2px; text-align: left; }
+.modal.choose .way b { font: 600 11px var(--label); letter-spacing: .14em; color: var(--text); }
+.modal.choose .way small { font: 300 12.5px var(--ui); letter-spacing: 0; text-transform: none; color: var(--text2); }
+.modal.choose .way:hover b { color: var(--accent); }
+.pmode { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.pmode:first-child { padding-top: 0; }
+.pmode .pm { display: inline-flex; align-items: center; gap: 7px; height: 20px; color: var(--text); }
+.pmode .pm b { font: 600 10.5px var(--label); letter-spacing: .14em; text-transform: uppercase; }
+.pmode .li { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: square; }
+.pmode p { margin: 0; color: var(--text2); }
+.pmode p.seen { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.phelp .mb > .note { margin: 12px 0 0; color: var(--muted); }
+.pways { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 10px; }
+.pways th { text-align: left; font: 600 9.5px var(--label); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding: 5px 8px; border-bottom: 1px solid var(--line2); }
+.pways td { padding: 5px 8px; border-bottom: 1px solid var(--line); color: var(--text2); vertical-align: top; }
+.pways td:nth-child(2) { color: var(--text); white-space: nowrap; }
+/* an output's own count, its first universe, its universes or its start, on its line */
+.outhead .omid { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; min-width: 0; overflow: hidden; }
+.outhead .octl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; cursor: default; min-width: 0; }
+.outhead .octl input { width: 56px; height: 24px; }
+.outhead .octl input.ulist { width: 130px; font-family: var(--mono); font-size: 11.5px; }
+.outhead .octl .olab { color: var(--muted); font-size: 11px; }
+.outhead .octl .gbtn { height: 22px; padding: 0 4px; }
+.outrow.mfree { border-bottom: 0; }
+.outrow.mfree.drop .ph { color: var(--text); }
+.ctrl.drop { background: var(--sel-soft); outline: 1px dashed var(--accent); outline-offset: -2px; }
 .outlist .ph { padding: 2px 0 2px; color: var(--muted); font-size: 12px; font-style: italic; }
 /* columns like a table: the name takes the room left, pixels, address and buttons line up under each other */
 /* each fixture is a box you can grab: drag it to reorder, or use ↑ ↓ */
@@ -434,6 +538,8 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .prow.ovf .ad { color: var(--danger); }
 .prow.dragging { opacity: .4; }
 .prow.dropat { box-shadow: 0 -3px 0 var(--accent); }
+.prow.dropafter { box-shadow: 0 3px 0 var(--accent); }
+.prow.man { grid-template-columns: 8px 18px 8px minmax(40px, 1fr) 44px auto minmax(0, 190px) 0 20px; }
 .prow .ix { font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-align: right; }
 .prow .tag { width: 8px; height: 8px; border-radius: 0; }
 .prow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -449,7 +555,6 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .usage { display: grid; gap: 3px; }
 .usage .bar { height: 5px; border-radius: 0; background: var(--bg4); overflow: hidden; }
 .usage .bar i { display: block; height: 100%; background: var(--live); }
-.usage.full .bar i { background: var(--warn); }
 .usage.ovf .bar i { background: var(--danger); }
 .usage .lbl { font-family: var(--mono); font-size: 10.5px; color: var(--muted); display: flex; justify-content: space-between; }
 .usage.ovf .lbl { color: var(--danger); }
@@ -946,10 +1051,16 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 /* a protocol's name keeps its case (sACN, not SACN) inside a label set in capitals */
 .pname { text-transform: none; }
 .modal .mb.outset h4::before { content: ''; width: 3px; height: 12px; background: var(--accent); }
+.modal .mb.outset .unum .row { grid-template-columns: minmax(0, 1fr) 170px; }
 .modal header { padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px; }
 .modal .mb { padding: 12px 16px; display: grid; gap: 10px; min-height: 0; overflow: auto; }
 .updmodal { width: min(520px, 100%); }
 .updcmd { margin: 0 0 10px; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--line); color: var(--text); font: 400 11.5px/1.6 var(--mono); white-space: pre; overflow: auto; user-select: text; -webkit-user-select: text; }
+/* the new version coming into Downloads (in the desktop app): a thin bar, where it is, Install now */
+.updstat { margin: 0 0 10px; }
+.updstat .note { margin: 6px 0; }
+.updbar { height: 2px; background: var(--line2); overflow: hidden; }
+.updbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s linear; }
 .updnotes { max-height: 240px; overflow: auto; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--line); color: var(--text2); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .modal footer { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
 .toasts { position: fixed; right: 14px; bottom: 34px; display: grid; gap: 6px; z-index: 60; }
@@ -974,7 +1085,8 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
   #app { height: auto; overflow: visible; grid-template-rows: auto auto auto; }
   .topbar { overflow: visible; }
   .topbar { flex-wrap: wrap; padding: 8px 16px; height: auto; row-gap: 8px; }
-  .workspace { grid-template-columns: 1fr; }
+  /* one column, with a side panel folded too (those rules are more specific) */
+  .workspace, .workspace.noright, .workspace.noleft, .workspace.noleft.noright { grid-template-columns: minmax(0, 1fr); }
   .center { border: 0; order: 1; }
   .stagewrap { height: 62vh; }
   .left { order: 2; max-height: 60vh; border-top: 1px solid var(--line); }
@@ -983,9 +1095,11 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
   .patch { grid-template-columns: 1fr; }
   .ctrl-list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 180px; }
   .outhead { grid-template-columns: 14px 52px 1fr; }
-  .outhead .sum, .outhead .usage { grid-column: 2 / -1; }
+  .outhead, .outhead.uni { grid-template-columns: 14px 52px 1fr; }
+  .outhead .sum, .outhead .usage, .outhead .omid { grid-column: 2 / -1; }
   .prow { grid-template-columns: 8px 18px 8px minmax(60px, 1fr) 40px 44px 20px; }
   .prow .ad { display: none; }
+  .prow.man { grid-template-columns: 8px 18px 8px minmax(60px, 1fr) 40px auto 0 20px; }
   .monitor .mbody { grid-template-columns: 1fr; }
   .monitor .ulist { max-height: 120px; border-right: 0; border-bottom: 1px solid var(--line); }
   .statusbar { flex-wrap: wrap; height: auto; padding: 4px 16px; }

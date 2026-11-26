@@ -70,10 +70,72 @@ async function checkUpdates(asked, atStart) {
   if (!asked && ui.updateSkip === latest) return;
   updateDialog(latest, mine, rel);
 }
+// The desktop app downloads a new version itself (window.noupixApp.download, set by desktop/main.js) and says how far
+// it is: the update window shows it, and once it is there, Install now (the app starts the setup or opens the disk
+// image, and quits). updDl: what is on its way or there; the window showing it, if open.
+const updDl = { name: '', state: '', got: 0, total: 0, file: '', box: null };
+const appDownloads = () => !!(window.noupixApp && window.noupixApp.download);
+function updateProgress(got, total) { Object.assign(updDl, { state: 'loading', got, total }); updDraw(); }
+function updateDownloaded(file) {
+  Object.assign(updDl, { state: 'done', file });
+  if (!updDl.box || !updDl.box.isConnected) updateReadyDialog(); else updDraw();
+}
+function updateFailed(why) {
+  updDl.state = 'failed';
+  if (!updDl.box || !updDl.box.isConnected) toast(why === 'start' || why === 'missing' ? 'The new version couldn’t be started: open it from your Downloads folder.' : 'The new version couldn’t be downloaded. Try again, or download it from GitHub.', 'warn');
+  updDraw();
+}
+// Install now: the app does it (and quits); the address's #install-update is how the page asks
+function installUpdate() { location.hash = '#install-update'; setTimeout(() => history.replaceState(null, '', location.pathname + location.search), 50); }
+const updMac = () => (window.noupixApp && window.noupixApp.platform) === 'darwin' || /\.dmg$/i.test(updDl.file || updDl.name);
+// The download's line in the update window: a bar while it comes, then where it is and Install now
+function updStatus() {
+  const bar = h('i'), line = h('div', { class: 'updbar' }, bar);
+  const say = h('p', { class: 'note' });
+  const act = h('div', { class: 'actions' });
+  const el = h('div', { class: 'updstat' }, line, say, act);
+  el._draw = () => {
+    const mb = n => (n / 1048576).toFixed(n > 1048576 * 10 ? 0 : 1);
+    el.hidden = !updDl.state;
+    line.hidden = updDl.state !== 'loading';
+    bar.style.width = updDl.total ? (updDl.got / updDl.total * 100).toFixed(1) + '%' : '0';
+    say.classList.toggle('warn', updDl.state === 'failed');
+    say.textContent = updDl.state === 'loading' ? `Downloading ${updDl.name}… ${mb(updDl.got)}${updDl.total ? ' of ' + mb(updDl.total) : ''} MB`
+      : updDl.state === 'done' ? `Downloaded to ${updDl.file}.` + (updMac() ? ' Install now opens it: drag nouPix onto Applications.' : ' Install now closes nouPix and installs it.')
+      : updDl.state === 'failed' ? 'It couldn’t be downloaded. Try again, or download it from GitHub.' : '';
+    act.replaceChildren(...(updDl.state === 'done' ? [h('button', { class: 'btn primary', type: 'button', onclick: installUpdate }, updMac() ? 'Open installer' : 'Install now')] : []));
+  };
+  return el;
+}
+function updDraw() {
+  if (!updDl.box || !updDl.box.isConnected) return;
+  for (const el of $$('.updstat', updDl.box)) el._draw();
+  // its Download waits while the file comes and goes once it is there (Install now takes over); it tries again after a failure
+  for (const b of $$('[data-dl]', updDl.box)) b.hidden = updDl.state === 'loading' || updDl.state === 'done';
+}
+// The download finished with its window closed: a small one says so, with Install now and Later
+function updateReadyDialog() {
+  const close = () => bg.remove();
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal updmodal', role: 'dialog', 'aria-label': 'New version downloaded' },
+      h('header', null, `${updDl.name || 'The new version'} is downloaded`),
+      h('div', { class: 'mb' }, updStatus()),
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Later'))));
+  updDl.box = bg;
+  uiDocNow().body.append(bg);
+  updDraw();
+}
 function updateDialog(latest, mine, rel) {
   const close = () => bg.remove(), shown = Date.now();
   const file = updateAsset(rel), cmds = updateCommands();
   const go = url => { window.open(Date.now() - shown > UPDATE_STALE ? LATEST_PAGE : url, '_blank'); close(); };
+  // in the app: the file comes into Downloads here, the window staying open to show it
+  const fetchHere = () => {
+    if (updDl.state === 'loading' && updDl.name === file.name) return;
+    Object.assign(updDl, { name: file.name, state: 'loading', got: 0, total: 0, file: '', box: bg });
+    window.open(file.url, '_blank');
+    updDraw();
+  };
   const copy = () => {
     const done = () => toast('Copied. Stop nouPix, then paste the commands in a terminal.');
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(cmds).then(done, () => toast('Select the commands and copy them.', 'warn'));
@@ -88,6 +150,7 @@ function updateDialog(latest, mine, rel) {
         cmds ? h('p', null, `You have ${mine}, running from its source. To update it, stop nouPix and run this in a terminal: your projects and settings stay.`)
           : h('p', null, `You have ${mine}. Download the new version, then install it over this one: your projects and settings stay.`),
         cmds ? h('pre', { class: 'updcmd', 'aria-label': 'Commands to update' }, cmds) : null,
+        file && appDownloads() ? updStatus() : null,
         notes ? h('div', { class: 'updnotes' }, notes) : null),
       h('footer', null,
         h('button', { class: 'btn', type: 'button', title: "Don't tell me about this version again", onclick: () => { ui.updateSkip = latest; savePrefs(); close(); } }, 'Skip this version'),
@@ -95,12 +158,15 @@ function updateDialog(latest, mine, rel) {
         // from the source: the release's page beside the commands; the app: its file for this computer, straight away
         cmds ? h('button', { class: 'btn', type: 'button', title: 'The release on GitHub, with the apps for Windows and Mac', onclick: () => go(LATEST_PAGE) }, 'Open GitHub') : null,
         cmds ? h('button', { class: 'btn primary', type: 'button', onclick: copy }, 'Copy commands')
-          : h('button', { class: 'btn primary', type: 'button', title: file ? file.name : 'The release on GitHub', onclick: () => {
+          : h('button', { class: 'btn primary', type: 'button', 'data-dl': '', title: file ? file.name : 'The release on GitHub', onclick: () => {
             const stale = Date.now() - shown > UPDATE_STALE;
+            if (file && !stale && appDownloads()) { fetchHere(); return; }
             go(file ? file.url : LATEST_PAGE);
             if (file && !stale) toast(`Downloading ${file.name}. Quit nouPix before you install it.`);
           } }, 'Download'))));
+  if (file && appDownloads() && updDl.name === file.name) updDl.box = bg;   // one on its way already: shown here too
   uiDocNow().body.append(bg);
+  updDraw();
 }
 // The look: black (the default) or white, one click away in the top bar and in Settings. It is this computer's
 // (ui.theme, with the preferences); the MIDI and Scenes windows follow, and the stage reads its colours again.
@@ -281,6 +347,7 @@ function initUI() {
   onFile('#fileIsf', addIsfFile);
   onFile('#fileMedia', addMediaFile);
   onFile('#fileSvg', importSvgDialog);
+  onFile('#fileMad', importMadDialog);
   onFile('#fileGuide', setGuideFile);
   // drop files anywhere
   document.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
@@ -290,6 +357,7 @@ function initUI() {
     e.preventDefault();
     const n = f.name.toLowerCase();
     if (n.endsWith('.svg')) importSvgDialog(f);
+    else if (n.endsWith('.mad') || /\.madproject.*\.zip$/.test(n)) importMadDialog(f);
     else if (n.endsWith('.fs') || n.endsWith('.glsl')) addIsfFile(f);
     else if (n.endsWith('.noupix') || n.endsWith('.noupixpkg') || n.endsWith('.json')) openProjectFile(f);
     else if (mediaKindOf(f)) { mediaTarget = null; addMediaFile(f); }

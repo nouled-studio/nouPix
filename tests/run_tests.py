@@ -110,6 +110,8 @@ SUITES = [   # name, function, part of --quick
     ("values", simple("test_values.py", 8178, 300), True),
     ("pitch", simple("test_pitch.py", 8224, 300), True),
     ("dot", simple("test_dot.py", 8228, 300), True),
+    ("patchmodes", simple("test_patchmodes.py", 8270, 300), True),
+    ("madmapper", simple("test_madmapper.py", 8272, 200), True),
     ("shots", simple("test_shots.py", 8232, 300), True),
     ("midi", simple("test_midi.py", 8182, 400), True),
     ("macros", simple("test_macros.py", 8184, 400), True),

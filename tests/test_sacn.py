@@ -133,17 +133,17 @@ try:
     check("the status bar says sACN", "Sending" in pg.text_content("#bridgePill") and "sACN" in (pg.get_attribute("#bridgePill", "title") or ""))
 
     # ---------- the universes shown as sACN counts them
-    ur = pg.eval_on_selector_all(".outs .ur .from b", "els => els.map(e => e.textContent)")
-    first = pg.locator("input[aria-label='Start universe']")
+    ur = ["U " + pg.locator(f"input[aria-label='OUT {o} start universe']").input_value() for o in (1, 2)]
+    first = pg.locator("input[aria-label='OUT 1 start universe']")
     check("the Patch panel shows the outputs' universes as sACN's: U 1 and U 2", ur == ["U 1", "U 2"], ur)
     check("Start uni shows 1", first.input_value() == "1")
     check("fixtures show their addresses as sACN's", E("addrText(olm.project.fixtures[0]._patch)") == "U 1 · ch 1  →  U 1 · ch 30" and E("pixelAddrText(olm.project.fixtures[1], 0)") == "U 2 ch 1–3")
     first.fill("5"); first.press("Enter"); time.sleep(0.8)
     t1 = time.time(); time.sleep(0.5)
     check("Start uni typed as 5 is sACN universe 5 (4 inside, as Art-Net counts)", E(C + ".startUniverse") == 4 and uni_rx.since(t1, universe=5) and uni_rx.since(t1, universe=6) and not uni_rx.since(t1, universe=1), E(C + ".startUniverse"))
-    first = pg.locator("input[aria-label='Start universe']")
+    first = pg.locator("input[aria-label='OUT 1 start universe']")
     first.fill("0"); first.press("Enter"); time.sleep(0.5)
-    first = pg.locator("input[aria-label='Start universe']")
+    first = pg.locator("input[aria-label='OUT 1 start universe']")
     check("and 0 isn't an sACN universe: it becomes 1", E(C + ".startUniverse") == 0 and first.input_value() == "1", first.input_value())
     E("ui.monitorKey = null; openMonitor(); updateMonitorUI()"); time.sleep(0.3)
     mon = E("monEl.querySelector('.bar .mono').textContent")
@@ -230,7 +230,7 @@ try:
     check("back to Art-Net: the sACN streams end at once (three Stream_Terminated packets each)", sorted(p["universe"] for p in ended) == [1, 1, 1, 2, 2, 2], [(p["universe"], p["options"]) for p in ended])
     t1 = time.time(); time.sleep(0.5)
     check("and Art-Net goes out again, universes as before", node.count(t1, time.time()) > 5 and node.last(0) == art0 and not uni_rx.since(t1 + 0.1), node.count(t1, time.time()))
-    check("the Patch panel counts from 0 again", pg.eval_on_selector_all(".outs .ur .from b", "els => els.map(e => e.textContent)") == ["U 0", "U 1"])
+    check("the Patch panel counts from 0 again", ["U " + pg.locator(f"input[aria-label='OUT {o} start universe']").input_value() for o in (1, 2)] == ["U 0", "U 1"])
 
     # ---------- found devices: what each is set to receive, in the Discovery window
     def reply(ip, sacn=False, switch=False, ports=1, out=True):

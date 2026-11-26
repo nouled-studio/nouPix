@@ -5,19 +5,22 @@
 function patchBadge(f) {
   const p = f._patch;
   if (!p) return h('span', { class: 'badge warn', title: 'Not patched to a controller output' }, '—');
-  const lbl = outLabel(p);
-  const title = `${p.ctrl.name} · OUT ${p.out + 1}${p.first >= 0 ? ' · ' + addrText(p) : ''}`;
+  // on a manual controller its address, else the output it is on
+  const man = p.ctrl.mode === 'manual', lbl = outLabel(p), pre = man ? '' : 'OUT ';
+  const title = `${p.ctrl.name} · ${man ? 'manual' : 'OUT ' + (p.out + 1)}${p.first >= 0 ? ' · ' + addrText(p) : ''}${f._clash ? ' · shares channels with ' + f._clash.name : ''}`;
   if (p.overflow) return h('span', { class: 'badge err', title: title + ` · ${p.overflow} pixels do not fit` }, lbl + '!');
-  if (p.overlap || p.outside) return h('span', { class: 'badge warn', title: title + (p.overlap ? ' · its set start address overlaps the fixture before it' : ' · its set start address is outside this output, so it is not used') }, 'OUT ' + lbl + '!');
-  return h('span', { class: 'badge', title }, 'OUT ' + lbl);
+  if (p.overlap || p.outside || f._clash) return h('span', { class: 'badge warn', title: title + (p.overlap ? ' · its set start address overlaps the fixture before it' : p.outside ? ' · its set start address is outside this output, so it is not used' : '') }, pre + lbl + '!');
+  return h('span', { class: 'badge', title }, pre + lbl);
 }
 // The outputs a group's fixtures are patched to, in one badge
 function groupBadge(m) {
-  const outs = [...new Set(m.filter(f => f._patch).map(f => outLabel(f._patch)))];
+  // a manual controller's fixtures count as one place: its letter and "manual"
+  const outs = [...new Set(m.filter(f => f._patch).map(f => (f._patch.ctrl.mode === 'manual' ? (project.controllers.length > 1 ? ctrlLetter(f._patch.ctrl) + ' ' : '') + 'manual' : outLabel(f._patch))))];
   const un = m.filter(f => !f._patch).length, ovf = m.some(f => f._patch && f._patch.overflow);
   if (!outs.length) return h('span', { class: 'badge warn', title: 'Not patched to a controller output' }, '—');
   const title = `OUT ${outs.join(', ')}` + (un ? ` · ${un} not patched` : '') + (ovf ? ' · some pixels do not fit' : '');
-  return h('span', { class: 'badge' + (ovf ? ' err' : un ? ' warn' : ''), title }, 'OUT ' + (outs.length > 2 ? outs[0] + '…' + outs[outs.length - 1] : outs.join('+')));
+  const txt = outs.length > 2 ? outs[0] + '…' + outs[outs.length - 1] : outs.join('+');
+  return h('span', { class: 'badge' + (ovf ? ' err' : un ? ' warn' : ''), title }, (/manual/.test(txt) ? '' : 'OUT ') + txt);
 }
 function groupRow(g, m, whole) {
   const px = m.reduce((a, f) => a + pixelCount(f), 0);

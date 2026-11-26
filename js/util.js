@@ -88,6 +88,9 @@ const LINE_ICONS = {
   back: '<path d="M4 3.5v9"/><path d="M12.5 3.5L6 8l6.5 4.5z" fill="currentColor" stroke="none"/>',
   link: '<path d="M6.3 9.7l3.4-3.4"/><path d="M7.2 4.6l1.1-1.1a2.6 2.6 0 0 1 3.7 3.7L10.9 8.3"/><path d="M8.8 11.4l-1.1 1.1a2.6 2.6 0 0 1-3.7-3.7L5.1 7.7"/>',
   once: '<path d="M2 8h9"/><path d="M8.5 5.5L11 8l-2.5 2.5"/><path d="M13.5 4v8"/>',
+  // every output of the Patch tab folded (two chevrons meeting on a line) or unfolded (moving apart from it)
+  foldAll: '<path d="M2.5 8h11"/><path d="M5 2.5l3 3 3-3"/><path d="M5 13.5l3-3 3 3"/>',
+  unfoldAll: '<path d="M2.5 8h11"/><path d="M5 5.5l3-3 3 3"/><path d="M5 10.5l3 3 3-3"/>',
   loop: '<path d="M6 11.5H2.5v-7h11v7H9"/><path d="M10.5 9.5L8.5 11.5l2 2"/>',
   region: '<path d="M3 3.5H1.5v9H3M13 3.5h1.5v9H13"/><path d="M7 10.5H4.5v-5h7v5H9"/><path d="M10 9L8.5 10.5 10 12"/>',
   loopfit: '<path d="M3.5 3.5H2v9h1.5M12.5 3.5H14v9h-1.5"/><path d="M5 8h6"/><path d="M6.5 6.5L5 8l1.5 1.5M9.5 6.5L11 8l-1.5 1.5"/>',
@@ -101,6 +104,10 @@ const LINE_ICONS = {
   vzoom: '<path d="M8 1.5v13"/><path d="M5.5 4L8 1.5 10.5 4M5.5 12L8 14.5 10.5 12"/>',
   // a scene edited: a pencil, its tip on a line (save what plays into the scene)
   edit: '<path d="M3 13l1-3.5 7-7 2.5 2.5-7 7z"/><path d="M9.5 4L12 6.5"/><path d="M2 15h12"/>',
+  // Patch mode: universes (blocks stacked), pixels (dots along a line), manual (one dot set at a place)
+  byUni: '<rect x="2.5" y="2.5" width="11" height="2.75"/><rect x="2.5" y="6.62" width="11" height="2.75"/><rect x="2.5" y="10.75" width="11" height="2.75"/>',
+  byPx: '<path d="M1.5 8h13"/><circle cx="3.5" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="12.5" cy="8" r="1.4" fill="currentColor"/>',
+  byHand: '<path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1" fill="currentColor"/>',
 };
 // (the timeline's length set to the end of what is on it: its contents with the end line right after them)
 LINE_ICONS.lenfit = '<rect x="1.5" y="5" width="9" height="6"/><path d="M13.5 2.5v11"/><path d="M10.5 8h3"/>';

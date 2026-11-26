@@ -134,12 +134,12 @@ try:
     E("p => olm.loadProject(p)", project([dict(DDP(), protocol="artnet", mode="universes", upo=1)])); time.sleep(0.8)
     E("ui.dockTab = 'patch'; ui.dockCollapsed = false; ui.selCtrl = 'c1'; renderDock()"); time.sleep(0.3)
     proto = lambda label: pg.locator(".ctrl-fields .seg button", has_text=label).first
-    check("the Patch tab offers Art-Net, sACN and DDP", proto("DDP").count() == 1 and pg.locator("input[aria-label='Start universe']").count() == 1)
+    check("the Patch tab offers Art-Net, sACN and DDP", proto("DDP").count() == 1 and pg.locator("input[aria-label='OUT 1 start universe']").count() == 1)
     proto("DDP").click(); time.sleep(0.8)
     c = E("(() => { const c = olm.project.controllers[0]; return [c.protocol, c.mode, c.split, c.startUniverse]; })()")
     check("choosing DDP: by pixels, no channels skipped, no universe to start on", c == ["ddp", "pixels", True, 0], c)
-    check("…and the Patch tab hides what doesn't apply: Start uni, Per output, Skip ch 511–512", pg.locator("input[aria-label='Start universe']").count() == 0
-          and pg.locator(".ctrl-fields .seg button", has_text="Universes").count() == 0 and pg.locator("#ctrlSkip").count() == 0)
+    check("…and the Patch tab hides what doesn't apply: Start uni, Unis, Skip ch 511–512", pg.locator("input[aria-label='OUT 1 start universe'], input[aria-label='Start universe']").count() == 0
+          and pg.locator("button[aria-label='Universes']").count() == 0 and pg.locator("#ctrlSkip").count() == 0)
     check("the controller's row says DDP", "DDP" in pg.locator(".ctrl .s").first.text_content())
     E("(() => { const c = olm.project.controllers[0]; c.pxOut = 10; markPatch(); commit(); })()"); time.sleep(0.5)
     ur = pg.eval_on_selector_all(".outs .ur", "els => els.map(e => e.textContent)")

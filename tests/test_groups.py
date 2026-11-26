@@ -131,7 +131,7 @@ with sync_playwright() as p:
     # a group onto a patch output patches all of it, in list order
     demo()
     pg.click("#dockTabs button[data-tab=patch]"); ev("() => { olm.ui.dockH = 420; renderDock(); }"); time.sleep(0.4)
-    li_grp("Rings").drag_to(pg.locator(".outrow").nth(0)); time.sleep(0.4)
+    li_grp("Rings").drag_to(pg.locator(".outrow .outhead").nth(0)); time.sleep(0.4)
     chains = ev("olm.project.controllers[0].chains.map(ch => ch.map(id => olm.project.fixtures.find(f => f.id === id).name))")
     check("a group dropped on a patch output patches all of it there, in order", chains[0] == ["Panel A", "Ring 1", "Ring 2", "Ring 3"] and chains[2] == [], chains)
     time.sleep(0.6); badge = ev("[...document.querySelectorAll('#fxList li.grp')].map(li => li.querySelector('.badge').textContent)")

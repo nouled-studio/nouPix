@@ -8,7 +8,14 @@
 // its fixtures, a zone's on its scenes' edge, a scene's on its mark while it plays.
 const TAGS = ['#2f7bff', '#00c2ff', '#00d68f', '#8fe000', '#ff8a00', '#ff2fd1', '#9b5cff', '#ff5c8a'];
 const isTag = c => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
-const ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR', 'RGBW', 'GRBW', 'WRGB', 'W'];
+const ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR', 'RGBW', 'GRBW', 'WRGB', 'W', 'WC', 'CW'];
+// Tunable white: two channels a pixel, warm (W) and cold (C), in either order. The content's colour picks the mix:
+// reds and oranges the warm channel, teals and blues the cold one, white and greys both (twMix, twBias; outputTunable)
+const isTunable = o => o === 'WC' || o === 'CW';
+// What a colour order is, in words, for the lists that offer them
+const orderLabel = o => (o === 'WC' ? 'Warm, Cold  (tunable white)' : o === 'CW' ? 'Cold, Warm  (tunable white)' : o + (o.length === 4 ? '  (RGBW)' : o === 'W' ? '  (mono)' : ''));
+// The light of each channel of a tunable white fixture, as the stage shows it
+const TW_WARM = [255, 165, 80], TW_COLD = [200, 222, 255];
 const TYPE_LABEL = { line: 'Line', circle: 'Circle', matrix: 'Matrix', path: 'Path', dot: 'Dot' };
 // Dimming curves: how a pixel's level (its content after the fixture's dimmer and trims and the master) becomes its
 // DMX value. Gamma works on every fixture; the others need 16-bit fixtures, whose fine channel keeps the low end
@@ -78,7 +85,7 @@ const ui = {
   autosave: false,   // every change written to the project's file too (project-io.js)
   updates: true, updateAt: 0, updateSkip: '',   // looking for a new version once a day; when it last looked; a version not to tell of (app.js)
 };
-const UI_PREFS = ['tapSpace', 'hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'places', 'sideOpen', 'sideW', 'sceneSize', 'tlZoom', 'tlRowH', 'tlAudioFold', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
+const UI_PREFS = ['patchHelped', 'tapSpace', 'hlMode', 'contentOp', 'showContent', 'guideOp', 'showGuide', 'showGrid', 'snap', 'showLabels', 'showWiring', 'showZones', 'dockTab', 'rightTab', 'dockH', 'dockCollapsed', 'places', 'sideOpen', 'sideW', 'sceneSize', 'tlZoom', 'tlRowH', 'tlAudioFold', 'srcH', 'rightHidden', 'leftHidden', 'scanOff', 'discFilter', 'colorMode', 'midiOn', 'midiOff', 'midiMon', 'midiVc', 'midiView', 'bayOpen', 'macroOpen', 'theme', 'autosave', 'updates', 'updateAt', 'updateSkip',
   'tempoSrc', 'tempoIn', 'tempoTrim', 'tempoBpb', 'tempoOn', 'tempoBpm', 'tempoLo', 'tempoHi'];
 let geomDirty = true, patchDirty = true;
 const markGeom = () => { geomDirty = true; };
@@ -228,7 +235,7 @@ function nextName(type) {
   return label + ' ' + n;
 }
 // The channels a pixel of a controller's output takes, in Pixels mode: mono, RGB, RGBW, 16-bit RGB, 16-bit RGBW
-const CH_PER_PX = [1, 3, 4, 6, 8];
+const CH_PER_PX = [1, 2, 3, 4, 6, 8];
 // A controller: its protocol (Art-Net or sACN, as the last one added), and its outputs, either a number of universes
 // each (mode 'universes', upo) or a number of pixels each (mode 'pixels': pxOut pixels of chPx channels), from its
 // start universe and start channel
@@ -245,15 +252,50 @@ function ensureChains(c) {
   c.upo = clamp(Math.round(c.upo) || 1, 1, 64);
   c.startUniverse = clamp(Math.round(c.startUniverse) || 0, 0, 32767);
   c.protocol = c.protocol === 'sacn' || c.protocol === 'ddp' ? c.protocol : 'artnet';
-  c.mode = c.mode === 'pixels' ? 'pixels' : 'universes';
-  // DDP is one run of channels from 0: by pixels, none skipped, no universes to start on
-  if (c.protocol === 'ddp') { c.mode = 'pixels'; c.split = true; c.startUniverse = 0; }
+  c.mode = c.mode === 'pixels' || c.mode === 'manual' ? c.mode : 'universes';
+  // DDP is one run of channels from 0: by pixels (or manual), none skipped, no universes to start on
+  if (c.protocol === 'ddp') { if (c.mode !== 'manual') c.mode = 'pixels'; c.split = true; c.startUniverse = 0; }
   c.pxOut = clamp(Math.round(c.pxOut) || 680, 1, 10000);
   c.chPx = CH_PER_PX.includes(+c.chPx) ? +c.chPx : 3;
   c.startCh = clamp(Math.round(c.startCh) || 1, 1, 512);
+  fixOutputPlan(c);
   if (!Array.isArray(c.chains)) c.chains = [];
+  // Manual: one list of fixtures, each at its own address; switching back puts them all on OUT 1
+  if (c.mode === 'manual') { if (c.chains.length !== 1) c.chains = [c.chains.flat()]; return; }
   while (c.chains.length < c.outputs) c.chains.push([]);
   if (c.chains.length > c.outputs) c.chains.length = c.outputs;
+}
+// How a controller's outputs are laid out, beyond one count for all (absent: as before 1.7, nothing changes):
+// same false: each output its own count (upos: universes, pxOuts: pixels; kept past the outputs, for when they come back);
+// uniPlace (Universes): 'order' each after the one before, 'start' its first universe typed (outStarts), 'each' every
+// universe typed (outUnis); pxPlace (Pixels): 'channel' on from the channel the one before ends at, 'universe' on a
+// new universe, 'typed' its start typed (outAt: { u, ch }); from1: the device shows universe 0 as 1 (only what is shown).
+const UNI_PLACES = ['order', 'start'], PX_PLACES = ['channel', 'universe', 'typed'];
+function fixOutputPlan(c) {
+  const int = (v, lo, hi, d) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? clamp(n, lo, hi) : d; };
+  if (c.same === false || c.same === true) { if (c.same) delete c.same; } else delete c.same;
+  if ('upos' in c) { if (Array.isArray(c.upos)) c.upos = c.upos.slice(0, 128).map(v => int(v, 1, 64, c.upo)); else delete c.upos; }
+  if ('pxOuts' in c) { if (Array.isArray(c.pxOuts)) c.pxOuts = c.pxOuts.slice(0, 128).map(v => int(v, 1, 10000, c.pxOut)); else delete c.pxOuts; }
+  if ('uniPlace' in c && !UNI_PLACES.includes(c.uniPlace)) delete c.uniPlace;
+  if ('pxPlace' in c && !PX_PLACES.includes(c.pxPlace)) delete c.pxPlace;
+  if ('outStarts' in c) { if (Array.isArray(c.outStarts)) c.outStarts = c.outStarts.slice(0, 128).map(v => int(v, 0, 32767, null)); else delete c.outStarts; }
+  if ('outUnis' in c) {
+    // a universe typed: kept as it is, or dropped when it isn't one
+    if (Array.isArray(c.outUnis)) c.outUnis = c.outUnis.slice(0, 128).map(l => (Array.isArray(l) ? l.map(Number).filter(v => Number.isInteger(v) && v >= 0 && v <= 32767).slice(0, 64) : []));
+    else delete c.outUnis;
+  }
+  if ('uniAt' in c) {
+    if (Array.isArray(c.uniAt)) c.uniAt = c.uniAt.slice(0, 128).map(a => (a && typeof a === 'object' && Number.isFinite(Number(a.u)) ? { u: int(a.u, 0, 32767, 0), ch: int(a.ch, 1, 512, 1) } : null));
+    else delete c.uniAt;
+  }
+  if ('outAt' in c) {
+    if (Array.isArray(c.outAt)) c.outAt = c.outAt.slice(0, 128).map(a => (a && typeof a === 'object' && Number.isFinite(Number(a.u)) ? { u: int(a.u, 0, 32767, 0), ch: int(a.ch, 1, 512, 1) } : null));
+    else delete c.outAt;
+  }
+  if (c.from1) c.from1 = true; else delete c.from1;
+  // the maker Discovery found it to be (a WLED patches by pixels only)
+  if (!['advatek', 'enttec', 'digidot', 'madrix', 'spinode', 'wled'].includes(c.maker)) delete c.maker;
+  else if (c.maker === 'wled' && c.mode === 'universes') c.mode = 'pixels';
 }
 const fxById = id => project.fixtures.find(f => f.id === id);
 const ctrlById = id => project.controllers.find(c => c.id === id);

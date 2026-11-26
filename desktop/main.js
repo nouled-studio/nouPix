@@ -54,6 +54,49 @@ let pageReady = false;
 const isProjectPath = a => /\.(noupix|noupixpkg)$/i.test(a) && fs.existsSync(a);
 process.argv.slice(1).filter(isProjectPath).forEach(p => toOpen.push(path.resolve(p)));
 function openFile(p) { toOpen.push(p); openFiles(); }
+
+// A new version: the update window's Download hands the app the release's file for this computer (only nouPix's own
+// release downloads: the Windows setup, a Mac disk image), which the app saves in Downloads itself, telling the page how
+// far it is (updateProgress, updateDownloaded, updateFailed in app.js). The page's Install now (#install-update) starts
+// the setup on Windows, or opens the disk image on a Mac, and quits nouPix: the new version installs over it.
+const UPDATE_FILE = /^https:\/\/github\.com\/nouled-studio\/nouPix\/releases\/download\/v[0-9][0-9A-Za-z.\-]*\/nouPix-[0-9][0-9A-Za-z.\-]*-(windows-setup\.exe|macos-(apple-silicon|intel)\.dmg)$/;
+const update = { url: '', file: '', item: null };
+function tellPage(js) { if (win && !win.isDestroyed()) win.webContents.executeJavaScript(js, true).catch(() => {}); }
+function downloadUpdate(target) {
+  if (update.item && update.url === target) return;   // already on its way
+  if (update.item) update.item.cancel();
+  update.url = target; update.file = '';
+  win.webContents.downloadURL(target);
+}
+// The update downloaded: the app saves it in Downloads, without asking, and says how far it is
+function takeUpdateDownload(item) {
+  update.item = item;
+  const name = path.basename(new URL(update.url).pathname);
+  item.setSavePath(path.join(app.getPath('downloads'), name));
+  let last = 0;
+  item.on('updated', () => {
+    const now = Date.now();
+    if (now - last < 200) return;
+    last = now;
+    tellPage(`updateProgress(${item.getReceivedBytes()}, ${item.getTotalBytes()})`);
+  });
+  item.once('done', (e, state) => {
+    if (update.item === item) update.item = null;
+    if (state === 'completed') { update.file = item.getSavePath(); tellPage(`updateDownloaded(${JSON.stringify(update.file)})`); }
+    else tellPage(`updateFailed(${JSON.stringify(state)})`);
+  });
+}
+// Install now: the setup started (Windows) or the disk image opened (Mac), then nouPix quits so it can be replaced
+function installUpdate() {
+  const f = update.file;
+  if (!f || !fs.existsSync(f)) { tellPage('updateFailed("missing")'); return; }
+  if (process.platform === 'win32') {
+    try { spawn(f, [], { detached: true, stdio: 'ignore' }).unref(); } catch (e) { tellPage('updateFailed("start")'); return; }
+  } else {
+    shell.openPath(f).then(err => { if (err) tellPage('updateFailed("start")'); });
+  }
+  setTimeout(() => app.quit(), 800);
+}
 function openFiles() {
   if (!win || !pageReady) return;
   while (toOpen.length) win.webContents.executeJavaScript(`openPath(${JSON.stringify(toOpen.shift())})`).catch(() => {});
@@ -150,7 +193,11 @@ async function start() {
   });
   win.once('ready-to-show', () => win.show());
   win.on('closed', () => { win = null; });
-  win.webContents.on('did-finish-load', () => { pageReady = true; openFiles(); });
+  win.webContents.on('did-finish-load', () => {
+    pageReady = true; openFiles();
+    // the page learns that this app downloads and installs its updates itself
+    tellPage('window.noupixApp = Object.assign(window.noupixApp || {}, { download: 1, platform: ' + JSON.stringify(process.platform) + ' })');
+  });
 
   const wc = win.webContents;
   // Links leave the app for the default browser; the interface itself stays on the bridge's address. The MIDI,
@@ -168,9 +215,11 @@ async function start() {
     if (frameName === 'olm-touch' && (target === '' || target === 'about:blank')) {
       return { action: 'allow', overrideBrowserWindowOptions: { width: 900, height: 560, minWidth: 320, minHeight: 220, title: 'Interact', backgroundColor: '#000000', autoHideMenuBar: true } };
     }
-    openOutside(target);
+    if (UPDATE_FILE.test(target)) downloadUpdate(target);   // a new version's file: the app downloads it itself
+    else openOutside(target);
     return { action: 'deny' };
   });
+  wc.on('did-navigate-in-page', (e, target) => { if (/#install-update$/.test(target)) installUpdate(); });
   wc.on('will-navigate', (e, target) => { if (!target.startsWith(url)) { e.preventDefault(); openOutside(target); } });
   // The page can't restore a minimised window, nor always bring one to the front: it asks by setting the window's
   // address to #raise… (an in-page move, which the page's drawing doesn't notice), and the app does it.
@@ -198,6 +247,7 @@ async function start() {
   });
   // Project files and the patch list are downloads: ask where to save them.
   session.defaultSession.on('will-download', (e, item) => {
+    if (update.url && item.getURLChain()[0] === update.url && !update.item) { takeUpdateDownload(item); return; }
     item.setSaveDialogOptions({ defaultPath: path.join(app.getPath('documents'), item.getFilename()) });
     // a project saved: the page learns its file, so the next Save (Ctrl S) writes it without asking
     item.once('done', (ev, state) => {

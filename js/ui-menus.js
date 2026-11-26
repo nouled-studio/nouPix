@@ -242,8 +242,10 @@ function patchToItems(list) {
 function patchTo(ids, c, o) {
   for (const id of ids) assign(id, c, o, -1);
   commit(); renderRight();
+  pixelTypeCheck(ids, c);
   ensurePatch();
   const over = ids.filter(id => { const f = fxById(id); return f && f._patch && f._patch.overflow; }).length;
+  if (c.mode === 'manual') { toast(`${ids.length === 1 ? fxById(ids[0]).name : ids.length + ' fixtures'} on ${c.name}, at the next free address: change it in the Patch tab or the Inspector.`); return; }
   toast(`${ids.length === 1 ? fxById(ids[0]).name : ids.length + ' fixtures'} on ${c.name} OUT ${o + 1}` + (over ? `. ${over === 1 ? 'It does' : over + ' do'} not fully fit: add universes per output.` : ''), over ? 'warn' : '');
 }
 function showInPatch(f) {
@@ -276,6 +278,7 @@ function canvasMenu(e, x, y) {
     '-',
     z && [`Zone: ${z.name}…`, () => zoneMenu(e, z)],
     ['Import SVG…', () => $('#fileSvg').click()],
+    ['Import MadMapper 6 (beta)…', () => $('#fileMad').click()],
   ]);
 }
 function zoneMenu(e, z) {
@@ -392,6 +395,7 @@ function projectMenu(anchor) {
     ['Export patch list (CSV)', exportCSV],
     '-',
     m && ['Import SVG…', () => $('#fileSvg').click()],
+    m && ['Import MadMapper 6 (beta)…', () => $('#fileMad').click(), { title: 'Its fixtures, and its patch as Manual controllers: a .mad file, or a zipped .madproject' }],
     m && ['Load guide image…', () => $('#fileGuide').click()],
   ]);
 }
@@ -404,7 +408,7 @@ function addFixtureMenu(anchor) {
     f.name = nextName(type);
     addFixture(f);
   };
-  menu(anchor, [['Line / strip', mk('line')], ['Matrix', mk('matrix')], ['Circle / ring', mk('circle')], ['Dot (one big pixel)', mk('dot')], ['Path (draw on stage)', () => setTool('path')], '-', ['Import from SVG…', () => $('#fileSvg').click()]]);
+  menu(anchor, [['Line / strip', mk('line')], ['Matrix', mk('matrix')], ['Circle / ring', mk('circle')], ['Dot (one big pixel)', mk('dot')], ['Path (draw on stage)', () => setTool('path')], '-', ['Import from SVG…', () => $('#fileSvg').click()], ['Import from MadMapper 6 (beta)…', () => $('#fileMad').click()]]);
 }
 function addSourceMenu(anchor) {
   // files: the live inputs (screen, streams, camera, video input) are tiles among the sources (INPUT_TILES); files play

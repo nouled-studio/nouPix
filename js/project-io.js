@@ -56,6 +56,9 @@ function fixFixture(f, i, ids) {
   if (typeof f.name !== 'string') f.name = f.name != null ? String(f.name) : TYPE_LABEL[f.type] + ' ' + (i + 1);
   delete f.tag;   // a fixture shows its group's colour; up to 0.9 each had one of its own
   if (!ORDERS.includes(f.order)) { const o = String(f.order || '').toUpperCase(); f.order = ORDERS.includes(o) ? o : 'RGB'; }
+  // tunable white's mix and balance: absent as at first
+  if (f.twMix !== 'even') delete f.twMix;
+  if ('twBias' in f) { const b = clamp(numOr(f.twBias, 0), -1, 1); if (b) f.twBias = b; else delete f.twBias; }
   f.dimmer = numOr(f.dimmer, 1);
   if (isObj(f.addr)) f.addr = { u: clamp(Math.round(numOr(f.addr.u, 0)), 0, 32767), ch: clamp(Math.round(numOr(f.addr.ch, 1)), 1, 512) }; else delete f.addr;
   f.trim = [0, 1, 2, 3].map(i => clamp(numOr(Array.isArray(f.trim) ? f.trim[i] : undefined, legacyTrim[i]), 0, 1));
@@ -582,7 +585,7 @@ function exportCSV() {
   for (const f of project.fixtures) if (!f._patch) order.push(f);
   for (const f of order) {
     const p = f._patch;
-    const a = p && p.first >= 0 ? addrOf(p.base, p.first) : null, b = p && p.first >= 0 ? addrOf(p.base, p.last) : null;
+    const a = p && p.first >= 0 ? addrOf(p, p.first) : null, b = p && p.first >= 0 ? addrOf(p, p.last) : null;
     // on DDP there are no universes: the channels are counted from 1 through the controller's whole run
     const d = p && isDdp(p.ctrl), uOf = x => (x ? (d ? '' : uniLabel(x.u, p.ctrl)) : ''), chOf = x => (x ? (d ? x.u * 512 + x.ch : x.ch) : '');
     rows.push([f.name, TYPE_LABEL[f.type], pixelCount(f), f.order, fxBits(f), p ? p.ctrl.name : '', p ? protoName(p.ctrl) : '', p ? p.ctrl.ip : '', p ? p.out + 1 : '', p ? p.pos + 1 : '', uOf(a), chOf(a), uOf(b), chOf(b), p ? p.overflow : '']);

@@ -95,7 +95,8 @@ function renderInspector(body) {
   if (f.type !== 'matrix' && f.type !== 'dot') P.push(numRow('Pixels', f, 'pixels', geo({ int: true, min: 1, max: MAX_FX_PIXELS, onInput: v => { if (lockedPitch(f)) setPixelsAtPitch(f, v); markGeom(); syncInspector(); } })));
   if (pitched) P.push(...pitchRows(f));
   else if (f.pitchLock > 0 && f.type === 'circle') P.push(h('p', { class: 'note' }, 'Pitch lock: round circles only.'));
-  P.push(row('Color order', selectEl(ORDERS.map(o => [o, o + (o.length === 4 ? '  (RGBW)' : o === 'W' ? '  (mono)' : '')]), f.order, v => { f.order = v; markPatch(); commit(); renderRight(); }, { aria: 'Color order' })));
+  P.push(row('Color order', selectEl(ORDERS.map(o => [o, orderLabel(o)]), f.order, v => { f.order = v; markPatch(); commit(); renderRight(); }, { aria: 'Color order' })));
+  if (isTunable(f.order)) P.push(...tunableRows(f));
   P.push(...trimRows([f]));
   P.push(...dimmingRows([f]));
   if (f.type !== 'matrix' && f.type !== 'dot') P.push(checkRow('Reverse direction', f, 'reverse', () => { markGeom(); commit(); }));
@@ -197,8 +198,24 @@ function curveGraph(f) {
   el._draw = draw;
   return el;
 }
+// Tunable white: which channel is which (the colour order), how the two mix on white, and the balance between them
+function tunableRows(f) {
+  const redo = () => { commit(); renderRight(); };
+  const bal = sliderRow('Balance', { get v() { return f.twBias || 0; }, set v(x) { if (Math.abs(x) < 0.02) delete f.twBias; else f.twBias = x; } }, 'v',
+    { min: -1, max: 1, step: 0.01, fmt: v => (Math.abs(v) < 0.02 ? 'even' : `${Math.round(Math.abs(v) * 100)}% ${v < 0 ? 'warmer' : 'colder'}`), onCommit: commit });
+  return [
+    tipRow(row('Channels', seg([['WC', 'Warm, Cold'], ['CW', 'Cold, Warm']], f.order, v => { f.order = v; markPatch(); redo(); })), 'Which channel comes first on the wire: the warm white or the cold one.'),
+    tipRow(row('On white', seg([['max', 'Both full'], ['even', 'Shared']], f.twMix === 'even' ? 'even' : 'max', v => { if (v === 'even') f.twMix = 'even'; else delete f.twMix; redo(); })),
+      'Reds and oranges light the warm channel, teals and blues the cold one. On white both light: both full (the brightest), or sharing one level (the same brightness whatever the colour).'),
+    tipRow(bal, 'Moves every colour towards the warm or the cold channel.')
+  ];
+}
 function trimRows(list) {
-  const hasW = list.some(f => f.order.includes('W')), one = list.length === 1, tmp = list[0].trim.slice();
+  const one = list.length === 1, tmp = list[0].trim.slice();
+  // tunable white: a trim for the warm channel and one for the cold
+  if (list.every(f => isTunable(f.order))) return [['Warm trim', 0], ['Cold trim', 1]].map(([label, i]) =>
+    sliderRow(label, one ? list[0].trim : tmp, i, { min: 0, max: 1, step: 0.01, fmt: pct, onInput: v => { if (!one) list.forEach(f => { f.trim[i] = v; }); }, onCommit: commit }));
+  const hasW = list.some(f => f.order.includes('W') && !isTunable(f.order));
   return [['Red trim', 0], ['Green trim', 1], ['Blue trim', 2], ['White trim', 3]].filter(([, i]) => i < 3 || hasW).map(([label, i]) =>
     sliderRow(label, one ? list[0].trim : tmp, i, { min: 0, max: 1, step: 0.01, fmt: pct, onInput: v => { if (!one) list.forEach(f => { f.trim[i] = v; }); }, onCommit: commit }));
 }
@@ -221,12 +238,22 @@ function outputSection(list) {
     const o = +outSel.value || 0;
     list.forEach(x => assign(x.id, c, o));
     commit(); renderRight();
+    pixelTypeCheck(list.map(x => x.id), c);
   };
   const cs = selectEl(ctrlOpts, ctrlId, v => { ctrlId = v; fillOuts(); if (list.length === 1 || !v) apply(); }, { aria: 'Controller' });
   fillOuts();
   outSel.addEventListener('change', () => { if (list.length === 1) apply(); });
-  const kids = [row('Controller', cs), row('Output', outSel)];
-  if (cur) {   // the order on the output sets the addresses: move without dragging
+  const manual = cur ? cur.ctrl.mode === 'manual' : !!(ctrlById(ctrlId) && ctrlById(ctrlId).mode === 'manual');
+  const kids = [row('Controller', cs)];
+  if (!manual) kids.push(row('Output', outSel));
+  if (cur && manual && list.length > 1) {   // several on a manual controller: one after another from an address
+    const c = cur.ctrl, off = uniOff(c), first = list.map(x => x.addr).find(Boolean) || { u: c.startUniverse, ch: 1 };
+    const from = { u: first.u + off, ch: first.ch };
+    kids.push(row('From', numInput(from, 'u', { int: true, min: off, max: 32767 + off, prefix: 'U', aria: 'From universe' }), numInput(from, 'ch', { int: true, min: 1, max: 512, prefix: 'ch', aria: 'From channel' })),
+      h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', title: 'One after another, in the order of the fixture list, from this address',
+        onclick: () => { const order = project.fixtures.filter(x => list.includes(x)).map(x => x.id); addressInSequence(order, { u: from.u - off, ch: from.ch }); toast(`${order.length} fixtures one after another.`); } }, 'Address in sequence')));
+  }
+  if (cur && !manual) {   // the order on the output sets the addresses: move without dragging
     const chain = cur.ctrl.chains[cur.out], ids = list.map(x => x.id), pos = ids.map(id => chain.indexOf(id)).sort((a, b) => a - b);
     const first = pos[0], last = pos[pos.length - 1], b = (txt, title, fn, off) => h('button', { class: 'btn', type: 'button', title, disabled: off, onclick: fn }, txt);
     kids.push(row('Order', h('span', { class: 'readonly' }, list.length === 1 ? `#${first + 1} of ${chain.length} on OUT ${cur.out + 1}` : `#${first + 1}–${last + 1} of ${chain.length} on OUT ${cur.out + 1}`)),
@@ -244,11 +271,12 @@ function outputSection(list) {
       box.className = 'addr';
       if (!project.controllers.length) { box.className = 'addr warn'; box.textContent = 'Add a controller in the Patch panel first.'; return; }
       if (!p) { box.className = 'addr warn'; box.textContent = 'Not patched. Choose a controller and output, or drag the fixture onto an output in the Patch panel.'; return; }
-      const lines = [`${p.ctrl.name} · ${p.ctrl.ip} · OUT ${p.out + 1} · #${p.pos + 1} in chain`];
+      const lines = [p.ctrl.mode === 'manual' ? `${p.ctrl.name} · ${p.ctrl.ip} · manual` : `${p.ctrl.name} · ${p.ctrl.ip} · OUT ${p.out + 1} · #${p.pos + 1} in chain`];
       if (p.first >= 0) lines.push(addrText(p));
       if (p.overflow) { box.className = 'addr err'; lines.push(`${p.overflow} pixels don't fit on this output and are not sent.`); }
       if (p.overlap) { box.className = 'addr warn'; lines.push('Its set start overlaps the channels of the fixture before it on this output.'); }
       if (p.outside) { box.className = 'addr warn'; lines.push(`Its set start, ${chLabel(f.addr, p.ctrl, ' ')}, is outside this output's ${isDdp(p.ctrl) ? 'channels' : 'universes'}, so it is not used.`); }
+      if (f._clash) { box.className = 'addr warn'; lines.push(`It shares channels with ${f._clash.name}.`); }
       box.textContent = lines.join('\n');
       box.style.whiteSpace = 'pre-wrap';
     };
@@ -263,8 +291,26 @@ function outputSection(list) {
 function advancedPatch(f) {
   const p = f._patch, c = p.ctrl, L = ctrlOuts(c)[p.out], base = L.base, on = { v: !!f.addr };
   const redo = () => { markPatch(); commit(); renderRight(); };
+  // Manual: its address is always its own, with the next free one a click away
+  if (c.mode === 'manual') {
+    // where it is now: its own address, or (none yet) where it landed; typing sets its own
+    const cur = () => f.addr || (p.first >= 0 ? addrOf(p, p.first) : { u: c.startUniverse, ch: 1 });
+    const own = () => { manualPin(c); return (f.addr = f.addr || Object.assign({}, cur())); };
+    const off = uniOff(c), next = () => { const a = manualNextFree(c, f); f.addr = a; redo(); toast(`${f.name} at ${chLabel(a, c, ' ')}, the next free address.`); };
+    const res = [];
+    if (isDdp(c)) {
+      const run = { get v() { return cur().u * 512 + cur().ch; }, set v(x) { own(); f.addr.u = Math.floor((x - 1) / 512); f.addr.ch = (x - 1) % 512 + 1; } };
+      res.push(numRow('Channel', run, 'v', { int: true, min: 1, max: 1 << 24, onCommit: redo }));
+    } else {
+      const u = { get v() { return cur().u + off; }, set v(x) { own().u = x - off; } }, ch = { get v() { return cur().ch; }, set v(x) { own().ch = x; } };
+      res.push(row('Starts at', numInput(u, 'v', { int: true, min: off, max: 32767 + off, prefix: 'U', aria: 'Universe', onCommit: redo }),
+        numInput(ch, 'v', { int: true, min: 1, max: 512, prefix: 'ch', aria: 'Channel', onCommit: redo })));
+    }
+    res.push(h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', title: 'After the last channel the other fixtures on this controller use', onclick: next }, 'Next free')));
+    return res;
+  }
   const out = [tipRow(checkRow(isDdp(c) ? 'Set its channel' : 'Set universe and channel', on, 'v', v => {
-    if (v) { const a = p.first >= 0 ? addrOf(p.base, p.first) : { u: base, ch: 1 }; f.addr = { u: a.u, ch: a.ch }; } else delete f.addr;
+    if (v) { const a = p.first >= 0 ? addrOf(p, p.first) : { u: base, ch: 1 }; f.addr = { u: a.u, ch: a.ch }; } else delete f.addr;
     redo();
   }), 'Where it starts, instead of right after the fixture before it. The ones after it follow on.')];
   if (f.addr && isDdp(c)) {
@@ -273,7 +319,7 @@ function advancedPatch(f) {
     out.push(numRow('Channel', run, 'v', { int: true, min: base * 512 + 1, max: (base + L.upo) * 512, onCommit: redo }));
     out.push(h('p', { class: 'note' }, `OUT ${p.out + 1}: ${uniRange(c, L)}`));
   } else if (f.addr) {
-    const us = Array.from({ length: L.upo }, (_, i) => [String(base + i), 'U ' + uniLabel(base + i, c)]);
+    const us = Array.from({ length: L.upo }, (_, i) => [String(uniAt(L, i)), 'U ' + uniLabel(uniAt(L, i), c)]);
     out.push(row('Universe', selectEl(us, String(f.addr.u), v => { f.addr.u = +v; redo(); }, { aria: 'Start universe' })));
     out.push(numRow('Channel', f.addr, 'ch', { int: true, min: 1, max: 512, onCommit: redo }));
     out.push(h('p', { class: 'note' }, `OUT ${p.out + 1}: ${uniRange(c, L)}`));
@@ -307,7 +353,7 @@ function renderMulti(body, sel) {
         : h('h3', null, `${sel.length} fixtures selected`),
       h('p', { class: 'note' }, `${fmtN(px)} pixels`),
       sel.some(strung) ? row('Pixels each', pxIn) : null,
-      row('Color order', selectEl([['', 'Mixed / keep'], ...ORDERS.map(o => [o, o])], sel.every(f => f.order === sel[0].order) ? sel[0].order : '', v => { if (!v) return; sel.forEach(f => { f.order = v; }); markPatch(); commit(); renderRight(); }, { aria: 'Color order for all' })),
+      row('Color order', selectEl([['', 'Mixed / keep'], ...ORDERS.map(o => [o, orderLabel(o)])], sel.every(f => f.order === sel[0].order) ? sel[0].order : '', v => { if (!v) return; sel.forEach(f => { f.order = v; }); markPatch(); commit(); renderRight(); }, { aria: 'Color order for all' })),
       ...trimRows(sel),
       ...dimmingRows(sel),
       h('div', { class: 'actions' },
@@ -635,6 +681,14 @@ function protocolRows(s) {
     tipRow(numRow('Priority', s, 'sacnPriority', { min: 0, max: 200, step: 1, int: true, onCommit: commit }), '0 to 200, 100 by default. A receiver getting a universe from two sources takes the higher priority: give a desk more to let it take over.'),
     tipRow(row('Send to', seg([['unicast', 'Unicast'], ['multicast', 'Multicast']], s.sacnMulticast ? 'multicast' : 'unicast', v => { s.sacnMulticast = v === 'multicast'; changed(); })),
       'Unicast: to each controller\'s address. Multicast: to the universe\'s group (239.255.x.x), so each universe can be used by one controller only.')];
+  // how each Art-Net device numbers its universes (Advatek shows 0 as 1): only what nouPix shows changes
+  const an = project.controllers.filter(c => !isSacn(c) && !isDdp(c));
+  if (an.length) {
+    rows.push(h('h4', null, h('span', { class: 'pname' }, 'Universe numbers')),
+      h('p', { class: 'note' }, 'How each Art-Net device numbers its universes. Some (Advatek) show universe 0 as 1. Only the numbers nouPix shows change.'));
+    for (const c of an) rows.push(h('div', { class: 'unum' }, row(c.name, seg([['0', 'From 0'], ['1', 'From 1']], c.from1 ? '1' : '0', v => {
+      if (v === '1') c.from1 = true; else delete c.from1; markPatch(); commit(); renderRight(); openOutputSettings(true); }))));
+  }
   if (usesSacn() && bridge.hello && !(bridge.hello.protocols || []).includes('mixed'))
     rows.push(h('p', { class: 'note warn' }, 'This computer\'s nouPix is older: update it to send sACN and Art-Net together.'));
   return rows;

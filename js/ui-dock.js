@@ -36,7 +36,7 @@ function renderDock() {
     else if (ui.dockTab === 'timeline') renderTimeline(body);
     else if (ui.dockTab === 'patch') {
       renderPatch(body);
-      if (mappingLocked()) { const ce = body.querySelector('.ctrl-edit'); if (ce) lockPanel(ce, 'Operator: you can see the patch but not change it.'); body.querySelectorAll('.ctrl-list .foot button').forEach(b => { b.disabled = true; }); }
+      if (mappingLocked()) { const ce = body.querySelector('.ctrl-edit'); if (ce) lockPanel(ce, 'Operator: you can see the patch but not change it.'); body.querySelectorAll('.ctrl-list .foot button, .ctrl .cdel').forEach(b => { b.disabled = true; }); }
     }
   });
   if (ui.dockCollapsed) { drawScenesWindow(); return; }
@@ -632,7 +632,7 @@ function ctrlSummary(c) {
   const outs = c._outs || [];
   // universes counted once each: in Pixels mode, two outputs can share the one where the first ends
   const span = new Set();
-  for (const o of outs.length ? outs : ctrlOuts(c)) if (o) for (let u = 0; u < o.upo; u++) span.add(o.base + u);
+  for (const o of outs.length ? outs : ctrlOuts(c)) if (o && !o.manual) for (let u = 0; u < o.upo; u++) span.add(uniAt(o, u));
   const used = universes.filter(U => U.ctrl === c).length;
   const px = outs.reduce((a, o) => a + (o ? o.pixels : 0), 0);
   const ovf = outs.reduce((a, o) => a + (o ? o.overflow : 0), 0);
@@ -666,9 +666,18 @@ function renderPatch(body) {
     const badge = !ipOk ? h('span', { class: 'badge err' }, 'IP?') : s.ovf ? h('span', { class: 'badge err' }, 'OVERFLOW') : null;
     const item = h('div', { class: 'ctrl' + (chosen.has(c.id) ? ' sel' : '') + (c.enabled ? '' : ' off'), tabindex: 0, 'data-id': c.id, onclick: e => pickCtrl(c, e),
       title: `${c.name} · ${protoName(c)}\nCtrl or Shift to select several; Delete removes them` },
-      h('div', { class: 't' }, h('span', { class: 'badge' }, ctrlLetter(c)), h('span', { class: 'nm' }, c.name), badge),
+      h('div', { class: 't' }, h('span', { class: 'badge' }, ctrlLetter(c)), h('span', { class: 'nm' }, c.name), badge,
+        // at the right of its name: this controller (or all those selected, when it is one of them), after asking
+        h('button', { class: 'cdel', type: 'button', title: 'Delete', 'aria-label': 'Delete controller ' + c.name,
+          onclick: e => { e.stopPropagation(); if (!mappingLocked()) askDeleteControllers(chosen.has(c.id) ? selCtrls() : [c]); } }, icon('trash'))),
       h('div', { class: 's mono' }, h('span', null, c.ip + ' · ' + protoName(c))));
     onRightClick(item, e => controllerMenu(e, c));
+    dropFixtures(item, ids => {
+      for (const id of ids) assign(id, c, 0);
+      ui.selCtrl = c.id; commit(); renderRight(); ensurePatch();
+      toast(`${ids.length > 1 ? ids.length + ' fixtures' : fxById(ids[0]).name} on ${c.name}${c.mode === 'manual' ? ', each at the next free address' : ' OUT 1, at the end'}.`);
+      pixelTypeCheck(ids, c);
+    });
     items.append(item);
   }
   if (!project.controllers.length) items.append(h('div', { class: 'empty' }, 'No controllers yet.'));
@@ -690,8 +699,6 @@ function renderCtrlEditor(edit, c) {
   const small = (el, w) => { el.style.width = w + 'px'; return el; };
   const ipIn = textInput(c, 'ip', { aria: 'IP address', onInput: (v, el) => { el.classList.toggle('bad', !parseIP(v)); markPatch(); }, onCommit: () => { commit(); } });
   ipIn.classList.toggle('bad', !parseIP(c.ip));
-  // Delete asks first, so a stray click can't remove a controller and its patch
-  const del = h('button', { class: 'btn icon trash', type: 'button', title: 'Delete this controller', 'aria-label': 'Delete controller ' + c.name, onclick: () => askDeleteControllers([c]) }, icon('trash'));
   const onStruct = () => {
     const before = c.chains.flat().length;
     ensureChains(c);
@@ -706,106 +713,178 @@ function renderCtrlEditor(edit, c) {
   // Whole pixels: a universe ends at channel 510 for RGB, so no pixel is split between two universes
   const skip = h('input', { type: 'checkbox', checked: !c.split, id: 'ctrlSkip' });
   skip.addEventListener('change', () => { c.split = !skip.checked; markPatch(); commit(); });
-  const SKIP_INFO = 'A universe has 512 channels, but 512 is not a multiple of 3: an RGB pixel takes 3 channels, so 170 pixels fill channels 1 to 510.\n\n'
-    + 'On (standard): channels 511 and 512 stay empty and the 171st pixel starts at channel 1 of the next universe, so no pixel is split between two universes. This is what nearly every pixel controller expects (PixLite, Falcon, Advatek, WLED…): keep it on.\n\n'
-    + 'Off: all 512 channels are used, and the 171st pixel gets red and green on 511–512 and blue on channel 1 of the next universe. Only for controllers set to continuous addressing, or for plain DMX channels.\n\n'
-    + 'If colours look shifted from the second universe on, this setting does not match the controller.\n'
-    + 'RGBW pixels take 4 channels: 128 fill a universe exactly, so nothing is skipped either way.\n'
-    + '16-bit fixtures take two channels per colour (coarse, then fine): 6 for RGB, so 85 pixels fill channels 1 to 510; 8 for RGBW, so 64 fill a universe.';
-  const ddp = isDdp(c);
-  edit.append(h('div', { class: 'ctrl-fields' },
-    f('Output', en),
-    f('Name', small(textInput(c, 'name', { aria: 'Controller name', onInput: () => {}, onCommit: () => { commit(); renderRight(); } }), 150)),
-    f('IP address', small(ipIn, 120)),
-    f('Protocol', seg([['artnet', 'Art-Net'], ['sacn', 'sACN'], ['ddp', 'DDP']], c.protocol, v => { c.protocol = v; ensureChains(c); markPatch(); commit(); }),
-      'What this controller receives. sACN counts universes from 1. DDP has no universes: the pixels are one run of channels from 1, none skipped.'),
-    f('Outputs', small(numInput(c, 'outputs', { int: true, min: 1, max: 128, aria: 'Outputs', onCommit: onStruct }), 64)),
-    ddp ? null : f('Per output', seg([['universes', 'Universes'], ['pixels', 'Pixels']], c.mode, v => { c.mode = v; markPatch(); commit(); }),
-      'Size each output by a number of universes, or by its pixels: nouPix works out the universes they need'),
-    c.mode === 'pixels'
-      ? f('Pixels', small(numInput(c, 'pxOut', { int: true, min: 1, max: 10000, aria: 'Pixels per output', onCommit: onStruct }), 72), 'Pixels per output')
-      : f('Universes', small(numInput(c, 'upo', { int: true, min: 1, max: 64, aria: 'Universes per output', onCommit: onStruct }), 64), 'Universes per output'),
-    c.mode === 'pixels' ? f('Pixel', selectEl(CH_PER_PX.map(n => [n, { 1: 'Mono · 1 ch', 3: 'RGB · 3 ch', 4: 'RGBW · 4 ch', 6: 'RGB 16-bit · 6 ch', 8: 'RGBW 16-bit · 8 ch' }[n]]), c.chPx,
-      v => { c.chPx = +v; markPatch(); commit(); }, { aria: 'Channels per pixel' }), 'The pixels the controller drives: how many channels each takes') : null,
-    // with sACN the first universe is typed and shown as sACN counts it, from 1 (kept from 0 inside, as Art-Net counts)
-    ddp ? null : f('Start uni', small(isSacn(c)
-      ? numInput({ get v() { return c.startUniverse + 1; }, set v(x) { c.startUniverse = x - 1; } }, 'v', { int: true, min: 1, max: 32768, aria: 'Start universe', onCommit: onStruct })
-      : numInput(c, 'startUniverse', { int: true, min: 0, max: 32767, aria: 'Start universe', onCommit: onStruct }), 64), 'The universe output 1 starts on; each next output starts on a new universe'),
-    f('Start ch', small(numInput(c, 'startCh', { int: true, min: 1, max: 512, aria: 'Start channel', onCommit: onStruct }), 56),
-      ddp ? 'The channel output 1 starts at, counted from 1; each next output goes on from where the one before it ends' : 'The channel output 1 starts at; the next outputs start at channel 1'),
-    !ddp && c.discovered && c.discovered.length ? f('ArtPoll', h('span', { class: 'reported' }, 'U ' + universeList(c.discovered)),
-      `Universes this device reported when discovered (${c.discovered.length}). Set the outputs to how the device is set up.`) : null,
-    ddp ? null : h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
-      h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')),
-    ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null,
-    h('span', { style: { flex: 1 } }), del));
-  if (patchConflicts.length) edit.append(h('div', { class: 'conflict' }, (usesDdp() ? 'Clash: ' : 'Universe clash: ') + patchConflicts[0] + (patchConflicts.length > 1 ? ` (+${patchConflicts.length - 1} more)` : '')));
+  const SKIP_INFO = 'On: channels 511 and 512 stay empty, so no RGB pixel is split between two universes (the standard). Off: all 512 used, for devices set to continuous channels.';
+  const ddp = isDdp(c), manual = c.mode === 'manual', px = c.mode === 'pixels', own = c.same === false;
+  const uniPlace = c.uniPlace || 'order', pxPlace = c.pxPlace || 'channel', off = uniOff(c);
+  // 1. the device: on, name, address (what it reported to Discovery told on pointing at it), protocol, delete
+  const rep = !ddp && c.discovered && c.discovered.length ? `Reported: U ${universeList(c.discovered.map(u => uniLabel(u, c)))}, the universes this device said it listens to when Discovery found it.` : '';
+  const ipBox = h('span', { class: 'ipbox', 'data-tip': rep ? `Reported|U ${universeList(c.discovered.map(u => uniLabel(u, c)))}` : null }, small(ipIn, 116));
+  const devLine = h('div', { class: 'ctrl-fields' },
+    en,
+    small(textInput(c, 'name', { aria: 'Controller name', onInput: () => {}, onCommit: () => { commit(); renderRight(); } }), 130),
+    ipBox,
+    h('span', { 'data-tip': 'Protocol|What the device receives.' },
+      seg([['artnet', 'Art-Net'], ['sacn', 'sACN'], ['ddp', 'DDP']], c.protocol, v => { c.protocol = v; ensureChains(c); markPatch(); commit(); })),
+    ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null);
+  edit.append(devLine);
+  // always there (DDP has no universes), so it doesn't come and go with the pixel type or the fixtures
+  const skipMatters = !ddp;
+  // (how the device numbers universes, Counts from, is in Output settings)
+  const numbering = () => [
+    skipMatters ? h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
+      h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, 'data-tip': 'Skip ch 511–512|' + SKIP_INFO }, 'i')) : null];
+  // 2. Patch mode: three icons, what each is told on pointing at it; the i opens the help
+  const MODES = [['universes', 'byUni', 'Patch mode: Unis|A number of universes per output.', 'Unis'], ['pixels', 'byPx', 'Patch mode: Pix|A number of pixels per output: nouPix works out the universes.', 'Pix'],
+    ['manual', 'byHand', 'Patch mode: Man|No outputs: each fixture its own address.', 'Man']].filter(([m]) => !(ddp && m === 'universes') && !(c.maker === 'wled' && m !== 'pixels'));
+  if (c.maker === 'wled') MODES[0][2] = 'Patch mode: Pix|A WLED patches by pixels only: its LEDs in a row, from its universe.';
+  // its name only on pointing at it, so it fits beside the protocol
+  const patchBy = h('span', { class: 'pby' }, h('span', { class: 'seg icons', role: 'group', 'aria-label': 'Patch mode' },
+    ...MODES.map(([m, ic, tip, word]) => h('button', { type: 'button', class: c.mode === m ? 'on' : '', 'aria-label': { Unis: 'Universes', Pix: 'Pixels', Man: 'Manual' }[word], 'data-tip': tip, onclick: () => setCtrlMode(c, m), html: lineIcon(ic) + `<span>${word}</span>` }))),
+    h('button', { class: 'pinfo', type: 'button', 'aria-label': 'How patching works', 'data-tip': 'How patching works', onclick: patchHelp }, 'i'));
+  // the mode, and how the device counts, on one line that stays put whatever is chosen below
+  // the patch mode goes with the protocol, on the device's line; how the device counts at the end of the outputs' line
+  devLine.append(patchBy);
+  if (manual && skipMatters) edit.append(h('div', { class: 'ctrl-line sent' }, h('span', { style: { flex: 1 } }), numbering()));
+  if (!manual) {
+    // 3. the outputs as a sentence: 16 outputs × 400 px RGB, each its own
+    // Same for all, ticked at first: one count for every output; off, each output's own on its line
+    const sameAll = h('input', { type: 'checkbox', checked: !own, id: 'ctrlSame' });
+    sameAll.addEventListener('change', () => setOwnCounts(c, !sameAll.checked));
+    const num = (obj, key, o) => { const el = numInput(obj, key, o); el.classList.add('sn'); return el; };
+    edit.append(h('div', { class: 'ctrl-line sent' },
+      num(c, 'outputs', { int: true, min: 1, max: 128, aria: 'Outputs', onCommit: onStruct }), h('span', null, c.outputs === 1 ? 'output' : 'outputs'),
+      h('span', { class: 'x' }, '×'),
+      own ? h('input', { class: 'sn', disabled: true, value: '', placeholder: '—', 'aria-label': 'Each output has its own count' })
+        : px ? num(c, 'pxOut', { int: true, min: 1, max: 10000, aria: 'Pixels per output', onCommit: onStruct }) : num(c, 'upo', { int: true, min: 1, max: 64, aria: 'Universes per output', onCommit: onStruct }),
+      h('span', null, px ? 'px' : 'universes'),
+      px ? selectEl(CH_PER_PX.map(n => [n, { 1: 'Mono', 2: 'Tunable white', 3: 'RGB', 4: 'RGBW', 6: 'RGB 16-bit', 8: 'RGBW 16-bit' }[n]]), c.chPx,
+        v => { c.chPx = +v; markPatch(); commit(); }, { aria: 'Pixel type' }) : null,
+      h('label', { class: 'checkrow', for: 'ctrlSame', 'data-tip': own ? 'Same for all|Off: each output has its own count, on its line.' : 'Same for all|One count for every output.' }, sameAll, 'same for all'),
+      h('span', { style: { flex: 1 } }), numbering()
+    ));
+    // 4. where the outputs start: how they follow each other, and the first one's address
+    const ordered = px ? pxPlace !== 'typed' : uniPlace === 'order';
+    const U = { get v() { return c.startUniverse + off; }, set v(x) { c.startUniverse = x - off; } };
+    const run = { get v() { return c.startCh; }, set v(x) { c.startCh = x; } };
+    // Universes: each output's start is on its line; Pixels: how they follow each other, and where the first starts
+    if (px || ddp) edit.append(h('div', { class: 'ctrl-line sent' },
+      h('span', null, 'Next out:'),
+      ddp ? null : px
+        ? h('span', { 'data-tip': 'Next output starts|Right after the last, on a new universe, or typed per output.' },
+          seg([['channel', 'Next ch'], ['universe', 'Next uni'], ['typed', 'Manual']], pxPlace, v => setPxPlace(c, v)))
+        : h('span', { 'data-tip': 'Outputs start|In order: each output after the one before. Start typed: each output\'s first universe on its line (ENTTEC Pixelator).' },
+          seg([['order', 'In order'], ['start', 'Start typed']], uniPlace, v => setUniPlace(c, v))),
+      ordered ? h('span', null, 'from') : h('span', { class: 'note' }, 'each output\'s start on its line'),
+      ordered && !ddp ? spinNum(U, 'v', { int: true, min: off, max: 32767 + off, prefix: 'U', aria: 'Start universe', onCommit: onStruct }) : null,
+      ordered ? spinNum(run, 'v', { int: true, min: 1, max: 512, prefix: 'ch', aria: 'Start channel', onCommit: onStruct }) : null,
+    ));
+  }
+  const coach = patchHint(c);
+  if (coach) edit.append(coach);
+  if (patchConflicts.length) edit.append(h('div', { class: 'conflict' }, (usesDdp() || /share channels/.test(patchConflicts[0]) ? 'Clash: ' : 'Universe clash: ') + patchConflicts[0] + (patchConflicts.length > 1 ? ` (+${patchConflicts.length - 1} more)` : '')));
+  if (c.mode === 'manual') { manualPatch(edit, c); return; }
   const folds = ui.foldOuts || (ui.foldOuts = new Set());
-  const foldAll = shut => { c.chains.forEach((_, o) => { const k = c.id + ':' + o; shut ? folds.add(k) : folds.delete(k); }); renderDock(); };
-  edit.append(h('div', { class: 'outbar' },
-    h('span', { style: { flex: 1 } }),
-    h('button', { class: 'btn sm', type: 'button', onclick: () => foldAll(true) }, 'Fold all'),
-    h('button', { class: 'btn sm', type: 'button', onclick: () => foldAll(false) }, 'Unfold all')));
   const outs = h('div', { class: 'outs' });
   c.chains.forEach((chain, o) => {
     const info = (c._outs && c._outs[o]) || Object.assign({ pixels: 0, overflow: 0, ch: 0 }, ctrlOuts(c)[o]);
     const usedU = Math.ceil(info.ch / 512), key = c.id + ':' + o, n = chain.filter(fxById).length;
     // how full it is: its pixels in Pixels mode, else its channels
     const pct = Math.min(100, info.px ? info.pixels / info.px * 100 : info.ch / (info.upo * 512) * 100);
-    const usage = h('div', { class: 'usage' + (info.overflow ? ' ovf' : pct > 92 ? ' full' : '') },
+    const usage = h('div', { class: 'usage' + (info.overflow ? ' ovf' : '') },
       h('div', { class: 'bar' }, h('i', { style: { width: (info.overflow ? 100 : pct) + '%' } })),
       h('div', { class: 'lbl' }, h('span', null, info.px ? `${fmtN(info.pixels)}/${fmtN(info.px)} px` : `${fmtN(info.pixels)} px`), h('span', null, info.overflow ? `${info.overflow} px over` : ddp ? `${fmtN(info.ch - info.start)} ch` : `${usedU}/${info.upo} U`)));
-    const head = h('div', { class: 'outhead', title: 'Click to fold or unfold. Drop fixtures here to add them at the end.' },
-      h('span', { class: 'fold' }, folds.has(key) ? '▸' : '▾'),
+    const head = h('div', { class: 'outhead' + (c.mode === 'universes' ? ' uni' : ''), title: 'Click to fold · drop fixtures here' },
+      h('span', { class: 'fold' + (folds.has(key) ? ' shut' : '') }, icon('chev')),
       h('span', { class: 'on' }, 'OUT ' + (o + 1)),
-      outSpan(c, info),
-      h('span', { class: 'sum' }, n ? `${n} fixture${n === 1 ? '' : 's'} · ${fmtN(info.ch)} ch` : 'empty'),
+      // Universes: where it starts typed here, where it ends said after; Pixels: where it starts and ends, worked out
+      c.mode === 'universes' ? outControls(c, o, true) : outSpan(c, info),
+      h('span', { class: 'omid' }, outControls(c, o), h('span', { class: 'sum' }, (c.mode === 'universes' && !ddp ? `to ${chLabel(addrOf(info, Math.max(info.start, info.end - 1)), c, ' ')} · ` : '') + (n ? `${n} fixture${n === 1 ? '' : 's'} · ${fmtN(info.ch)} ch` : 'empty'))),
       usage);
     head.addEventListener('click', () => { folds.has(key) ? folds.delete(key) : folds.add(key); renderDock(); });
     const list = h('div', { class: 'outlist' });
-    chain.forEach((fid, k) => {
-      const fx = fxById(fid);
-      if (!fx) return;
-      const p = fx._patch;
-      let ad = '—';
-      if (p && p.first >= 0) {
-        const a = addrOf(p.base, p.first), b = addrOf(p.base, p.last);
-        ad = ddp ? `ch ${a.u * 512 + a.ch}–${b.u * 512 + b.ch}` : a.u === b.u ? `U${uniLabel(a.u, c)} · ch ${a.ch}–${b.ch}` : `U${uniLabel(a.u, c)}.${a.ch} – U${uniLabel(b.u, c)}.${b.ch}`;
-      }
-      if (p && p.overflow) ad = p.first >= 0 ? `${ad} · ${p.overflow} px over` : `${p.overflow} px don't fit`;
-      const mv = (txt, d, off, label) => h('button', { type: 'button', disabled: off, title: label, 'aria-label': `${label}: ${fx.name}`, onclick: e => { e.stopPropagation(); moveOnOutput([fid], d); } }, txt);
-      const row = h('div', { class: 'prow' + (ui.sel.has(fid) ? ' sel' : '') + (p && p.overflow ? ' ovf' : ''), draggable: true, 'data-id': fid, 'data-name': fx.name.toLowerCase(),
-        title: `${fx.name} · ${pixelCount(fx)} px ${fx.order}${p && p.first >= 0 ? '\n' + addrText(p) : ''}${p && p.overflow ? `\n${p.overflow} pixels overflow` : ''}\n↑ ↓ or Alt ↑ ↓ move it on the output; drag to reorder` },
-        h('span', { class: 'pgrip', 'aria-hidden': 'true' }), h('span', { class: 'ix' }, k + 1), h('span', { class: 'tag', style: { background: fxTag(fx) || 'transparent' } }), h('span', { class: 'nm' }, fx.name),
-        h('span', { class: 'px' }, pixelCount(fx) + ' px'), h('span', { class: 'ad' }, ad),
-        h('span', { class: 'mv' }, mv('↑', -1, k === 0, 'Move earlier'), mv('↓', 1, k === chain.length - 1, 'Move later')),
-        h('button', { class: 'x', type: 'button', title: 'Unpatch', 'aria-label': 'Unpatch ' + fx.name, onclick: e => { e.stopPropagation(); unassign(fid); markPatch(); commit(); renderRight(); } }, icon('x')));
-      row.addEventListener('click', e => { if (e.shiftKey || e.metaKey || e.ctrlKey) ui.sel.has(fid) ? ui.sel.delete(fid) : ui.sel.add(fid); else ui.sel = new Set([fid]); onSelection(); });
-      onRightClick(row, e => chipMenu(e, fid, c, o));
-      row.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', 'fx:' + (ui.sel.has(fid) ? chain.filter(id => ui.sel.has(id)) : [fid]).join(',')); e.dataTransfer.effectAllowed = 'move'; row.classList.add('dragging'); });
-      row.addEventListener('dragend', () => row.classList.remove('dragging'));
-      row.addEventListener('dragover', () => { $$('.prow.dropat', outs).forEach(x => x.classList.remove('dropat')); row.classList.add('dropat'); });
-      list.append(row);
-    });
+    chain.forEach((fid, k) => { if (fxById(fid)) list.append(patchRow(c, fid, k, chain, o, outs)); });
     if (!n) list.append(h('div', { class: 'ph' }, 'Drop fixtures here, or right-click a fixture → Patch to'));
     const rowEl = h('div', { class: 'outrow' + (folds.has(key) ? ' shut' : ''), 'data-key': key }, head, list);
     rowEl.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; rowEl.classList.add('drop'); });
-    rowEl.addEventListener('dragleave', e => { if (!rowEl.contains(e.relatedTarget)) { rowEl.classList.remove('drop'); $$('.prow.dropat', rowEl).forEach(x => x.classList.remove('dropat')); } });
+    rowEl.addEventListener('dragleave', e => { if (!rowEl.contains(e.relatedTarget)) { rowEl.classList.remove('drop'); $$('.prow.dropat, .prow.dropafter', rowEl).forEach(x => x.classList.remove('dropat', 'dropafter')); } });
     rowEl.addEventListener('drop', e => {   // onto a fixture: before it; anywhere else on the output: at the end
-      e.preventDefault(); rowEl.classList.remove('drop'); $$('.prow.dropat', rowEl).forEach(x => x.classList.remove('dropat'));
+      e.preventDefault(); rowEl.classList.remove('drop'); $$('.prow.dropat, .prow.dropafter', rowEl).forEach(x => x.classList.remove('dropat', 'dropafter'));
       const d = e.dataTransfer.getData('text/plain');
       if (!d.startsWith('fx:')) return;
       const ids = d.slice(3).split(',').filter(fxById);
       const target = e.target.closest('.prow');
+      // onto a fixture's upper half: before it; its lower half: after it (after the last: at the end)
+      const tr = target && target.getBoundingClientRect(), below = tr && e.clientY > tr.top + tr.height / 2;
       flipRows('#dockBody .prow', () => {
-        let idx = target ? chain.indexOf(target.dataset.id) : -1;
+        let idx = target ? chain.indexOf(target.dataset.id) + (below ? 1 : 0) : -1;
+        if (idx >= chain.length) idx = -1;
         for (const id of ids) { if (id === (target && target.dataset.id)) continue; assign(id, c, o, idx); if (idx >= 0) idx = chain.indexOf(id) + 1; }
         commit(); renderRight();
       }, ids);
+      pixelTypeCheck(ids, c);
     });
     outs.append(rowEl);
   });
   edit.append(outs);
+}
+// A fixture's row on an output (o) or on a manual controller (o null: no moving up or down, its order is its address)
+function patchRow(c, fid, k, chain, o, outs) {
+  const fx = fxById(fid), ddp = isDdp(c);
+  const p = fx._patch;
+  let ad = '—';
+  if (p && p.first >= 0) {
+    const a = addrOf(p, p.first), b = addrOf(p, p.last);
+    ad = ddp ? `ch ${a.u * 512 + a.ch}–${b.u * 512 + b.ch}` : a.u === b.u ? `U${uniLabel(a.u, c)} · ch ${a.ch}–${b.ch}` : `U${uniLabel(a.u, c)}.${a.ch} – U${uniLabel(b.u, c)}.${b.ch}`;
+  }
+  if (p && p.overflow) ad = p.first >= 0 ? `${ad} · ${p.overflow} px over` : `${p.overflow} px don't fit`;
+  if (fx._clash) ad += ` · shares channels with ${fx._clash.name}`;
+  // Manual: the fixture's start typed on its row (universe and channel, each with ▴ ▾), where it ends beside them
+  let addrEls = null;
+  if (o === null) {
+    const off = uniOff(c);
+    const redo = () => { markPatch(); ensurePatch(); if (fx._clash) toast(`${fx.name} now shares channels with ${fx._clash.name}.`, 'warn'); commit(); renderRight(); };
+    const cur = () => fx.addr || (p && p.first >= 0 ? addrOf(p, p.first) : { u: c.startUniverse, ch: 1 });
+    const put = (u, ch) => { manualPin(c); fx.addr = { u: clamp(u, 0, MANUAL_UNIS - 1), ch: clamp(ch, 1, 512) }; };
+    const U = { get v() { return cur().u + off; }, set v(x) { put(x - off, cur().ch); } };
+    const CH = ddp ? { get v() { const a = cur(); return a.u * 512 + a.ch; }, set v(x) { put(Math.floor((x - 1) / 512), (x - 1) % 512 + 1); } }
+      : { get v() { return cur().ch; }, set v(x) { put(cur().u, x); } };
+    const end = p && p.first >= 0 ? addrOf(p, p.last) : null;
+    ad = fx._clash ? `shares channels with ${fx._clash.name}` : p && p.overflow ? ad : end ? '→ ' + (ddp ? `ch ${end.u * 512 + end.ch}` : `U${uniLabel(end.u, c)}.${end.ch}`) : '';
+    addrEls = h('span', { class: 'maddr' },
+      ddp ? null : spinNum(U, 'v', { int: true, min: off, max: MANUAL_UNIS - 1 + off, prefix: 'U', aria: fx.name + ' universe', onCommit: redo }),
+      spinNum(CH, 'v', { int: true, min: 1, max: ddp ? MANUAL_UNIS * 512 : 512, prefix: 'ch', aria: fx.name + ' channel', onCommit: redo }));
+  }
+  const mv = (txt, d, off, label) => h('button', { type: 'button', disabled: off, title: label, 'aria-label': `${label}: ${fx.name}`, onclick: e => { e.stopPropagation(); moveOnOutput([fid], d); } }, txt);
+  const row = h('div', { class: 'prow' + (o === null ? ' man' : '') + (ui.sel.has(fid) ? ' sel' : '') + (p && p.overflow ? ' ovf' : '') + (fx._clash ? ' ovf' : ''), draggable: true, 'data-id': fid, 'data-name': fx.name.toLowerCase(),
+    title: `${fx.name} · ${pixelCount(fx)} px ${fx.order}${p && p.first >= 0 ? '\n' + addrText(p) : ''}${p && p.overflow ? `\n${p.overflow} pixels overflow` : ''}\n↑ ↓ or Alt ↑ ↓ move it on the output; drag to reorder` },
+    h('span', { class: 'pgrip', 'aria-hidden': 'true' }), h('span', { class: 'ix' }, k + 1), h('span', { class: 'tag', style: { background: fxTag(fx) || 'transparent' } }), h('span', { class: 'nm' }, fx.name),
+    h('span', { class: 'px' }, pixelCount(fx) + ' px'), addrEls, h('span', { class: 'ad' }, ad),
+    h('span', { class: 'mv' }, o === null ? null : mv('↑', -1, k === 0, 'Move earlier'), o === null ? null : mv('↓', 1, k === chain.length - 1, 'Move later')),
+    h('button', { class: 'x', type: 'button', title: 'Unpatch', 'aria-label': 'Unpatch ' + fx.name, onclick: e => { e.stopPropagation(); unassign(fid); markPatch(); commit(); renderRight(); } }, icon('x')));
+  // typing or clicking the arrows in the address neither drags the row nor changes the selection
+  if (addrEls) {
+    addrEls.addEventListener('pointerdown', () => { row.draggable = false; });
+    addrEls.addEventListener('focusout', () => { row.draggable = true; });
+    addrEls.addEventListener('pointerup', () => { if (!addrEls.contains(addrEls.ownerDocument.activeElement)) row.draggable = true; });
+  }
+  row.addEventListener('click', e => { if (addrEls && addrEls.contains(e.target)) return; if (e.shiftKey || e.metaKey || e.ctrlKey) ui.sel.has(fid) ? ui.sel.delete(fid) : ui.sel.add(fid); else ui.sel = new Set([fid]); onSelection(); });
+  onRightClick(row, e => chipMenu(e, fid, c, o === null ? 0 : o));
+  row.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', 'fx:' + (ui.sel.has(fid) ? chain.filter(id => ui.sel.has(id)) : [fid]).join(',')); e.dataTransfer.effectAllowed = 'move'; row.classList.add('dragging'); });
+  row.addEventListener('dragend', () => row.classList.remove('dragging'));
+  // the line where it would go: above this fixture, or below it over its lower half
+  if (o !== null) row.addEventListener('dragover', e => {
+    const r = row.getBoundingClientRect(), below = e.clientY > r.top + r.height / 2;
+    $$('.prow.dropat, .prow.dropafter', outs).forEach(x => { if (x !== row) x.classList.remove('dropat', 'dropafter'); });
+    row.classList.toggle('dropat', !below); row.classList.toggle('dropafter', below);
+  });
+  return row;
+}
+// A number with ▴ ▾ beside it (Shift: ×10); the arrow keys step it too
+function spinNum(obj, key, o) {
+  const el = numInput(obj, key, o), inp = el.tagName === 'INPUT' ? el : el.querySelector('input');
+  const step = (n, e) => { obj[key] = clamp(Math.round(obj[key] + n * (e && e.shiftKey ? 10 : 1)), o.min ?? -1e9, o.max ?? 1e9); inp.value = fmtV(obj[key]); if (o.onCommit) o.onCommit(); };
+  const arrow = (n, txt) => h('button', { class: 'btn', type: 'button', tabindex: -1, 'aria-label': (n > 0 ? 'Up' : 'Down') + ': ' + (o.aria || ''), onclick: e => step(n, e) }, txt);
+  return h('span', { class: 'spinnum' }, el, h('div', { class: 'spin' }, arrow(1, '▴'), arrow(-1, '▾')));
 }
 // One place earlier (-1) or later (+1) on their outputs. Several on one output move together, keeping their order;
 // one already at the start (or end) stays.
@@ -972,8 +1051,46 @@ function addNodeAsController(n, asked) {
   project.controllers.push(c);
   ui.selCtrl = c.id; ui.selCtrls = new Set(); ui.dockTab = 'patch';
   markPatch(); commit(); updateDiscoveryUI();   // its row now offers Refresh
-  toast(`Added ${c.name} on ${protoName(c)}. Set its outputs to match how the device is set up.`);
-  if (isAdvatek(n) && !isSacn(c)) advatekNote(u);
+  const mk = makerOf(n);
+  if (!mk) { toast(`Added ${c.name} on ${protoName(c)}. Set its outputs to match how the device is set up.`); return; }
+  // a maker we know: set it up as its devices are, asking which way when they can be set more than one way
+  c.maker = mk.id;
+  if (mk.from1 && !isSacn(c)) c.from1 = true;
+  const from1 = c.from1 ? ` Universes counted from 1, as ${mk.name} shows them (Output settings).` : '';
+  const apply = o => { Object.assign(c, o.set); ensureChains(c); markPatch(); commit(); renderRight(); toast(`${c.name}: ${o.label}. Set the outputs' counts as on the device.${from1}`); };
+  if (mk.ways.length === 1) { apply(mk.ways[0]); return; }
+  markPatch(); commit();
+  chooseBox(`${mk.name} found: how is it set up?`,
+    `Pick what ${c.name}'s own setup page says.` + (c.from1 ? ` ${mk.name} numbers universes from 1, so nouPix shows them that way too: change it in Output settings.` : ''),
+    mk.ways.map(o => ({ label: o.label, note: o.note, fn: () => apply(o) })));
+}
+// Makers whose devices nouPix sets up when Discovery adds one: the patch mode (asked when there are several ways), and
+// Advatek's counting from 1. A WLED is added by its own JSON (addWledAsController), by pixels only.
+const MAKERS = [
+  { id: 'advatek', name: 'Advatek', re: /pixlite|advatek/i, from1: true, ways: [
+    { label: 'Pix · Next ch', note: 'Automatic Sequential Channels on', set: { mode: 'pixels', pxPlace: undefined } },
+    { label: 'Pix · Man', note: 'Automatic Sequential Channels off: a start per output', set: { mode: 'pixels', pxPlace: 'typed' } },
+    { label: 'Unis', note: 'Universes per output', set: { mode: 'universes' } }] },
+  { id: 'enttec', name: 'ENTTEC', re: /enttec|pixelator|\bocto\b/i, ways: [
+    { label: 'Unis', note: 'Universes per output, each with its first universe', set: { mode: 'universes' } },
+    { label: 'Pix · Next uni', note: 'Pixels per output', set: { mode: 'pixels', pxPlace: 'universe' } }] },
+  { id: 'digidot', name: 'DiGidot', re: /digidot/i, oem: 0x0FD0, ways: [{ label: 'Unis', note: '', set: { mode: 'universes' } }] },
+  { id: 'madrix', name: 'MADRIX', re: /madrix|nebula|luna\b|stella\b/i, ways: [{ label: 'Unis', note: '', set: { mode: 'universes' } }] },
+  { id: 'spinode', name: 'SpiNode', re: /spinode|visual productions/i, ways: [{ label: 'Pix', note: '', set: { mode: 'pixels' } }] }
+];
+const makerOf = n => MAKERS.find(m => (m.oem && n.oem === m.oem) || m.re.test(`${n.shortName || ''} ${n.longName || ''}`));
+// A short window offering a few ways, each a button with a word under it; Esc or a click outside leaves things as they are
+function chooseBox(title, text, options) {
+  const D = uiDocNow(), close = () => { bg.remove(); D.removeEventListener('keydown', key, true); };
+  const key = e => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal note choose', role: 'dialog', 'aria-label': title },
+      h('header', null, title), h('div', { class: 'mb' }, h('p', null, text),
+        h('div', { class: 'ways' }, ...options.map(o => h('button', { class: 'btn way', type: 'button', onclick: () => { close(); o.fn(); } }, h('b', null, o.label), o.note ? h('small', null, o.note) : null)))),
+      h('footer', null, h('button', { class: 'btn', type: 'button', onclick: close }, 'Later'))));
+  D.body.append(bg);
+  D.addEventListener('keydown', key, true);
+  bg.querySelector('.btn.way').focus();
 }
 // Advatek's devices (PixLite…) and their Advatek Assistant count Art-Net universes from 1, where Art-Net, and nouPix,
 // count from 0: worth saying when one is added, before its outputs are matched to the patch. (On sACN both count from 1.)
@@ -995,6 +1112,7 @@ function addWledAsController(n, same) {
   let c = same;
   if (c) Object.assign(c, set);
   else { c = newController(Object.assign({ name: n.shortName || n.ip, ip: n.ip }, set)); project.controllers.push(c); }
+  c.maker = 'wled';   // a WLED lays its LEDs out in a row: by pixels only
   ensureChains(c);
   if (n.universes.length) c.discovered = n.universes.slice();
   ui.selCtrl = c.id; ui.selCtrls = new Set(); ui.dockTab = 'patch';
@@ -1014,9 +1132,164 @@ function universeList(u) {
   return parts.join(', ');
 }
 
+// What a controller's mode is for, told on pointing at the i beside the patch mode (a click opens the help)
+function patchModeTip(c) {
+  const what = PATCH_MODE_TIPS[c.mode];
+  return `${what[0]}|${what[1]} Click for which mode fits your device.`;
+}
+// The three steps, until the user says they've got it
+function patchHint(c) {
+  return patchCoach();
+}
+const PATCH_MODE_TIPS = {
+  universes: ['Universes per output', 'Type how many universes each output has and where each starts (universe and channel), as on the device\'s page, then drag fixtures onto the outputs.'],
+  pixels: ['Pixels per output', 'Type the pixels each output has, as on the device\'s page: nouPix works out the universes. Then drag fixtures onto the outputs.'],
+  manual: ['Manual', 'No outputs: drag fixtures onto this controller; each takes the next free address, which you change in the Inspector.']
+};
+function patchCoach() {
+  if (ui.patchHelped) return null;
+  const coach = h('div', { class: 'pcoach' },
+    h('div', null, h('h4', null, 'Three ways to patch'),
+      h('ol', null,
+        h('li', null, 'Set each controller up as the device\'s own page is: ', h('b', null, 'Patch mode'), ' universes, pixels, or manual.'),
+        h('li', null, 'Drag fixtures from the list onto an output, or onto a manual controller (in the list here too).'),
+        h('li', null, 'Fine-tune one in the Inspector: its output, its order, or its own universe and channel.'))),
+    h('div', { class: 'acts' },
+      h('button', { class: 'btn sm', type: 'button', onclick: () => { ui.patchHelped = true; savePrefs(); renderDock(); } }, 'Got it'),
+      h('button', { class: 'btn sm', type: 'button', onclick: patchHelp }, 'How patching works')));
+  return coach;
+}
+// The rows of the help: what the device's page looks like, and the mode that matches it
+// The three patch modes, as the help tells them: what you set, what nouPix does, where we've seen them
+const PATCH_WAYS = [
+  ['byUni', 'Unis', 'Auto-patch by universes.', 'Set how many universes each output has and where each starts (universe and channel). Drag fixtures onto an output: nouPix patches them one after another.', 'For example: DiGidot, ENTTEC Pixelator and Octo, MADRIX NEBULA'],
+  ['byPx', 'Pix', 'Auto-patch by pixels.', 'Set how many pixels each output has: nouPix works out the universes. Each output starts right after the last (Next ch), on a new universe (Next uni) or where you type it (Man). Drag fixtures onto an output: nouPix patches them one after another.', 'For example: Advatek PixLite, WLED, Visual Productions SpiNode'],
+  ['byHand', 'Man', 'Full control.', 'No outputs. Drag fixtures onto the controller: each takes the next free address. Then set any fixture\'s universe and channel yourself, in the Inspector.', 'For advanced users: large rigs over many universes, an existing patch to copy over, DMX fixtures behind a node (ENTTEC ODE, DMXking eDMX).']
+];
+function patchHelp() {
+  const D = uiDocNow();
+  const close = () => bg.remove();
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal phelp', role: 'dialog', 'aria-label': 'Patch mode' },
+      h('header', null, 'Patch mode'),
+      h('div', { class: 'mb' },
+        ...PATCH_WAYS.map(([ic, word, what, how, seen]) => h('div', { class: 'pmode' },
+          h('span', { class: 'pm', html: lineIcon(ic) + `<b>${word}</b>` }),
+          h('div', null, h('p', null, h('b', null, what), ' ', how), h('p', { class: 'seen' }, seen)))),
+        h('p', { class: 'note' }, 'Set the mode as the device\'s own setup page is. A device that numbers universes from 1 (Advatek): Output settings → Universe numbers.')),
+      h('footer', null, h('button', { class: 'btn primary', type: 'button', onclick: close }, 'OK'))));
+  D.body.append(bg);
+  bg.querySelector('.btn.primary').focus();
+}
+// On an output's line: its own count (Same for all off), its first universe, its universes, or its start (typed)
+function outControls(c, o, startOnly) {
+  const off = uniOff(c), lab = t => h('span', { class: 'olab' }, t), wrap = (...k) => { const el = h('span', { class: 'octl' }, ...k); el.addEventListener('click', e => e.stopPropagation()); return el; };
+  const redo = () => { markPatch(); commit(); };
+  const kids = [];
+  const L = ctrlOuts(c)[o];
+  if (c.mode === 'universes' && c.uniPlace === 'each') {
+    const box = { get v() { return L.list ? L.list.map(u => u + off).join(', ') : Array.from({ length: L.upo }, (_, k) => L.base + k + off).join(', '); }, set v(t) {
+      const l = String(t).split(/[\s,;]+/).filter(Boolean).map(Number).filter(n => Number.isInteger(n) && n >= off && n - off <= 32767).map(n => n - off).slice(0, 64);
+      c.outUnis = c.outUnis || []; c.outUnis[o] = l;
+    } };
+    const inp = textInput(box, 'v', { aria: `OUT ${o + 1} universes`, onCommit: redo });
+    inp.classList.add('ulist');
+    kids.push(lab('U'), inp);
+  } else if (c.same === false) {
+    const px = c.mode === 'pixels', arr = px ? 'pxOuts' : 'upos';
+    const cnt = { get v() { return px ? pxOutOf(c, o) : upoOf(c, o); }, set v(x) { c[arr] = c[arr] || []; while (c[arr].length <= o) c[arr].push(px ? c.pxOut : c.upo); c[arr][o] = x; } };
+    kids.push(numInput(cnt, 'v', { int: true, min: 1, max: px ? 10000 : 64, aria: `OUT ${o + 1} ${px ? 'pixels' : 'universes'}`, onCommit: redo }), lab(px ? 'px' : 'U'));
+  }
+  if (c.mode === 'universes' && startOnly) {
+    kids.length = 0;   // only its start: its count goes beside the fixtures
+    // where it starts: output 1 is the controller's start; another's typed here, the outputs after it following it
+    const at = () => { c.uniAt = c.uniAt || []; if (!c.uniAt[o]) c.uniAt[o] = { u: L.base, ch: L.start + 1 }; return c.uniAt[o]; };
+    const u = o === 0 ? { get v() { return c.startUniverse + off; }, set v(x) { c.startUniverse = x - off; } } : { get v() { return L.base + off; }, set v(x) { at().u = x - off; } };
+    const ch = o === 0 ? { get v() { return c.startCh; }, set v(x) { c.startCh = x; } } : { get v() { return L.start + 1; }, set v(x) { at().ch = x; } };
+    kids.push(spinNum(u, 'v', { int: true, min: off, max: 32767 + off, prefix: 'U', aria: `OUT ${o + 1} start universe`, onCommit: redo }),
+      spinNum(ch, 'v', { int: true, min: 1, max: 512, prefix: 'ch', aria: `OUT ${o + 1} start channel`, onCommit: redo }));
+    return wrap(...kids);
+  }
+  if (startOnly) return null;
+  if (c.mode === 'pixels' && c.pxPlace === 'typed') {
+    const at = () => { c.outAt = c.outAt || []; if (!c.outAt[o]) c.outAt[o] = { u: L.base, ch: L.start + 1 }; return c.outAt[o]; };
+    const u = { get v() { return L.base + off; }, set v(x) { at().u = x - off; } }, ch = { get v() { return L.start + 1; }, set v(x) { at().ch = x; } };
+    kids.push(lab('U'), numInput(u, 'v', { int: true, min: off, max: 32767 + off, aria: `OUT ${o + 1} start universe`, onCommit: redo }),
+      lab('ch'), numInput(ch, 'v', { int: true, min: 1, max: 512, aria: `OUT ${o + 1} start channel`, onCommit: redo }));
+    if (o > 0) kids.push(
+      h('button', { class: 'gbtn', type: 'button', 'data-tip': `Follow|Right after OUT ${o}.`, onclick: () => outAfterPrevious(c, o, false) }, 'Follow'),
+      h('button', { class: 'gbtn', type: 'button', 'data-tip': `New universe|After OUT ${o}, on channel 1.`, onclick: () => outAfterPrevious(c, o, true) }, 'New U'));
+  }
+  return kids.length ? wrap(...kids) : null;
+}
+// Manual: the controller's fixtures as the outputs show theirs, a block per universe they start in (its head like an
+// output's: where its channels start and end, how many fixtures, how full), each row as on an output; a fixture's
+// universe and channel are set in the Inspector. Fixtures dropped on a universe take the next free channels there,
+// anywhere else the next free address.
+function manualPatch(edit, c) {
+  const chain = (c.chains[0] || []).filter(fxById);
+  const at = id => { const p = fxById(id)._patch; return p && p.first >= 0 ? p.first : 1e12; };
+  const sorted = chain.slice().sort((a, b) => at(a) - at(b));
+  // one list, the fixtures in the order of their addresses, each with its own universe and channel on its row
+  const list = h('div', { class: 'outlist' });
+  sorted.forEach((fid, k) => list.append(patchRow(c, fid, k, sorted, null)));
+  list.append(h('div', { class: 'ph' }, sorted.length ? 'Drop more fixtures here: each takes the next free address.' : 'Drag fixtures here: each takes the next free address. Then type its universe and channel.'));
+  const box = h('div', { class: 'outs' }, h('div', { class: 'outrow mlist1' }, list));
+  dropFixtures(box, ids => { for (const id of ids) assign(id, c, 0); commit(); renderRight(); ensurePatch();
+    const f = fxById(ids[0]); toast(`${ids.length > 1 ? ids.length + ' fixtures' : f.name} on ${c.name}${f && f.addr ? ', from ' + chLabel(f.addr, c, ' ') : ''}: the next free address.`); });
+  edit.append(box);
+}
+// Fixtures patched onto a controller set to pixels of another kind (RGB onto RGBW…): the colours would shift along the
+// output, so a short window asks which to change, the fixtures or the controller
+const PX_TYPES = { 1: 'Mono', 2: 'Tunable white', 3: 'RGB', 4: 'RGBW', 6: 'RGB 16-bit', 8: 'RGBW 16-bit' };
+function orderFor(order, n) {   // a colour order of n colours, as near the one it had as there is
+  if (n === 1) return 'W';
+  if (n === 2) return isTunable(order) ? order : 'WC';
+  if (n === 4) return order.length === 4 ? order : !isTunable(order) && ORDERS.includes(order + 'W') ? order + 'W' : 'RGBW';
+  const o = isTunable(order) ? '' : order.replace('W', '');
+  return o.length === 3 ? o : 'RGB';
+}
+function pixelTypeCheck(ids, c) {
+  if (!c || c.mode !== 'pixels') return;
+  const odd = ids.map(fxById).filter(f => f && BPP(f) !== c.chPx);
+  if (!odd.length) return;
+  const kinds = [...new Set(odd.map(BPP))], want = PX_TYPES[c.chPx] || c.chPx + ' ch';
+  const name = odd.length === 1 ? odd[0].name : `${odd.length} fixtures`;
+  const theirs = kinds.length === 1 ? PX_TYPES[kinds[0]] || kinds[0] + ' ch' : 'of other kinds';
+  const D = uiDocNow(), close = () => bg.remove();
+  const toFixtures = () => {
+    const bits = c.chPx >= 6 ? 16 : 8, n = c.chPx / (bits === 16 ? 2 : 1);
+    for (const f of odd) { f.order = orderFor(f.order, n); f.bits = bits; }
+    markPatch(); commit(); renderRight(); close();
+    toast(`${name} set to ${want}.`);
+  };
+  const toCtrl = () => { c.chPx = kinds[0]; markPatch(); commit(); renderRight(); close(); toast(`${c.name} set to ${PX_TYPES[kinds[0]]} pixels.`); };
+  const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
+    h('div', { class: 'modal note', role: 'dialog', 'aria-label': 'Pixel type' },
+      h('header', null, 'Check the pixel type'),
+      h('div', { class: 'mb' }, h('p', null, `${name} ${odd.length === 1 ? 'is' : 'are'} ${theirs}, but ${c.name} is set to ${want} pixels. If they don't match, the colours shift along the output.`)),
+      h('footer', null,
+        h('button', { class: 'btn', type: 'button', onclick: close }, 'Leave it'),
+        kinds.length === 1 && PX_TYPES[kinds[0]] ? h('button', { class: 'btn', type: 'button', onclick: toCtrl }, `Controller to ${PX_TYPES[kinds[0]]}`) : null,
+        h('button', { class: 'btn primary', type: 'button', onclick: toFixtures }, `Fixture${odd.length > 1 ? 's' : ''} to ${want}`))));
+  D.body.append(bg);
+  bg.querySelector('.btn.primary').focus();
+}
+// A place fixtures can be dropped on (dragged from the list or the Patch tab)
+function dropFixtures(el, onDrop) {
+  el.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; el.classList.add('drop'); });
+  el.addEventListener('dragleave', e => { if (!el.contains(e.relatedTarget)) el.classList.remove('drop'); });
+  el.addEventListener('drop', e => {
+    e.preventDefault(); e.stopPropagation(); el.classList.remove('drop');
+    const d = e.dataTransfer.getData('text/plain');
+    if (!d.startsWith('fx:')) return;
+    const ids = d.slice(3).split(',').filter(fxById);
+    if (ids.length) onDrop(ids);
+  });
+}
 // Where an output starts and ends: universe and channel of its first and last channel, on two short lines
 function outSpan(c, L) {
-  const a = addrOf(L.base, L.start), b = addrOf(L.base, Math.max(L.start, (L.end ?? L.upo * 512) - 1));
+  const a = addrOf(L, L.start), b = addrOf(L, Math.max(L.start, (L.end ?? L.upo * 512) - 1));
   if (isDdp(c)) {
     const x = a.u * 512 + a.ch, y = b.u * 512 + b.ch;
     return h('span', { class: 'ur', title: `Channels ${x} to ${y} of what ${c.name} receives over DDP` }, h('span', { class: 'from' }, h('b', null, 'DDP'), ' ch ' + x), h('span', { class: 'to' }, ' ch ' + y));
