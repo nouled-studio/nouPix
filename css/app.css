@@ -534,7 +534,7 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .prow.dragging { opacity: .4; }
 .prow.dropat { box-shadow: 0 -3px 0 var(--accent); }
 .prow.dropafter { box-shadow: 0 3px 0 var(--accent); }
-.prow.man { grid-template-columns: 8px 18px 8px minmax(60px, 1fr) 44px auto 190px 0 20px; }
+.prow.man { grid-template-columns: 8px 18px 8px minmax(40px, 1fr) 44px auto minmax(0, 190px) 0 20px; }
 .prow .ix { font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-align: right; }
 .prow .tag { width: 8px; height: 8px; border-radius: 0; }
 .prow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

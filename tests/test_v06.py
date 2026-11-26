@@ -197,15 +197,16 @@ with sync_playwright() as pw:
 
     # ---------- controller form
     ev("olm.ui.dockTab = 'patch'; olm.ui.selCtrl = olm.project.controllers[0].id; renderDock()")
-    labels = ev("[...document.querySelectorAll('.ctrl-fields .f > span')].map(e => e.textContent)")
-    check("short labels", "Universes" in labels and "Start uni" in labels and "Start ch" in labels, labels)
+    check("the controller's line: on, name, address, protocol, patch mode; the outputs' line under it",
+          pg.locator(".ctrl-fields .onsw").count() == 1 and pg.locator(".ctrl-fields button[aria-label='Universes']").count() == 1
+          and pg.locator("input[aria-label='Outputs']").count() == 1 and pg.locator("input[aria-label='OUT 1 start universe']").count() == 1)
     check("no Find box, no discovery note", pg.locator(".pfind").count() == 0 and pg.locator(".discovered").count() == 0)
     pg.click(".onsw"); check("the switch turns a controller off", ev("olm.project.controllers[0].enabled") is False)
     settle(); check("an output that is off sends nothing", ev("olm.universes().length > 0 && olm.universes().every(u => !u.enabled)"))
     pg.click(".onsw"); check("and on", ev("olm.project.controllers[0].enabled") is True)
     pg.uncheck("#ctrlSkip"); check("Skip ch 511–512 off: all 512 channels", ev("olm.project.controllers[0].split") is True)
     pg.check("#ctrlSkip")
-    pg.click(".btn.trash"); time.sleep(0.2)
+    pg.hover(".ctrl"); pg.click(".ctrl .cdel"); time.sleep(0.2)
     check("the bin asks first", ev("olm.project.controllers.length") == 1 and pg.locator(".modal:has-text('Delete')").count() == 1)
     pg.click(".modal button.danger"); time.sleep(0.2); check("Delete deletes", ev("olm.project.controllers.length") == 0)
     ev("undo()"); check("undo brings it back", ev("olm.project.controllers.length") == 1)
@@ -249,7 +250,7 @@ with sync_playwright() as pw:
     c = ev("olm.project.controllers.find(c => c.ip === '2.0.0.50')")
     check("Add as controller keeps what the device reported", c and c["discovered"] == [0, 1, 2] and c["startUniverse"] == 0, c)
     ev("$$('.modal-bg').forEach(m => m.remove())"); time.sleep(0.2)
-    check("the row shows the reported universes", pg.inner_text(".ctrl-fields .reported") == "U 0–2")
+    check("the universes it reported shown on pointing at its address", pg.get_attribute(".ctrl-fields .ipbox", "data-tip") == "Reported|U 0–2", pg.get_attribute(".ctrl-fields .ipbox", "data-tip"))
 
     # ---------- the Channel monitor: its own window, like the MIDI window, from the Patch tab
     ev("olm.ui.dockTab = 'patch'; renderDock()"); time.sleep(0.1)

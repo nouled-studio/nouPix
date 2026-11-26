@@ -1176,7 +1176,7 @@ function patchHelp() {
         ...PATCH_WAYS.map(([ic, word, what, how, seen]) => h('div', { class: 'pmode' },
           h('span', { class: 'pm', html: lineIcon(ic) + `<b>${word}</b>` }),
           h('div', null, h('p', null, h('b', null, what), ' ', how), h('p', { class: 'seen' }, seen)))),
-        h('p', { class: 'note' }, 'Set the mode as the device\'s own setup page is. If the device numbers universes from 1, set Counts from to 1.')),
+        h('p', { class: 'note' }, 'Set the mode as the device\'s own setup page is. A device that numbers universes from 1 (Advatek): Output settings → Universe numbers.')),
       h('footer', null, h('button', { class: 'btn primary', type: 'button', onclick: close }, 'OK'))));
   D.body.append(bg);
   bg.querySelector('.btn.primary').focus();

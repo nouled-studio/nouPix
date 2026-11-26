@@ -2,7 +2,7 @@
 # its old one behind no more, a device that really answers on two addresses keeps both, devices without a MAC are
 # never joined, and a Discover lets go of the devices on the networks it asked that didn't answer it (others stay).
 # Checked in the bridge itself, then end to end: a stand-in PixLite sends ArtPollReplies to the bridge, which tells
-# the page. And the note when an Advatek device is added on Art-Net (its Assistant counts universes from 1).
+# the page. And an Advatek added: asked how it is set up, counting universes from 1 on Art-Net.
 import os, sys, time, socket
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -88,22 +88,30 @@ try:
               pg.locator(".modal .nodes").inner_text()[:200])
         pg.keyboard.press("Escape"); ev("document.querySelectorAll('.modal-bg').forEach(b => b.remove())")
 
-        # adding it on Art-Net: the note on Advatek's numbers
+        # adding it on Art-Net: asked how it is set up, counting universes from 1 as Advatek shows them
         ev("addNodeAsController(nodeDevices()[0])"); time.sleep(0.3)
-        note = pg.locator(".modal.note")
-        text = note.inner_text() if note.count() else ""
-        check("adding an Advatek device on Art-Net explains that its Assistant counts universes from 1",
-              note.count() == 1 and "Advatek counts universes from 1" in text and "subtract 1" in text and "0–11, 15–47" in text and "1–12, 16–48" in text, text)
-        pg.keyboard.press("Enter"); time.sleep(0.2)
-        check("OK or Enter closes it, the controller added on Art-Net from universe 0",
-              pg.locator(".modal.note").count() == 0 and ev("(() => { const c = olm.project.controllers.at(-1); return c.protocol + ' ' + c.ip + ' ' + c.startUniverse; })()") == "artnet 192.168.0.100 0")
+        box = pg.locator(".modal.choose")
+        text = box.inner_text() if box.count() else ""
+        ways = pg.locator(".modal.choose .way b").all_inner_texts()
+        check("adding an Advatek device on Art-Net asks how it is set up: Pix · Next ch, Pix · Man or Unis",
+              box.count() == 1 and [w.upper() for w in ways] == ["PIX · NEXT CH", "PIX · MAN", "UNIS"], (ways, text[:200]))
+        check("…and says it numbers universes from 1, shown so (Counts from 1, in Output settings)",
+              "numbers universes from 1" in text and "Output settings" in text and ev("olm.project.controllers.at(-1).from1") is True, text[:300])
+        pg.locator(".modal.choose .way").first.click(); time.sleep(0.3)
+        check("picking Pix · Next ch: by pixels, each output after the last, on Art-Net from universe 0",
+              pg.locator(".modal.choose").count() == 0 and ev("(() => { const c = olm.project.controllers.at(-1); return [c.protocol, c.ip, c.startUniverse, c.mode, c.pxPlace || 'channel', c.maker]; })()") == ["artnet", "192.168.0.100", 0, "pixels", "channel", "advatek"],
+              ev("(() => { const c = olm.project.controllers.at(-1); return [c.protocol, c.ip, c.startUniverse, c.mode, c.pxPlace, c.maker]; })()"))
         ev("addNodeAsController(nodeDevices()[0])"); time.sleep(0.3)
-        check("adding it again (Refresh) says nothing more", pg.locator(".modal.note").count() == 0 and ev("olm.project.controllers.filter(c => c.ip === '192.168.0.100').length") == 1,
-              (pg.locator(".modal.note").count(), ev("olm.project.controllers.map(c => c.ip)")))
+        check("adding it again (Refresh) asks nothing and keeps it as set", pg.locator(".modal.choose").count() == 0 and ev("olm.project.controllers.filter(c => c.ip === '192.168.0.100').length") == 1
+              and ev("olm.project.controllers.at(-1).mode") == "pixels", (pg.locator(".modal.choose").count(), ev("olm.project.controllers.map(c => c.ip)")))
         ev("olm.project.controllers = []; addNodeAsController(nodeDevices()[0], 'sacn')"); time.sleep(0.3)
-        check("on sACN (both count from 1) there is no note", pg.locator(".modal.note").count() == 0 and ev("olm.project.controllers[0].protocol") == "sacn")
+        check("on sACN (which counts from 1 anyway) it still asks the mode, without Counts from 1",
+              pg.locator(".modal.choose").count() == 1 and "numbers universes from 1" not in pg.locator(".modal.choose").inner_text()
+              and ev("olm.project.controllers[0].protocol") == "sacn" and not ev("olm.project.controllers[0].from1"))
+        pg.keyboard.press("Escape"); time.sleep(0.2)
+        check("Esc leaves it as added", pg.locator(".modal.choose").count() == 0 and ev("olm.project.controllers.length") == 1)
         ev("addNodeAsController({ ip: '10.0.0.5', shortName: 'Node', longName: 'Some node', universes: [0, 1] })"); time.sleep(0.3)
-        check("nor for another maker's device", pg.locator(".modal.note").count() == 0 and ev("olm.project.controllers.length") == 2)
+        check("another maker's device: nothing asked", pg.locator(".modal.choose, .modal.note").count() == 0 and ev("olm.project.controllers.length") == 2 and not ev("olm.project.controllers[1].maker"))
         check("no page errors", not errs, errs[:3])
         br.close()
 finally:
