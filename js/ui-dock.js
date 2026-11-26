@@ -727,9 +727,8 @@ function renderCtrlEditor(edit, c) {
       seg([['artnet', 'Art-Net'], ['sacn', 'sACN'], ['ddp', 'DDP']], c.protocol, v => { c.protocol = v; ensureChains(c); markPatch(); commit(); })),
     ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null);
   edit.append(devLine);
-  // how the device numbers universes, and whether a pixel may be split: beside where universes and channels are set
-  const odd = n => 512 % n !== 0;
-  const skipMatters = !ddp && (c.split || (px ? odd(c.chPx) : !c.chains.flat().length || c.chains.flat().some(id => { const g = fxById(id); return g && odd(BPP(g)); })));
+  // always there (DDP has no universes), so it doesn't come and go with the pixel type or the fixtures
+  const skipMatters = !ddp;
   // (how the device numbers universes, Counts from, is in Output settings)
   const numbering = () => [
     skipMatters ? h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
