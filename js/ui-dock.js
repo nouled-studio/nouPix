@@ -730,9 +730,8 @@ function renderCtrlEditor(edit, c) {
   // how the device numbers universes, and whether a pixel may be split: beside where universes and channels are set
   const odd = n => 512 % n !== 0;
   const skipMatters = !ddp && (c.split || (px ? odd(c.chPx) : !c.chains.flat().length || c.chains.flat().some(id => { const g = fxById(id); return g && odd(BPP(g)); })));
+  // (how the device numbers universes, Counts from, is in Output settings)
   const numbering = () => [
-    ddp || isSacn(c) ? null : h('span', { class: 'mf', 'data-tip': 'Counts from|How the device numbers universes. Only the display changes.' },
-      h('span', { class: 'ml' }, 'Counts from'), seg([['0', '0'], ['1', '1']], c.from1 ? '1' : '0', v => { if (v === '1') c.from1 = true; else delete c.from1; markPatch(); commit(); renderRight(); })),
     skipMatters ? h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
       h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')) : null];
   // 2. Patch mode: three icons, what each is told on pointing at it; the i opens the help
@@ -746,7 +745,7 @@ function renderCtrlEditor(edit, c) {
   // the mode, and how the device counts, on one line that stays put whatever is chosen below
   // the patch mode goes with the protocol, on the device's line; how the device counts at the end of the outputs' line
   devLine.append(patchBy);
-  if (manual) edit.append(h('div', { class: 'ctrl-line sent' }, h('span', { style: { flex: 1 } }), numbering()));
+  if (manual && skipMatters) edit.append(h('div', { class: 'ctrl-line sent' }, h('span', { style: { flex: 1 } }), numbering()));
   if (!manual) {
     // 3. the outputs as a sentence: 16 outputs × 400 px RGB, each its own
     // Same for all, ticked at first: one count for every output; off, each output's own on its line
@@ -843,9 +842,10 @@ function patchRow(c, fid, k, chain, o, outs) {
   // Manual: the fixture's start typed on its row (universe and channel, each with ▴ ▾), where it ends beside them
   let addrEls = null;
   if (o === null) {
-    const off = uniOff(c), redo = () => { markPatch(); commit(); renderRight(); };
+    const off = uniOff(c);
+    const redo = () => { markPatch(); ensurePatch(); if (fx._clash) toast(`${fx.name} now shares channels with ${fx._clash.name}.`, 'warn'); commit(); renderRight(); };
     const cur = () => fx.addr || (p && p.first >= 0 ? addrOf(p, p.first) : { u: c.startUniverse, ch: 1 });
-    const put = (u, ch) => { fx.addr = { u: clamp(u, 0, MANUAL_UNIS - 1), ch: clamp(ch, 1, 512) }; };
+    const put = (u, ch) => { manualPin(c); fx.addr = { u: clamp(u, 0, MANUAL_UNIS - 1), ch: clamp(ch, 1, 512) }; };
     const U = { get v() { return cur().u + off; }, set v(x) { put(x - off, cur().ch); } };
     const CH = ddp ? { get v() { const a = cur(); return a.u * 512 + a.ch; }, set v(x) { put(Math.floor((x - 1) / 512), (x - 1) % 512 + 1); } }
       : { get v() { return cur().ch; }, set v(x) { put(cur().u, x); } };
@@ -1057,11 +1057,12 @@ function addNodeAsController(n, asked) {
   // a maker we know: set it up as its devices are, asking which way when they can be set more than one way
   c.maker = mk.id;
   if (mk.from1 && !isSacn(c)) c.from1 = true;
-  const apply = o => { Object.assign(c, o.set); ensureChains(c); markPatch(); commit(); renderRight(); toast(`${c.name}: ${o.label}. Set the outputs' counts as on the device.`); };
+  const from1 = c.from1 ? ` Universes counted from 1, as ${mk.name} shows them (Output settings).` : '';
+  const apply = o => { Object.assign(c, o.set); ensureChains(c); markPatch(); commit(); renderRight(); toast(`${c.name}: ${o.label}. Set the outputs' counts as on the device.${from1}`); };
   if (mk.ways.length === 1) { apply(mk.ways[0]); return; }
   markPatch(); commit();
   chooseBox(`${mk.name} found: how is it set up?`,
-    `Pick what ${c.name}'s own setup page says.` + (c.from1 ? ` It numbers universes from 1, so nouPix shows them that way too (Counts from 1).` : ''),
+    `Pick what ${c.name}'s own setup page says.` + (c.from1 ? ` ${mk.name} numbers universes from 1, so nouPix shows them that way too: change it in Output settings.` : ''),
     mk.ways.map(o => ({ label: o.label, note: o.note, fn: () => apply(o) })));
 }
 // Makers whose devices nouPix sets up when Discovery adds one: the patch mode (asked when there are several ways), and
@@ -1230,15 +1231,7 @@ function manualPatch(edit, c) {
   const chain = (c.chains[0] || []).filter(fxById);
   const at = id => { const p = fxById(id)._patch; return p && p.first >= 0 ? p.first : 1e12; };
   const sorted = chain.slice().sort((a, b) => at(a) - at(b));
-  const picked = sorted.filter(id => ui.sel.has(id));
-  const seqIds = picked.length > 1 ? picked : sorted;
-  const firstAt = () => { const f = fxById(seqIds[0]), p = f && f._patch; return f && f.addr ? f.addr : p && p.first >= 0 ? addrOf(p, p.first) : { u: c.startUniverse, ch: 1 }; };
   // one list, the fixtures in the order of their addresses, each with its own universe and channel on its row
-  if (sorted.length > 1) edit.append(h('div', { class: 'outbar' },
-    h('span', { class: 'note' }, `${sorted.length} fixtures, by address`),
-    h('span', { style: { flex: 1 } }),
-    h('button', { class: 'btn sm', type: 'button', 'data-tip': 'Address in sequence|The fixtures picked (or all of them) one after another, from the first one\'s address.',
-      onclick: () => { addressInSequence(seqIds, firstAt()); toast(`${seqIds.length} fixtures one after another.`); } }, picked.length > 1 ? `Address ${picked.length} in sequence` : 'Address all in sequence')));
   const list = h('div', { class: 'outlist' });
   sorted.forEach((fid, k) => list.append(patchRow(c, fid, k, sorted, null)));
   list.append(h('div', { class: 'ph' }, sorted.length ? 'Drop more fixtures here: each takes the next free address.' : 'Drag fixtures here: each takes the next free address. Then type its universe and channel.'));

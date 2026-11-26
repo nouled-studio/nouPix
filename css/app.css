@@ -1046,6 +1046,7 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
 /* a protocol's name keeps its case (sACN, not SACN) inside a label set in capitals */
 .pname { text-transform: none; }
 .modal .mb.outset h4::before { content: ''; width: 3px; height: 12px; background: var(--accent); }
+.modal .mb.outset .unum .row { grid-template-columns: minmax(0, 1fr) 170px; }
 .modal header { padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px; }
 .modal .mb { padding: 12px 16px; display: grid; gap: 10px; min-height: 0; overflow: auto; }
 .updmodal { width: min(520px, 100%); }

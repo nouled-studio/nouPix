@@ -1114,6 +1114,17 @@ function pasteFromClipboard(point) {
 /* ---------- a controller's patch: by universes, by pixels, or manual ---------- */
 // Patch mode: universes per output, pixels per output, or manual (each fixture its own address). Into Manual, every
 // fixture keeps the address it has; out of it, they all go on OUT 1 in the order of their addresses.
+// Manual: every fixture keeps an address of its own, so changing one never moves the others (one without would follow
+// the fixture before it). Those without get where they are now, or the next free address when they aren't sent.
+function manualPin(c) {
+  if (c.mode !== 'manual') return;
+  ensurePatch();
+  for (const id of c.chains[0] || []) {
+    const f = fxById(id), p = f && f._patch;
+    if (!f || f.addr) continue;
+    f.addr = p && p.first >= 0 ? (({ u, ch }) => ({ u, ch }))(addrOf(p, p.first)) : manualNextFree(c, f);
+  }
+}
 function setCtrlMode(c, mode) {
   if (c.mode === mode) return;
   ensurePatch();
@@ -1122,6 +1133,7 @@ function setCtrlMode(c, mode) {
     for (const id of ids) { const f = fxById(id), p = f._patch; if (p && p.first >= 0) { const a = addrOf(p, p.first); f.addr = { u: a.u, ch: a.ch }; } }
     c.chains = [ids];
     c.mode = 'manual';
+    markPatch(); manualPin(c);
     if (ids.length) toast(`${c.name} is manual now: its ${ids.length} fixture${ids.length > 1 ? 's' : ''} kept their addresses. Change one in the list or in the Inspector.`);
   } else {
     if (c.mode === 'manual') {

@@ -295,7 +295,7 @@ function advancedPatch(f) {
   if (c.mode === 'manual') {
     // where it is now: its own address, or (none yet) where it landed; typing sets its own
     const cur = () => f.addr || (p.first >= 0 ? addrOf(p, p.first) : { u: c.startUniverse, ch: 1 });
-    const own = () => (f.addr = f.addr || Object.assign({}, cur()));
+    const own = () => { manualPin(c); return (f.addr = f.addr || Object.assign({}, cur())); };
     const off = uniOff(c), next = () => { const a = manualNextFree(c, f); f.addr = a; redo(); toast(`${f.name} at ${chLabel(a, c, ' ')}, the next free address.`); };
     const res = [];
     if (isDdp(c)) {
@@ -681,6 +681,14 @@ function protocolRows(s) {
     tipRow(numRow('Priority', s, 'sacnPriority', { min: 0, max: 200, step: 1, int: true, onCommit: commit }), '0 to 200, 100 by default. A receiver getting a universe from two sources takes the higher priority: give a desk more to let it take over.'),
     tipRow(row('Send to', seg([['unicast', 'Unicast'], ['multicast', 'Multicast']], s.sacnMulticast ? 'multicast' : 'unicast', v => { s.sacnMulticast = v === 'multicast'; changed(); })),
       'Unicast: to each controller\'s address. Multicast: to the universe\'s group (239.255.x.x), so each universe can be used by one controller only.')];
+  // how each Art-Net device numbers its universes (Advatek shows 0 as 1): only what nouPix shows changes
+  const an = project.controllers.filter(c => !isSacn(c) && !isDdp(c));
+  if (an.length) {
+    rows.push(h('h4', null, h('span', { class: 'pname' }, 'Universe numbers')),
+      h('p', { class: 'note' }, 'How each Art-Net device numbers its universes. Some (Advatek) show universe 0 as 1. Only the numbers nouPix shows change.'));
+    for (const c of an) rows.push(h('div', { class: 'unum' }, row(c.name, seg([['0', 'From 0'], ['1', 'From 1']], c.from1 ? '1' : '0', v => {
+      if (v === '1') c.from1 = true; else delete c.from1; markPatch(); commit(); renderRight(); openOutputSettings(true); }))));
+  }
   if (usesSacn() && bridge.hello && !(bridge.hello.protocols || []).includes('mixed'))
     rows.push(h('p', { class: 'note warn' }, 'This computer\'s nouPix is older: update it to send sACN and Art-Net together.'));
   return rows;
