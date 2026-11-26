@@ -69,7 +69,7 @@ function madDecode(buf) {
     }
     throw new Error(`a value of type ${t} at byte ${p - 5}`);
   }
-  if (u32() !== 0x0BADBABE) throw new Error('not a MadMapper project');
+  if (u32() !== 0x0BADBABE) throw new Error('not a .mad project');
   u32();   // the stream's version
   return vmap();
 }
@@ -88,7 +88,7 @@ async function madFromZip(buf) {
     off += 46 + nl + dv.getUint16(off + 30, true) + dv.getUint16(off + 32, true);
   }
   const f = files.filter(f => /\.mad$/i.test(f.name) && !/(^|\/)(Backup|__MACOSX)\//i.test(f.name)).sort((a, b) => a.name.split('/').length - b.name.split('/').length)[0];
-  if (!f) throw new Error('no MadMapper project (.mad) in that zip');
+  if (!f) throw new Error('no .mad file in that zip');
   const start = f.at + 30 + dv.getUint16(f.at + 26, true) + dv.getUint16(f.at + 28, true), data = u8.slice(start, start + f.size);
   if (f.method === 0) return data.buffer;
   if (f.method !== 8) throw new Error('that zip is packed in a way nouPix does not read');
@@ -137,7 +137,7 @@ function madRig(top) {
     let order = madOrder(fx.type);
     if (!order) { notes.push(`${s.name}: pixel type ${fx.type || '?'} imported as RGB.`); order = 'RGB'; }
     const step = map.length > 1 ? map[wired[1]] - map[wired[0]] : 0;
-    if (step && step !== order.length) notes.push(`${s.name}: ${step} channels a pixel in MadMapper, ${order.length} for ${order}.`);
+    if (step && step !== order.length) notes.push(`${s.name}: ${step} channels a pixel in the file, ${order.length} for ${order}.`);
     const parent = S[rel[i]];
     fixtures.push({
       name: s.name || fx.product || 'Fixture', kind, arc, cols: W, rows: H, n, order, pts: wired.map(k => at(...local[k])),
@@ -165,7 +165,7 @@ async function importMadDialog(file) {
     let buf = await file.arrayBuffer();
     if (new DataView(buf).getUint32(0, true) === 0x04034b50) buf = await madFromZip(buf);
     rig = madRig(madDecode(buf));
-  } catch (err) { toast(`${file.name}: not a MadMapper 6 project nouPix can read (${err.message}).`, 'err'); return; }
+  } catch (err) { toast(`${file.name}: not a .mad file nouPix can read (${err.message}).`, 'err'); return; }
   if (!rig.fixtures.length) { toast(`${file.name}: no fixtures in it.`, 'warn'); return; }
   const kinds = { circle: 0, line: 0, grid: 0 };
   rig.fixtures.forEach(f => kinds[f.kind]++);
@@ -175,14 +175,14 @@ async function importMadDialog(file) {
   const D = uiDocNow(), close = () => bg.remove();
   const tick = (key, text, tip) => { const i = h('input', { type: 'checkbox', checked: opt[key], id: 'mad_' + key }); i.addEventListener('change', () => { opt[key] = i.checked; }); return h('label', { class: 'checkrow', for: 'mad_' + key, 'data-tip': tip }, i, text); };
   const bg = h('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } },
-    h('div', { class: 'modal madimp', role: 'dialog', 'aria-label': 'Import MadMapper' },
-      h('header', null, 'Import MadMapper 6 (beta)'),
+    h('div', { class: 'modal madimp', role: 'dialog', 'aria-label': 'Import .mad file' },
+      h('header', null, 'Import .mad file (beta)'),
       h('div', { class: 'mb' },
         h('p', null, `${file.name}: ${rig.fixtures.length} fixtures (${what}), ${fmtN(px)} pixels.`),
-        rig.devices.length ? h('div', { class: 'maddevs' }, h('p', { class: 'note' }, 'Devices MadMapper found:'),
+        rig.devices.length ? h('div', { class: 'maddevs' }, h('p', { class: 'note' }, 'Devices in it:'),
           ...rig.devices.map(d => h('div', { class: 'mono' }, `${d.name} · ${d.ip} · U ${universeList([...d.unis].sort((a, b) => a - b))}`)))
           : h('p', { class: 'note' }, 'No devices in it: the controllers come without an address, to type in the Patch tab.'),
-        tick('patch', 'Patch: a Manual controller per device, each fixture at its universe and channel', 'Patch|As MadMapper sends it. Off: only the fixtures.'),
+        tick('patch', 'Patch: a Manual controller per device, each fixture at its universe and channel', 'Patch|As the file sends it. Off: only the fixtures.'),
         tick('flip', 'Flip upside down', 'Flip|If the layout comes in upside down.'),
         rig.notes.length ? h('details', { class: 'madnotes' }, h('summary', null, `${rig.notes.length} note${rig.notes.length > 1 ? 's' : ''}`), ...rig.notes.map(t => h('div', null, t))) : null),
       h('footer', null,
@@ -223,8 +223,8 @@ function importMad(rig, opt) {
   markGeom(); markPatch(); rebuildGeometry(); commit(); renderAll();
   if (typeof fitView === 'function') fitView();
   const adv = ctrls.some(c => c.from1);
-  toast(`Imported ${made.length} fixtures from MadMapper` + (ctrls.length ? ` and ${ctrls.length} Manual controller${ctrls.length > 1 ? 's' : ''}` : '') + '.'
-    + (adv ? ' Advatek universes shown from 1, as it counts them (Output settings).' : '') + ' Beta: check them against MadMapper.');
+  toast(`Imported ${made.length} fixtures from the .mad file` + (ctrls.length ? ` and ${ctrls.length} Manual controller${ctrls.length > 1 ? 's' : ''}` : '') + '.'
+    + (adv ? ' Advatek universes shown from 1, as it counts them (Output settings).' : '') + ' Beta: check them against the original.');
 }
 
 // One fixture: a ring, a line, a matrix (the corner it starts at and its rows as MadMapper wires them), or a dot
@@ -263,7 +263,7 @@ function madPatch(rig, made) {
   const ctrlFor = (d, proto) => {
     const key = (d ? d.ip : '') + '|' + proto;
     if (ctrls.has(key)) return ctrls.get(key);
-    const name = d ? (names[d.name] > 1 ? `${d.name} ${d.ip.split('.').pop()}` : d.name) : `MadMapper ${proto === 'sacn' ? 'sACN' : 'Art-Net'}`;
+    const name = d ? (names[d.name] > 1 ? `${d.name} ${d.ip.split('.').pop()}` : d.name) : `Imported ${proto === 'sacn' ? 'sACN' : 'Art-Net'}`;
     const c = newController({ name, ip: d ? d.ip : '', protocol: proto, mode: 'manual', outputs: 1, startUniverse: 0, startCh: 1 });
     c.chains = [[]];
     if (d) {

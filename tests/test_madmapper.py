@@ -80,7 +80,7 @@ try:
 
     # ---------- the window before importing
     blank()
-    check("Import MadMapper 6 (beta) in the project menu, under Import SVG", ev("(() => { projectMenu(document.body); const t = [...document.querySelectorAll('.menu button, .menu [role=menuitem], .menu li')].map(b => b.textContent); document.querySelectorAll('.menu').forEach(m => m.remove()); const i = t.findIndex(x => x.includes('Import SVG')); return i >= 0 && t[i + 1].includes('MadMapper'); })()"))
+    check("Import .mad file (beta) in the project menu, under Import SVG", ev("(() => { projectMenu(document.body); const t = [...document.querySelectorAll('.menu button, .menu [role=menuitem], .menu li')].map(b => b.textContent); document.querySelectorAll('.menu').forEach(m => m.remove()); const i = t.findIndex(x => x.includes('Import SVG')); return i >= 0 && t[i + 1].includes('Import .mad file'); })()"))
     pick(MAD, go=False)
     dlg = pg.locator(".modal.madimp")
     txt = dlg.inner_text() if dlg.count() else ""
@@ -121,7 +121,7 @@ try:
     check("…no clashes, and universes 0 and 1 go to the PixLite", not ev("(() => { ensurePatch(); return patchConflicts.length; })()")
           and ev("universes.filter(u => u.enabled).map(u => u.ip + ':' + u.uni)") == ["10.0.0.9:0", "10.0.0.9:1"], ev("universes.map(u => u.ip + ':' + u.uni)"))
     check("…the Patch tab on the PixLite, its fixtures listed with their universe and channel", ev("ctrlById(ui.selCtrl).name") == "PixLite 4")
-    check("…the message says it, and that Advatek counts from 1", "3 fixtures from MadMapper and 2 Manual controllers" in pg.locator(".toast").last.inner_text() and "from 1" in pg.locator(".toast").last.inner_text())
+    check("…the message says it, and that Advatek counts from 1", "3 fixtures from the .mad file and 2 Manual controllers" in pg.locator(".toast").last.inner_text() and "from 1" in pg.locator(".toast").last.inner_text())
     ev("undo()"); time.sleep(0.3)
     check("undo takes it all back", ev("project.fixtures.length") == 0 and ev("project.controllers.length") == 0 and ev("project.groups.length") == 0)
 
@@ -136,7 +136,7 @@ try:
     blank(); pick(ZIP)
     check("a zipped .madproject: its project read, its backups ignored", ev("project.fixtures.length") == 3 and ev("project.controllers.length") == 2)
     blank(); pick(BAD, go=False)
-    check("a file that is no MadMapper project: said, nothing added", pg.locator(".modal.madimp").count() == 0 and "not a MadMapper 6 project" in pg.locator(".toast").last.inner_text() and ev("project.fixtures.length") == 0)
+    check("a file that is no MadMapper project: said, nothing added", pg.locator(".modal.madimp").count() == 0 and "not a .mad file" in pg.locator(".toast").last.inner_text() and ev("project.fixtures.length") == 0)
 
     check("no errors in the page", not errs, errs[:3])
     br.close()
