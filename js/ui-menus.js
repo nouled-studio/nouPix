@@ -278,7 +278,7 @@ function canvasMenu(e, x, y) {
     '-',
     z && [`Zone: ${z.name}…`, () => zoneMenu(e, z)],
     ['Import SVG…', () => $('#fileSvg').click()],
-    ['Import MadMapper 6 (beta)…', () => $('#fileMad').click()],
+    ['Import .mad file (beta)…', () => $('#fileMad').click()],
   ]);
 }
 function zoneMenu(e, z) {
@@ -395,7 +395,7 @@ function projectMenu(anchor) {
     ['Export patch list (CSV)', exportCSV],
     '-',
     m && ['Import SVG…', () => $('#fileSvg').click()],
-    m && ['Import MadMapper 6 (beta)…', () => $('#fileMad').click(), { title: 'Its fixtures, and its patch as Manual controllers: a .mad file, or a zipped .madproject' }],
+    m && ['Import .mad file (beta)…', () => $('#fileMad').click(), { title: 'Its fixtures, and its patch as Manual controllers. Pick the .mad file inside the .madproject folder.' }],
     m && ['Load guide image…', () => $('#fileGuide').click()],
   ]);
 }
@@ -408,7 +408,7 @@ function addFixtureMenu(anchor) {
     f.name = nextName(type);
     addFixture(f);
   };
-  menu(anchor, [['Line / strip', mk('line')], ['Matrix', mk('matrix')], ['Circle / ring', mk('circle')], ['Dot (one big pixel)', mk('dot')], ['Path (draw on stage)', () => setTool('path')], '-', ['Import from SVG…', () => $('#fileSvg').click()], ['Import from MadMapper 6 (beta)…', () => $('#fileMad').click()]]);
+  menu(anchor, [['Line / strip', mk('line')], ['Matrix', mk('matrix')], ['Circle / ring', mk('circle')], ['Dot (one big pixel)', mk('dot')], ['Path (draw on stage)', () => setTool('path')], '-', ['Import from SVG…', () => $('#fileSvg').click()], ['Import from .mad file (beta)…', () => $('#fileMad').click()]]);
 }
 function addSourceMenu(anchor) {
   // files: the live inputs (screen, streams, camera, video input) are tiles among the sources (INPUT_TILES); files play
