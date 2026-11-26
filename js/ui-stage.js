@@ -784,14 +784,16 @@ cv.addEventListener('pointerdown', e => {
   const f = hitFixture(x, y);
   if (f) {
     const pick = stagePick(f);   // the whole group, or inside a group just this fixture
-    const had = ui.sel.size;
+    const had = new Set(ui.sel);
     if (e.shiftKey || e.metaKey || e.ctrlKey) {
       if (ui.sel.has(f.id)) { pick.forEach(id => ui.sel.delete(id)); onSelection(); return; }
       pick.forEach(id => ui.sel.add(id));
     } else if (!ui.sel.has(f.id)) ui.sel = new Set(pick);
     // a press on what is already selected starts a drag: the lists and the Inspector stay as they are (a few hundred
     // fixtures take long to draw), the Inspector only comes forward from another tab
-    if (ui.sel.size !== had || !ui.sel.has(f.id) || pick.some(id => !ui.sel.has(id)) || e.shiftKey || e.metaKey || e.ctrlKey) onSelection();
+    // (changed: other fixtures than before, not only another number of them, so one strip after another redraws it)
+    const changed = ui.sel.size !== had.size || [...ui.sel].some(id => !had.has(id));
+    if (changed || !ui.sel.has(f.id) || pick.some(id => !ui.sel.has(id)) || e.shiftKey || e.metaKey || e.ctrlKey) onSelection();
     else if (ui.rightTab !== 'inspector') onSelection();
     const origs = new Map(selected().filter(g => !g.locked).map(g => [g.id, snapshotGeom(g)]));
     drag = { kind: 'move', x0: x, y0: y, origs, changed: false };

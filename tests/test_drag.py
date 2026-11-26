@@ -83,6 +83,17 @@ try:
     check("other changes still redraw the lists and the dock", n == 1, n)
     n = ev("(() => { const d = window._dock; commit(); return window._dock - d; })()")
     check("and commit() on its own too", n == 1, n)
+
+    # ---------- one fixture selected, another clicked on the stage: the Inspector shows the new one (a user's report)
+    ev("(() => { olm.loadProject(demoProject()); project.fixtures.forEach(f => { delete f.group; }); project.groups = []; ui.rightTab = 'inspector'; renderAll(); fitView(); })()"); time.sleep(0.4)
+    at = lambda n: ev(f"(() => {{ rebuildGeometry(); const f = project.fixtures.find(f => f.name === '{n}'), p = f._pts, k = Math.floor(p.length / 4) * 2; const [x, y] = toS(p[k], p[k + 1]); const r = cv.getBoundingClientRect(); return [r.left + x, r.top + y]; }})()")
+    shown = lambda: ev("(() => { const i = document.querySelector('#rightBody input'); return i ? i.value : ''; })()")
+    names = []
+    for n in ("Strip 1", "Strip 3", "Ring 2", "Strip 1"):
+        pg.mouse.click(*at(n)); time.sleep(0.25); names.append(shown())
+    check("clicking one fixture after another on the stage: the Inspector follows each", names == ["Strip 1", "Strip 3", "Ring 2", "Strip 1"], names)
+    pg.locator("#rightBody input").first.click(); pg.mouse.click(*at("Strip 4")); time.sleep(0.25)
+    check("…also with the focus left in the Inspector", shown() == "Strip 4", shown())
     check("no errors", not errs, errs[:3])
     br.close()
 finally:
