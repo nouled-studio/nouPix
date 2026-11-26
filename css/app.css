@@ -377,6 +377,11 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .ctrl .t { display: flex; align-items: center; gap: 6px; font-weight: 600; }
 .ctrl .t .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ctrl.off .t, .ctrl.off .s { opacity: .4; }
+/* the bin at the right of a controller's name: shown on the one selected and on the one pointed at */
+.ctrl .cdel { width: 20px; height: 18px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; visibility: hidden; flex: none; }
+.ctrl .cdel svg { width: 13px; height: 13px; }
+.ctrl.sel .cdel, .ctrl:hover .cdel, .ctrl .cdel:focus-visible { visibility: visible; }
+.ctrl .cdel:hover { color: var(--danger); }
 .ctrl .s { display: flex; justify-content: space-between; color: var(--muted); }
 .ctrl-list .foot { padding: 8px 6px; display: flex; gap: 4px; flex-wrap: wrap; border-top: 1px solid var(--line); }
 .ctrl-list .foot .btn.sm { letter-spacing: .06em; }
@@ -385,8 +390,6 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .prow .maddr .spinnum .inp, .prow .maddr .spinnum > input { width: 64px; }
 .prow .maddr .spinnum .inp input { height: 22px; }
 .prow .maddr .spinnum .spin .btn { height: 11px; }
-.ctrl-list .foot .trash { margin-left: auto; width: 24px; height: 22px; padding: 0; flex: none; }
-.ctrl-list .foot .trash svg { width: 13px; height: 13px; }
 .ctrl-edit { overflow: auto; display: flex; flex-direction: column; min-width: 0; --cap: 840px; }
 /* On a wide dock (the right panel folded) the settings, the outputs and their fixtures keep one width, so the usage
    meters, the bin and Fold all line up with the fixture rows; the bars behind them still run the whole width */

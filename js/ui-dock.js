@@ -36,7 +36,7 @@ function renderDock() {
     else if (ui.dockTab === 'timeline') renderTimeline(body);
     else if (ui.dockTab === 'patch') {
       renderPatch(body);
-      if (mappingLocked()) { const ce = body.querySelector('.ctrl-edit'); if (ce) lockPanel(ce, 'Operator: you can see the patch but not change it.'); body.querySelectorAll('.ctrl-list .foot button').forEach(b => { b.disabled = true; }); }
+      if (mappingLocked()) { const ce = body.querySelector('.ctrl-edit'); if (ce) lockPanel(ce, 'Operator: you can see the patch but not change it.'); body.querySelectorAll('.ctrl-list .foot button, .ctrl .cdel').forEach(b => { b.disabled = true; }); }
     }
   });
   if (ui.dockCollapsed) { drawScenesWindow(); return; }
@@ -666,7 +666,10 @@ function renderPatch(body) {
     const badge = !ipOk ? h('span', { class: 'badge err' }, 'IP?') : s.ovf ? h('span', { class: 'badge err' }, 'OVERFLOW') : null;
     const item = h('div', { class: 'ctrl' + (chosen.has(c.id) ? ' sel' : '') + (c.enabled ? '' : ' off'), tabindex: 0, 'data-id': c.id, onclick: e => pickCtrl(c, e),
       title: `${c.name} · ${protoName(c)}\nCtrl or Shift to select several; Delete removes them` },
-      h('div', { class: 't' }, h('span', { class: 'badge' }, ctrlLetter(c)), h('span', { class: 'nm' }, c.name), badge),
+      h('div', { class: 't' }, h('span', { class: 'badge' }, ctrlLetter(c)), h('span', { class: 'nm' }, c.name), badge,
+        // at the right of its name: this controller (or all those selected, when it is one of them), after asking
+        h('button', { class: 'cdel', type: 'button', title: 'Delete', 'aria-label': 'Delete controller ' + c.name,
+          onclick: e => { e.stopPropagation(); if (!mappingLocked()) askDeleteControllers(chosen.has(c.id) ? selCtrls() : [c]); } }, icon('trash'))),
       h('div', { class: 's mono' }, h('span', null, c.ip + ' · ' + protoName(c) + (c.mode === 'manual' ? ' · manual' : ''))));
     onRightClick(item, e => controllerMenu(e, c));
     dropFixtures(item, ids => {
@@ -684,10 +687,7 @@ function renderPatch(body) {
   });
   const list = h('div', { class: 'ctrl-list' }, items, h('div', { class: 'foot' },
     h('button', { class: 'btn sm', type: 'button', onclick: () => { const c = newController(); project.controllers.push(c); ui.selCtrl = c.id; ui.selCtrls = new Set(); markPatch(); commit(); renderRight(); } }, '+ Controller'),
-    REMOTE_CLIENT ? null : h('button', { class: 'btn sm', type: 'button', title: 'Find the Art-Net and sACN devices on the network', onclick: openDiscovery }, 'Discovery…'),
-    // away from the settings, so a stray click there can't reach it; it asks first
-    project.controllers.length ? h('button', { class: 'btn sm icon trash', type: 'button', title: 'Delete the selected controllers (Delete)', 'aria-label': 'Delete the selected controllers',
-      onclick: () => askDeleteControllers(selCtrls()) }, icon('trash')) : null));
+    REMOTE_CLIENT ? null : h('button', { class: 'btn sm', type: 'button', title: 'Find the Art-Net and sACN devices on the network', onclick: openDiscovery }, 'Discovery…')));
   const c = ctrlById(ui.selCtrl);
   const edit = h('div', { class: 'ctrl-edit' });
   if (c) renderCtrlEditor(edit, c);
