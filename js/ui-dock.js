@@ -713,7 +713,7 @@ function renderCtrlEditor(edit, c) {
   // Whole pixels: a universe ends at channel 510 for RGB, so no pixel is split between two universes
   const skip = h('input', { type: 'checkbox', checked: !c.split, id: 'ctrlSkip' });
   skip.addEventListener('change', () => { c.split = !skip.checked; markPatch(); commit(); });
-  const SKIP_INFO = 'RGB pixels: channels 511 and 512 stay empty, so no pixel is split between two universes (standard).\nOff: all 512 used, for devices set to continuous channels.';
+  const SKIP_INFO = 'On: channels 511 and 512 stay empty, so no RGB pixel is split between two universes (the standard). Off: all 512 used, for devices set to continuous channels.';
   const ddp = isDdp(c), manual = c.mode === 'manual', px = c.mode === 'pixels', own = c.same === false;
   const uniPlace = c.uniPlace || 'order', pxPlace = c.pxPlace || 'channel', off = uniOff(c);
   // 1. the device: on, name, address (what it reported to Discovery told on pointing at it), protocol, delete
@@ -732,7 +732,7 @@ function renderCtrlEditor(edit, c) {
   // (how the device numbers universes, Counts from, is in Output settings)
   const numbering = () => [
     skipMatters ? h('div', { class: 'skiprow' }, h('label', { class: 'checkrow', for: 'ctrlSkip' }, skip, 'Skip ch 511–512'),
-      h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, title: SKIP_INFO }, 'i')) : null];
+      h('span', { class: 'info', tabindex: 0, role: 'img', 'aria-label': SKIP_INFO, 'data-tip': 'Skip ch 511–512|' + SKIP_INFO }, 'i')) : null];
   // 2. Patch mode: three icons, what each is told on pointing at it; the i opens the help
   const MODES = [['universes', 'byUni', 'Patch mode: Unis|A number of universes per output.', 'Unis'], ['pixels', 'byPx', 'Patch mode: Pix|A number of pixels per output: nouPix works out the universes.', 'Pix'],
     ['manual', 'byHand', 'Patch mode: Man|No outputs: each fixture its own address.', 'Man']].filter(([m]) => !(ddp && m === 'universes') && !(c.maker === 'wled' && m !== 'pixels'));
