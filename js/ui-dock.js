@@ -684,7 +684,10 @@ function renderPatch(body) {
   });
   const list = h('div', { class: 'ctrl-list' }, items, h('div', { class: 'foot' },
     h('button', { class: 'btn sm', type: 'button', onclick: () => { const c = newController(); project.controllers.push(c); ui.selCtrl = c.id; ui.selCtrls = new Set(); markPatch(); commit(); renderRight(); } }, '+ Controller'),
-    REMOTE_CLIENT ? null : h('button', { class: 'btn sm', type: 'button', title: 'Find the Art-Net and sACN devices on the network', onclick: openDiscovery }, 'Discovery…')));
+    REMOTE_CLIENT ? null : h('button', { class: 'btn sm', type: 'button', title: 'Find the Art-Net and sACN devices on the network', onclick: openDiscovery }, 'Discovery…'),
+    // away from the settings, so a stray click there can't reach it; it asks first
+    project.controllers.length ? h('button', { class: 'btn sm icon trash', type: 'button', title: 'Delete the selected controllers (Delete)', 'aria-label': 'Delete the selected controllers',
+      onclick: () => askDeleteControllers(selCtrls()) }, icon('trash')) : null));
   const c = ctrlById(ui.selCtrl);
   const edit = h('div', { class: 'ctrl-edit' });
   if (c) renderCtrlEditor(edit, c);
@@ -716,17 +719,13 @@ function renderCtrlEditor(edit, c) {
   // 1. the device: on, name, address (what it reported to Discovery told on pointing at it), protocol, delete
   const rep = !ddp && c.discovered && c.discovered.length ? `Reported: U ${universeList(c.discovered.map(u => uniLabel(u, c)))}, the universes this device said it listens to when Discovery found it.` : '';
   const ipBox = h('span', { class: 'ipbox', 'data-tip': rep ? `Reported|U ${universeList(c.discovered.map(u => uniLabel(u, c)))}` : null }, small(ipIn, 116));
-  // Delete asks first, so a stray click can't remove a controller and its patch
-  const del = h('button', { class: 'btn icon trash', type: 'button', title: 'Delete this controller', 'aria-label': 'Delete controller ' + c.name, onclick: () => askDeleteControllers([c]) }, icon('trash'));
   const devLine = h('div', { class: 'ctrl-fields' },
     en,
     small(textInput(c, 'name', { aria: 'Controller name', onInput: () => {}, onCommit: () => { commit(); renderRight(); } }), 130),
     ipBox,
     h('span', { 'data-tip': 'Protocol|What the device receives.' },
       seg([['artnet', 'Art-Net'], ['sacn', 'sACN'], ['ddp', 'DDP']], c.protocol, v => { c.protocol = v; ensureChains(c); markPatch(); commit(); })),
-    ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null,
-    del);
-  del.style.marginLeft = 'auto';   // always at the line's right end, wrapped or not
+    ddp && bridge.hello && !bridgeDdp() ? h('span', { class: 'note warn' }, 'This version of the bridge does not send DDP.') : null);
   edit.append(devLine);
   // how the device numbers universes, and whether a pixel may be split: beside where universes and channels are set
   const odd = n => 512 % n !== 0;
@@ -746,7 +745,7 @@ function renderCtrlEditor(edit, c) {
     h('button', { class: 'pinfo', type: 'button', 'aria-label': 'How patching works', 'data-tip': 'How patching works', onclick: patchHelp }, 'i'));
   // the mode, and how the device counts, on one line that stays put whatever is chosen below
   // the patch mode goes with the protocol, on the device's line; how the device counts at the end of the outputs' line
-  devLine.insertBefore(patchBy, del);
+  devLine.append(patchBy);
   if (manual) edit.append(h('div', { class: 'ctrl-line sent' }, h('span', { style: { flex: 1 } }), numbering()));
   if (!manual) {
     // 3. the outputs as a sentence: 16 outputs × 400 px RGB, each its own
@@ -809,15 +808,18 @@ function renderCtrlEditor(edit, c) {
     if (!n) list.append(h('div', { class: 'ph' }, 'Drop fixtures here, or right-click a fixture → Patch to'));
     const rowEl = h('div', { class: 'outrow' + (folds.has(key) ? ' shut' : ''), 'data-key': key }, head, list);
     rowEl.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; rowEl.classList.add('drop'); });
-    rowEl.addEventListener('dragleave', e => { if (!rowEl.contains(e.relatedTarget)) { rowEl.classList.remove('drop'); $$('.prow.dropat', rowEl).forEach(x => x.classList.remove('dropat')); } });
+    rowEl.addEventListener('dragleave', e => { if (!rowEl.contains(e.relatedTarget)) { rowEl.classList.remove('drop'); $$('.prow.dropat, .prow.dropafter', rowEl).forEach(x => x.classList.remove('dropat', 'dropafter')); } });
     rowEl.addEventListener('drop', e => {   // onto a fixture: before it; anywhere else on the output: at the end
-      e.preventDefault(); rowEl.classList.remove('drop'); $$('.prow.dropat', rowEl).forEach(x => x.classList.remove('dropat'));
+      e.preventDefault(); rowEl.classList.remove('drop'); $$('.prow.dropat, .prow.dropafter', rowEl).forEach(x => x.classList.remove('dropat', 'dropafter'));
       const d = e.dataTransfer.getData('text/plain');
       if (!d.startsWith('fx:')) return;
       const ids = d.slice(3).split(',').filter(fxById);
       const target = e.target.closest('.prow');
+      // onto a fixture's upper half: before it; its lower half: after it (after the last: at the end)
+      const tr = target && target.getBoundingClientRect(), below = tr && e.clientY > tr.top + tr.height / 2;
       flipRows('#dockBody .prow', () => {
-        let idx = target ? chain.indexOf(target.dataset.id) : -1;
+        let idx = target ? chain.indexOf(target.dataset.id) + (below ? 1 : 0) : -1;
+        if (idx >= chain.length) idx = -1;
         for (const id of ids) { if (id === (target && target.dataset.id)) continue; assign(id, c, o, idx); if (idx >= 0) idx = chain.indexOf(id) + 1; }
         commit(); renderRight();
       }, ids);
@@ -838,18 +840,44 @@ function patchRow(c, fid, k, chain, o, outs) {
   }
   if (p && p.overflow) ad = p.first >= 0 ? `${ad} · ${p.overflow} px over` : `${p.overflow} px don't fit`;
   if (fx._clash) ad += ` · shares channels with ${fx._clash.name}`;
+  // Manual: the fixture's start typed on its row (universe and channel, each with ▴ ▾), where it ends beside them
+  let addrEls = null;
+  if (o === null) {
+    const off = uniOff(c), redo = () => { markPatch(); commit(); renderRight(); };
+    const cur = () => fx.addr || (p && p.first >= 0 ? addrOf(p, p.first) : { u: c.startUniverse, ch: 1 });
+    const put = (u, ch) => { fx.addr = { u: clamp(u, 0, MANUAL_UNIS - 1), ch: clamp(ch, 1, 512) }; };
+    const U = { get v() { return cur().u + off; }, set v(x) { put(x - off, cur().ch); } };
+    const CH = ddp ? { get v() { const a = cur(); return a.u * 512 + a.ch; }, set v(x) { put(Math.floor((x - 1) / 512), (x - 1) % 512 + 1); } }
+      : { get v() { return cur().ch; }, set v(x) { put(cur().u, x); } };
+    const end = p && p.first >= 0 ? addrOf(p, p.last) : null;
+    ad = fx._clash ? `shares channels with ${fx._clash.name}` : p && p.overflow ? ad : end ? '→ ' + (ddp ? `ch ${end.u * 512 + end.ch}` : `U${uniLabel(end.u, c)}.${end.ch}`) : '';
+    addrEls = h('span', { class: 'maddr' },
+      ddp ? null : spinNum(U, 'v', { int: true, min: off, max: MANUAL_UNIS - 1 + off, prefix: 'U', aria: fx.name + ' universe', onCommit: redo }),
+      spinNum(CH, 'v', { int: true, min: 1, max: ddp ? MANUAL_UNIS * 512 : 512, prefix: 'ch', aria: fx.name + ' channel', onCommit: redo }));
+  }
   const mv = (txt, d, off, label) => h('button', { type: 'button', disabled: off, title: label, 'aria-label': `${label}: ${fx.name}`, onclick: e => { e.stopPropagation(); moveOnOutput([fid], d); } }, txt);
-  const row = h('div', { class: 'prow' + (ui.sel.has(fid) ? ' sel' : '') + (p && p.overflow ? ' ovf' : '') + (fx._clash ? ' ovf' : ''), draggable: true, 'data-id': fid, 'data-name': fx.name.toLowerCase(),
+  const row = h('div', { class: 'prow' + (o === null ? ' man' : '') + (ui.sel.has(fid) ? ' sel' : '') + (p && p.overflow ? ' ovf' : '') + (fx._clash ? ' ovf' : ''), draggable: true, 'data-id': fid, 'data-name': fx.name.toLowerCase(),
     title: `${fx.name} · ${pixelCount(fx)} px ${fx.order}${p && p.first >= 0 ? '\n' + addrText(p) : ''}${p && p.overflow ? `\n${p.overflow} pixels overflow` : ''}\n↑ ↓ or Alt ↑ ↓ move it on the output; drag to reorder` },
     h('span', { class: 'pgrip', 'aria-hidden': 'true' }), h('span', { class: 'ix' }, k + 1), h('span', { class: 'tag', style: { background: fxTag(fx) || 'transparent' } }), h('span', { class: 'nm' }, fx.name),
-    h('span', { class: 'px' }, pixelCount(fx) + ' px'), h('span', { class: 'ad' }, ad),
+    h('span', { class: 'px' }, pixelCount(fx) + ' px'), addrEls, h('span', { class: 'ad' }, ad),
     h('span', { class: 'mv' }, o === null ? null : mv('↑', -1, k === 0, 'Move earlier'), o === null ? null : mv('↓', 1, k === chain.length - 1, 'Move later')),
     h('button', { class: 'x', type: 'button', title: 'Unpatch', 'aria-label': 'Unpatch ' + fx.name, onclick: e => { e.stopPropagation(); unassign(fid); markPatch(); commit(); renderRight(); } }, icon('x')));
-  row.addEventListener('click', e => { if (e.shiftKey || e.metaKey || e.ctrlKey) ui.sel.has(fid) ? ui.sel.delete(fid) : ui.sel.add(fid); else ui.sel = new Set([fid]); onSelection(); });
+  // typing or clicking the arrows in the address neither drags the row nor changes the selection
+  if (addrEls) {
+    addrEls.addEventListener('pointerdown', () => { row.draggable = false; });
+    addrEls.addEventListener('focusout', () => { row.draggable = true; });
+    addrEls.addEventListener('pointerup', () => { if (!addrEls.contains(addrEls.ownerDocument.activeElement)) row.draggable = true; });
+  }
+  row.addEventListener('click', e => { if (addrEls && addrEls.contains(e.target)) return; if (e.shiftKey || e.metaKey || e.ctrlKey) ui.sel.has(fid) ? ui.sel.delete(fid) : ui.sel.add(fid); else ui.sel = new Set([fid]); onSelection(); });
   onRightClick(row, e => chipMenu(e, fid, c, o === null ? 0 : o));
   row.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', 'fx:' + (ui.sel.has(fid) ? chain.filter(id => ui.sel.has(id)) : [fid]).join(',')); e.dataTransfer.effectAllowed = 'move'; row.classList.add('dragging'); });
   row.addEventListener('dragend', () => row.classList.remove('dragging'));
-  if (o !== null) row.addEventListener('dragover', () => { $$('.prow.dropat', outs).forEach(x => x.classList.remove('dropat')); row.classList.add('dropat'); });
+  // the line where it would go: above this fixture, or below it over its lower half
+  if (o !== null) row.addEventListener('dragover', e => {
+    const r = row.getBoundingClientRect(), below = e.clientY > r.top + r.height / 2;
+    $$('.prow.dropat, .prow.dropafter', outs).forEach(x => { if (x !== row) x.classList.remove('dropat', 'dropafter'); });
+    row.classList.toggle('dropat', !below); row.classList.toggle('dropafter', below);
+  });
   return row;
 }
 // A number with ▴ ▾ beside it (Shift: ×10); the arrow keys step it too

@@ -378,7 +378,15 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .ctrl .t .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ctrl.off .t, .ctrl.off .s { opacity: .4; }
 .ctrl .s { display: flex; justify-content: space-between; color: var(--muted); }
-.ctrl-list .foot { padding: 8px; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); }
+.ctrl-list .foot { padding: 8px 6px; display: flex; gap: 4px; flex-wrap: wrap; border-top: 1px solid var(--line); }
+.ctrl-list .foot .btn.sm { letter-spacing: .06em; }
+/* Manual: a fixture's start on its row */
+.prow .maddr { display: inline-flex; align-items: center; gap: 6px; }
+.prow .maddr .spinnum .inp, .prow .maddr .spinnum > input { width: 64px; }
+.prow .maddr .spinnum .inp input { height: 22px; }
+.prow .maddr .spinnum .spin .btn { height: 11px; }
+.ctrl-list .foot .trash { margin-left: auto; width: 24px; height: 22px; padding: 0; flex: none; }
+.ctrl-list .foot .trash svg { width: 13px; height: 13px; }
 .ctrl-edit { overflow: auto; display: flex; flex-direction: column; min-width: 0; --cap: 840px; }
 /* On a wide dock (the right panel folded) the settings, the outputs and their fixtures keep one width, so the usage
    meters, the bin and Fold all line up with the fixture rows; the bars behind them still run the whole width */
@@ -522,6 +530,8 @@ body.touchwin { height: 100vh; margin: 0; background: var(--pad); overflow: hidd
 .prow.ovf .ad { color: var(--danger); }
 .prow.dragging { opacity: .4; }
 .prow.dropat { box-shadow: 0 -3px 0 var(--accent); }
+.prow.dropafter { box-shadow: 0 3px 0 var(--accent); }
+.prow.man { grid-template-columns: 8px 18px 8px minmax(60px, 1fr) 44px auto 120px 0 20px; }
 .prow .ix { font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-align: right; }
 .prow .tag { width: 8px; height: 8px; border-radius: 0; }
 .prow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1080,6 +1090,7 @@ input[type=range].grad:focus-visible { outline: 1px solid var(--accent); outline
   .outhead .sum, .outhead .usage, .outhead .omid { grid-column: 2 / -1; }
   .prow { grid-template-columns: 8px 18px 8px minmax(60px, 1fr) 40px 44px 20px; }
   .prow .ad { display: none; }
+  .prow.man { grid-template-columns: 8px 18px 8px minmax(60px, 1fr) 40px auto 0 20px; }
   .monitor .mbody { grid-template-columns: 1fr; }
   .monitor .ulist { max-height: 120px; border-right: 0; border-bottom: 1px solid var(--line); }
   .statusbar { flex-wrap: wrap; height: auto; padding: 4px 16px; }
