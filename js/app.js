@@ -347,6 +347,7 @@ function initUI() {
   onFile('#fileIsf', addIsfFile);
   onFile('#fileMedia', addMediaFile);
   onFile('#fileSvg', importSvgDialog);
+  onFile('#fileMad', importMadDialog);
   onFile('#fileGuide', setGuideFile);
   // drop files anywhere
   document.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
@@ -356,6 +357,7 @@ function initUI() {
     e.preventDefault();
     const n = f.name.toLowerCase();
     if (n.endsWith('.svg')) importSvgDialog(f);
+    else if (n.endsWith('.mad') || /\.madproject.*\.zip$/.test(n)) importMadDialog(f);
     else if (n.endsWith('.fs') || n.endsWith('.glsl')) addIsfFile(f);
     else if (n.endsWith('.noupix') || n.endsWith('.noupixpkg') || n.endsWith('.json')) openProjectFile(f);
     else if (mediaKindOf(f)) { mediaTarget = null; addMediaFile(f); }
