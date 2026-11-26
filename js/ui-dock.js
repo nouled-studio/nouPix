@@ -1227,65 +1227,25 @@ function outControls(c, o, startOnly) {
 // universe and channel are set in the Inspector. Fixtures dropped on a universe take the next free channels there,
 // anywhere else the next free address.
 function manualPatch(edit, c) {
-  const ddp = isDdp(c), chain = (c.chains[0] || []).filter(fxById);
-  const folds = ui.foldOuts || (ui.foldOuts = new Set());
+  const chain = (c.chains[0] || []).filter(fxById);
   const at = id => { const p = fxById(id)._patch; return p && p.first >= 0 ? p.first : 1e12; };
   const sorted = chain.slice().sort((a, b) => at(a) - at(b));
   const picked = sorted.filter(id => ui.sel.has(id));
   const seqIds = picked.length > 1 ? picked : sorted;
   const firstAt = () => { const f = fxById(seqIds[0]), p = f && f._patch; return f && f.addr ? f.addr : p && p.first >= 0 ? addrOf(p, p.first) : { u: c.startUniverse, ch: 1 }; };
-  // the universes fixtures start in, and what each uses (channels, counted once)
-  const groups = new Map(), used = new Map();
-  for (const id of sorted) {
-    const p = fxById(id)._patch;
-    const u = p && p.first >= 0 ? p.first >> 9 : -1;
-    if (!groups.has(u)) groups.set(u, []);
-    groups.get(u).push(id);
-    if (u < 0) continue;
-    for (let k = p.first >> 9; k <= p.last >> 9; k++) {
-      const a = Math.max(p.first, k * 512), b = Math.min(p.last, k * 512 + 511);
-      used.set(k, (used.get(k) || 0) + (b - a + 1));
-    }
-  }
-  const keys = [...groups.keys()].sort((a, b) => a - b);
+  // one list, the fixtures in the order of their addresses, each with its own universe and channel on its row
   if (sorted.length > 1) edit.append(h('div', { class: 'outbar' },
+    h('span', { class: 'note' }, `${sorted.length} fixtures, by address`),
     h('span', { style: { flex: 1 } }),
-    sorted.length > 1 ? h('button', { class: 'btn sm', type: 'button', 'data-tip': 'Address in sequence|The fixtures picked (or all of them) one after another, from the first one\'s address, in the order of their addresses.',
-      onclick: () => { addressInSequence(seqIds, firstAt()); toast(`${seqIds.length} fixtures one after another.`); } }, picked.length > 1 ? `Address ${picked.length} in sequence` : 'Address all in sequence') : null));
-  const outs = h('div', { class: 'outs' });
-  for (const u of keys) {
-    const ids = groups.get(u), key = c.id + ':u' + u, n = ids.length;
-    const lab = u < 0 ? 'NOT SENT' : ddp ? 'ch ' + (u * 512 + 1) : 'U ' + uniLabel(u, c);
-    const ch = used.get(u) || 0, pct = Math.min(100, ch / 512 * 100);
-    const over = ch > 512 || ids.some(id => fxById(id)._clash);
-    const usage = h('div', { class: 'usage' + (over ? ' ovf' : '') },
-      h('div', { class: 'bar' }, h('i', { style: { width: (over ? 100 : pct) + '%' } })),
-      h('div', { class: 'lbl' }, h('span', null, `${fmtN(Math.min(ch, 512))}/512 ch`), h('span', null, over ? 'channels shared' : `${fmtN(ids.reduce((a, id) => a + pixelCount(fxById(id)), 0))} px`)));
-    // where its channels start and end, as an output's span
-    const span = u < 0 ? h('span') : (() => {
-      const ps = ids.map(id => fxById(id)._patch);
-      const lo = Math.min(...ps.map(p => p.first)), hi = Math.max(...ps.map(p => Math.min(p.last, u * 512 + 511)));
-      return outSpan(c, { base: 0, upo: MANUAL_UNIS, start: lo, end: hi + 1 });
-    })();
-    const head = h('div', { class: 'outhead', title: 'Click to fold or unfold. Drop fixtures here: they take the next free channels of this universe.' },
-      h('span', { class: 'fold' + (folds.has(key) ? ' shut' : '') }, icon('chev')), h('span', { class: 'on' }, lab), span,
-      h('span', { class: 'sum' }, `${n} fixture${n === 1 ? '' : 's'} · ${fmtN(ch)} ch`), usage);
-    head.addEventListener('click', () => { folds.has(key) ? folds.delete(key) : folds.add(key); renderDock(); });
-    const list = h('div', { class: 'outlist' });
-    ids.forEach((fid, k) => list.append(patchRow(c, fid, k, ids, null)));
-    const rowEl = h('div', { class: 'outrow' + (folds.has(key) ? ' shut' : ''), 'data-key': key }, head, list);
-    dropFixtures(rowEl, dropped => {
-      for (const id of dropped) { assign(id, c, 0); if (u >= 0) { const f = fxById(id), a = manualFreeIn(c, f, u); if (a) f.addr = a; markPatch(); computePatch(); } }
-      commit(); renderRight();
-    });
-    outs.append(rowEl);
-  }
-  // anywhere else: the next free address
-  const ph = h('div', { class: 'outrow mfree' }, h('div', { class: 'outlist' }, h('div', { class: 'ph' }, sorted.length ? 'Drop fixtures here: each takes the next free address. Set a fixture\'s universe and channel in the Inspector.' : 'Drag fixtures here: each takes the next free address. Set a fixture\'s universe and channel in the Inspector.')));
-  dropFixtures(ph, ids => { for (const id of ids) assign(id, c, 0); commit(); renderRight(); ensurePatch();
-    const f = fxById(ids[0]); toast(`${ids.length > 1 ? ids.length + ' fixtures' : f.name} on ${c.name}${f && f.addr ? ', from ' + chLabel(f.addr, c, ' ') : ''}: the next free address. Change it in the Inspector.`); });
-  outs.append(ph);
-  edit.append(outs);
+    h('button', { class: 'btn sm', type: 'button', 'data-tip': 'Address in sequence|The fixtures picked (or all of them) one after another, from the first one\'s address.',
+      onclick: () => { addressInSequence(seqIds, firstAt()); toast(`${seqIds.length} fixtures one after another.`); } }, picked.length > 1 ? `Address ${picked.length} in sequence` : 'Address all in sequence')));
+  const list = h('div', { class: 'outlist' });
+  sorted.forEach((fid, k) => list.append(patchRow(c, fid, k, sorted, null)));
+  list.append(h('div', { class: 'ph' }, sorted.length ? 'Drop more fixtures here: each takes the next free address.' : 'Drag fixtures here: each takes the next free address. Then type its universe and channel.'));
+  const box = h('div', { class: 'outs' }, h('div', { class: 'outrow mlist1' }, list));
+  dropFixtures(box, ids => { for (const id of ids) assign(id, c, 0); commit(); renderRight(); ensurePatch();
+    const f = fxById(ids[0]); toast(`${ids.length > 1 ? ids.length + ' fixtures' : f.name} on ${c.name}${f && f.addr ? ', from ' + chLabel(f.addr, c, ' ') : ''}: the next free address.`); });
+  edit.append(box);
 }
 // Fixtures patched onto a controller set to pixels of another kind (RGB onto RGBW…): the colours would shift along the
 // output, so a short window asks which to change, the fixtures or the controller
@@ -1322,18 +1282,6 @@ function pixelTypeCheck(ids, c) {
         h('button', { class: 'btn primary', type: 'button', onclick: toFixtures }, `Fixture${odd.length > 1 ? 's' : ''} to ${want}`))));
   D.body.append(bg);
   bg.querySelector('.btn.primary').focus();
-}
-// The next free channels in one universe of a manual controller for a fixture, or null when it doesn't fit there
-function manualFreeIn(c, f, u) {
-  let top = u * 512;
-  for (const id of c.chains[0] || []) {
-    const g = fxById(id), p = g && g !== f && g._patch;
-    if (!p || p.first < 0 || p.first >> 9 > u || p.last >> 9 < u) continue;
-    top = Math.max(top, Math.min(p.last + 1, (u + 1) * 512));
-  }
-  const w = BPP(f), need = (f._n || pixelCount(f)) * w, s = top - u * 512;
-  if (s + w > 512 || (need <= 512 && s + need > 512)) return null;
-  return { u, ch: s + 1 };
 }
 // A place fixtures can be dropped on (dragged from the list or the Patch tab)
 function dropFixtures(el, onDrop) {
