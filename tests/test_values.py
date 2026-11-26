@@ -129,6 +129,7 @@ try:
     wheel(rowsel("Angle") + " .slider", 100, times=2)
     check("down past 0° it goes round to 355°", par("angle") == 355, par("angle"))
     sl = rowsel("Angle") + " .slider"
+    time.sleep(0.4)   # a pause, so the wheel's last events are over before the trackpad's first
     pad(sl, [-2])
     check("a trackpad: the first small move after a pause is a notch (355° → 360°)", par("angle") == 360, par("angle"))
     time.sleep(0.3); pad(sl, [-10] * 9)
