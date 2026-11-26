@@ -670,7 +670,7 @@ function renderPatch(body) {
         // at the right of its name: this controller (or all those selected, when it is one of them), after asking
         h('button', { class: 'cdel', type: 'button', title: 'Delete', 'aria-label': 'Delete controller ' + c.name,
           onclick: e => { e.stopPropagation(); if (!mappingLocked()) askDeleteControllers(chosen.has(c.id) ? selCtrls() : [c]); } }, icon('trash'))),
-      h('div', { class: 's mono' }, h('span', null, c.ip + ' · ' + protoName(c) + (c.mode === 'manual' ? ' · manual' : ''))));
+      h('div', { class: 's mono' }, h('span', null, c.ip + ' · ' + protoName(c))));
     onRightClick(item, e => controllerMenu(e, c));
     dropFixtures(item, ids => {
       for (const id of ids) assign(id, c, 0);
